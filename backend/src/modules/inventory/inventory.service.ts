@@ -2358,20 +2358,81 @@ export class InventoryService {
     quantity: number,
     actorId: string,
   ): Promise<string> {
-    const postingDate = businessDate();
+    const result = await this.inspectReturnedStock(tx, {
+      returnId,
+      returnItemId,
+      orderItemId,
+      quantity: new Prisma.Decimal(quantity),
+      condition: 'sellable',
+      actorId,
+      documentDate: businessDate(),
+      accountingDate: businessDate(),
+    });
+    return result.batchId;
+  }
+
+  async inspectReturnedStock(
+    tx: Tx,
+    input: {
+      returnId: string;
+      returnItemId: string;
+      orderItemId: string;
+      quantity: Prisma.Decimal;
+      condition: 'sellable' | 'opened' | 'damaged' | 'expired';
+      locationId?: string;
+      actorId: string;
+      documentDate: Date;
+      accountingDate: Date;
+    },
+  ): Promise<{
+    batchId: string;
+    issueCostValue: Prisma.Decimal;
+    restockJournalId: string | null;
+    writeDownJournalId: string | null;
+  }> {
+    const destination = input.locationId
+      ? await tx.warehouseLocation.findUnique({
+          where: { id: input.locationId },
+        })
+      : null;
+    if (input.locationId && (!destination || !destination.is_active)) {
+      throw conflict(
+        'RETURN_LOCATION_UNAVAILABLE',
+        'The selected return location is unavailable',
+      );
+    }
+    if (
+      destination &&
+      ((input.condition === 'sellable' && !destination.is_sellable) ||
+        (input.condition !== 'sellable' && destination.is_sellable))
+    ) {
+      throw conflict(
+        'RETURN_LOCATION_CONDITION_MISMATCH',
+        input.condition === 'sellable'
+          ? 'Sellable returns require a sellable location'
+          : 'Opened, damaged, and expired returns require a non-sellable location',
+      );
+    }
     const origins = await tx.custodyHolding.findMany({
-      where: { order_item_id: orderItemId, status: 'sold' },
+      where: { order_item_id: input.orderItemId, status: 'sold' },
       include: { batch: true },
       orderBy: [{ issued_at: 'asc' }, { id: 'asc' }],
     });
-    let remaining = D(quantity);
+    let remaining = input.quantity;
     let first = '';
     let returnedValue = D(0);
+    const restored: Array<{
+      batchId: string;
+      variantId: string;
+      locationId: string;
+      quantity: Prisma.Decimal;
+      unitCost: Prisma.Decimal;
+    }> = [];
     for (const origin of origins) {
       if (remaining.isZero()) break;
       const prior = await tx.stockMovement.aggregate({
         where: {
-          return_item: { order_item_id: orderItemId },
+          return_item: { order_item_id: input.orderItemId },
           batch_id: origin.batch_id,
           type: 'return_in',
         },
@@ -2380,14 +2441,17 @@ export class InventoryService {
       const available = origin.quantity.minus(prior._sum.quantity ?? 0);
       if (!available.gt(0)) continue;
       const amount = Prisma.Decimal.min(remaining, available);
-      const reservation = await tx.stockReservation.findFirst({
-        where: {
-          order_item_id: orderItemId,
-          batch_id: origin.batch_id,
-          status: 'consumed',
-        },
-      });
-      if (!reservation)
+      const reservation = input.locationId
+        ? null
+        : await tx.stockReservation.findFirst({
+            where: {
+              order_item_id: input.orderItemId,
+              batch_id: origin.batch_id,
+              status: 'consumed',
+            },
+          });
+      const locationId = input.locationId ?? reservation?.location_id;
+      if (!locationId)
         throw conflict(
           'ORIGINAL_ISSUE_LOCATION_UNAVAILABLE',
           'Original issue location is unavailable',
@@ -2397,28 +2461,28 @@ export class InventoryService {
         where: {
           batch_id_location_id: {
             batch_id: origin.batch_id,
-            location_id: reservation.location_id,
+            location_id: locationId,
           },
         },
         update: { quantity: { increment: amount } },
         create: {
           batch_id: origin.batch_id,
-          location_id: reservation.location_id,
+          location_id: locationId,
           quantity: amount,
         },
       });
       await tx.stockMovement.create({
         data: {
           batch_id: origin.batch_id,
-          return_item_id: returnItemId,
+          return_item_id: input.returnItemId,
           type: 'return_in',
-          to_location: reservation.location_id,
+          to_location: locationId,
           quantity: amount,
           unit_cost_iqd: origin.unit_cost_iqd,
-          reference: `return:${returnId}`,
+          reference: `return:${input.returnId}`,
           source_type: 'return',
-          source_id: returnId,
-          user_id: actorId,
+          source_id: input.returnId,
+          user_id: input.actorId,
         },
       });
       await this.addValue(
@@ -2428,6 +2492,13 @@ export class InventoryService {
         origin.unit_cost_iqd,
       );
       returnedValue = returnedValue.plus(amount.times(origin.unit_cost_iqd));
+      restored.push({
+        batchId: origin.batch_id,
+        variantId: origin.batch.variant_id,
+        locationId,
+        quantity: amount,
+        unitCost: origin.unit_cost_iqd,
+      });
       remaining = remaining.minus(amount);
     }
     if (remaining.gt(0))
@@ -2435,18 +2506,100 @@ export class InventoryService {
         'RETURN_EXCEEDS_ISSUED_QUANTITY',
         'Return exceeds the quantity issued from inventory',
       );
-    if (returnedValue.gt(0))
-      await this.ledger.post(tx, {
+    let restockJournalId: string | null = null;
+    let writeDownJournalId: string | null = null;
+    if (returnedValue.gt(0)) {
+      const restockEntry = await this.ledger.post(tx, {
         sourceType: 'return',
-        sourceId: returnId,
-        event: `restock:${returnItemId}`,
-        documentDate: postingDate,
-        accountingDate: postingDate,
-        createdBy: actorId,
+        sourceId: input.returnId,
+        event: `restock:${input.returnItemId}`,
+        documentDate: input.documentDate,
+        accountingDate: input.accountingDate,
+        createdBy: input.actorId,
         description: 'Returned goods restored at original issue cost',
         lines: this.posting('1000', '5000', returnedValue),
       });
-    return first;
+      restockJournalId = restockEntry.id;
+    }
+    if (input.condition !== 'sellable' && returnedValue.gt(0)) {
+      const writeDownId = randomUUID();
+      const entry = await this.ledger.post(tx, {
+        sourceType: 'inventory_write_down',
+        sourceId: writeDownId,
+        event: 'post',
+        documentDate: input.documentDate,
+        accountingDate: input.accountingDate,
+        createdBy: input.actorId,
+        description: `${input.condition} return ${input.returnId}`,
+        lines: this.posting('5010', '1000', returnedValue),
+      });
+      writeDownJournalId = entry.id;
+      const number = await this.numbers.issue(
+        tx,
+        'inventory_write_down',
+        'INV-WD',
+        input.documentDate,
+      );
+      await tx.inventoryWriteDown.create({
+        data: {
+          id: writeDownId,
+          document_number: number,
+          operation_id: `return:${input.returnItemId}:write-down`,
+          document_date: input.documentDate,
+          accounting_date: input.accountingDate,
+          reason: `${input.condition} return ${input.returnId}`,
+          created_by: input.actorId,
+          journal_entry_id: entry.id,
+        },
+      });
+      for (const row of restored) {
+        await tx.batchStock.update({
+          where: {
+            batch_id_location_id: {
+              batch_id: row.batchId,
+              location_id: row.locationId,
+            },
+          },
+          data: { quantity: { decrement: row.quantity } },
+        });
+        await tx.inventoryWriteDownLine.create({
+          data: {
+            write_down_id: writeDownId,
+            variant_id: row.variantId,
+            batch_id: row.batchId,
+            location_id: row.locationId,
+            quantity: row.quantity,
+            unit_cost_iqd: row.unitCost,
+          },
+        });
+        await tx.stockMovement.create({
+          data: {
+            batch_id: row.batchId,
+            return_item_id: input.returnItemId,
+            type: 'write_down',
+            from_location: row.locationId,
+            quantity: row.quantity,
+            unit_cost_iqd: row.unitCost,
+            reference: number,
+            source_type: 'inventory_write_down',
+            source_id: writeDownId,
+            user_id: input.actorId,
+          },
+        });
+        await this.addValue(
+          tx,
+          row.variantId,
+          row.quantity.negated(),
+          row.unitCost,
+        );
+      }
+    }
+    return {
+      batchId: first,
+      issueCostValue: returnedValue,
+      restockJournalId,
+      writeDownJournalId,
+    };
   }
 
   private async addValue(

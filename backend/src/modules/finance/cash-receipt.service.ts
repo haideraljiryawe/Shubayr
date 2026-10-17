@@ -146,34 +146,40 @@ export class CashReceiptService {
             'Delivery-party cash receipts require an IQD cash account',
           );
         }
-        const [collections, liabilities, priorReceipts] = await Promise.all([
-          tx.deliveryCollection.aggregate({
-            where: {
-              party_id: party.id,
-              status: { in: ['confirmed_full', 'confirmed_short'] },
-              collected_amount: { not: null },
-            },
-            _sum: { collected_amount: true },
-          }),
-          tx.custodyException.aggregate({
-            where: {
-              party_id: party.id,
-              type: 'goods_loss',
-              liability_bearer: 'party',
-              reversal: { is: null },
-            },
-            _sum: { amount_iqd: true },
-          }),
-          tx.cashReceiptVoucher.aggregate({
-            where: { party_id: party.id, reversal: { is: null } },
-            _sum: { amount_iqd: true },
-          }),
-        ]);
+        const [collections, liabilities, priorReceipts, returnRefunds] =
+          await Promise.all([
+            tx.deliveryCollection.aggregate({
+              where: {
+                party_id: party.id,
+                status: { in: ['confirmed_full', 'confirmed_short'] },
+                collected_amount: { not: null },
+              },
+              _sum: { collected_amount: true },
+            }),
+            tx.custodyException.aggregate({
+              where: {
+                party_id: party.id,
+                type: 'goods_loss',
+                liability_bearer: 'party',
+                reversal: { is: null },
+              },
+              _sum: { amount_iqd: true },
+            }),
+            tx.cashReceiptVoucher.aggregate({
+              where: { party_id: party.id, reversal: { is: null } },
+              _sum: { amount_iqd: true },
+            }),
+            tx.returnRefundPayment.aggregate({
+              where: { collection: { party_id: party.id } },
+              _sum: { amount_iqd: true },
+            }),
+          ]);
         const cashCustody = new Prisma.Decimal(
           collections._sum.collected_amount ?? 0,
         )
           .plus(liabilities._sum.amount_iqd ?? 0)
-          .minus(priorReceipts._sum.amount_iqd ?? 0);
+          .minus(priorReceipts._sum.amount_iqd ?? 0)
+          .minus(returnRefunds._sum.amount_iqd ?? 0);
         if (amount.gt(cashCustody)) {
           throw conflict(
             'RECEIPT_EXCEEDS_CASH_CUSTODY',
@@ -643,6 +649,7 @@ export class CashReceiptService {
           select: { amount_iqd: true },
         },
         trip_settlement_allocations: { select: { amount_iqd: true } },
+        return_refund_payments: { select: { amount_iqd: true } },
       },
       orderBy: [
         { confirmed_at: 'asc' },
@@ -663,7 +670,14 @@ export class CashReceiptService {
           (sum, allocation) => sum.plus(allocation.amount_iqd),
           new Prisma.Decimal(0),
         );
-        const remaining = collected.minus(allocated).minus(netted);
+        const refunded = row.return_refund_payments.reduce(
+          (sum, payment) => sum.plus(payment.amount_iqd),
+          new Prisma.Decimal(0),
+        );
+        const remaining = collected
+          .minus(allocated)
+          .minus(netted)
+          .minus(refunded);
         if (!remaining.gt(0)) return [];
         const suggested = left
           ? Prisma.Decimal.min(remaining, left)
@@ -674,7 +688,7 @@ export class CashReceiptService {
             collection_id: row.id,
             order: row.order,
             collected_amount_iqd: Number(collected),
-            allocated_amount_iqd: Number(allocated.plus(netted)),
+            allocated_amount_iqd: Number(allocated.plus(netted).plus(refunded)),
             unsettled_amount_iqd: Number(remaining),
             suggested_amount_iqd: Number(suggested),
             collected_at: row.confirmed_at ?? row.delivered_at,
@@ -727,6 +741,7 @@ export class CashReceiptService {
           select: { amount_iqd: true },
         },
         trip_settlement_allocations: { select: { amount_iqd: true } },
+        return_refund_payments: { select: { amount_iqd: true } },
       },
     });
     const byOrder = new Map(collections.map((row) => [row.order_id, row]));
@@ -772,9 +787,14 @@ export class CashReceiptService {
         (sum, row) => sum.plus(row.amount_iqd),
         new Prisma.Decimal(0),
       );
+      const alreadyRefunded = collection.return_refund_payments.reduce(
+        (sum, row) => sum.plus(row.amount_iqd),
+        new Prisma.Decimal(0),
+      );
       const remainingCollected = collection.collected_amount
         .minus(alreadyAllocated)
-        .minus(alreadyNetted);
+        .minus(alreadyNetted)
+        .minus(alreadyRefunded);
       if (amount.gt(remainingCollected)) {
         throw conflict(
           remainingCollected.lte(0)

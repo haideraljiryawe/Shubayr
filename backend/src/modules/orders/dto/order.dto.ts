@@ -49,6 +49,12 @@ export class PlaceOrderDto {
   @MaxLength(60)
   coupon_code?: string | null;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  loyalty_points?: number;
+
   @IsIn(['cod'])
   @IsOptional()
   payment_method?: 'cod';

@@ -41,9 +41,13 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('inventory.pick', 'inventory', 'Pick reserved inventory'),
   ('inventory.transfer', 'inventory', 'Transfer inventory'),
   ('inventory.adjust', 'inventory', 'Adjust inventory'),
+  ('returns.view', 'returns', 'View customer returns'),
+  ('returns.create', 'returns', 'Create a return for a customer'),
+  ('returns.receive', 'returns', 'Receive approved return goods'),
   ('returns.inspect', 'returns', 'Inspect returns'),
   ('returns.approve', 'returns', 'Approve returns'),
   ('returns.refund', 'returns', 'Refund returns'),
+  ('returns.refund_delivery_fee', 'returns', 'Authorize a delivery-fee refund exception'),
   ('reviews.moderate', 'reviews', 'Moderate product reviews'),
   ('loyalty.adjust', 'loyalty', 'Adjust loyalty balances'),
   ('deliveries.manage', 'deliveries', 'List and manage deliveries'),
@@ -80,7 +84,8 @@ SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'operations' AND p.key IN
   ('orders.view','orders.accept','orders.reject','orders.prepare','orders.mark_ready',
    'orders.handover','orders.cancel','orders.assign_agent','deliveries.manage',
-   'returns.inspect','returns.approve','returns.refund','reviews.moderate',
+   'returns.view','returns.create','returns.receive','returns.inspect',
+   'returns.approve','returns.refund','returns.refund_delivery_fee','reviews.moderate',
    'loyalty.adjust','reports.view')
 ON CONFLICT DO NOTHING;
 

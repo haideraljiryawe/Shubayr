@@ -24,6 +24,7 @@ const MANAGED_KEYS = new Set([
   'sale_rounding_multiple',
   'separation_of_duties_level',
   'discount_tier_coupon_stacking_enabled',
+  'return_window_days',
 ]);
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {

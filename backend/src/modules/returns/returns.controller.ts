@@ -16,9 +16,13 @@ import {
 } from '../../common/decorators/access-policy.decorator';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import {
+  ApproveReturnDto,
   InspectReturnDto,
+  ReceiveReturnDto,
+  RefundReturnDto,
   RequestReturnDto,
   ReturnQueryDto,
+  StaffCreateReturnDto,
 } from './dto/return.dto';
 import { ReturnsService } from './returns.service';
 
@@ -35,9 +39,29 @@ export class ReturnsController {
   }
 
   @Get('queue')
-  @AdminPolicy('returns.inspect')
+  @AdminPolicy('returns.view')
   queue(@Query() query: ReturnQueryDto) {
     return this.returns.queue(query);
+  }
+
+  @Get('queue/:id')
+  @AdminPolicy('returns.view')
+  getStaff(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.returns.getStaff(id);
+  }
+
+  @Post('staff')
+  @AdminPolicy('returns.create')
+  createStaff(
+    @Req() request: UserRequest,
+    @Body() input: StaffCreateReturnDto,
+  ) {
+    return this.returns.createStaff(
+      { id: request.user.id, permissions: request.user.permissions },
+      input,
+    );
   }
 
   @Post()
@@ -46,24 +70,72 @@ export class ReturnsController {
     return this.returns.request(request.user.id, request.user.role!, input);
   }
 
+  @Get(':id')
+  @AppPolicy('customer')
+  getOwned(
+    @Req() request: UserRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+  ) {
+    return this.returns.getOwned(request.user.id, id);
+  }
+
+  @Post(':id/approve')
+  @HttpCode(200)
+  @AdminPolicy('returns.approve')
+  approve(
+    @Req() request: UserRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ApproveReturnDto,
+  ) {
+    return this.returns.approve(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      input,
+    );
+  }
+
+  @Post(':id/receive')
+  @HttpCode(200)
+  @AdminPolicy('returns.receive')
+  receive(
+    @Req() request: UserRequest,
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ReceiveReturnDto,
+  ) {
+    return this.returns.receive(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      input,
+    );
+  }
+
   @Post(':id/inspect')
   @HttpCode(200)
-  @AdminPolicy('returns.inspect', 'returns.approve')
+  @AdminPolicy('returns.inspect')
   inspect(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
     @Body() input: InspectReturnDto,
   ) {
-    return this.returns.inspect(request.user.id, id, input);
+    return this.returns.inspect(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      input,
+    );
   }
 
-  @Post(':id/complete')
+  @Post(':id/refund')
   @HttpCode(200)
   @AdminPolicy('returns.refund')
-  complete(
+  refund(
     @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: RefundReturnDto,
   ) {
-    return this.returns.complete(request.user.id, id);
+    return this.returns.refund(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      input,
+    );
   }
 }

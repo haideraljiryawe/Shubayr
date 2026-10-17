@@ -8,14 +8,30 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { ApiError, api, type Address, type Governorate, type Order, type OrderItem } from "@/lib/api";
-import { deliveryProblem, governorateName, isAddressRefusal, type DeliveryProblem } from "@/lib/delivery";
+import {
+  ApiError,
+  api,
+  type Address,
+  type Governorate,
+  type Order,
+  type OrderItem,
+} from "@/lib/api";
+import {
+  deliveryProblem,
+  governorateName,
+  isAddressRefusal,
+  type DeliveryProblem,
+} from "@/lib/delivery";
 import type { CartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
 import { deliveryLocation, useDeliveryLocation } from "@/lib/delivery-location";
 import { useCart, type CartViewLine } from "@/lib/use-cart";
 import { useDeliveryPricing } from "@/lib/use-pricing";
-import { acceptedPriceVersions, priceChanges, type PriceChange } from "@/lib/order-lifecycle";
+import {
+  acceptedPriceVersions,
+  priceChanges,
+  type PriceChange,
+} from "@/lib/order-lifecycle";
 import { useResource } from "@/lib/use-resource";
 import {
   AddressForm,
@@ -59,7 +75,10 @@ interface PlacedOrder {
   couponCode: string | null;
 }
 
-function summariseSaved(address: Address, governorate: string | null): ChosenAddress {
+function summariseSaved(
+  address: Address,
+  governorate: string | null,
+): ChosenAddress {
   return {
     id: address.id ?? null,
     title: address.label ?? "",
@@ -72,14 +91,19 @@ function summariseSaved(address: Address, governorate: string | null): ChosenAdd
   };
 }
 
-function summariseTyped(delivery: DeliveryDetails, governorate: string | null): ChosenAddress {
+function summariseTyped(
+  delivery: DeliveryDetails,
+  governorate: string | null,
+): ChosenAddress {
   return {
     id: null,
     title: delivery.name,
     phone: delivery.phone,
     governorate,
     lines: [
-      [delivery.city, delivery.area, delivery.street].filter(Boolean).join(" — "),
+      [delivery.city, delivery.area, delivery.street]
+        .filter(Boolean)
+        .join(" — "),
       delivery.details,
     ].filter(Boolean),
   };
@@ -136,14 +160,22 @@ export function CheckoutFlow() {
   );
   const addressBook = savedAddresses.data ?? [];
   // The governorates the store lists, with whether a zone serves each one.
-  const governorateList = useResource<Governorate[]>(() => api.listGovernorates(), []);
-  const governorates = new Map((governorateList.data ?? []).map((item) => [item.id, item]));
+  const governorateList = useResource<Governorate[]>(
+    () => api.listGovernorates(),
+    [],
+  );
+  const governorates = new Map(
+    (governorateList.data ?? []).map((item) => [item.id, item]),
+  );
   const nameOf = (id: string | null | undefined) => {
     const governorate = id ? governorates.get(id) : undefined;
     return governorate ? governorateName(governorate, locale) : null;
   };
   /** The message for an address that cannot be delivered to, or null. */
-  const problemText = (problem: DeliveryProblem | null, governorateId: string | null | undefined) =>
+  const problemText = (
+    problem: DeliveryProblem | null,
+    governorateId: string | null | undefined,
+  ) =>
     problem === "missingGovernorate"
       ? t("delivery.missingGovernorate")
       : problem === "unserved"
@@ -156,7 +188,9 @@ export function CheckoutFlow() {
   // first one. No effect has to reconcile a selection with a list that arrives
   // later.
   const saved =
-    addressBook.find((item) => item.id === (chosenId ?? remembered.addressId)) ??
+    addressBook.find(
+      (item) => item.id === (chosenId ?? remembered.addressId),
+    ) ??
     addressBook.find((item) => item.is_default) ??
     addressBook[0] ??
     null;
@@ -174,21 +208,36 @@ export function CheckoutFlow() {
   const pickingSaved = isAuthenticated && !typingNew && addressBook.length > 0;
   // Until the governorates are in, nothing is judged (a slow list is not "unserved").
   const governoratesReady = governorates.size > 0;
-  const savedProblem = pickingSaved && saved && governoratesReady ? deliveryProblem(saved, governorates) : null;
+  const savedProblem =
+    pickingSaved && saved && governoratesReady
+      ? deliveryProblem(saved, governorates)
+      : null;
   const typedProblem =
     !pickingSaved && governoratesReady && deliveryValues.governorate_id
-      ? deliveryProblem({ governorate_id: deliveryValues.governorate_id }, governorates)
+      ? deliveryProblem(
+          { governorate_id: deliveryValues.governorate_id },
+          governorates,
+        )
       : null;
   // The delivery fee and the full total for the address being ordered to:
   // the server's figures when signed in, the same arithmetic for a guest.
   const location =
     pickingSaved && saved
-      ? { addressId: saved.id ?? null, governorateId: saved.governorate_id ?? null }
-      : { addressId: null, governorateId: deliveryValues.governorate_id || null };
+      ? {
+          addressId: saved.id ?? null,
+          governorateId: saved.governorate_id ?? null,
+        }
+      : {
+          addressId: null,
+          governorateId: deliveryValues.governorate_id || null,
+        };
   const pricing = useDeliveryPricing(view, location);
   const totals = pricing.totals;
   const blocked =
-    problemText(pickingSaved ? savedProblem : typedProblem, pickingSaved ? saved?.governorate_id : deliveryValues.governorate_id) ??
+    problemText(
+      pickingSaved ? savedProblem : typedProblem,
+      pickingSaved ? saved?.governorate_id : deliveryValues.governorate_id,
+    ) ??
     // The server refused to price it (the governorate stopped being served).
     problemText(pricing.problem, location.governorateId);
 
@@ -218,15 +267,24 @@ export function CheckoutFlow() {
       unit_price: line.unit_price,
       line_total: line.line_total,
       discount_share: 0,
+      coupon_discount_share: 0,
+      tier_discount_share: 0,
+      loyalty_discount_share: 0,
+      other_adjustment_share: 0,
       net_line_total: line.line_total,
+      net_paid_total: line.line_total,
     }));
 
     try {
       // A saved address already has an id; a typed one is created first, which
       // also saves it to the account for next time.
-      let addressId = pickingSaved ? (saved?.id ?? null) : createdAddressId.current;
+      let addressId = pickingSaved
+        ? (saved?.id ?? null)
+        : createdAddressId.current;
       if (!addressId) {
-        const created = await api.createAddress(toAddressCreate(deliveryValues));
+        const created = await api.createAddress(
+          toAddressCreate(deliveryValues),
+        );
         if (!created.id) {
           throw new ApiError(422, "Address was created without an id");
         }
@@ -240,7 +298,9 @@ export function CheckoutFlow() {
           payment_method: "cod",
           coupon_code: couponCode,
           // The idempotency key stays: the refused attempt placed nothing.
-          ...(accepted ? { accepted_price_versions: acceptedPriceVersions(accepted) } : {}),
+          ...(accepted
+            ? { accepted_price_versions: acceptedPriceVersions(accepted) }
+            : {}),
         },
         {
           idempotencyKey,
@@ -258,8 +318,16 @@ export function CheckoutFlow() {
       // cart snapshot still carries the old ones.
       const placedLines = accepted
         ? snapshot.map((line) => {
-            const item = (order.items ?? []).find((row) => row.variant_id === line.variant_id);
-            return item ? { ...line, unit_price: item.unit_price ?? line.unit_price, line_total: item.line_total ?? line.line_total } : line;
+            const item = (order.items ?? []).find(
+              (row) => row.variant_id === line.variant_id,
+            );
+            return item
+              ? {
+                  ...line,
+                  unit_price: item.unit_price ?? line.unit_price,
+                  line_total: item.line_total ?? line.line_total,
+                }
+              : line;
           })
         : snapshot;
       // The order's own figures are the truth: the delivery fee is only known
@@ -272,13 +340,19 @@ export function CheckoutFlow() {
         deliveryFee: order.delivery_fee ?? snapshotTotals.deliveryFee,
         deliveryPending: order.delivery_fee === undefined,
         discount,
-        couponDiscount: order.coupon_discount ?? Math.max(0, discount - tierDiscount),
+        couponDiscount:
+          order.coupon_discount ?? Math.max(0, discount - tierDiscount),
         tierDiscount,
         tierPercent: order.applied_tier?.percent ?? snapshotTotals.tierPercent,
         total: order.total ?? snapshotTotals.total,
       };
       setPriceChange(null);
-      setPlaced({ order, lines: placedLines, totals: placedTotals, couponCode });
+      setPlaced({
+        order,
+        lines: placedLines,
+        totals: placedTotals,
+        couponCode,
+      });
       setStage("done");
       // The server consumed its own cart when it placed the order; this drops
       // the device copy and re-reads what is left.
@@ -387,7 +461,9 @@ export function CheckoutFlow() {
             className="mx-auto size-12 text-primary-dark"
             aria-hidden
           />
-          <h2 className="mt-4 text-xl font-bold text-text">{t("emptyTitle")}</h2>
+          <h2 className="mt-4 text-xl font-bold text-text">
+            {t("emptyTitle")}
+          </h2>
           <p className="mt-2 text-sm text-text-muted">{t("emptyBody")}</p>
           <Link
             href="/cart"
@@ -426,7 +502,10 @@ export function CheckoutFlow() {
           address={
             pickingSaved && saved
               ? summariseSaved(saved, nameOf(saved.governorate_id))
-              : summariseTyped(deliveryValues, nameOf(deliveryValues.governorate_id))
+              : summariseTyped(
+                  deliveryValues,
+                  nameOf(deliveryValues.governorate_id),
+                )
           }
           tiers={pricing.tiers}
           blocked={blocked}
@@ -478,7 +557,10 @@ export function CheckoutFlow() {
             selectedId={saved?.id ?? null}
             onSelect={(address) => {
               setChosenId(address.id ?? null);
-              deliveryLocation.setAddress(address.id ?? null, address.governorate_id ?? null);
+              deliveryLocation.setAddress(
+                address.id ?? null,
+                address.governorate_id ?? null,
+              );
             }}
             onUseNew={() => setTypingNew(true)}
           />
@@ -504,7 +586,8 @@ export function CheckoutFlow() {
             onChange={(next) => {
               setDelivery(next);
               // The governorate typed here prices the cart too.
-              if (next.governorate_id !== deliveryValues.governorate_id) deliveryLocation.setGovernorate(next.governorate_id || null);
+              if (next.governorate_id !== deliveryValues.governorate_id)
+                deliveryLocation.setGovernorate(next.governorate_id || null);
             }}
             onSubmit={() => {
               // A typed address wins over the book until they go back.

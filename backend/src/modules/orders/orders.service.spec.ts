@@ -18,6 +18,7 @@ const fingerprint = createHash('sha256')
     JSON.stringify({
       address_id: input.address_id,
       coupon_code: null,
+      loyalty_points: 0,
       payment_method: 'cod',
       accepted_price_versions: [],
     }),
@@ -638,7 +639,7 @@ describe('OrdersService', () => {
     );
   });
 
-  it('updates a reduced line and its net discount allocation atomically', async () => {
+  it('updates a reduced line and restores excess redeemed points atomically', async () => {
     const update = jest.fn(({ data }: { data: Record<string, unknown> }) => {
       if ('line_total' in data && !('net_line_total' in data)) {
         throw new Error('order_items_net_values_check');
@@ -656,6 +657,12 @@ describe('OrdersService', () => {
         update,
       },
       order: { update: jest.fn().mockResolvedValue({}) },
+      loyaltyAccount: {
+        upsert: jest.fn().mockResolvedValue({ id: 'loyalty-account-1' }),
+      },
+      loyaltyLedger: {
+        create: jest.fn().mockResolvedValue({ id: 'loyalty-entry-1' }),
+      },
     };
     const inventory = {
       reduceOrderItemReservations: jest.fn().mockResolvedValue(undefined),
@@ -674,7 +681,10 @@ describe('OrdersService', () => {
           tx: unknown,
           order: {
             id: string;
+            user_id: string;
             discount: Prisma.Decimal;
+            loyalty_points_redeemed: number;
+            loyalty_redemption_amount: Prisma.Decimal;
             delivery_fee: Prisma.Decimal;
           },
           item: { id: string; unit_price: Prisma.Decimal },
@@ -686,7 +696,10 @@ describe('OrdersService', () => {
       tx,
       {
         id: 'order-1',
+        user_id: 'customer-1',
         discount: new Prisma.Decimal(3000),
+        loyalty_points_redeemed: 8000,
+        loyalty_redemption_amount: new Prisma.Decimal(8000),
         delivery_fee: new Prisma.Decimal(5000),
       },
       { id: 'item-1', unit_price: new Prisma.Decimal(10000) },
@@ -700,7 +713,22 @@ describe('OrdersService', () => {
         quantity: 1,
         line_total: 10000,
         discount_share: 3000,
+        coupon_discount_share: 0,
+        tier_discount_share: 0,
+        loyalty_discount_share: 7000,
         net_line_total: 7000,
+        net_paid_total: new Prisma.Decimal(0),
+      },
+    });
+    expect(tx.loyaltyLedger.create).toHaveBeenCalledWith({
+      data: {
+        account_id: 'loyalty-account-1',
+        order_id: 'order-1',
+        type: 'adjust',
+        reason: 'order_quantity_reduction_restore',
+        points: 1000,
+        created_by: 'customer-1',
+        note: 'Restored because an accepted shortage reduced payable goods',
       },
     });
     expect(tx.order.update).toHaveBeenCalledWith({
@@ -708,7 +736,9 @@ describe('OrdersService', () => {
       data: {
         subtotal: new Prisma.Decimal(10000),
         discount: new Prisma.Decimal(3000),
-        total: new Prisma.Decimal(12000),
+        loyalty_points_redeemed: 7000,
+        loyalty_redemption_amount: new Prisma.Decimal(7000),
+        total: new Prisma.Decimal(5000),
       },
     });
   });

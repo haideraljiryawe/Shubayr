@@ -789,12 +789,14 @@ try {
     method: 'POST',
     expected: 201,
     body: {
+      operation_id: randomUUID(),
       order_id: raised.id,
       reason: 'D1 net-share return',
       items: [
         {
           order_item_id: returnLine.id,
           quantity: returnLine.quantity,
+          reason_code: 'change_of_mind',
           reason: 'Return after product is hidden',
         },
       ],

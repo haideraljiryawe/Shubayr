@@ -188,6 +188,8 @@ model JournalEntry {
   custody_exception_posting          CustodyExceptionPosting?
   custody_exception_reversal_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionReversalJournal")
   reversed_custody_exception_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionOriginalJournal")
+  return_posting                     ReturnPosting?
+  return_refund_payment              ReturnRefundPayment?
   trip_fare_accrual                  ExternalDriverTrip?              @relation("ExternalDriverTripFareAccrual")
   trip_fare_payment                  ExternalDriverTrip?              @relation("ExternalDriverTripFarePayment")
   trip_fare_netting                  ExternalDriverTrip?              @relation("ExternalDriverTripFareNetting")
@@ -217,23 +219,24 @@ model JournalLine {
 }
 
 model CashAccount {
-  id                         String               @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                       String               @db.VarChar(160)
-  kind                       String               @db.VarChar(12)
-  currency_code              String               @db.Char(3)
-  ledger_account_id          String               @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
-  is_active                  Boolean              @default(true)
-  created_at                 DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at                 DateTime             @default(now()) @db.Timestamptz(6)
-  currency                   Currency             @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
-  ledger_account             LedgerAccount        @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
-  transfers_from             CashTransfer[]       @relation("CashTransferFrom")
-  transfers_to               CashTransfer[]       @relation("CashTransferTo")
+  id                         String                @id(map: "cash_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                       String                @db.VarChar(160)
+  kind                       String                @db.VarChar(12)
+  currency_code              String                @db.Char(3)
+  ledger_account_id          String                @unique(map: "cash_accounts_ledger_account_id_key") @db.Uuid
+  is_active                  Boolean               @default(true)
+  created_at                 DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime              @default(now()) @db.Timestamptz(6)
+  currency                   Currency              @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_currency_code_fkey")
+  ledger_account             LedgerAccount         @relation(fields: [ledger_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cash_accounts_ledger_account_id_fkey")
+  transfers_from             CashTransfer[]        @relation("CashTransferFrom")
+  transfers_to               CashTransfer[]        @relation("CashTransferTo")
   opening_balances           CashOpeningBalance[]
   supplier_payments          SupplierPayment[]
   cash_receipts              CashReceiptVoucher[]
   custody_exception_refunds  CustodyException[]
   external_driver_trip_fares ExternalDriverTrip[]
+  return_refund_payments     ReturnRefundPayment[]
 
   @@map("cash_accounts")
 }
@@ -440,6 +443,9 @@ model User {
   closed_external_driver_trips         ExternalDriverTrip[]            @relation("ExternalDriverTripCloser")
   handed_over_external_trip_orders     ExternalDriverTripOrder[]
   recorded_external_driver_trip_events ExternalDriverTripEvent[]       @relation("ExternalDriverTripEventRecorder")
+  created_returns                      Return[]                        @relation("ReturnCreator")
+  return_events                        ReturnEvent[]
+  return_refund_payments               ReturnRefundPayment[]           @relation("ReturnRefundPaymentCreator")
 
   @@map("users")
 }
@@ -1356,35 +1362,36 @@ model Warehouse {
 }
 
 model WarehouseLocation {
-  id                    String                   @id(map: "warehouse_locations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  warehouse_id          String                   @db.Uuid
-  zone                  String?                  @db.VarChar(40)
-  aisle                 String?                  @db.VarChar(40)
-  shelf                 String?                  @db.VarChar(40)
-  bin                   String?                  @db.VarChar(40)
-  code                  String                   @db.VarChar(40)
-  description           String?                  @db.Text
-  is_sellable           Boolean                  @default(true)
-  is_active             Boolean                  @default(true)
-  created_at            DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime                 @default(now()) @db.Timestamptz(6)
-  warehouse             Warehouse                @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "warehouse_locations_warehouse_id_fkey")
-  batch_stock           BatchStock[]
-  movements_from        StockMovement[]          @relation("StockMovementFromLocation")
-  movements_to          StockMovement[]          @relation("StockMovementToLocation")
-  stock_reservations    StockReservation[]
-  pick_list_items       PickListItem[]
-  opening_lines         InventoryOpeningLine[]
-  transfer_lines_from   StockTransferLine[]      @relation("StockTransferFromLocation")
-  transfer_lines_to     StockTransferLine[]      @relation("StockTransferToLocation")
-  count_lines           StockCountLine[]
-  write_down_lines      InventoryWriteDownLine[]
-  purchase_invoices     PurchaseInvoice[]
-  purchase_items        PurchaseInvoiceItem[]
-  supplier_return_lines SupplierReturnLine[]
-  retrieval_lines       RetrievalLine[]
-  scoped_counts         StockCount[]
-  custodyExceptionLines CustodyExceptionLine[]
+  id                     String                   @id(map: "warehouse_locations_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  warehouse_id           String                   @db.Uuid
+  zone                   String?                  @db.VarChar(40)
+  aisle                  String?                  @db.VarChar(40)
+  shelf                  String?                  @db.VarChar(40)
+  bin                    String?                  @db.VarChar(40)
+  code                   String                   @db.VarChar(40)
+  description            String?                  @db.Text
+  is_sellable            Boolean                  @default(true)
+  is_active              Boolean                  @default(true)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  warehouse              Warehouse                @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "warehouse_locations_warehouse_id_fkey")
+  batch_stock            BatchStock[]
+  movements_from         StockMovement[]          @relation("StockMovementFromLocation")
+  movements_to           StockMovement[]          @relation("StockMovementToLocation")
+  stock_reservations     StockReservation[]
+  pick_list_items        PickListItem[]
+  opening_lines          InventoryOpeningLine[]
+  transfer_lines_from    StockTransferLine[]      @relation("StockTransferFromLocation")
+  transfer_lines_to      StockTransferLine[]      @relation("StockTransferToLocation")
+  count_lines            StockCountLine[]
+  write_down_lines       InventoryWriteDownLine[]
+  purchase_invoices      PurchaseInvoice[]
+  purchase_items         PurchaseInvoiceItem[]
+  supplier_return_lines  SupplierReturnLine[]
+  retrieval_lines        RetrievalLine[]
+  scoped_counts          StockCount[]
+  custodyExceptionLines  CustodyExceptionLine[]
+  inspected_return_items ReturnItem[]
 
   @@unique([warehouse_id, zone, aisle, shelf, bin], map: "warehouse_locations_warehouse_id_zone_aisle_shelf_bin_key")
   @@unique([warehouse_id, code], map: "warehouse_locations_warehouse_id_code_key")
@@ -1575,6 +1582,8 @@ model Order {
   next_discount_tier_percent          Decimal?                  @db.Decimal(5, 2)
   next_discount_tier_amount_remaining Decimal?                  @db.Decimal(20, 6)
   total                               Decimal                   @default(0) @db.Decimal(20, 6)
+  loyalty_points_redeemed             Int                       @default(0)
+  loyalty_redemption_amount           Decimal                   @default(0) @db.Decimal(20, 6)
   currency_code                       String                    @default("IQD") @db.Char(3)
   document_date                       DateTime                  @db.Date
   accounting_date                     DateTime                  @db.Date
@@ -1650,7 +1659,12 @@ model OrderItem {
   unit_price              Decimal                @db.Decimal(20, 6)
   line_total              Decimal                @db.Decimal(20, 6)
   discount_share          Decimal                @default(0) @db.Decimal(20, 6)
+  coupon_discount_share   Decimal                @default(0) @db.Decimal(20, 6)
+  tier_discount_share     Decimal                @default(0) @db.Decimal(20, 6)
+  loyalty_discount_share  Decimal                @default(0) @db.Decimal(20, 6)
+  other_adjustment_share  Decimal                @default(0) @db.Decimal(20, 6)
   net_line_total          Decimal                @default(0) @db.Decimal(20, 6)
+  net_paid_total          Decimal                @default(0) @db.Decimal(20, 6)
   currency_code           String                 @default("IQD") @db.Char(3)
   base_unit               String                 @default("piece") @db.VarChar(32)
   whole_units_only        Boolean                @default(true)
@@ -1728,6 +1742,7 @@ model DeliveryCollection {
   cash_receipt_allocations      CashReceiptAllocation[]
   custody_exceptions            CustodyException[]
   trip_settlement_allocations   ExternalDriverTripSettlementAllocation[]
+  return_refund_payments        ReturnRefundPayment[]
 
   @@index([status, delivered_at(sort: Desc), id], map: "idx_delivery_collections_status_time")
   @@index([party_id, status, delivered_at], map: "idx_delivery_collections_party_status_time")
@@ -2352,55 +2367,128 @@ model RetrievalLine {
 }
 
 model Return {
-  id              String             @id(map: "returns_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id        String             @db.Uuid
-  user_id         String             @db.Uuid
-  type            String             @default("return") @db.VarChar(20)
-  status          String             @default("requested") @db.VarChar(30)
-  reason          String?            @db.Text
-  expected_refund Decimal            @default(0) @db.Decimal(20, 6)
-  refund_amount   Decimal            @default(0) @db.Decimal(20, 6)
-  currency_code   String             @default("IQD") @db.Char(3)
-  document_date   DateTime           @db.Date
-  accounting_date DateTime           @db.Date
-  reviewed_by     String?            @db.Uuid
-  reviewed_at     DateTime?          @db.Timestamptz(6)
-  completed_at    DateTime?          @db.Timestamptz(6)
-  created_at      DateTime           @default(now()) @db.Timestamptz(6)
-  order           Order              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_order_id_fkey")
-  user            User               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_user_id_fkey")
-  reviewer        User?              @relation("ReturnReviewer", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_reviewed_by_fkey")
-  items           ReturnItem[]
-  refund          RefundLedgerEntry?
-  loyalty_ledger  LoyaltyLedger[]
+  id                       String                @id(map: "returns_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number          String                @unique(map: "returns_document_number_key") @db.VarChar(40)
+  order_id                 String                @db.Uuid
+  user_id                  String                @db.Uuid
+  created_by               String                @db.Uuid
+  source                   String                @default("customer") @db.VarChar(20)
+  type                     String                @default("return") @db.VarChar(20)
+  status                   String                @default("requested") @db.VarChar(30)
+  reason                   String?               @db.Text
+  expected_refund          Decimal               @default(0) @db.Decimal(20, 6)
+  refund_amount            Decimal               @default(0) @db.Decimal(20, 6)
+  delivery_fee_refund      Decimal               @default(0) @db.Decimal(20, 6)
+  uncollected_offset       Decimal               @default(0) @db.Decimal(20, 6)
+  cash_refund_amount       Decimal               @default(0) @db.Decimal(20, 6)
+  points_earned_reversed   Int                   @default(0)
+  points_redeemed_restored Int                   @default(0)
+  currency_code            String                @default("IQD") @db.Char(3)
+  document_date            DateTime              @db.Date
+  accounting_date          DateTime              @db.Date
+  reviewed_by              String?               @db.Uuid
+  reviewed_at              DateTime?             @db.Timestamptz(6)
+  completed_at             DateTime?             @db.Timestamptz(6)
+  created_at               DateTime              @default(now()) @db.Timestamptz(6)
+  order                    Order                 @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_order_id_fkey")
+  user                     User                  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_user_id_fkey")
+  creator                  User                  @relation("ReturnCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_created_by_fkey")
+  reviewer                 User?                 @relation("ReturnReviewer", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "returns_reviewed_by_fkey")
+  items                    ReturnItem[]
+  refund                   RefundLedgerEntry?
+  loyalty_ledger           LoyaltyLedger[]
+  events                   ReturnEvent[]
+  postings                 ReturnPosting[]
+  refund_payments          ReturnRefundPayment[]
 
   @@index([order_id], map: "idx_returns_order")
   @@map("returns")
 }
 
 model ReturnItem {
-  id                String          @id(map: "return_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  return_id         String          @db.Uuid
-  order_item_id     String          @db.Uuid
-  quantity          Decimal         @db.Decimal(20, 3)
-  approved_quantity Decimal         @default(0) @db.Decimal(20, 3)
-  customer_reason   String          @db.Text
-  unit_price        Decimal         @db.Decimal(20, 6)
-  discount_share    Decimal         @default(0) @db.Decimal(20, 6)
-  net_amount        Decimal         @default(0) @db.Decimal(20, 6)
-  currency_code     String          @default("IQD") @db.Char(3)
-  base_unit         String          @default("piece") @db.VarChar(32)
-  whole_units_only  Boolean         @default(true)
-  condition         String?         @db.VarChar(20)
-  restock           Boolean         @default(false)
-  batch_id          String?         @db.Uuid
-  return            Return          @relation(fields: [return_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "return_items_return_id_fkey")
-  order_item        OrderItem       @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_order_item_id_fkey")
-  batch             InventoryBatch? @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_batch_id_fkey")
-  movements         StockMovement[]
+  id                        String             @id(map: "return_items_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id                 String             @db.Uuid
+  order_item_id             String             @db.Uuid
+  quantity                  Decimal            @db.Decimal(20, 3)
+  approved_quantity         Decimal            @default(0) @db.Decimal(20, 3)
+  customer_reason           String             @db.Text
+  reason_code               String             @default("other") @db.VarChar(24)
+  allocation_start_quantity Decimal            @default(0) @db.Decimal(20, 3)
+  unit_price                Decimal            @db.Decimal(20, 6)
+  discount_share            Decimal            @default(0) @db.Decimal(20, 6)
+  net_amount                Decimal            @default(0) @db.Decimal(20, 6)
+  approved_refund           Decimal            @default(0) @db.Decimal(20, 6)
+  earned_points_share       Int                @default(0)
+  redeemed_points_share     Int                @default(0)
+  issue_cost_value          Decimal            @default(0) @db.Decimal(20, 6)
+  currency_code             String             @default("IQD") @db.Char(3)
+  base_unit                 String             @default("piece") @db.VarChar(32)
+  whole_units_only          Boolean            @default(true)
+  condition                 String?            @db.VarChar(20)
+  restock                   Boolean            @default(false)
+  batch_id                  String?            @db.Uuid
+  inspection_location_id    String?            @db.Uuid
+  return                    Return             @relation(fields: [return_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "return_items_return_id_fkey")
+  order_item                OrderItem          @relation(fields: [order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_order_item_id_fkey")
+  batch                     InventoryBatch?    @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_batch_id_fkey")
+  inspection_location       WarehouseLocation? @relation(fields: [inspection_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_items_inspection_location_id_fkey")
+  movements                 StockMovement[]
 
   @@unique([return_id, order_item_id], map: "return_items_return_id_order_item_id_key")
   @@map("return_items")
+}
+
+model ReturnEvent {
+  id              String   @id(map: "return_events_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id       String   @db.Uuid
+  type            String   @db.VarChar(30)
+  operation_id    String   @unique(map: "return_events_operation_id_key") @db.VarChar(128)
+  document_date   DateTime @db.Date
+  accounting_date DateTime @db.Date
+  note            String?  @db.VarChar(500)
+  actor_id        String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  return          Return   @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_events_return_id_fkey")
+  actor           User     @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_events_actor_id_fkey")
+
+  @@index([return_id, created_at, id], map: "idx_return_events_return")
+  @@map("return_events")
+}
+
+model ReturnPosting {
+  id               String       @id(map: "return_postings_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id        String       @db.Uuid
+  role             String       @db.VarChar(64)
+  journal_entry_id String       @unique(map: "return_postings_journal_key") @db.Uuid
+  return           Return       @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_postings_return_id_fkey")
+  journal_entry    JournalEntry @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_postings_journal_id_fkey")
+
+  @@unique([return_id, role], map: "return_postings_return_role_key")
+  @@map("return_postings")
+}
+
+model ReturnRefundPayment {
+  id               String              @id(map: "return_refund_payments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id        String              @db.Uuid
+  operation_id     String              @unique(map: "return_refund_payments_operation_id_key") @db.VarChar(128)
+  method           String              @db.VarChar(24)
+  amount_iqd       Decimal             @db.Decimal(20, 6)
+  cash_account_id  String?             @db.Uuid
+  collection_id    String?             @db.Uuid
+  proof_reference  String?             @db.VarChar(160)
+  document_date    DateTime            @db.Date
+  accounting_date  DateTime            @db.Date
+  created_by       String              @db.Uuid
+  journal_entry_id String              @unique(map: "return_refund_payments_journal_key") @db.Uuid
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  return           Return              @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_return_id_fkey")
+  cash_account     CashAccount?        @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_cash_account_id_fkey")
+  collection       DeliveryCollection? @relation(fields: [collection_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_collection_id_fkey")
+  creator          User                @relation("ReturnRefundPaymentCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_created_by_fkey")
+  journal_entry    JournalEntry        @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_journal_entry_id_fkey")
+
+  @@index([return_id, created_at, id], map: "idx_return_refund_payments_return")
+  @@map("return_refund_payments")
 }
 
 model RefundLedgerEntry {

@@ -76,17 +76,29 @@ try {
   const pendingReturn = randomUUID();
   await db.query(
     `INSERT INTO returns
-      (id,order_id,user_id,status,document_date,accounting_date)
-     VALUES ($1,$2,$3,'requested',$4,$4)`,
-    [pendingReturn, returnOrder, blocked.user.id, businessDate()],
+      (id,document_number,order_id,user_id,created_by,status,document_date,accounting_date)
+     VALUES ($1,$2,$3,$4,$4,'requested',$5,$5)`,
+    [
+      pendingReturn,
+      `RET-M1-PENDING-${pendingReturn.slice(0, 8)}`,
+      returnOrder,
+      blocked.user.id,
+      businessDate(),
+    ],
   );
   const refundOrder = await insertOrder(blocked.user.id, 'delivered', 'REFUND');
   const completedReturn = randomUUID();
   await db.query(
     `INSERT INTO returns
-      (id,order_id,user_id,status,document_date,accounting_date,completed_at)
-     VALUES ($1,$2,$3,'completed',$4,$4,now())`,
-    [completedReturn, refundOrder, blocked.user.id, businessDate()],
+      (id,document_number,order_id,user_id,created_by,status,document_date,accounting_date,completed_at)
+     VALUES ($1,$2,$3,$4,$4,'completed',$5,$5,now())`,
+    [
+      completedReturn,
+      `RET-M1-COMPLETE-${completedReturn.slice(0, 8)}`,
+      refundOrder,
+      blocked.user.id,
+      businessDate(),
+    ],
   );
   const adminId = (
     await db.query("SELECT id FROM users WHERE username='admin'")
