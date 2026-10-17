@@ -1224,6 +1224,7 @@ async function seedPartialReturnDemo(
           line_total: calculateLineTotal(prices[index], quantities[index]),
           discount_share: 0,
           net_line_total: calculateLineTotal(prices[index], quantities[index]),
+          net_paid_total: calculateLineTotal(prices[index], quantities[index]),
         })),
       },
       payments: {
@@ -1403,8 +1404,10 @@ async function seedPartialReturnDemo(
     update: {},
     create: {
       id: returnId,
+      document_number: 'RET-SEED-000001',
       order_id: orderId,
       user_id: customerId,
+      created_by: customerId,
       status: 'completed',
       reason: 'Seeded partial return',
       expected_refund: refund,
@@ -1741,6 +1744,7 @@ async function seedCustomerOrders(
               line_total: lineTotal,
               discount_share: 0,
               net_line_total: lineTotal,
+              net_paid_total: lineTotal,
             },
           },
           payments: {

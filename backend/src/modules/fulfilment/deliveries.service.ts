@@ -917,6 +917,12 @@ export class DeliveriesService {
               user_id: true,
               total: true,
               delivery_fee: true,
+              returns: {
+                where: {
+                  status: { in: ['inspected', 'refunded', 'completed'] },
+                },
+                select: { uncollected_offset: true },
+              },
             },
           },
           party: {
@@ -949,6 +955,10 @@ export class DeliveriesService {
             include: {
               trip: { select: { id: true, document_number: true } },
             },
+            orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+          },
+          return_refund_payments: {
+            select: { id: true, amount_iqd: true, created_at: true },
             orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
           },
           custody_exceptions: {
@@ -1184,7 +1194,14 @@ export class DeliveriesService {
     confirmed_at: Date | null;
     delivery_journal_entry_id: string;
     confirmation_journal_entry_id: string | null;
-    order?: unknown;
+    order?: {
+      id: string;
+      order_number: string;
+      user_id: string;
+      total: PrismaRuntime.Decimal;
+      delivery_fee: PrismaRuntime.Decimal;
+      returns?: Array<{ uncollected_offset: PrismaRuntime.Decimal }>;
+    };
     party?: unknown;
     cash_receipt_allocations?: Array<{
       id: string;
@@ -1206,6 +1223,11 @@ export class DeliveriesService {
       created_at: Date;
       trip: { id: string; document_number: string };
     }>;
+    return_refund_payments?: Array<{
+      id: string;
+      amount_iqd: PrismaRuntime.Decimal;
+      created_at: Date;
+    }>;
     custody_exceptions?: Array<{
       id: string;
       document_number: string;
@@ -1226,10 +1248,15 @@ export class DeliveriesService {
       (sum, allocation) => sum.plus(allocation.amount_iqd),
       new PrismaRuntime.Decimal(0),
     );
+    const returnRefunds = row.return_refund_payments;
+    const refunded = returnRefunds?.reduce(
+      (sum, payment) => sum.plus(payment.amount_iqd),
+      new PrismaRuntime.Decimal(0),
+    );
     const settledAmount =
-      allocated === undefined || netted === undefined
+      allocated === undefined || netted === undefined || refunded === undefined
         ? allocated
-        : allocated.plus(netted);
+        : allocated.plus(netted).plus(refunded);
     const collected = row.collected_amount;
     const unsettled =
       settledAmount === undefined || collected === null
@@ -1248,12 +1275,25 @@ export class DeliveriesService {
       (sum, exception) => sum.plus(exception.exception_offset_iqd),
       new PrismaRuntime.Decimal(0),
     );
+    const returnOffset = (row.order?.returns ?? []).reduce(
+      (sum, item) => sum.plus(item.uncollected_offset),
+      new PrismaRuntime.Decimal(0),
+    );
+    const publicOrder = row.order
+      ? {
+          id: row.order.id,
+          order_number: row.order.order_number,
+          user_id: row.order.user_id,
+          total: Number(row.order.total),
+          delivery_fee: Number(row.order.delivery_fee),
+        }
+      : undefined;
     const openException =
       row.shortfall_amount === null || exceptionOffset === undefined
         ? null
         : PrismaRuntime.Decimal.max(
             0,
-            row.shortfall_amount.minus(exceptionOffset),
+            row.shortfall_amount.minus(exceptionOffset).minus(returnOffset),
           );
     return {
       id: row.id,
@@ -1272,7 +1312,7 @@ export class DeliveriesService {
       confirmed_at: row.confirmed_at,
       delivery_journal_entry_id: row.delivery_journal_entry_id,
       confirmation_journal_entry_id: row.confirmation_journal_entry_id,
-      ...(row.order === undefined ? {} : { order: row.order }),
+      ...(publicOrder === undefined ? {} : { order: publicOrder }),
       ...(row.party === undefined ? {} : { party: row.party }),
       ...(allocations === undefined
         ? {}
@@ -1281,6 +1321,7 @@ export class DeliveriesService {
             allocated_amount_iqd: Number(settledAmount ?? 0),
             receipt_allocated_amount_iqd: Number(allocated ?? 0),
             fare_netted_amount_iqd: Number(netted ?? 0),
+            return_refunded_amount_iqd: Number(refunded ?? 0),
             unsettled_amount_iqd: unsettled === null ? null : Number(unsettled),
             receipt_allocations: allocations.map((allocation) => ({
               id: allocation.id,

@@ -15,6 +15,7 @@ export function QuantityStepper({
   defaultValue = 1,
   min = 1,
   max = 99,
+  step = 1,
   onValueChange,
   disabled = false,
   className,
@@ -23,6 +24,7 @@ export function QuantityStepper({
   defaultValue?: number;
   min?: number;
   max?: number;
+  step?: number;
   onValueChange?: (next: number) => void;
   disabled?: boolean;
   className?: string;
@@ -53,7 +55,7 @@ export function QuantityStepper({
         type="button"
         aria-label={t("decrease")}
         disabled={disabled || current <= min}
-        onClick={() => set(current - 1)}
+        onClick={() => set(Number((current - step).toFixed(3)))}
         className={cn(stepClasses, "bg-card text-text hover:bg-border")}
       >
         <Minus className="size-4" aria-hidden />
@@ -71,7 +73,7 @@ export function QuantityStepper({
         type="button"
         aria-label={t("increase")}
         disabled={disabled || current >= max}
-        onClick={() => set(current + 1)}
+        onClick={() => set(Number((current + step).toFixed(3)))}
         className={cn(
           stepClasses,
           "bg-primary text-on-primary hover:bg-primary-dark",

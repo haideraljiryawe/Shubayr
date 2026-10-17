@@ -73,6 +73,7 @@ the Mobile policy above.
 - web/ and admin/ live suites must pass before a breaking change merges. mobile/ on main is a stale snapshot of the app: do not block on it — instead document every mobile-affecting change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. Backend/web/admin contract work does not authorize edits to mobile/ or the mobile branches; authorized Mobile work follows the Flutter/Mobile policy above.
 - Delivery-pricing changes may merge only after the checkout → confirmation → delivery → receipt acceptance flow proves that the order total, collection amount, revenue posting, receipt, and exact return allocation reconcile.
 - Catalog imports may merge only when preview is proven read-only for catalog/inventory data, every committed row is durably idempotent and restart-resumable, failed batches report exactly what was retained, Stock rows create exactly one phase-5 opening document after product rows succeed, costs remain gated by `cost.view`, and the 5,000-row limit is covered.
+- Returns changes may merge only after acceptance proves immutable net-paid shares across successive piece and decimal-quantity returns, delivered-minus-returned eligibility, original-issue-cost inspection, delivery-fee caps, loyalty reversal/restoration, custody and cash refund sources, idempotency, separation of duties, and inventory/custody/cash/loyalty/GL reconciliation.
 
 ## Money and dates
 

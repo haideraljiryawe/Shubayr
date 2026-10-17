@@ -19,7 +19,7 @@ import {
   businessDayEnd,
   businessDayStart,
 } from '../finance/business-date';
-import { calculateLineTotal } from '../catalog/pricing';
+import { calculateLineTotal, moneyToMinorUnits } from '../catalog/pricing';
 import {
   activeCoupon,
   allocateDiscountLargestRemainder,
@@ -63,6 +63,18 @@ const orderInclude = {
     select: { id: true, document_number: true, status: true, outcome: true },
     orderBy: { created_at: 'desc' as const },
   },
+  returns: {
+    select: {
+      id: true,
+      document_number: true,
+      status: true,
+      refund_amount: true,
+      points_earned_reversed: true,
+      points_redeemed_restored: true,
+      created_at: true,
+    },
+    orderBy: { created_at: 'desc' as const },
+  },
 } satisfies Prisma.OrderInclude;
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 const adminOrderInclude = {
@@ -90,6 +102,18 @@ const adminOrderInclude = {
   status_events: { orderBy: [{ at: 'asc' as const }, { id: 'asc' as const }] },
   retrievals: {
     include: { lines: { orderBy: { id: 'asc' as const } } },
+    orderBy: { created_at: 'desc' as const },
+  },
+  returns: {
+    select: {
+      id: true,
+      document_number: true,
+      status: true,
+      refund_amount: true,
+      points_earned_reversed: true,
+      points_redeemed_restored: true,
+      created_at: true,
+    },
     orderBy: { created_at: 'desc' as const },
   },
 } satisfies Prisma.OrderInclude;
@@ -129,6 +153,7 @@ export class OrdersService {
         JSON.stringify({
           address_id: input.address_id,
           coupon_code: input.coupon_code?.trim().toUpperCase() ?? null,
+          loyalty_points: input.loyalty_points ?? 0,
           payment_method: input.payment_method ?? 'cod',
           accepted_price_versions: [
             ...(input.accepted_price_versions ?? []),
@@ -347,11 +372,77 @@ export class OrdersService {
           totals.discount,
         ).map((allocation) => [allocation.key, allocation]),
       );
+      const requestedPoints = input.loyalty_points ?? 0;
+      let loyaltyAccountId: string | null = null;
+      if (requestedPoints > 0) {
+        const account = await tx.loyaltyAccount.upsert({
+          where: { user_id: userId },
+          update: {},
+          create: { user_id: userId },
+        });
+        loyaltyAccountId = account.id;
+        const balance = await tx.loyaltyLedger.aggregate({
+          where: { account_id: account.id },
+          _sum: { points: true },
+        });
+        if (requestedPoints > (balance._sum.points ?? 0)) {
+          throw conflict(
+            'LOYALTY_POINTS_INSUFFICIENT',
+            'The loyalty-points balance is insufficient',
+          );
+        }
+        const goodsAfterDiscount =
+          moneyToMinorUnits(totals.subtotal) -
+          moneyToMinorUnits(totals.discount);
+        if (BigInt(requestedPoints) > goodsAfterDiscount) {
+          throw conflict(
+            'LOYALTY_REDEMPTION_EXCEEDS_GOODS',
+            'Loyalty points may not reduce goods below zero or pay the delivery fee',
+          );
+        }
+      }
+      const couponAllocations = new Map(
+        allocateDiscountLargestRemainder(
+          lines.map((line) => ({
+            key: line.variant_id,
+            line_total: line.line_total,
+          })),
+          totals.coupon_discount,
+        ).map((allocation) => [allocation.key, allocation.discount_share]),
+      );
+      const tierAllocations = new Map(
+        allocateDiscountLargestRemainder(
+          lines.map((line) => ({
+            key: line.variant_id,
+            line_total: line.line_total,
+          })),
+          totals.tier_discount,
+        ).map((allocation) => [allocation.key, allocation.discount_share]),
+      );
+      const loyaltyAllocations = new Map(
+        allocateDiscountLargestRemainder(
+          lines.map((line) => ({
+            key: line.variant_id,
+            line_total: allocations.get(line.variant_id)!.net_line_total,
+          })),
+          requestedPoints,
+        ).map((allocation) => [allocation.key, allocation.discount_share]),
+      );
       const orderLines = lines.map((line) => ({
         ...line,
         discount_share: allocations.get(line.variant_id)!.discount_share,
+        coupon_discount_share: couponAllocations.get(line.variant_id) ?? 0,
+        tier_discount_share: tierAllocations.get(line.variant_id) ?? 0,
         net_line_total: allocations.get(line.variant_id)!.net_line_total,
+        loyalty_discount_share: loyaltyAllocations.get(line.variant_id) ?? 0,
+        net_paid_total: new Prisma.Decimal(
+          allocations.get(line.variant_id)!.net_line_total,
+        ).minus(loyaltyAllocations.get(line.variant_id) ?? 0),
       }));
+      const loyaltyRedemption = new Prisma.Decimal(requestedPoints);
+      const orderTotal = new Prisma.Decimal(totals.total).minus(
+        loyaltyRedemption,
+      );
       const deadlines = await this.acceptanceDeadlines(tx, at);
       const order = await tx.order.create({
         data: {
@@ -393,7 +484,9 @@ export class OrdersService {
           next_discount_tier_percent: totals.next_tier?.percent ?? null,
           next_discount_tier_amount_remaining:
             totals.next_tier?.amount_remaining ?? null,
-          total: totals.total,
+          total: orderTotal,
+          loyalty_points_redeemed: requestedPoints,
+          loyalty_redemption_amount: loyaltyRedemption,
           delivery_contact_phone: address.contact_phone,
           delivery_governorate_code: address.governorate.code,
           delivery_governorate_name_ar: address.governorate.name_ar,
@@ -410,7 +503,7 @@ export class OrdersService {
             create: {
               method: 'cod',
               status: 'pending',
-              amount: totals.total,
+              amount: orderTotal,
               document_date: documentDate,
               accounting_date: documentDate,
             },
@@ -431,6 +524,26 @@ export class OrdersService {
         data: { delivery_id: delivery.id },
       });
       await this.inventory.allocateOrder(tx, order.id, userId);
+      if (requestedPoints > 0) {
+        const redemption = await tx.loyaltyLedger.create({
+          data: {
+            account_id: loyaltyAccountId!,
+            order_id: order.id,
+            type: 'redeem',
+            reason: 'order_redemption',
+            points: -requestedPoints,
+            created_by: userId,
+            note: 'Applied to goods after order discounts; delivery fee excluded',
+          },
+        });
+        await this.audit.record(tx, {
+          actorId: userId,
+          action: 'loyalty.redeem_order',
+          entityType: 'loyalty_ledger',
+          entityId: redemption.id,
+          after: { order_id: order.id, points: -requestedPoints },
+        });
+      }
       if (coupon && totals.coupon_discount > 0)
         await tx.coupon.update({
           where: { id: coupon.id },
@@ -1318,7 +1431,12 @@ export class OrdersService {
     tx: Prisma.TransactionClient,
     order: {
       id: string;
+      user_id: string;
       discount: Prisma.Decimal;
+      coupon_discount?: Prisma.Decimal;
+      tier_discount?: Prisma.Decimal;
+      loyalty_points_redeemed: number;
+      loyalty_redemption_amount?: Prisma.Decimal;
       delivery_fee: Prisma.Decimal;
     },
     item: { id: string; unit_price: Prisma.Decimal },
@@ -1350,6 +1468,43 @@ export class OrdersService {
       repricedItems.map((row) => ({ key: row.id, line_total: row.line_total })),
       discount,
     );
+    const couponAllocations = new Map(
+      allocateDiscountLargestRemainder(
+        repricedItems.map((row) => ({
+          key: row.id,
+          line_total: row.line_total,
+        })),
+        Prisma.Decimal.min(order.coupon_discount ?? 0, subtotal),
+      ).map((allocation) => [allocation.key, allocation.discount_share]),
+    );
+    const tierAllocations = new Map(
+      allocateDiscountLargestRemainder(
+        repricedItems.map((row) => ({
+          key: row.id,
+          line_total: row.line_total,
+        })),
+        Prisma.Decimal.min(order.tier_discount ?? 0, subtotal),
+      ).map((allocation) => [allocation.key, allocation.discount_share]),
+    );
+    const loyaltyRedemption = Prisma.Decimal.min(
+      order.loyalty_redemption_amount ?? 0,
+      subtotal.minus(discount),
+    );
+    const restoredPoints = new Prisma.Decimal(
+      order.loyalty_redemption_amount ?? 0,
+    )
+      .minus(loyaltyRedemption)
+      .toDecimalPlaces(0)
+      .toNumber();
+    const loyaltyAllocations = new Map(
+      allocateDiscountLargestRemainder(
+        allocations.map((row) => ({
+          key: row.key,
+          line_total: row.net_line_total,
+        })),
+        loyaltyRedemption,
+      ).map((allocation) => [allocation.key, allocation.discount_share]),
+    );
     for (const allocation of allocations) {
       await tx.orderItem.update({
         where: { id: allocation.key },
@@ -1358,8 +1513,39 @@ export class OrdersService {
             ? { quantity, line_total: updatedLineTotal }
             : {}),
           discount_share: allocation.discount_share,
+          coupon_discount_share: couponAllocations.get(allocation.key) ?? 0,
+          tier_discount_share: tierAllocations.get(allocation.key) ?? 0,
           net_line_total: allocation.net_line_total,
+          loyalty_discount_share: loyaltyAllocations.get(allocation.key) ?? 0,
+          net_paid_total: new Prisma.Decimal(allocation.net_line_total).minus(
+            loyaltyAllocations.get(allocation.key) ?? 0,
+          ),
         },
+      });
+    }
+    if (restoredPoints > 0) {
+      const account = await tx.loyaltyAccount.upsert({
+        where: { user_id: order.user_id },
+        update: {},
+        create: { user_id: order.user_id },
+      });
+      const restoration = await tx.loyaltyLedger.create({
+        data: {
+          account_id: account.id,
+          order_id: order.id,
+          type: 'adjust',
+          reason: 'order_quantity_reduction_restore',
+          points: restoredPoints,
+          created_by: actorId,
+          note: 'Restored because an accepted shortage reduced payable goods',
+        },
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'loyalty.restore_order_reduction',
+        entityType: 'loyalty_ledger',
+        entityId: restoration.id,
+        after: { order_id: order.id, points: restoredPoints },
       });
     }
     await tx.order.update({
@@ -1367,7 +1553,12 @@ export class OrdersService {
       data: {
         subtotal,
         discount,
-        total: subtotal.minus(discount).plus(order.delivery_fee),
+        loyalty_points_redeemed: order.loyalty_points_redeemed - restoredPoints,
+        loyalty_redemption_amount: loyaltyRedemption,
+        total: subtotal
+          .minus(discount)
+          .minus(loyaltyRedemption)
+          .plus(order.delivery_fee),
       },
     });
   }
@@ -1778,6 +1969,8 @@ export class OrdersService {
       discount: Number(row.discount),
       coupon_discount: Number(row.coupon_discount),
       tier_discount: Number(row.tier_discount),
+      loyalty_points_redeemed: row.loyalty_points_redeemed,
+      loyalty_redemption_amount: Number(row.loyalty_redemption_amount),
       discount_source: row.discount_source,
       applied_tier:
         row.discount_tier_min_subtotal !== null &&
@@ -1864,6 +2057,18 @@ export class OrdersService {
           outcome,
         }),
       ),
+      returns: (row.returns ?? []).map((item) => ({
+        id: item.id,
+        document_number: item.document_number,
+        status: item.status,
+        refund_amount: Number(item.refund_amount),
+        points_effect: {
+          earned_reversed: item.points_earned_reversed,
+          redeemed_restored: item.points_redeemed_restored,
+          net: item.points_redeemed_restored - item.points_earned_reversed,
+        },
+        created_at: item.created_at,
+      })),
       items: row.items.map((item) => ({
         id: item.id,
         product_id: item.product_id,
@@ -1878,7 +2083,12 @@ export class OrdersService {
         price_version: item.price_version,
         line_total: Number(item.line_total),
         discount_share: Number(item.discount_share),
+        coupon_discount_share: Number(item.coupon_discount_share),
+        tier_discount_share: Number(item.tier_discount_share),
+        loyalty_discount_share: Number(item.loyalty_discount_share),
+        other_adjustment_share: Number(item.other_adjustment_share),
         net_line_total: Number(item.net_line_total),
+        net_paid_total: Number(item.net_paid_total),
         currency: item.currency_code,
         reviewed: Boolean(item.reviewed),
       })),

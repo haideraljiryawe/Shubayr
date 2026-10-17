@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -12,7 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
-import { ApiError, api, type Order, type OrderItem, type Return } from "@/lib/api";
+import {
+  ApiError,
+  api,
+  type Order,
+  type OrderItem,
+  type Return,
+} from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { OrderItemLine } from "./order-item-line";
 import { AccountError, AccountSkeleton } from "./states";
@@ -82,6 +88,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const operationId = useRef(crypto.randomUUID());
 
   const items = useMemo(
     () => (order && !("notFound" in order) ? (order.items ?? []) : []),
@@ -131,6 +138,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         ? {
             order_item_id: item.id ?? "",
             quantity: line.quantity,
+            reason_code: "other" as const,
             // Per LINE, which is what the contract requires: one line may be
             // damaged while another is simply the wrong size.
             reason: line.reason.trim(),
@@ -144,6 +152,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         order_item_id: string;
         quantity: number;
         reason: string;
+        reason_code: "other";
       } => Boolean(line),
     );
 
@@ -163,6 +172,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
     setError(undefined);
     try {
       await api.createReturn({
+        operation_id: operationId.current,
         order_id: order.id ?? orderId,
         reason: reason.trim() || undefined,
         items: chosen,
@@ -174,8 +184,9 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       // terms; relaying that beats "something went wrong" when the answer is
       // "you already returned that one".
       setError(
-        cause instanceof ApiError && (cause.status === 422 || cause.status === 409)
-          ? (cause.message || t("errFailed"))
+        cause instanceof ApiError &&
+          (cause.status === 422 || cause.status === 409)
+          ? cause.message || t("errFailed")
           : t("errFailed"),
       );
     } finally {
@@ -197,7 +208,10 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         <p className="text-sm text-text-muted">{t("requestIntro")}</p>
         <p className="flex items-center gap-2 text-sm">
           <span className="text-text-muted">{t("forOrder")}</span>
-          <span dir="ltr" className="font-bold text-text [unicode-bidi:isolate]">
+          <span
+            dir="ltr"
+            className="font-bold text-text [unicode-bidi:isolate]"
+          >
             {order.order_number}
           </span>
         </p>
@@ -291,8 +305,12 @@ function ReturnLine({
   const t = useTranslations("returns");
   const id = item.id ?? "";
   const bought = item.quantity ?? 1;
+  const step = item.whole_units_only === false ? 0.001 : 1;
   const checked = selection?.checked ?? false;
-  const quantity = Math.min(selection?.quantity ?? 1, Math.max(1, eligible));
+  const quantity = Math.min(
+    selection?.quantity ?? step,
+    Math.max(step, eligible),
+  );
   const spent = eligible <= 0;
 
   return (
@@ -319,7 +337,10 @@ function ReturnLine({
           )}
 
           {/* ×N of what was bought: Latin digits, isolated from the RTL run. */}
-          <span dir="ltr" className="text-xs text-text-muted [unicode-bidi:isolate]">
+          <span
+            dir="ltr"
+            className="text-xs text-text-muted [unicode-bidi:isolate]"
+          >
             ×{bought}
           </span>
 
@@ -349,8 +370,9 @@ function ReturnLine({
               >
                 <QuantityStepper
                   value={quantity}
-                  min={1}
+                  min={step}
                   max={eligible}
+                  step={step}
                   onValueChange={(next) => onChange({ quantity: next })}
                 />
               </span>
@@ -358,10 +380,7 @@ function ReturnLine({
 
             {/* Required per line by the contract, and genuinely per line: one
                 item can arrive damaged while another is the wrong size. */}
-            <Field
-              label={t("lineReason")}
-              htmlFor={`return-line-reason-${id}`}
-            >
+            <Field label={t("lineReason")} htmlFor={`return-line-reason-${id}`}>
               <Input
                 id={`return-line-reason-${id}`}
                 name={`return-line-reason-${id}`}

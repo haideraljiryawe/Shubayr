@@ -1666,6 +1666,9 @@ ON CONFLICT DO NOTHING;
 -- Phase 7 uses the production migration as the single DDL source.
 \ir ../../backend/prisma/migrations/20261001050000_phase7_order_lifecycle_v2/migration.sql
 
+-- Later phase 6/7 additions use their production migrations as the DDL source.
+\ir ../../backend/prisma/migrations/20261003090000_cross_currency_supplier_payments/migration.sql
+
 -- Business-date defaults are removed by the production sweep migration.
 \ir ../../backend/prisma/migrations/20261003120000_business_date_sweep/migration.sql
 
@@ -1673,8 +1676,33 @@ ON CONFLICT DO NOTHING;
 -- the production migration as the single DDL source.
 \ir ../../backend/prisma/migrations/20261003140000_permission_sod_price_approvals/migration.sql
 
+-- Phase 8 delivery custody additions (phase-7 retry tables are folded above).
+\ir ../../backend/prisma/migrations/20261003180000_delivery_parties_custody_reads/migration.sql
+\ir ../../backend/prisma/migrations/20261003200000_delivery_revenue_collection/migration.sql
+
+-- Catalog approval discovery and cart idempotency additions.
+\ir ../../backend/prisma/migrations/20261004083000_price_approval_discovery/migration.sql
+\ir ../../backend/prisma/migrations/20261004160000_cart_idempotency/migration.sql
+
+-- Phase 8 immutable receipts, exceptions and external-driver trips.
+\ir ../../backend/prisma/migrations/20261006120000_cash_receipt_vouchers/migration.sql
+\ir ../../backend/prisma/migrations/20261006163000_custody_exceptions/migration.sql
+\ir ../../backend/prisma/migrations/20261008120000_external_driver_trips/migration.sql
+\ir ../../backend/prisma/migrations/20261010150000_trip_operational_events/migration.sql
+
 -- Task D1 delivery pricing uses the production migration as its single DDL source.
 \ir ../../backend/prisma/migrations/20261012180000_delivery_zones_tier_discounts/migration.sql
 
 -- Task D2 catalog import and large-list support use the production migration.
 \ir ../../backend/prisma/migrations/20261013190000_catalog_import_scale/migration.sql
+
+-- Push session hardening and the corrective internal push-test constraint.
+\ir ../../backend/prisma/migrations/20261014000100_push_session_delivery_hardening/migration.sql
+\ir ../../backend/prisma/migrations/20261014000200_allow_internal_push_test/migration.sql
+
+-- Resumable import batches and lightweight progress polling.
+\ir ../../backend/prisma/migrations/20261014090000_catalog_import_batches/migration.sql
+\ir ../../backend/prisma/migrations/20261015120000_catalog_import_poll_progress/migration.sql
+
+-- Phase 9 returns v2 uses the production migration as its single DDL source.
+\ir ../../backend/prisma/migrations/20261015160000_returns_v2/migration.sql

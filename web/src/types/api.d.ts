@@ -1902,6 +1902,8 @@ export interface paths {
                         /** Format: uuid */
                         address_id: string;
                         coupon_code?: string | null;
+                        /** @description Points to redeem against goods after order discounts. One point is one IQD minor unit; points never pay delivery fees. */
+                        loyalty_points?: number;
                         /**
                          * @default cod
                          * @enum {string}
@@ -3801,7 +3803,7 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
-                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
                 };
                 header?: never;
                 path?: never;
@@ -3823,7 +3825,7 @@ export interface paths {
         put?: never;
         /**
          * Request a partial or full return of a delivered order
-         * @description Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
+         * @description Only the order owner can request a return within the configured return window. Pending quantities reserve eligibility. Refund and points estimates use immutable per-line order allocations, never current catalog prices.
          */
         post: {
             parameters: {
@@ -3837,12 +3839,15 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         order_id: string;
+                        operation_id: string;
                         reason?: string;
                         items: {
                             /** Format: uuid */
                             order_item_id: string;
                             quantity: number;
                             reason: string;
+                            /** @enum {string} */
+                            reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
                         }[];
                     };
                 };
@@ -3882,7 +3887,13 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
-                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+                    customer_id?: string;
+                    order_id?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    sort_by?: "date" | "number" | "refund";
+                    sort_direction?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;
@@ -3910,7 +3921,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/returns/{id}/inspect": {
+    "/returns/staff": {
         parameters: {
             query?: never;
             header?: never;
@@ -3919,10 +3930,133 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Review requested return quantities and conditions
-         * @description Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
-         */
+        /** Create a return request for a customer */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnRequest"] & {
+                        /** Format: uuid */
+                        customer_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created return request */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/queue/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one return as staff */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Return detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one return owned by the authenticated customer */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Caller-owned return detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve quantities or reject a return request */
         post: {
             parameters: {
                 query?: never;
@@ -3934,21 +4068,11 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        decision: "approve" | "reject";
-                        items?: {
-                            /** Format: uuid */
-                            return_item_id: string;
-                            approved_quantity: number;
-                            /** @enum {string} */
-                            condition?: "sellable" | "opened" | "damaged";
-                        }[];
-                    };
+                    "application/json": components["schemas"]["ReturnApproval"];
                 };
             };
             responses: {
-                /** @description Inspected return */
+                /** @description Approved or rejected return */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3969,7 +4093,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/returns/{id}/complete": {
+    "/returns/{id}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive approved return goods */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnTransition"];
+                };
+            };
+            responses: {
+                /** @description Received return */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/inspect": {
         parameters: {
             query?: never;
             header?: never;
@@ -3979,8 +4149,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Complete a reviewed return
-         * @description Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+         * Inspect received return goods and post their inventory disposition
+         * @description Sellable goods enter the chosen sellable location at original issue cost. Damaged or expired goods enter a non-sellable location and are written down. The stored paid share is posted between uncollected cash and refund payable.
          */
         post: {
             parameters: {
@@ -3991,9 +4161,72 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        note?: string;
+                        items: {
+                            /** Format: uuid */
+                            return_item_id: string;
+                            /** @enum {string} */
+                            condition: "sellable" | "opened" | "damaged" | "expired";
+                            /** Format: uuid */
+                            location_id: string;
+                        }[];
+                    } & components["schemas"]["FinancialDocumentInput"];
+                };
+            };
             responses: {
-                /** @description Completed return */
+                /** @description Inspected return with refund obligation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay an inspected return refund and apply its loyalty effects
+         * @description Pays only the refund-payable balance from an IQD cash account or documented delivery custody. Earned points are reversed, redeemed points are restored, and any earned-points deficit remains recoverable from future rewards rather than cash.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnRefund"];
+                };
+            };
+            responses: {
+                /** @description Refunded return */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -12465,8 +12698,14 @@ export interface components {
             line_total?: components["schemas"]["Money"];
             /** @description Whole-IQD largest-remainder share of the order discount. */
             discount_share: components["schemas"]["Money"];
-            /** @description line_total minus discount_share; returns refund this snapshot. */
+            coupon_discount_share: components["schemas"]["Money"];
+            tier_discount_share: components["schemas"]["Money"];
+            loyalty_discount_share: components["schemas"]["Money"];
+            other_adjustment_share: components["schemas"]["Money"];
+            /** @description line_total minus automatic tier/coupon discount shares. */
             net_line_total: components["schemas"]["Money"];
+            /** @description Immutable amount paid for this line after every stored allocation, including redeemed points. Return entitlements are sliced from this value. */
+            net_paid_total: components["schemas"]["Money"];
             currency?: string;
             /** @description True when the caller already has a product review for this order item. */
             readonly reviewed?: boolean;
@@ -12533,6 +12772,8 @@ export interface components {
             discount?: components["schemas"]["Money"];
             coupon_discount?: components["schemas"]["Money"];
             tier_discount?: components["schemas"]["Money"];
+            loyalty_points_redeemed?: number;
+            loyalty_redemption_amount?: components["schemas"]["Money"];
             /** @enum {string} */
             discount_source?: "none" | "coupon" | "tier" | "stacked";
             applied_tier?: components["schemas"]["AppliedDiscountTier"] | null;
@@ -12601,6 +12842,17 @@ export interface components {
                 status?: "open" | "partially_received" | "received" | "closed";
                 /** @enum {string} */
                 outcome?: "cancel" | "retry";
+            }[];
+            returns?: {
+                /** Format: uuid */
+                id: string;
+                document_number: string;
+                /** @enum {string} */
+                status: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+                refund_amount: components["schemas"]["Money"];
+                points_effect: components["schemas"]["ReturnPointsEffect"];
+                /** Format: date-time */
+                created_at: string;
             }[];
             items?: components["schemas"]["OrderItem"][];
         };
@@ -12867,7 +13119,7 @@ export interface components {
             /** Format: uuid */
             return_id?: string | null;
             /** @enum {string} */
-            type?: "earn" | "redeem" | "adjust" | "expire";
+            type?: "earn" | "redeem" | "adjust" | "expire" | "return_reversal" | "return_restore";
             reason?: string;
             /** @description Positive for earn; negative for redeem; signed for adjust. */
             points?: number;
@@ -13575,60 +13827,183 @@ export interface components {
             completed_at?: string | null;
             items?: components["schemas"]["PickListItem"][];
         };
+        ReturnRequest: {
+            /** Format: uuid */
+            order_id: string;
+            operation_id: string;
+            reason?: string;
+            items: {
+                /** Format: uuid */
+                order_item_id: string;
+                quantity: number;
+                reason: string;
+                /** @enum {string} */
+                reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
+            }[];
+        };
+        ReturnTransition: components["schemas"]["FinancialDocumentInput"] & {
+            note?: string;
+        };
+        ReturnApproval: components["schemas"]["FinancialDocumentInput"] & {
+            /** @enum {string} */
+            decision: "approve" | "reject";
+            note?: string;
+            delivery_fee_refund?: components["schemas"]["Money"];
+            delivery_fee_refund_reason?: string;
+            items?: {
+                /** Format: uuid */
+                return_item_id: string;
+                approved_quantity: number;
+            }[];
+        };
+        ReturnRefund: components["schemas"]["FinancialDocumentInput"] & {
+            /** @enum {string} */
+            method: "cash_account" | "delivery_custody";
+            /** Format: uuid */
+            cash_account_id?: string;
+            /** Format: uuid */
+            collection_id?: string;
+            proof_reference?: string;
+        };
+        ReturnPointsEffect: {
+            earned_reversed: number;
+            redeemed_restored: number;
+            net: number;
+        };
         ReturnItem: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            order_item_id?: string;
-            quantity?: number;
-            approved_quantity?: number;
+            order_item_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            product_name_ar: string;
+            product_name_en: string;
+            quantity: number;
+            approved_quantity: number;
             /** @description Order-time SKU base-unit snapshot. */
             base_unit: string;
             /** @description Order-time SKU fractional-quantity rule. */
             whole_units_only: boolean;
-            customer_reason?: string;
+            customer_reason: string;
+            /** @enum {string} */
+            reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
             /** @description Immutable order-line unit price. */
-            unit_price?: components["schemas"]["Money"];
+            unit_price: components["schemas"]["Money"];
             /** @description Discount share attributed to this requested return quantity. */
             discount_share: components["schemas"]["Money"];
             /** @description Exact net refund snapshot for the requested quantity. */
             net_amount: components["schemas"]["Money"];
-            currency?: string;
-            expected_refund?: components["schemas"]["Money"];
-            approved_refund?: components["schemas"]["Money"];
+            currency: string;
+            approved_refund: components["schemas"]["Money"];
+            earned_points_share: number;
+            redeemed_points_share: number;
             /** @enum {string|null} */
-            condition?: "sellable" | "opened" | "damaged" | null;
-            restock?: boolean;
+            condition: "sellable" | "opened" | "damaged" | "expired" | null;
+            restock: boolean;
             /** Format: uuid */
-            batch_id?: string | null;
+            batch_id: string | null;
+            inspection_location: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                is_sellable: boolean;
+            } | null;
         };
         Return: {
             /** Format: uuid */
-            id?: string;
+            id: string;
+            document_number: string;
             /** Format: uuid */
-            order_id?: string;
+            order_id: string;
+            order_number: string;
             /** Format: uuid */
-            user_id?: string;
+            user_id: string;
             /** @enum {string} */
-            type?: "return" | "exchange";
-            /** @enum {string} */
-            status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
-            reason?: string | null;
-            expected_refund?: components["schemas"]["Money"];
-            refund_amount?: components["schemas"]["Money"];
-            currency?: string;
+            source: "customer" | "staff";
             /** Format: uuid */
-            reviewed_by?: string | null;
+            created_by: string;
+            /** @enum {string} */
+            type: "return" | "exchange";
+            /** @enum {string} */
+            status: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+            reason: string | null;
+            expected_refund: components["schemas"]["Money"];
+            refund_amount: components["schemas"]["Money"];
+            delivery_fee_refund: components["schemas"]["Money"];
+            uncollected_offset: components["schemas"]["Money"];
+            cash_refund_amount: components["schemas"]["Money"];
+            points_effect: components["schemas"]["ReturnPointsEffect"];
+            currency: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            reviewed_by: string | null;
             /** Format: date-time */
-            reviewed_at?: string | null;
+            reviewed_at: string | null;
             /** Format: date-time */
-            completed_at?: string | null;
+            completed_at: string | null;
             /** Format: date-time */
-            created_at?: string;
-            refund?: components["schemas"]["RefundLedgerEntry"] | null;
-            items?: components["schemas"]["ReturnItem"][];
+            created_at: string;
+            refund: components["schemas"]["RefundLedgerEntry"] | null;
+            items: components["schemas"]["ReturnItem"][];
+            events: components["schemas"]["ReturnEvent"][];
+            refund_payments: components["schemas"]["ReturnRefundPayment"][];
+            postings: components["schemas"]["ReturnPosting"][];
         };
-        /** @description COD refund obligation; no payment gateway reversal occurs. */
+        ReturnEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded";
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            actor_id: string;
+            note: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReturnRefundPayment: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            method: "cash_account" | "delivery_custody";
+            amount_iqd: components["schemas"]["Money"];
+            cash_account: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            collection: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                party_id: string;
+            } | null;
+            proof_reference: string | null;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReturnPosting: {
+            /** @enum {string} */
+            role: "restock_issue_cost" | "write_down" | "return_against_uncollected" | "delivery_fee_refund" | "refund_payment";
+            /** Format: uuid */
+            journal_entry_id: string;
+            journal_document_number: string;
+        };
+        /** @description Return refund obligation and its payment state. */
         RefundLedgerEntry: {
             /** Format: uuid */
             id?: string;
@@ -14211,6 +14586,8 @@ export interface components {
             receipt_allocated_amount_iqd?: number;
             /** @description Approved trip fare netted against this collection; present on staff collection-list responses. */
             fare_netted_amount_iqd?: number;
+            /** @description Return cash paid directly from this delivery collection; present on staff collection-list responses. */
+            return_refunded_amount_iqd?: number;
             /** @description Confirmed collected amount not yet allocated; present on staff collection-list responses. */
             unsettled_amount_iqd?: number | null;
             /** @description Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. */

@@ -194,7 +194,12 @@ export function updateMockAddress(
   const existing = addresses.find((item) => item.id === id);
   if (!existing) return undefined;
 
-  const updated: Address = { ...existing, ...input, id, user_id: existing.user_id };
+  const updated: Address = {
+    ...existing,
+    ...input,
+    id,
+    user_id: existing.user_id,
+  };
   // Exactly one default: promoting this one demotes the rest.
   addresses = addresses.map((item) =>
     item.id === id
@@ -252,7 +257,12 @@ function orderItem(
     unit_price: unit,
     line_total: unit * quantity,
     discount_share: 0,
+    coupon_discount_share: 0,
+    tier_discount_share: 0,
+    loyalty_discount_share: 0,
+    other_adjustment_share: 0,
     net_line_total: unit * quantity,
+    net_paid_total: unit * quantity,
   };
 }
 
@@ -524,9 +534,10 @@ const loyalty: LoyaltyAccount = {
   ],
 };
 
-export function getMockLoyalty(
-  { page = 1, per_page = 20 }: { page?: number; per_page?: number } = {},
-): LoyaltyAccount {
+export function getMockLoyalty({
+  page = 1,
+  per_page = 20,
+}: { page?: number; per_page?: number } = {}): LoyaltyAccount {
   // Newest first; the contract does not promise an order, so the page cannot
   // rely on one and the fixture sorts the way the page renders.
   const ledger = [...(loyalty.ledger ?? [])].sort((a, b) =>
@@ -580,22 +591,58 @@ export function redeemMockLoyalty(
 let returns: Return[] = [
   {
     id: "ret-1",
+    document_number: "CRN-MOCK-0001",
     order_id: "sb-1028",
+    order_number: "SB-1028",
     user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
     type: "return",
     status: "approved",
     reason: "المقاس غير مناسب",
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-08-07",
+    accounting_date: "2026-08-07",
+    reviewed_by: null,
+    reviewed_at: null,
+    completed_at: null,
     created_at: isoAgo(26),
     items: [
       {
+        id: "ret-1-item-1",
         order_item_id: "oi-p7",
+        variant_id: "variant-p7",
+        product_name_ar: "منتج",
+        product_name_en: "Product",
         quantity: 1,
+        approved_quantity: 1,
         base_unit: "piece",
         whole_units_only: true,
+        customer_reason: "المقاس غير مناسب",
+        reason_code: "change_of_mind",
+        unit_price: 0,
         discount_share: 0,
         net_amount: 0,
+        approved_refund: 0,
+        earned_points_share: 0,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: null,
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
       },
     ],
+    refund: null,
+    events: [],
+    refund_payments: [],
+    postings: [],
   },
 ];
 
@@ -610,14 +657,34 @@ export function listMockReturns(): Return[] {
 export function createMockReturn(body: ReturnRequest): Return {
   const created: Return = {
     id: `ret-${++returnSeq}`,
+    document_number: `CRN-MOCK-${String(returnSeq).padStart(4, "0")}`,
     order_id: body.order_id,
+    order_number: "",
     user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
     type: "return",
     // Every request starts here; moving it on is a staff action.
     status: "requested",
     reason: body.reason ?? null,
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-09-02",
+    accounting_date: "2026-09-02",
+    reviewed_by: null,
+    reviewed_at: null,
+    completed_at: null,
     created_at: new Date(SEEDED_NOW).toISOString(),
     items: [],
+    refund: null,
+    events: [],
+    refund_payments: [],
+    postings: [],
   };
 
   // The server prices a return from the order line's IMMUTABLE unit price and
@@ -629,30 +696,38 @@ export function createMockReturn(body: ReturnRequest): Return {
     (order?.items ?? []).map((item) => [item.id ?? "", item]),
   );
 
-  const createdItems = body.items.map((item, index) => {
+  created.order_number = order?.order_number ?? body.order_id;
+  const createdItems: Return["items"] = body.items.map((item, index) => {
     const orderItem = orderItems.get(item.order_item_id);
     const unit = orderItem?.unit_price ?? 0;
     return {
       id: `${created.id}-item-${index + 1}`,
       order_item_id: item.order_item_id,
+      variant_id: orderItem?.variant_id ?? "variant-missing",
+      product_name_ar: orderItem?.product_name_ar ?? "",
+      product_name_en: orderItem?.product_name_en ?? "",
       quantity: item.quantity,
       approved_quantity: 0,
       base_unit: orderItem?.base_unit ?? "piece",
       whole_units_only: orderItem?.whole_units_only ?? true,
       customer_reason: item.reason,
+      reason_code: item.reason_code,
       unit_price: unit,
       discount_share: 0,
       net_amount: unit * item.quantity,
-      expected_refund: unit * item.quantity,
       approved_refund: 0,
+      earned_points_share: 0,
+      redeemed_points_share: 0,
+      currency: "IQD",
       condition: null,
       restock: false,
       batch_id: null,
+      inspection_location: null,
     };
   });
   created.items = createdItems;
   created.expected_refund = createdItems.reduce(
-    (sum, item) => sum + (item.expected_refund ?? 0),
+    (sum, item) => sum + item.net_amount,
     0,
   );
   created.refund_amount = 0;
@@ -764,9 +839,7 @@ export function listMockMyReviews({
 }
 
 /** The caller's own review of a purchased line, if they wrote one. */
-export function findMockReviewForItem(
-  orderItemId: string,
-): Review | undefined {
+export function findMockReviewForItem(orderItemId: string): Review | undefined {
   return myReviews.find((review) => review.order_item_id === orderItemId);
 }
 
@@ -858,7 +931,9 @@ function defaultPreferences(): NotificationPreferenceEntry[] {
 let notificationPreferences = defaultPreferences();
 
 export function getMockNotificationPreferences(): NotificationPreferences {
-  return { preferences: notificationPreferences.map((entry) => ({ ...entry })) };
+  return {
+    preferences: notificationPreferences.map((entry) => ({ ...entry })),
+  };
 }
 
 /**

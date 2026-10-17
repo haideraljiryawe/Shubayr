@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 16.3.0
+  version: 17.0.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -961,7 +961,11 @@ paths:
       tags: [Orders]
       summary: List the current user's orders
       parameters:
-        - { name: status, in: query, schema: { $ref: "#/components/schemas/OrderStatus" } }
+        - {
+            name: status,
+            in: query,
+            schema: { $ref: "#/components/schemas/OrderStatus" },
+          }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -973,7 +977,22 @@ paths:
     post:
       tags: [Orders]
       summary: Place a Cash-on-Delivery order
-      x-error-codes: [PRICE_CHANGED, IDEMPOTENCY_KEY_REUSED, CART_EMPTY, CART_QUANTITY_INVALID, CART_PRODUCT_UNAVAILABLE, CART_VARIANT_UNAVAILABLE, CART_SKU_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, COUPON_INVALID, ADDRESS_GOVERNORATE_REQUIRED, DELIVERY_ZONE_NOT_SERVED]
+      x-error-codes:
+        [
+          PRICE_CHANGED,
+          IDEMPOTENCY_KEY_REUSED,
+          CART_EMPTY,
+          CART_QUANTITY_INVALID,
+          CART_PRODUCT_UNAVAILABLE,
+          CART_VARIANT_UNAVAILABLE,
+          CART_SKU_UNAVAILABLE,
+          SKU_WHOLE_UNITS_ONLY,
+          COUPON_INVALID,
+          ADDRESS_GOVERNORATE_REQUIRED,
+          DELIVERY_ZONE_NOT_SERVED,
+          LOYALTY_POINTS_INSUFFICIENT,
+          LOYALTY_REDEMPTION_EXCEEDS_GOODS,
+        ]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
         effective prices, creates status=pending, a pending COD payment and a
@@ -1000,6 +1019,12 @@ paths:
               properties:
                 address_id: { type: string, format: uuid }
                 coupon_code: { type: [string, "null"] }
+                loyalty_points:
+                  {
+                    type: integer,
+                    minimum: 0,
+                    description: "Points to redeem against goods after order discounts. One point is one IQD minor unit; points never pay delivery fees.",
+                  }
                 payment_method: { type: string, enum: [cod], default: cod }
                 accepted_price_versions:
                   type: array
@@ -1010,7 +1035,8 @@ paths:
                     required: [variant_id, price_version]
                     properties:
                       variant_id: { type: string, format: uuid }
-                      price_version: { type: string, minLength: 1, maxLength: 64 }
+                      price_version:
+                        { type: string, minLength: 1, maxLength: 64 }
       responses:
         "201":
           description: Created
@@ -1810,7 +1836,21 @@ paths:
         - { $ref: "#/components/parameters/PerPage" }
         - name: status
           in: query
-          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+          schema:
+            {
+              type: string,
+              enum:
+                [
+                  requested,
+                  approved,
+                  partially_approved,
+                  rejected,
+                  received,
+                  inspected,
+                  refunded,
+                  completed,
+                ],
+            }
       responses:
         "200":
           description: Caller-owned returns
@@ -1820,27 +1860,54 @@ paths:
     post:
       tags: [Returns]
       summary: Request a partial or full return of a delivered order
-      description: Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
+      description: Only the order owner can request a return within the configured return window. Pending quantities reserve eligibility. Refund and points estimates use immutable per-line order allocations, never current catalog prices.
+      x-error-codes:
+        [
+          RETURN_ORDER_NOT_DELIVERED,
+          RETURN_DELIVERY_NOT_FOUND,
+          RETURN_WINDOW_EXPIRED,
+          RETURN_ITEMS_REQUIRED,
+          RETURN_ITEM_DUPLICATE,
+          RETURN_ITEM_NOT_ON_ORDER,
+          RETURN_QUANTITY_EXCEEDS_ELIGIBLE,
+          RETURN_QUANTITY_INVALID,
+          RETURN_QUANTITY_PRECISION,
+          SKU_WHOLE_UNITS_ONLY,
+        ]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [order_id, items]
+              required: [order_id, operation_id, items]
               properties:
                 order_id: { type: string, format: uuid }
+                operation_id: { type: string, minLength: 8, maxLength: 128 }
                 reason: { type: string }
                 items:
                   type: array
                   minItems: 1
                   items:
                     type: object
-                    required: [order_item_id, quantity, reason]
+                    required: [order_item_id, quantity, reason, reason_code]
                     properties:
                       order_item_id: { type: string, format: uuid }
-                      quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
+                      quantity:
+                        { type: number, multipleOf: 0.001, minimum: 0.001 }
                       reason: { type: string, minLength: 1, maxLength: 1000 }
+                      reason_code:
+                        {
+                          type: string,
+                          enum:
+                            [
+                              change_of_mind,
+                              defect,
+                              store_error,
+                              wrong_item,
+                              other,
+                            ],
+                        }
       responses:
         "201":
           description: Created return request
@@ -1855,13 +1922,46 @@ paths:
     get:
       tags: [Returns]
       summary: List all returns for staff review
-      x-permission: returns.inspect
+      x-permission: returns.view
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
         - name: status
           in: query
-          schema: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+          schema:
+            {
+              type: string,
+              enum:
+                [
+                  requested,
+                  approved,
+                  partially_approved,
+                  rejected,
+                  received,
+                  inspected,
+                  refunded,
+                  completed,
+                ],
+            }
+        - {
+            name: customer_id,
+            in: query,
+            schema: { type: string, format: uuid },
+          }
+        - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - {
+            name: sort_by,
+            in: query,
+            schema:
+              { type: string, enum: [date, number, refund], default: date },
+          }
+        - {
+            name: sort_direction,
+            in: query,
+            schema: { type: string, enum: [asc, desc], default: desc },
+          }
       responses:
         "200":
           description: Paginated return queue
@@ -1869,34 +1969,186 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ReturnPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  /returns/staff:
+    post:
+      tags: [Returns]
+      summary: Create a return request for a customer
+      x-permission: returns.create
+      x-error-codes:
+        [
+          RETURN_ORDER_NOT_DELIVERED,
+          RETURN_DELIVERY_NOT_FOUND,
+          RETURN_WINDOW_EXPIRED,
+          RETURN_ITEM_NOT_ON_ORDER,
+          RETURN_QUANTITY_EXCEEDS_ELIGIBLE,
+          SKU_WHOLE_UNITS_ONLY,
+        ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ReturnRequest"
+                - type: object
+                  required: [customer_id]
+                  properties:
+                    customer_id: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Created return request
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/Return" } },
+            }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /returns/queue/{id}:
+    get:
+      tags: [Returns]
+      summary: Read one return as staff
+      x-permission: returns.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: Return detail
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/Return" } },
+            }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /returns/{id}:
+    get:
+      tags: [Returns]
+      summary: Read one return owned by the authenticated customer
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: Caller-owned return detail
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/Return" } },
+            }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /returns/{id}/approve:
+    post:
+      tags: [Returns]
+      summary: Approve quantities or reject a return request
+      x-permission: returns.approve
+      x-error-codes:
+        [
+          RETURN_INVALID_STATE,
+          RETURN_REJECTION_HAS_LINES,
+          RETURN_REJECTION_REASON_REQUIRED,
+          RETURN_APPROVAL_INCOMPLETE,
+          RETURN_APPROVAL_EXCEEDS_REQUEST,
+          RETURN_APPROVAL_EMPTY,
+          RETURN_DELIVERY_FEE_PERMISSION_REQUIRED,
+          RETURN_DELIVERY_FEE_REASON_REQUIRED,
+          RETURN_DELIVERY_FEE_EXCEEDS_CHARGED,
+          SEPARATION_OF_DUTIES_VIOLATION,
+          PERIOD_CLOSED,
+        ]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/ReturnApproval" } },
+          }
+      responses:
+        "200":
+          description: Approved or rejected return
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/Return" } },
+            }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /returns/{id}/receive:
+    post:
+      tags: [Returns]
+      summary: Receive approved return goods
+      x-permission: returns.receive
+      x-error-codes:
+        [RETURN_INVALID_STATE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/ReturnTransition" } },
+          }
+      responses:
+        "200":
+          description: Received return
+          content:
+            {
+              application/json:
+                { schema: { $ref: "#/components/schemas/Return" } },
+            }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /returns/{id}/inspect:
     post:
       tags: [Returns]
-      summary: Review requested return quantities and conditions
-      description: Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
-      x-permissions: [returns.inspect, returns.approve]
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      summary: Inspect received return goods and post their inventory disposition
+      description: Sellable goods enter the chosen sellable location at original issue cost. Damaged or expired goods enter a non-sellable location and are written down. The stored paid share is posted between uncollected cash and refund payable.
+      x-permission: returns.inspect
+      x-error-codes:
+        [
+          RETURN_INVALID_STATE,
+          RETURN_INSPECTION_INCOMPLETE,
+          RETURN_LOCATION_UNAVAILABLE,
+          RETURN_LOCATION_CONDITION_MISMATCH,
+          RETURN_EXCEEDS_ISSUED_QUANTITY,
+          INVENTORY_COST_NEGATIVE,
+          SEPARATION_OF_DUTIES_VIOLATION,
+          PERIOD_CLOSED,
+        ]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [decision]
+              allOf:
+                - $ref: "#/components/schemas/FinancialDocumentInput"
+              required: [items]
               properties:
-                decision: { type: string, enum: [approve, reject] }
+                note: { type: string, maxLength: 500 }
                 items:
                   type: array
                   items:
                     type: object
-                    required: [return_item_id, approved_quantity]
+                    required: [return_item_id, condition, location_id]
                     properties:
                       return_item_id: { type: string, format: uuid }
-                      approved_quantity: { type: number, multipleOf: 0.001, minimum: 0 }
-                      condition: { type: string, enum: [sellable, opened, damaged] }
+                      condition:
+                        { type: string, enum: [sellable, opened, damaged, expired] }
+                      location_id: { type: string, format: uuid }
       responses:
         "200":
-          description: Inspected return
+          description: Inspected return with refund obligation
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
@@ -1904,16 +2156,35 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
-  /returns/{id}/complete:
+  /returns/{id}/refund:
     post:
       tags: [Returns]
-      summary: Complete a reviewed return
-      description: Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+      summary: Pay an inspected return refund and apply its loyalty effects
+      description: Pays only the refund-payable balance from an IQD cash account or documented delivery custody. Earned points are reversed, redeemed points are restored, and any earned-points deficit remains recoverable from future rewards rather than cash.
       x-permission: returns.refund
-      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      x-error-codes:
+        [
+          RETURN_INVALID_STATE,
+          RETURN_REFUND_METHOD_FIELDS_INVALID,
+          RETURN_CUSTODY_REFUND_PROOF_REQUIRED,
+          RETURN_CASH_ACCOUNT_UNAVAILABLE,
+          RETURN_COLLECTION_UNAVAILABLE,
+          RETURN_REFUND_EXCEEDS_CUSTODY,
+          RETURN_REFUND_EXCEEDS_PAID,
+          SEPARATION_OF_DUTIES_VIOLATION,
+          PERIOD_CLOSED,
+        ]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/ReturnRefund" } },
+          }
       responses:
         "200":
-          description: Completed return
+          description: Refunded return
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Return" }
@@ -6320,24 +6591,89 @@ components:
 
     OrderItem:
       type: object
-      required: [base_unit, whole_units_only, discount_share, net_line_total]
+      required:
+        [
+          base_unit,
+          whole_units_only,
+          discount_share,
+          coupon_discount_share,
+          tier_discount_share,
+          loyalty_discount_share,
+          other_adjustment_share,
+          net_line_total,
+          net_paid_total,
+        ]
       properties:
-        id: { type: string, format: uuid, description: "order_item_id — reference this from reviews & returns" }
+        id:
+          {
+            type: string,
+            format: uuid,
+            description: "order_item_id — reference this from reviews & returns",
+          }
         product_id: { type: string, format: uuid }
         variant_id: { type: string, format: uuid }
-        product_name_ar: { type: string, description: "Arabic product name captured when the order is created." }
-        product_name_en: { type: string, description: "English product name captured when the order is created." }
-        image_url: { type: [string, "null"], format: uri, description: "Primary product image URL captured when the order is created." }
+        product_name_ar:
+          {
+            type: string,
+            description: "Arabic product name captured when the order is created.",
+          }
+        product_name_en:
+          {
+            type: string,
+            description: "English product name captured when the order is created.",
+          }
+        image_url:
+          {
+            type: [string, "null"],
+            format: uri,
+            description: "Primary product image URL captured when the order is created.",
+          }
         quantity: { type: number, multipleOf: 0.001 }
-        base_unit: { type: string, minLength: 1, maxLength: 32, description: "SKU base unit captured when the order is created." }
-        whole_units_only: { type: boolean, description: "SKU fractional-quantity rule captured when the order is created." }
-        unit_price: { $ref: "#/components/schemas/Money", description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order." }
+        base_unit:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 32,
+            description: "SKU base unit captured when the order is created.",
+          }
+        whole_units_only:
+          {
+            type: boolean,
+            description: "SKU fractional-quantity rule captured when the order is created.",
+          }
+        unit_price:
+          {
+            $ref: "#/components/schemas/Money",
+            description: "The product's effective_price captured when the order is created, so a later discount edit or window expiry never rewrites a placed order.",
+          }
         price_version: { type: string, maxLength: 64 }
         line_total: { $ref: "#/components/schemas/Money" }
-        discount_share: { $ref: "#/components/schemas/Money", description: Whole-IQD largest-remainder share of the order discount. }
-        net_line_total: { $ref: "#/components/schemas/Money", description: line_total minus discount_share; returns refund this snapshot. }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
-        reviewed: { type: boolean, readOnly: true, description: True when the caller already has a product review for this order item. }
+        discount_share:
+          {
+            $ref: "#/components/schemas/Money",
+            description: Whole-IQD largest-remainder share of the order discount.,
+          }
+        coupon_discount_share: { $ref: "#/components/schemas/Money" }
+        tier_discount_share: { $ref: "#/components/schemas/Money" }
+        loyalty_discount_share: { $ref: "#/components/schemas/Money" }
+        other_adjustment_share: { $ref: "#/components/schemas/Money" }
+        net_line_total:
+          {
+            $ref: "#/components/schemas/Money",
+            description: line_total minus automatic tier/coupon discount shares.,
+          }
+        net_paid_total:
+          $ref: "#/components/schemas/Money"
+          description: >-
+            Immutable amount paid for this line after every stored allocation, including redeemed points.
+            Return entitlements are sliced from this value.
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        reviewed:
+          {
+            type: boolean,
+            readOnly: true,
+            description: True when the caller already has a product review for this order item.,
+          }
 
     OrderPriceChangeInfo:
       type: object
@@ -6393,10 +6729,25 @@ components:
         id: { type: string, format: uuid }
         order_number: { type: string }
         status: { $ref: "#/components/schemas/OrderStatus" }
-        version: { type: integer, minimum: 1, description: Required on every state-changing order request. }
+        version:
+          {
+            type: integer,
+            minimum: 1,
+            description: Required on every state-changing order request.,
+          }
         payment_method: { type: string, enum: [cod] }
-        address_id: { type: [string, "null"], format: uuid, description: "Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged." }
-        delivery_id: { type: [string, "null"], format: uuid, description: Current delivery reachable by this order's owner. }
+        address_id:
+          {
+            type: [string, "null"],
+            format: uuid,
+            description: "Original address reference; null if that address was later deleted. Delivery snapshots remain unchanged.",
+          }
+        delivery_id:
+          {
+            type: [string, "null"],
+            format: uuid,
+            description: Current delivery reachable by this order's owner.,
+          }
         subtotal: { $ref: "#/components/schemas/Money" }
         delivery_fee: { $ref: "#/components/schemas/Money" }
         original_delivery_fee: { $ref: "#/components/schemas/Money" }
@@ -6404,6 +6755,8 @@ components:
         discount: { $ref: "#/components/schemas/Money" }
         coupon_discount: { $ref: "#/components/schemas/Money" }
         tier_discount: { $ref: "#/components/schemas/Money" }
+        loyalty_points_redeemed: { type: integer, minimum: 0 }
+        loyalty_redemption_amount: { $ref: "#/components/schemas/Money" }
         discount_source: { type: string, enum: [none, coupon, tier, stacked] }
         applied_tier:
           oneOf:
@@ -6414,8 +6767,9 @@ components:
             - { $ref: "#/components/schemas/NextDiscountTier" }
             - { type: "null" }
         total: { $ref: "#/components/schemas/Money" }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
-        delivery_contact_phone: { type: string, description: Immutable checkout snapshot. }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        delivery_contact_phone:
+          { type: string, description: Immutable checkout snapshot. }
         delivery_governorate:
           oneOf:
             - type: object
@@ -6426,13 +6780,28 @@ components:
                 name_ar: { type: [string, "null"] }
                 name_en: { type: [string, "null"] }
             - { type: "null" }
-        delivery_address_label: { type: [string, "null"], description: Immutable checkout snapshot. }
-        delivery_city: { type: string, description: Immutable checkout snapshot. }
-        delivery_area: { type: [string, "null"], description: Immutable checkout snapshot. }
-        delivery_street: { type: [string, "null"], description: Immutable checkout snapshot. }
-        delivery_details: { type: [string, "null"], description: Immutable checkout snapshot. }
-        delivery_lat: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
-        delivery_lng: { type: [number, "null"], format: double, description: Immutable checkout snapshot. }
+        delivery_address_label:
+          { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_city:
+          { type: string, description: Immutable checkout snapshot. }
+        delivery_area:
+          { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_street:
+          { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_details:
+          { type: [string, "null"], description: Immutable checkout snapshot. }
+        delivery_lat:
+          {
+            type: [number, "null"],
+            format: double,
+            description: Immutable checkout snapshot.,
+          }
+        delivery_lng:
+          {
+            type: [number, "null"],
+            format: double,
+            description: Immutable checkout snapshot.,
+          }
         placed_at: { type: string, format: date-time }
         acceptance_deadline: { type: [string, "null"], format: date-time }
         auto_cancel_deadline: { type: [string, "null"], format: date-time }
@@ -6475,8 +6844,47 @@ components:
             properties:
               id: { type: string, format: uuid }
               document_number: { type: string }
-              status: { type: string, enum: [open, partially_received, received, closed] }
+              status:
+                {
+                  type: string,
+                  enum: [open, partially_received, received, closed],
+                }
               outcome: { type: string, enum: [cancel, retry] }
+        returns:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [
+                id,
+                document_number,
+                status,
+                refund_amount,
+                points_effect,
+                created_at,
+              ]
+            properties:
+              id: { type: string, format: uuid }
+              document_number: { type: string }
+              status:
+                {
+                  type: string,
+                  enum:
+                    [
+                      requested,
+                      approved,
+                      partially_approved,
+                      rejected,
+                      received,
+                      inspected,
+                      refunded,
+                      completed,
+                    ],
+                }
+              refund_amount: { $ref: "#/components/schemas/Money" }
+              points_effect: { $ref: "#/components/schemas/ReturnPointsEffect" }
+              created_at: { type: string, format: date-time }
         items:
           type: array
           items: { $ref: "#/components/schemas/OrderItem" }
@@ -6824,9 +7232,18 @@ components:
         account_id: { type: string, format: uuid }
         order_id: { type: [string, "null"], format: uuid }
         return_id: { type: [string, "null"], format: uuid }
-        type: { type: string, enum: [earn, redeem, adjust, expire] }
+        type:
+          {
+            type: string,
+            enum:
+              [earn, redeem, adjust, expire, return_reversal, return_restore],
+          }
         reason: { type: string }
-        points: { type: integer, description: Positive for earn; negative for redeem; signed for adjust. }
+        points:
+          {
+            type: integer,
+            description: Positive for earn; negative for redeem; signed for adjust.,
+          }
         note: { type: [string, "null"] }
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
@@ -7636,39 +8053,239 @@ components:
           type: array
           items: { $ref: "#/components/schemas/PickListItem" }
 
+    ReturnRequest:
+      type: object
+      required: [order_id, operation_id, items]
+      properties:
+        order_id: { type: string, format: uuid }
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        reason: { type: string, maxLength: 2000 }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_item_id, quantity, reason, reason_code]
+            properties:
+              order_item_id: { type: string, format: uuid }
+              quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
+              reason: { type: string, minLength: 1, maxLength: 1000 }
+              reason_code:
+                {
+                  type: string,
+                  enum:
+                    [change_of_mind, defect, store_error, wrong_item, other],
+                }
+
+    ReturnTransition:
+      allOf:
+        - $ref: "#/components/schemas/FinancialDocumentInput"
+        - type: object
+          properties:
+            note: { type: string, maxLength: 500 }
+
+    ReturnApproval:
+      allOf:
+        - $ref: "#/components/schemas/FinancialDocumentInput"
+        - type: object
+          required: [decision]
+          properties:
+            decision: { type: string, enum: [approve, reject] }
+            note: { type: string, minLength: 3, maxLength: 500 }
+            delivery_fee_refund: { $ref: "#/components/schemas/Money" }
+            delivery_fee_refund_reason:
+              { type: string, minLength: 3, maxLength: 500 }
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [return_item_id, approved_quantity]
+                properties:
+                  return_item_id: { type: string, format: uuid }
+                  approved_quantity:
+                    { type: number, multipleOf: 0.001, minimum: 0 }
+
+    ReturnRefund:
+      allOf:
+        - $ref: "#/components/schemas/FinancialDocumentInput"
+        - type: object
+          required: [method]
+          properties:
+            method: { type: string, enum: [cash_account, delivery_custody] }
+            cash_account_id: { type: string, format: uuid }
+            collection_id: { type: string, format: uuid }
+            proof_reference: { type: string, minLength: 1, maxLength: 160 }
+
+    ReturnPointsEffect:
+      type: object
+      additionalProperties: false
+      required: [earned_reversed, redeemed_restored, net]
+      properties:
+        earned_reversed: { type: integer, minimum: 0 }
+        redeemed_restored: { type: integer, minimum: 0 }
+        net: { type: integer }
+
     ReturnItem:
       type: object
-      required: [base_unit, whole_units_only, discount_share, net_amount]
+      additionalProperties: false
+      required:
+        [
+          id,
+          order_item_id,
+          variant_id,
+          product_name_ar,
+          product_name_en,
+          quantity,
+          approved_quantity,
+          base_unit,
+          whole_units_only,
+          customer_reason,
+          reason_code,
+          unit_price,
+          discount_share,
+          net_amount,
+          approved_refund,
+          earned_points_share,
+          redeemed_points_share,
+          currency,
+          condition,
+          restock,
+          batch_id,
+          inspection_location,
+        ]
       properties:
         id: { type: string, format: uuid }
         order_item_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        product_name_ar: { type: string }
+        product_name_en: { type: string }
         quantity: { type: number, multipleOf: 0.001 }
         approved_quantity: { type: number, multipleOf: 0.001 }
-        base_unit: { type: string, minLength: 1, maxLength: 32, description: "Order-time SKU base-unit snapshot." }
-        whole_units_only: { type: boolean, description: "Order-time SKU fractional-quantity rule." }
+        base_unit:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 32,
+            description: "Order-time SKU base-unit snapshot.",
+          }
+        whole_units_only:
+          {
+            type: boolean,
+            description: "Order-time SKU fractional-quantity rule.",
+          }
         customer_reason: { type: string }
-        unit_price: { $ref: "#/components/schemas/Money", description: Immutable order-line unit price. }
-        discount_share: { $ref: "#/components/schemas/Money", description: Discount share attributed to this requested return quantity. }
-        net_amount: { $ref: "#/components/schemas/Money", description: Exact net refund snapshot for the requested quantity. }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
-        expected_refund: { $ref: "#/components/schemas/Money" }
+        reason_code:
+          {
+            type: string,
+            enum: [change_of_mind, defect, store_error, wrong_item, other],
+          }
+        unit_price:
+          {
+            $ref: "#/components/schemas/Money",
+            description: Immutable order-line unit price.,
+          }
+        discount_share:
+          {
+            $ref: "#/components/schemas/Money",
+            description: Discount share attributed to this requested return quantity.,
+          }
+        net_amount:
+          {
+            $ref: "#/components/schemas/Money",
+            description: Exact net refund snapshot for the requested quantity.,
+          }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
         approved_refund: { $ref: "#/components/schemas/Money" }
-        condition: { type: [string, "null"], enum: [sellable, opened, damaged, null] }
+        earned_points_share: { type: integer, minimum: 0 }
+        redeemed_points_share: { type: integer, minimum: 0 }
+        condition:
+          {
+            type: [string, "null"],
+            enum: [sellable, opened, damaged, expired, null],
+          }
         restock: { type: boolean }
         batch_id: { type: [string, "null"], format: uuid }
+        inspection_location:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, code, is_sellable]
+              properties:
+                id: { type: string, format: uuid }
+                code: { type: string }
+                is_sellable: { type: boolean }
+            - { type: "null" }
 
     Return:
       type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          document_number,
+          order_id,
+          order_number,
+          user_id,
+          source,
+          created_by,
+          type,
+          status,
+          reason,
+          expected_refund,
+          refund_amount,
+          delivery_fee_refund,
+          uncollected_offset,
+          cash_refund_amount,
+          points_effect,
+          currency,
+          document_date,
+          accounting_date,
+          reviewed_by,
+          reviewed_at,
+          completed_at,
+          created_at,
+          items,
+          refund,
+          events,
+          refund_payments,
+          postings,
+        ]
       properties:
         id: { type: string, format: uuid }
+        document_number: { type: string }
         order_id: { type: string, format: uuid }
+        order_number: { type: string }
         user_id: { type: string, format: uuid }
+        source: { type: string, enum: [customer, staff] }
+        created_by: { type: string, format: uuid }
         type: { type: string, enum: [return, exchange] }
-        status: { type: string, enum: [requested, approved, partially_approved, rejected, completed] }
+        status:
+          {
+            type: string,
+            enum:
+              [
+                requested,
+                approved,
+                partially_approved,
+                rejected,
+                received,
+                inspected,
+                refunded,
+                completed,
+              ],
+          }
         reason: { type: [string, "null"] }
         expected_refund: { $ref: "#/components/schemas/Money" }
         refund_amount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        delivery_fee_refund: { $ref: "#/components/schemas/Money" }
+        uncollected_offset: { $ref: "#/components/schemas/Money" }
+        cash_refund_amount: { $ref: "#/components/schemas/Money" }
+        points_effect: { $ref: "#/components/schemas/ReturnPointsEffect" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
         reviewed_by: { type: [string, "null"], format: uuid }
         reviewed_at: { type: [string, "null"], format: date-time }
         completed_at: { type: [string, "null"], format: date-time }
@@ -7680,16 +8297,125 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/ReturnItem" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ReturnEvent" }
+        refund_payments:
+          type: array
+          items: { $ref: "#/components/schemas/ReturnRefundPayment" }
+        postings:
+          type: array
+          items: { $ref: "#/components/schemas/ReturnPosting" }
+
+    ReturnEvent:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          type,
+          operation_id,
+          document_date,
+          accounting_date,
+          actor_id,
+          note,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        type:
+          {
+            type: string,
+            enum:
+              [
+                requested,
+                approved,
+                partially_approved,
+                rejected,
+                received,
+                inspected,
+                refunded,
+              ],
+          }
+        operation_id: { type: string }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        actor_id: { type: string, format: uuid }
+        note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    ReturnRefundPayment:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          method,
+          amount_iqd,
+          cash_account,
+          collection,
+          proof_reference,
+          document_date,
+          accounting_date,
+          created_by,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        method: { type: string, enum: [cash_account, delivery_custody] }
+        amount_iqd: { $ref: "#/components/schemas/Money" }
+        cash_account:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, name]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+            - { type: "null" }
+        collection:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, party_id]
+              properties:
+                id: { type: string, format: uuid }
+                party_id: { type: string, format: uuid }
+            - { type: "null" }
+        proof_reference: { type: [string, "null"] }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+
+    ReturnPosting:
+      type: object
+      additionalProperties: false
+      required: [role, journal_entry_id, journal_document_number]
+      properties:
+        role:
+          type: string
+          enum:
+            [
+              restock_issue_cost,
+              write_down,
+              return_against_uncollected,
+              delivery_fee_refund,
+              refund_payment,
+            ]
+        journal_entry_id: { type: string, format: uuid }
+        journal_document_number: { type: string }
 
     RefundLedgerEntry:
       type: object
-      description: COD refund obligation; no payment gateway reversal occurs.
+      description: Return refund obligation and its payment state.
+      additionalProperties: false
       properties:
         id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
         return_id: { type: string, format: uuid }
         amount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
         status: { type: string, enum: [obligation] }
         reason: { type: string }
         created_by: { type: string, format: uuid }
@@ -8331,43 +9057,118 @@ components:
     DeliveryCollection:
       type: object
       additionalProperties: false
-      required: [id, delivery_id, order_id, party_id, status, due_amount, collected_amount, shortfall_amount, currency, delivered_at, accounting_date, confirmed_at, delivery_journal_entry_id, confirmation_journal_entry_id]
+      required:
+        [
+          id,
+          delivery_id,
+          order_id,
+          party_id,
+          status,
+          due_amount,
+          collected_amount,
+          shortfall_amount,
+          currency,
+          delivered_at,
+          accounting_date,
+          confirmed_at,
+          delivery_journal_entry_id,
+          confirmation_journal_entry_id,
+        ]
       properties:
         id: { type: string, format: uuid }
         delivery_id: { type: string, format: uuid }
         order_id: { type: string, format: uuid }
         party_id: { type: string, format: uuid }
-        status: { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
+        status:
+          { type: string, enum: [confirmed_full, confirmed_short, unconfirmed] }
         due_amount: { type: number, minimum: 0 }
         collected_amount: { type: [number, "null"], minimum: 0 }
         shortfall_amount: { type: [number, "null"], minimum: 0 }
-        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
         delivered_at: { type: string, format: date-time }
         accounting_date: { type: string, format: date }
         confirmed_at: { type: [string, "null"], format: date-time }
         delivery_journal_entry_id: { type: string, format: uuid }
         confirmation_journal_entry_id: { type: [string, "null"], format: uuid }
-        settlement_status: { type: string, enum: [unconfirmed, unsettled, partially_settled, settled], description: Present on staff collection-list responses. }
-        allocated_amount_iqd: { type: number, minimum: 0, description: Active receipt allocations; present on staff collection-list responses. }
-        receipt_allocated_amount_iqd: { type: number, minimum: 0, description: Cash receipt allocations only; present on staff collection-list responses. }
-        fare_netted_amount_iqd: { type: number, minimum: 0, description: Approved trip fare netted against this collection; present on staff collection-list responses. }
-        unsettled_amount_iqd: { type: [number, "null"], minimum: 0, description: Confirmed collected amount not yet allocated; present on staff collection-list responses. }
-        exception_offset_iqd: { type: number, minimum: 0, description: Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. }
-        uncollected_amount_iqd: { type: [number, "null"], minimum: 0, description: Remaining shortfall after active custody exceptions; present on staff collection-list responses. }
+        settlement_status:
+          {
+            type: string,
+            enum: [unconfirmed, unsettled, partially_settled, settled],
+            description: Present on staff collection-list responses.,
+          }
+        allocated_amount_iqd:
+          {
+            type: number,
+            minimum: 0,
+            description: Active receipt allocations; present on staff collection-list responses.,
+          }
+        receipt_allocated_amount_iqd:
+          {
+            type: number,
+            minimum: 0,
+            description: Cash receipt allocations only; present on staff collection-list responses.,
+          }
+        fare_netted_amount_iqd:
+          {
+            type: number,
+            minimum: 0,
+            description: Approved trip fare netted against this collection; present on staff collection-list responses.,
+          }
+        return_refunded_amount_iqd:
+          {
+            type: number,
+            minimum: 0,
+            description: Return cash paid directly from this delivery collection; present on staff collection-list responses.,
+          }
+        unsettled_amount_iqd:
+          {
+            type: [number, "null"],
+            minimum: 0,
+            description: Confirmed collected amount not yet allocated; present on staff collection-list responses.,
+          }
+        exception_offset_iqd:
+          {
+            type: number,
+            minimum: 0,
+            description: Active return/refund amount netted against the collection shortfall; present on staff collection-list responses.,
+          }
+        uncollected_amount_iqd:
+          {
+            type: [number, "null"],
+            minimum: 0,
+            description: Remaining shortfall after active custody exceptions; present on staff collection-list responses.,
+          }
         exceptions:
           type: array
           description: Active custody exceptions affecting this collection; present on staff collection-list responses.
           items:
             type: object
             additionalProperties: false
-            required: [id, document_number, type, amount_iqd, exception_offset_iqd, settlement_method, document_date]
+            required:
+              [
+                id,
+                document_number,
+                type,
+                amount_iqd,
+                exception_offset_iqd,
+                settlement_method,
+                document_date,
+              ]
             properties:
               id: { type: string, format: uuid }
               document_number: { type: string }
-              type: { type: string, enum: [return_against_uncollected, delivery_fee_refund] }
+              type:
+                {
+                  type: string,
+                  enum: [return_against_uncollected, delivery_fee_refund],
+                }
               amount_iqd: { type: number, minimum: 0 }
               exception_offset_iqd: { type: number, minimum: 0 }
-              settlement_method: { type: [string, "null"], enum: [cash_account, uncollected, null] }
+              settlement_method:
+                {
+                  type: [string, "null"],
+                  enum: [cash_account, uncollected, null],
+                }
               document_date: { type: string, format: date }
         receipt_allocations:
           type: array
@@ -8375,7 +9176,17 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, batch_id, batch_document_number, voucher_id, voucher_document_number, voucher_document_date, amount_iqd, created_at]
+            required:
+              [
+                id,
+                batch_id,
+                batch_document_number,
+                voucher_id,
+                voucher_document_number,
+                voucher_document_date,
+                amount_iqd,
+                created_at,
+              ]
             properties:
               id: { type: string, format: uuid }
               batch_id: { type: string, format: uuid }
@@ -8391,7 +9202,8 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, trip_id, trip_document_number, amount_iqd, created_at]
+            required:
+              [id, trip_id, trip_document_number, amount_iqd, created_at]
             properties:
               id: { type: string, format: uuid }
               trip_id: { type: string, format: uuid }

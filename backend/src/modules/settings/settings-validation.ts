@@ -146,9 +146,11 @@ export function validateSettingsUpdate(
         );
       }
     } else if (
-      ['acceptance_alert_timeout_minutes', 'backdating_window_days'].includes(
-        key,
-      )
+      [
+        'acceptance_alert_timeout_minutes',
+        'backdating_window_days',
+        'return_window_days',
+      ].includes(key)
     ) {
       positiveInteger(value, field, errors);
     } else if (

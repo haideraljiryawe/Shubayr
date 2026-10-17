@@ -17,6 +17,9 @@ const STATUS_TONE: Record<ReturnStatus, BadgeTone> = {
   requested: "warning",
   approved: "info",
   partially_approved: "info",
+  received: "info",
+  inspected: "info",
+  refunded: "success",
   completed: "success",
   rejected: "error",
 };
@@ -93,7 +96,7 @@ function ReturnRow({
   // Once a return is settled the REFUND is the number that matters; before
   // then it is still an expectation. Both are the server's arithmetic over
   // immutable order-line prices — nothing here multiplies anything out.
-  const settled = status === "completed";
+  const settled = status === "refunded" || status === "completed";
   const amount = settled
     ? (entry.refund_amount ?? 0)
     : (entry.expected_refund ?? 0);
@@ -120,7 +123,10 @@ function ReturnRow({
             </p>
           </div>
 
-          <Badge tone={STATUS_TONE[status]} data-testid={`return-status-${entry.id}`}>
+          <Badge
+            tone={STATUS_TONE[status]}
+            data-testid={`return-status-${entry.id}`}
+          >
             {t(`status_${status}`)}
           </Badge>
         </div>
@@ -149,7 +155,10 @@ function ReturnRow({
               <span className="text-text">
                 {item.customer_reason}
                 {/* ×N is a Latin-digit run inside an Arabic line. */}
-                <span dir="ltr" className="ms-2 text-xs text-text-muted [unicode-bidi:isolate]">
+                <span
+                  dir="ltr"
+                  className="ms-2 text-xs text-text-muted [unicode-bidi:isolate]"
+                >
                   ×{item.quantity}
                 </span>
               </span>
@@ -158,7 +167,7 @@ function ReturnRow({
                   amount={
                     settled
                       ? (item.approved_refund ?? 0)
-                      : (item.expected_refund ?? 0)
+                      : (item.net_amount ?? 0)
                   }
                   size="sm"
                 />
