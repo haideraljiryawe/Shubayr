@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { PrismaService } from '../../database/prisma.service';
 import { ObjectStorageService } from './object-storage.service';
+import { invalid } from '../../common/http/api-error';
 
 const extensions: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -19,7 +20,17 @@ const extensions: Record<string, string> = {
   'image/avif': 'avif',
 };
 
+const receiptExtensions: Record<string, string> = {
+  ...extensions,
+  'application/pdf': 'pdf',
+};
+
 function matchesMime(bytes: Buffer, mimeType: string): boolean {
+  if (mimeType === 'application/pdf') {
+    return (
+      bytes.length >= 5 && bytes.subarray(0, 5).toString('ascii') === '%PDF-'
+    );
+  }
   if (mimeType === 'image/jpeg') {
     return (
       bytes.length >= 3 &&
@@ -163,6 +174,82 @@ export class MediaService {
   async download(id: string) {
     const media = await this.prisma.mediaObject.findUnique({ where: { id } });
     if (!media) throw new NotFoundException('Media not found');
+    if (media.object_key.startsWith('expense-receipts/')) {
+      throw new NotFoundException('Media not found');
+    }
+    return {
+      body: await this.storage.get(media.object_key),
+      mimeType: media.mime_type,
+      sizeBytes: media.size_bytes,
+      checksum: media.checksum,
+    };
+  }
+
+  async uploadExpenseReceipt(file: UploadedImage | undefined, userId: string) {
+    if (!file?.buffer?.length) {
+      throw new UnprocessableEntityException(
+        'A non-empty receipt file is required',
+      );
+    }
+    const extension = receiptExtensions[file.mimetype];
+    if (!extension || !matchesMime(file.buffer, file.mimetype)) {
+      throw new UnsupportedMediaTypeException(
+        `Supported receipt types: ${Object.keys(receiptExtensions).join(', ')}`,
+      );
+    }
+    if (file.size > this.maxBytes) {
+      throw new PayloadTooLargeException(
+        `Receipt must not exceed ${this.maxBytes} bytes`,
+      );
+    }
+    const id = randomUUID();
+    const now = new Date();
+    const objectKey = `expense-receipts/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${id}.${extension}`;
+    const publicUrl = `${this.publicApiUrl}/admin/expense-receipts/${id}`;
+    const checksum = createHash('sha256').update(file.buffer).digest('hex');
+    await this.storage.put(objectKey, file.buffer, file.mimetype);
+    try {
+      return await this.prisma.mediaObject.create({
+        data: {
+          id,
+          object_key: objectKey,
+          public_url: publicUrl,
+          mime_type: file.mimetype,
+          size_bytes: file.size,
+          checksum,
+          uploaded_by: userId,
+        },
+        select: {
+          id: true,
+          public_url: true,
+          mime_type: true,
+          size_bytes: true,
+          checksum: true,
+          created_at: true,
+        },
+      });
+    } catch (error) {
+      await this.storage.remove(objectKey);
+      throw error;
+    }
+  }
+
+  async requireExpenseReceipt(id: string): Promise<void> {
+    const receipt = await this.prisma.mediaObject.findUnique({ where: { id } });
+    if (!receipt?.object_key.startsWith('expense-receipts/')) {
+      throw invalid('EXPENSE_RECEIPT_INVALID', 'Receipt media is invalid');
+    }
+  }
+
+  async downloadExpenseReceipt(id: string) {
+    const media = await this.prisma.mediaObject.findUnique({ where: { id } });
+    if (!media?.object_key.startsWith('expense-receipts/')) {
+      throw new NotFoundException('Expense receipt not found');
+    }
+    const linked = await this.prisma.expense.count({
+      where: { receipt_media_id: id },
+    });
+    if (!linked) throw new NotFoundException('Expense receipt not found');
     return {
       body: await this.storage.get(media.object_key),
       mimeType: media.mime_type,
@@ -190,10 +277,17 @@ export class MediaService {
       this.prisma.category.findFirst({
         where: { image_url: media.public_url },
       }),
-      this.prisma.productImage.findFirst({ where: { url: media.public_url } }),
-      this.prisma.banner.findFirst({ where: { image_url: media.public_url } }),
+      this.prisma.productImage.findFirst({
+        where: { url: media.public_url },
+      }),
+      this.prisma.banner.findFirst({
+        where: { image_url: media.public_url },
+      }),
     ]);
-    if (category || productImage || banner) {
+    const expense = this.prisma.expense
+      ? await this.prisma.expense.findFirst({ where: { receipt_media_id: id } })
+      : null;
+    if (category || productImage || banner || expense) {
       throw new ConflictException(
         'Media is still associated with catalog data',
       );

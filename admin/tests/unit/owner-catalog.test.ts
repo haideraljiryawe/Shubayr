@@ -57,6 +57,7 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "settings",
       "users",
     ]);
+    expect(parseModules("expenses")).toEqual(["expenses"]);
   });
 
   it("puts each route under its module, nested prefixes first", () => {

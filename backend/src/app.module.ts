@@ -29,6 +29,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
 import { WorkerHealthService } from './config/worker-health.service';
+import { ExpensesModule } from './modules/expenses/expenses.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { WorkerHealthService } from './config/worker-health.service';
     OrdersModule,
     FulfilmentModule,
     FinanceModule,
+    ExpensesModule,
     ReturnsModule,
     LoyaltyModule,
     MediaModule,

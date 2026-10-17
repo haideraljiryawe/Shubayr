@@ -11581,6 +11581,541 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List expense categories and their expense GL accounts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense categories */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create an expense category and map it to an expense GL account */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryInput"];
+                };
+            };
+            responses: {
+                /** @description Created category */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an unused category; categories in use must be deactivated */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Unused category deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename, remap, activate or deactivate an expense category */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated category */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/expense-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a private image or PDF receipt */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Uploaded private receipt */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseReceiptUpload"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expense-receipts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a receipt linked to an expense */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Receipt bytes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": string;
+                        "image/png": string;
+                        "image/webp": string;
+                        "image/avif": string;
+                        "application/pdf": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List expense documents with database pagination and filters */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    from?: string;
+                    to?: string;
+                    category_id?: string;
+                    status?: "draft" | "posted" | "reversed";
+                    cash_account_id?: string;
+                    payee?: string;
+                    unpaid_only?: boolean;
+                    search?: string;
+                    sort?: "document_date" | "amount" | "created_at" | "payee" | "document_number";
+                    direction?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpensePage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a draft expense using the central rate effective at its document timestamp */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCreateInput"];
+                };
+            };
+            responses: {
+                /** @description Draft expense */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ExchangeRateValidation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/totals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Totals for the filtered posted expense range, overall and per category */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    category_id?: string;
+                    cash_account_id?: string;
+                    payee?: string;
+                    unpaid_only?: boolean;
+                    search?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Filtered totals */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseTotals"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an expense with journal, payments and corrections */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a draft expense to the immutable ledger */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpensePostInput"];
+                };
+            };
+            responses: {
+                /** @description Posted expense */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make a partial or final payment against an accrued expense */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpensePaymentInput"];
+                };
+            };
+            responses: {
+                /** @description Expense with the new payment */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct an expense by reversing every one of its immutable postings */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseReverseInput"];
+                };
+            };
+            responses: {
+                /** @description Reversed expense */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -15866,6 +16401,276 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        ExpenseCategoryInput: {
+            name_ar: string;
+            name_en: string;
+            /**
+             * Format: uuid
+             * @description Optional existing enabled expense GL account; when omitted the server creates one.
+             */
+            ledger_account_id?: string;
+        };
+        ExpenseCategoryPatch: {
+            name_ar?: string;
+            name_en?: string;
+            /** Format: uuid */
+            ledger_account_id?: string;
+            is_active?: boolean;
+        };
+        ExpenseCategory: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            /** Format: uuid */
+            ledger_account_id: string;
+            is_active: boolean;
+            is_system: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            ledger_account: components["schemas"]["LedgerAccount"];
+            expense_count?: number;
+        };
+        ExpenseCreateInput: {
+            /** Format: uuid */
+            category_id: string;
+            amount: string;
+            currency_code: string;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            /**
+             * Format: uuid
+             * @description Required for paid_now and forbidden for owed.
+             */
+            cash_account_id?: string;
+            /** Format: uuid */
+            supplier_id?: string;
+            payee?: string;
+            description: string;
+            reference_number?: string;
+            /** Format: uuid */
+            receipt_media_id?: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        ExpensePostInput: {
+            note?: string;
+        };
+        ExpensePaymentInput: {
+            /** Format: uuid */
+            cash_account_id: string;
+            amount: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+            reference_number?: string;
+            notes?: string;
+        };
+        ExpenseReverseInput: {
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        ExpenseActor: {
+            /** Format: uuid */
+            id: string;
+            name: string | null;
+            username: string | null;
+        };
+        ExpensePartyLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        ExpenseCategoryLink: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+        };
+        ExpenseCashAccountSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+        };
+        ExpenseCashAccountLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+            currency_code: string;
+        };
+        ExpenseReceiptUpload: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            public_url: string;
+            /** @enum {string} */
+            mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "application/pdf";
+            size_bytes: number;
+            checksum: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExpenseReceipt: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            public_url: string;
+            /** Format: uri */
+            download_url: string;
+            /** @enum {string} */
+            mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "application/pdf";
+            size_bytes: number;
+        };
+        ExpensePayment: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            amount_currency: components["schemas"]["Money"];
+            currency_code: string;
+            exchange_rate: number;
+            amount_iqd: number;
+            cash_account: components["schemas"]["ExpenseCashAccountSummary"];
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            reference_number: string | null;
+            notes: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            journal_entry: components["schemas"]["JournalEntry"];
+        };
+        ExpenseCorrectionPosting: {
+            /** Format: uuid */
+            id: string;
+            role: string;
+            /** Format: uuid */
+            expense_payment_id: string | null;
+            /** Format: uuid */
+            original_journal_entry_id: string;
+            reversal_journal_entry: components["schemas"]["JournalEntry"];
+        };
+        ExpenseCorrection: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            reason: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            postings: components["schemas"]["ExpenseCorrectionPosting"][];
+        };
+        Expense: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "draft" | "posted" | "reversed";
+            category: components["schemas"]["ExpenseCategory"];
+            amount_currency: components["schemas"]["Money"];
+            currency_code: string;
+            exchange_rate: number | null;
+            amount_iqd: number | null;
+            paid_currency: number;
+            balance_currency: number;
+            balance_iqd: number | null;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            cash_account: components["schemas"]["ExpenseCashAccountLink"] | null;
+            supplier: components["schemas"]["ExpensePartyLink"] | null;
+            payee: string | null;
+            description: string;
+            reference_number: string | null;
+            receipt: components["schemas"]["ExpenseReceipt"] | null;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            posted_by: string | null;
+            /** Format: date-time */
+            posted_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            poster: components["schemas"]["ExpenseActor"] | null;
+            journal_entry: components["schemas"]["JournalEntry"] | null;
+            payments: components["schemas"]["ExpensePayment"][];
+            corrections: components["schemas"]["ExpenseCorrection"][];
+        };
+        ExpenseSummary: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "draft" | "posted" | "reversed";
+            category: components["schemas"]["ExpenseCategoryLink"];
+            amount_currency: number;
+            amount_iqd: number | null;
+            paid_currency: number;
+            balance_currency: number;
+            currency_code: string;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            payee: string | null;
+            supplier: components["schemas"]["ExpensePartyLink"] | null;
+            cash_account: components["schemas"]["ExpenseCashAccountSummary"] | null;
+            description: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExpensePage: {
+            items: components["schemas"]["ExpenseSummary"][];
+            pagination: {
+                page: number;
+                per_page: number;
+                total: number;
+                pages: number;
+            };
+        };
+        ExpenseTotals: {
+            total_iqd: number;
+            document_count: number;
+            per_category: {
+                category: components["schemas"]["ExpenseCategoryLink"];
+                total_iqd: number;
+                document_count: number;
+            }[];
+        };
         AdminFinancialSettings: {
             settings: {
                 /**
@@ -16053,6 +16858,7 @@ export interface components {
         PerPage: number;
         Search: string;
         Reason: string;
+        IdempotencyKey: string;
     };
     requestBodies: never;
     headers: never;
