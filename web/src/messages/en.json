@@ -722,7 +722,7 @@
     "faq1Q": "How long does delivery take?",
     "faq1A": "One to three days within the city, depending on the area.",
     "faq2Q": "Can I return a product?",
-    "faq2A": "Yes - within 14 days of delivery and in its original condition, from the order page.",
+    "faq2A": "Yes — within {days} days of delivery, in its original condition, from the order page.",
     "faq3Q": "How do I earn points?",
     "faq3A": "Points are added automatically after each delivered order and can be redeemed later.",
     "settingsTitle": "Settings",
@@ -961,5 +961,69 @@
     "otherLanguage": "العربية",
     "previewBanner": "Store preview — not open to customers yet.",
     "exitPreview": "End preview"
+  },
+  "legal": {
+    "linksLabel": "Store policies",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "returns": "Returns & refunds",
+    "support": "Contact us",
+    "deleteAccount": "Delete account",
+    "updated": "Last updated: {date}",
+    "contents": "Contents"
+  },
+  "support": {
+    "title": "Contact us",
+    "intro": "The {store} team is here to help with orders, delivery and returns.",
+    "call": "Call us",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "hours": "Opening hours",
+    "address": "Address",
+    "privacy": "Privacy requests",
+    "orderHelp": "Have an order? Its status and your return requests are in your account.",
+    "myOrders": "My orders"
+  },
+  "deleteAccount": {
+    "title": "Delete your account",
+    "intro": "You can delete your {store} account at any time. This page explains what is deleted and what we keep.",
+    "deletedTitle": "What is deleted",
+    "deleted": [
+      "Your name, phone number and email address.",
+      "Your saved delivery addresses.",
+      "Your devices' notification tokens, so no more notifications reach you.",
+      "Every sign-in session: you are signed out on all devices."
+    ],
+    "keptTitle": "What we keep",
+    "kept": [
+      "Order, return, payment and accounting records, with anything that identifies you removed, for as long as the law requires. Posted financial records cannot be erased."
+    ],
+    "beforeTitle": "Before you delete",
+    "before": "Your open orders and pending returns must be finished, and any unsettled amounts settled, before the account can be deleted.",
+    "afterNote": "Deletion is permanent and cannot be undone. You can create a new account with the same phone number later.",
+    "signedOutTitle": "Sign in to delete your account",
+    "signedOutBody": "To make sure the account is yours, sign in with your phone number and the code we send to it, then confirm the deletion.",
+    "signIn": "Sign in",
+    "noAccess": "Can't reach your number? Contact us: <phone></phone> or <email></email>.",
+    "confirmTitle": "Delete the account for <phone></phone>",
+    "confirmBody": "Your account will be deleted and you will be signed out on every device.",
+    "confirmCheck": "I understand that deletion is permanent.",
+    "confirm": "Delete my account",
+    "deleting": "Deleting…",
+    "blockedTitle": "Your account can't be deleted yet",
+    "blockedBody": "Finish the following, then try again:",
+    "reasons": {
+      "OPEN_ORDERS": "{count, plural, =0 {You have open orders} one {You have one open order} other {You have # open orders}}. Wait for delivery, or cancel them from My orders.",
+      "PENDING_RETURNS": "{count, plural, =0 {You have returns in progress} one {You have one return in progress} other {You have # returns in progress}}. Wait for them to be completed.",
+      "UNSETTLED_AMOUNTS": "There are amounts on your account that aren't settled yet (a refund not yet paid to you, or a collection not yet confirmed). Contact us to settle them.",
+      "other": "Something on your account still needs to be finished."
+    },
+    "myOrders": "My orders",
+    "myReturns": "My returns",
+    "failed": "We couldn't delete your account. Please try again.",
+    "doneTitle": "Your account has been deleted",
+    "doneBody": "Your personal data has been deleted and you have been signed out on every device. Thank you for shopping with us.",
+    "home": "Back to the home page",
+    "contact": "Contact us"
   }
 }

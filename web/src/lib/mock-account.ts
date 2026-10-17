@@ -14,6 +14,7 @@ import type {
   Order,
   OrderStatus,
   OrderTracking,
+  FieldError,
   Return,
   ReturnRequest,
   Review,
@@ -118,6 +119,53 @@ export function signInMockPhone(phoneE164: string, phone: string): User {
         phone,
       };
   return currentUser;
+}
+
+/**
+ * Test hook for DELETE /me/account (the account deletion page). Hermetic
+ * tests set this sessionStorage key before the page loads:
+ *
+ *   "none"                         the deletion succeeds
+ *   "OPEN_ORDERS,PENDING_RETURNS"  refused for those reasons
+ *
+ * Unset, the refusal follows the fixtures: open orders and pending returns.
+ */
+export const MOCK_ACCOUNT_DELETION_KEY = "shubayr.mock.account-deletion";
+
+const DELETION_REFUSALS: Record<string, FieldError> = {
+  OPEN_ORDERS: { field: "open_orders", code: "OPEN_ORDERS", message: "1 open order(s) remain" },
+  PENDING_RETURNS: { field: "pending_returns", code: "PENDING_RETURNS", message: "1 pending return(s) remain" },
+  UNSETTLED_AMOUNTS: {
+    field: "unsettled_amounts",
+    code: "UNSETTLED_AMOUNTS",
+    message: "1 unsettled financial record(s) remain",
+  },
+};
+
+/** Why the mock refuses to delete the account; empty when it may go ahead. */
+export function mockAccountDeletionRefusals(): FieldError[] {
+  let override: string | null = null;
+  try {
+    override = window.sessionStorage.getItem(MOCK_ACCOUNT_DELETION_KEY);
+  } catch {
+    override = null;
+  }
+  if (override !== null) {
+    return override
+      .split(",")
+      .map((code) => DELETION_REFUSALS[code.trim()])
+      .filter((refusal): refusal is FieldError => Boolean(refusal));
+  }
+  const refusals: FieldError[] = [];
+  const open = listMockOrders().filter(
+    (order) => !["rejected", "cancelled", "delivered", "returned"].includes(order.status ?? ""),
+  ).length;
+  if (open) refusals.push({ ...DELETION_REFUSALS.OPEN_ORDERS, message: `${open} open order(s) remain` });
+  const pending = returns.filter((item) =>
+    ["requested", "approved", "partially_approved"].includes(item.status),
+  ).length;
+  if (pending) refusals.push({ ...DELETION_REFUSALS.PENDING_RETURNS, message: `${pending} pending return(s) remain` });
+  return refusals;
 }
 
 /* ------------------------------------------------------------------ addresses */

@@ -34,6 +34,7 @@ import {
   createMockDeliveryRating,
   listMockReviewedOrderItems,
   listMockMyReviews,
+  mockAccountDeletionRefusals,
 } from "./mock-account";
 import {
   getMockCustody,
@@ -202,6 +203,13 @@ export class ApiError extends Error {
 /** API 6.0: purchase functions answer this 403 to a work account. */
 export const WORK_ACCOUNT_SHOPPING_FORBIDDEN =
   "WORK_ACCOUNT_SHOPPING_FORBIDDEN";
+
+/** DELETE /me/account refused: open orders, pending returns or unsettled amounts. */
+export const ACCOUNT_DELETION_BLOCKED = "ACCOUNT_DELETION_BLOCKED";
+
+/** The refusal reasons the API names in the 409's field errors. */
+export const ACCOUNT_DELETION_REASONS = ["OPEN_ORDERS", "PENDING_RETURNS", "UNSETTLED_AMOUNTS"] as const;
+export type AccountDeletionReason = (typeof ACCOUNT_DELETION_REASONS)[number];
 
 export function isWorkAccountForbidden(error: unknown): boolean {
   return (
@@ -837,6 +845,35 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(input),
       });
+    });
+  },
+
+  /**
+   * Delete and anonymize the signed-in customer account (DELETE /me/account).
+   *
+   * 204: the account is anonymized and every session revoked; the caller then
+   * signs out locally. 409 ACCOUNT_DELETION_BLOCKED carries one field error per
+   * reason — OPEN_ORDERS, PENDING_RETURNS, UNSETTLED_AMOUNTS — and nothing is
+   * deleted.
+   */
+  async deleteAccount(): Promise<void> {
+    return withFreshToken(async () => {
+      if (!isLive("profile")) {
+        await mockLatency();
+        requireMockAuth();
+        const refusals = mockAccountDeletionRefusals();
+        if (refusals.length) {
+          throw new ApiError(
+            409,
+            "Resolve open orders, pending returns, and unsettled amounts before deleting the account",
+            ACCOUNT_DELETION_BLOCKED,
+            refusals,
+          );
+        }
+        return;
+      }
+      requireAuthenticated();
+      await requestNoContent("/me/account", { method: "DELETE" });
     });
   },
 

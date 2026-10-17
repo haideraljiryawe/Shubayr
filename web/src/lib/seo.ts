@@ -1,6 +1,7 @@
 import type { Brand, Category, Product } from "@/lib/api";
 import { primaryImageUrl, productImageUrls, type StockLevel } from "@/lib/product";
 import { localizedPath } from "@/lib/site";
+import { INFO_PATHS } from "@/lib/store-gate";
 
 /* ---------------------------------------------------------------------------
  * Search-engine output: product structured data (schema.org Product with an
@@ -94,8 +95,8 @@ export interface SitemapEntry {
 
 /**
  * Every public page worth indexing: home, the directories, each visible
- * category (and subcategory), each visible brand's listing, and each active
- * product. Arabic is the canonical URL; English is listed as its alternate.
+ * category (and subcategory), each visible brand's listing, each active
+ * product, and the legal, support and account deletion pages. Arabic is the canonical URL; English is listed as its alternate.
  */
 export function sitemapEntries(input: {
   siteUrl: string;
@@ -122,6 +123,7 @@ export function sitemapEntries(input: {
     entry("/", "daily", 1),
     entry("/categories", "weekly", 0.6),
     entry("/brands", "weekly", 0.5),
+    ...INFO_PATHS.map((path) => entry(path, "weekly", 0.3)),
     ...visibleCategories.filter((category) => category.slug).map((category) => entry(`/category/${category.slug}`, "daily", 0.8)),
     ...input.brands.filter((brand) => brand.is_visible !== false).map((brand) => entry(`/search?brand_id=${encodeURIComponent(brand.id)}`, "weekly", 0.5, brand.updated_at)),
     ...input.products

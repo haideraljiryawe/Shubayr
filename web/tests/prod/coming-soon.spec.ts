@@ -83,3 +83,74 @@ test("closed store: a forged gate header from the client changes nothing", async
   await expect(page.getByTestId("coming-soon")).toBeVisible();
   await expect(page.getByTestId("store-preview-banner")).toHaveCount(0);
 });
+
+// The legal, support and account deletion pages stay open before opening day
+// (src/lib/store-gate.ts, INFO_PATHS): the app stores need their addresses.
+for (const [path, lang, title] of [
+  ["/privacy", "ar", "سياسة الخصوصية"],
+  ["/terms", "ar", "شروط الاستخدام"],
+  ["/returns", "ar", "سياسة الإرجاع والاسترداد"],
+  ["/support", "ar", "اتصل بنا"],
+  ["/account/delete", "ar", "حذف الحساب"],
+  ["/en/privacy", "en", "Privacy policy"],
+  ["/en/terms", "en", "Terms of use"],
+  ["/en/returns", "en", "Returns & refunds"],
+  ["/en/support", "en", "Contact us"],
+  ["/en/account/delete", "en", "Delete your account"],
+] as const) {
+  test(`closed store: ${path} stays reachable, unindexed until opening`, async ({ page }) => {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+    const headers = response!.headers();
+    expect(headers["cache-control"]).toContain("no-store");
+    expect(headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(headers["content-security-policy"]).toContain("'nonce-");
+    await expect(page.getByTestId("coming-soon")).toHaveCount(0);
+    await expect(page.getByTestId("info-shell")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", lang);
+    await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    // The footer's policy links, but none of the shop behind the gate.
+    await expect(page.getByTestId("site-footer").getByTestId("policy-link-privacy")).toBeVisible();
+    await expect(page.getByTestId("header-cart")).toHaveCount(0);
+    await expect(page.getByTestId("header-login")).toHaveCount(0);
+  });
+}
+
+test("closed store: the rest of /account stays behind the gate", async ({ page }) => {
+  for (const path of ["/account", "/account/orders", "/en/account/profile", "/login"]) {
+    await page.goto(path);
+    await expect(page.getByTestId("coming-soon"), path).toBeVisible();
+  }
+});
+
+test("closed store: the opening-soon page links to privacy, terms and support", async ({ page }) => {
+  await page.goto("/");
+  const links = page.getByTestId("coming-soon-policies");
+  await expect(links.getByTestId("policy-link-privacy")).toHaveAttribute("href", "/privacy");
+  await expect(links.getByTestId("policy-link-terms")).toHaveAttribute("href", "/terms");
+  await expect(links.getByTestId("policy-link-support")).toHaveAttribute("href", "/support");
+  await links.getByTestId("policy-link-privacy").click();
+  await expect(page.getByTestId("legal-privacy")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("سياسة الخصوصية");
+
+  await page.goto("/en");
+  await expect(page.getByTestId("coming-soon-policies").getByTestId("policy-link-support")).toHaveAttribute("href", "/en/support");
+});
+
+test("closed store: an account can still be deleted, signing in on the page itself", async ({ page }) => {
+  // The build is mocked (playwright.prod.config.ts): "none" lets the deletion through.
+  await page.addInitScript(() => window.sessionStorage.setItem("shubayr.mock.account-deletion", "none"));
+  await page.goto("/account/delete");
+  await expect(page.getByTestId("delete-signed-out")).toBeVisible();
+  await page.getByTestId("auth-phone").fill("07701234567");
+  await page.getByTestId("auth-send-otp").click();
+  await page.getByTestId("auth-code").fill("123456");
+  await page.getByTestId("auth-verify").click();
+  await expect(page.getByTestId("delete-confirm")).toBeVisible();
+  await page.getByTestId("delete-understood").check();
+  await page.getByTestId("delete-submit").click();
+  await expect(page.getByTestId("delete-done")).toBeVisible();
+  expect(await page.evaluate(() => window.localStorage.getItem("shubayr.session.v1"))).toBeNull();
+});

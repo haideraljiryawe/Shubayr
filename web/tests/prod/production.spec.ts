@@ -139,6 +139,9 @@ test.describe("search engines", () => {
     for (const path of ["/account", "/cart", "/checkout", "/login", "/en/account", "/api/"]) {
       expect(body).toContain(`Disallow: ${path}`);
     }
+    // The one /account page that is public: the app stores link to it.
+    expect(body).toContain("Allow: /account/delete");
+    expect(body).toContain("Allow: /en/account/delete");
     expect(body).toContain(`Sitemap: ${SITE}/sitemap.xml`);
   });
 
@@ -155,6 +158,7 @@ test.describe("search engines", () => {
     // The hidden brand of the fixtures is left out.
     expect(locs.some((loc) => loc.includes("brand-retired"))).toBe(false);
     expect(xml).toContain(`hreflang="en" href="${SITE}/en/product/${PRODUCT}"`);
+    for (const path of ["/privacy", "/terms", "/returns", "/support", "/account/delete"]) expect(locs).toContain(`${SITE}${path}`);
     for (const loc of locs) expect(loc.startsWith(SITE)).toBe(true);
   });
 
@@ -203,6 +207,22 @@ test.describe("search engines", () => {
       await expect(page.locator('link[rel="canonical"]'), path).toHaveCount(0);
     }
   });
+});
+
+test.describe("legal and support pages", () => {
+  for (const path of ["/privacy", "/terms", "/returns", "/support", "/account/delete"]) {
+    test(`${path} is indexable once the store is public, with its canonical URL`, async ({ page }) => {
+      const { response, violations } = await visit(page, path);
+      expect(response.status()).toBe(200);
+      expect(response.headers()["x-robots-tag"]).toBeUndefined();
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /^index, follow$/);
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${SITE}${path}`);
+      await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute("href", `${SITE}/en${path}`);
+      await expect(page.getByTestId("info-shell")).toHaveCount(0);
+      await expect(page.getByTestId("header-cart")).toBeVisible();
+      expect(violations).toEqual([]);
+    });
+  }
 });
 
 test.describe("error states", () => {
