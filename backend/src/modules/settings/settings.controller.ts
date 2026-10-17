@@ -17,7 +17,7 @@ export class SettingsController {
   @Public()
   @RateLimitTier(RateLimitRisk.Catalog)
   @Get()
-  getPublicSettings(): Promise<Record<string, string>> {
+  getPublicSettings(): Promise<Record<string, string | number | null>> {
     return this.settings.getPublicSettings();
   }
 }

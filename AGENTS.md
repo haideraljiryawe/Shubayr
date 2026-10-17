@@ -4,7 +4,9 @@
 
 - Shubayr: single-owner multi-department store in Iraq. Base currency IQD (precision 0), optional USD. Time zone Asia/Baghdad. Weekday convention Sunday=0…Saturday=6.
 - Spec: `docs/Shubayr_Software_Engineering_Analysis_v5.1` (.docx/.pdf + Markdown copy). The contract `api/openapi.yaml` is the source of truth.
-- Product decisions: [`docs/decisions/2026-10-12.md`](docs/decisions/2026-10-12.md). Shubayr has no delivery-agent app; delivery-agent app work is a future add-on.
+- Product decisions: [`2026-10-12`](docs/decisions/2026-10-12.md) and
+  [`2026-10-17`](docs/decisions/2026-10-17.md). Shubayr has no delivery-agent
+  app; delivery-agent app work, including agent wages, is a future add-on.
 
 ## Git workflow
 

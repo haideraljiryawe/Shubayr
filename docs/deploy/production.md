@@ -167,8 +167,32 @@ access_key_id = …
 secret_access_key = …
 ```
 
-with `BACKUP_TARGET=offsite:shubayr-backups` (the bucket), or another server
-over SFTP:
+with `BACKUP_TARGET=offsite:shubayr-backups` (the bucket).
+
+For Cloudflare R2, use its S3 endpoint and keep the credentials in the
+git-ignored rclone file:
+
+```ini
+[offsite]
+type = s3
+provider = Cloudflare
+endpoint = https://<account_id>.r2.cloudflarestorage.com
+region = auto
+acl = private
+no_check_bucket = true
+access_key_id = …
+secret_access_key = …
+```
+
+Set `BACKUP_TARGET=offsite:<bucket-name>`. `no_check_bucket = true` is needed
+for bucket-scoped tokens that can read and write objects but cannot list all
+account buckets. Keep `acl = private`; backups must never be public.
+
+R2/S3 lifecycle expiration rules may cover only `db/` and `media/deleted/`
+(using retention periods appropriate for the store). Never apply an expiry
+rule to `media/current/`: that prefix is the live restorable picture mirror.
+
+Alternatively, use another server over SFTP:
 
 ```ini
 [offsite]
@@ -292,6 +316,13 @@ Baghdad time):
 4. deletes dumps and deleted-picture sets older than `BACKUP_RETENTION_DAYS`
    (14), both locally and on the target.
 
+After every successful run it measures the complete `BACKUP_TARGET` (`db/`
+plus `media/`), writes the exact byte count to `/backups/target-bytes`, and
+logs it. When the size exceeds `BACKUP_TARGET_WARN_GB` (8 decimal GB by
+default), the run logs a clear `WARNING:` line but still succeeds and does not
+change the health rule. Increase storage or adjust retention after reviewing
+the target; do not silence the warning without checking growth.
+
 Its health check turns unhealthy when the last successful backup is older
 than 26 hours: `docker compose -f docker-compose.prod.yml --env-file
 .env.production ps backup` (watch it, or wire it to your monitoring).
@@ -301,6 +332,9 @@ deploy/scripts/backup-now.sh before-price-update    # a backup now, with a label
 deploy/scripts/backup-now.sh --list                 # the dumps on the target
 deploy/scripts/restore.sh latest                    # or a dump name from --list
 ```
+
+Both `backup-now.sh --list` and the backup container's `list` entrypoint print
+the target's current total byte size after the dump listing.
 
 `restore.sh` asks you to type `RESTORE`, stops the API, worker, admin and
 store, replaces the database from the dump (after checking its sha256), makes

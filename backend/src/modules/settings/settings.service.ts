@@ -25,7 +25,44 @@ const MANAGED_KEYS = new Set([
   'separation_of_duties_level',
   'discount_tier_coupon_stacking_enabled',
   'return_window_days',
+  'store_legal_name_ar',
+  'store_legal_name_en',
+  'store_address_ar',
+  'store_address_en',
+  'support_phone',
+  'support_whatsapp',
+  'support_email',
+  'privacy_email',
+  'support_hours_ar',
+  'support_hours_en',
+  'refund_days',
+  'policy_effective_date',
 ]);
+
+const LEGACY_PUBLIC_KEYS = [
+  'store_name',
+  'logo_url',
+  'primary_color',
+  'currency',
+  'default_low_stock_threshold',
+  'sale_rounding_multiple',
+] as const;
+
+const NULLABLE_PUBLIC_KEYS = [
+  'store_legal_name_ar',
+  'store_legal_name_en',
+  'store_address_ar',
+  'store_address_en',
+  'support_phone',
+  'support_whatsapp',
+  'support_email',
+  'privacy_email',
+  'support_hours_ar',
+  'support_hours_en',
+  'refund_days',
+  'policy_effective_date',
+  'return_window_days',
+] as const;
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(
@@ -44,22 +81,34 @@ export class SettingsService {
     private readonly audit: AuditService,
   ) {}
 
-  async getPublicSettings(): Promise<Record<string, string>> {
+  async getPublicSettings(): Promise<Record<string, string | number | null>> {
     const rows = await this.prisma.storeSetting.findMany({
       where: {
         key: {
-          in: [
-            'store_name',
-            'logo_url',
-            'primary_color',
-            'currency',
-            'default_low_stock_threshold',
-            'sale_rounding_multiple',
-          ],
+          in: [...LEGACY_PUBLIC_KEYS, ...NULLABLE_PUBLIC_KEYS],
         },
       },
     });
-    return Object.fromEntries(rows.map(({ key, value }) => [key, value ?? '']));
+    const values = new Map(rows.map(({ key, value }) => [key, value]));
+    return {
+      ...Object.fromEntries(
+        LEGACY_PUBLIC_KEYS.flatMap((key) =>
+          values.has(key) ? [[key, values.get(key) ?? '']] : [],
+        ),
+      ),
+      ...Object.fromEntries(
+        NULLABLE_PUBLIC_KEYS.map((key) => {
+          const value = values.get(key) ?? null;
+          return [
+            key,
+            value !== null &&
+            ['refund_days', 'return_window_days'].includes(key)
+              ? Number(value)
+              : value,
+          ];
+        }),
+      ),
+    };
   }
 
   async getAdminSettings() {

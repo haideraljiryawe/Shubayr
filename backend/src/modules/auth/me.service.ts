@@ -116,6 +116,11 @@ export class MeService {
             code: 'ACCOUNT_DELETION_BLOCKED',
             message:
               'Resolve open orders, pending returns, and unsettled amounts before deleting the account',
+            details: {
+              open_orders: openOrders,
+              pending_returns: pendingReturns,
+              unsettled_amounts: unsettledAmounts,
+            },
             errors: [
               ...(openOrders
                 ? [

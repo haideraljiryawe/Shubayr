@@ -11,7 +11,9 @@ conditions exists:
   obligation.
 
 The refusal has one error entry for each applicable group: `OPEN_ORDERS`,
-`PENDING_RETURNS`, and `UNSETTLED_AMOUNTS`.
+`PENDING_RETURNS`, and `UNSETTLED_AMOUNTS`. Its `details` object always carries
+the numeric `open_orders`, `pending_returns`, and `unsettled_amounts` counts;
+clients use those values instead of parsing the unchanged English message.
 
 ## Removed or anonymized
 

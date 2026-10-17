@@ -13,6 +13,9 @@ case "${1:-schedule}" in
     ;;
   backup) shift; exec /usr/local/bin/backup.sh "$@" ;;
   restore) shift; exec /usr/local/bin/restore.sh "$@" ;;
-  list) exec rclone lsl "${BACKUP_TARGET}/db" --include '*.dump' ;;
+  list)
+    rclone lsl "${BACKUP_TARGET}/db" --include '*.dump'
+    exec /usr/local/bin/target-size.sh
+    ;;
   *) exec "$@" ;;
 esac
