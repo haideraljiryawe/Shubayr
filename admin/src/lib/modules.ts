@@ -26,6 +26,7 @@ export const MODULES = [
   "users",
   "purchasing",
   "finance",
+  "expenses",
   "deliveryParties",
   "trips",
   "custody",

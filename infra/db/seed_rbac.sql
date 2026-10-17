@@ -79,6 +79,26 @@ SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'super_admin'
 ON CONFLICT DO NOTHING;
 
+-- Phase 11 expense permissions. Accountants deliberately receive create/read
+-- only; posting, paying, reversing and category maintenance remain owner/admin.
+INSERT INTO permissions(key, "group", description) VALUES
+  ('expenses.read', 'expenses', 'View expense documents and categories'),
+  ('expenses.create', 'expenses', 'Create draft expense documents'),
+  ('expenses.post', 'expenses', 'Post draft expense documents'),
+  ('expenses.pay', 'expenses', 'Pay accrued expense documents'),
+  ('expenses.reverse', 'expenses', 'Reverse posted expense documents'),
+  ('expense_categories.manage', 'expenses', 'Manage expense categories')
+ON CONFLICT (key) DO UPDATE
+SET "group" = EXCLUDED."group", description = EXCLUDED.description;
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT preset.id, permission.id
+FROM permission_presets preset
+CROSS JOIN permissions permission
+WHERE preset.name = 'super_admin'
+   OR (preset.name = 'accountant' AND permission.key IN ('expenses.read','expenses.create'))
+ON CONFLICT DO NOTHING;
+
 INSERT INTO preset_permissions(preset_id, permission_id)
 SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'operations' AND p.key IN
@@ -145,4 +165,12 @@ JOIN permissions permission ON (
 )
 WHERE preset.name IN
   ('super_admin','stock_controller','catalog_editor','cashier','accountant')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT preset.id, permission.id
+FROM permission_presets preset
+CROSS JOIN permissions permission
+WHERE preset.name = 'accountant'
+  AND permission.key IN ('expenses.read','expenses.create')
 ON CONFLICT DO NOTHING;

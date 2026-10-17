@@ -1,5 +1,26 @@
 # Changelog
 
+## 17.1.0 - 2026-10-17
+
+### Added
+
+- Owner-managed expense categories mapped to expense GL accounts, including
+  reference categories for rent, cash salaries, utilities, fuel, internet,
+  marketing, packaging, transport, maintenance, government fees and other.
+- Draft-to-post expense documents, paid-now and accrued-payment posting,
+  partial payments, private receipt attachments, filtered totals and
+  reversal-only corrections.
+- Expense permissions, audit coverage, strict separation of duties,
+  `Idempotency-Key` replay safety and an acceptance pack that reconciles every
+  expense journal.
+
+### Changed
+
+- The API contract is version 17.1.0. This is additive and non-breaking; all
+  new routes are staff-only under `/admin/expense-*` and `/admin/expenses`.
+- `expenses` is a recognized Web Admin module but remains absent from the
+  launch `ADMIN_MODULES` example until the separate UI is ready.
+
 ## 15.0.0 - 2026-10-12
 
 ### Added

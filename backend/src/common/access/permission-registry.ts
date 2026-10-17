@@ -117,6 +117,12 @@ export const PERMISSION_REGISTRY = {
   'ledger.reverse': ['finance', 'Reverse posted ledger entries'],
   'cash_accounts.view': ['finance', 'View cash and bank accounts'],
   'cash_accounts.manage': ['finance', 'Manage cash and bank accounts'],
+  'expenses.read': ['expenses', 'View expense documents and categories'],
+  'expenses.create': ['expenses', 'Create draft expense documents'],
+  'expenses.post': ['expenses', 'Post draft expense documents'],
+  'expenses.pay': ['expenses', 'Pay accrued expense documents'],
+  'expenses.reverse': ['expenses', 'Reverse posted expense documents'],
+  'expense_categories.manage': ['expenses', 'Manage expense categories'],
   'period.reopen': ['accounting', 'Reopen closed accounting periods'],
   'backdate.approve': [
     'controls',
@@ -232,6 +238,11 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'fx_rates.update': ['fx_rates.view'],
   'ledger.reverse': ['ledger.view'],
   'cash_accounts.manage': ['cash_accounts.view'],
+  'expenses.create': ['expenses.read'],
+  'expenses.post': ['expenses.read'],
+  'expenses.pay': ['expenses.read', 'cash_accounts.view'],
+  'expenses.reverse': ['expenses.read', 'ledger.view'],
+  'expense_categories.manage': ['expenses.read', 'ledger.view'],
   'period.reopen': ['ledger.view'],
   'period.close': ['ledger.view'],
 };
@@ -322,6 +333,8 @@ export const SEEDED_PRESET_GRANTS = {
     'fx_rates.view',
   ],
   accountant: [
+    'expenses.read',
+    'expenses.create',
     'suppliers.view',
     'supplier_payments.record',
     'supplier_payments.reverse',

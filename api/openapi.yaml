@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.0.0
+  version: 17.1.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -59,6 +59,7 @@ tags:
   - name: Admin
   - name: Finance
   - name: Delivery Pricing
+  - name: Expenses
 
 security:
   - bearerAuth: []
@@ -5367,6 +5368,203 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
 
+  /admin/expense-categories:
+    get:
+      tags: [Expenses]
+      summary: List expense categories and their expense GL accounts
+      x-surface: admin
+      x-permission: expenses.read
+      responses:
+        "200": { description: Expense categories, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ExpenseCategory" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Expenses]
+      summary: Create an expense category and map it to an expense GL account
+      x-surface: admin
+      x-permission: expense_categories.manage
+      x-error-codes: [EXPENSE_LEDGER_ACCOUNT_INVALID]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCategoryInput" } } } }
+      responses:
+        "201": { description: Created category, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCategory" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expense-categories/{id}:
+    patch:
+      tags: [Expenses]
+      summary: Rename, remap, activate or deactivate an expense category
+      x-surface: admin
+      x-permission: expense_categories.manage
+      x-error-codes: [EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_IN_USE, EXPENSE_LEDGER_ACCOUNT_INVALID]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCategoryPatch" } } } }
+      responses:
+        "200": { description: Updated category, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCategory" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Expenses]
+      summary: Delete an unused category; categories in use must be deactivated
+      x-surface: admin
+      x-permission: expense_categories.manage
+      x-error-codes: [EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_IN_USE]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Unused category deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /admin/expense-receipts:
+    post:
+      tags: [Expenses]
+      summary: Upload a private image or PDF receipt
+      x-surface: admin
+      x-permission: expenses.create
+      x-error-codes: [EXPENSE_RECEIPT_INVALID]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201": { description: Uploaded private receipt, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseReceiptUpload" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expense-receipts/{id}:
+    get:
+      tags: [Expenses]
+      summary: Download a receipt linked to an expense
+      x-surface: admin
+      x-permission: expenses.read
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Receipt bytes, content: { image/jpeg: { schema: { type: string, format: binary } }, image/png: { schema: { type: string, format: binary } }, image/webp: { schema: { type: string, format: binary } }, image/avif: { schema: { type: string, format: binary } }, application/pdf: { schema: { type: string, format: binary } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/expenses:
+    get:
+      tags: [Expenses]
+      summary: List expense documents with database pagination and filters
+      x-surface: admin
+      x-permission: expenses.read
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, posted, reversed] } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: payee, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: unpaid_only, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: sort, in: query, schema: { type: string, enum: [document_date, amount, created_at, payee, document_number], default: document_date } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        "200": { description: Expense page, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Expenses]
+      summary: Create a draft expense using the central rate effective at its document timestamp
+      x-surface: admin
+      x-permission: expenses.create
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCreateInput" } } } }
+      responses:
+        "201": { description: Draft expense, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+  /admin/expenses/totals:
+    get:
+      tags: [Expenses]
+      summary: Totals for the filtered posted expense range, overall and per category
+      x-surface: admin
+      x-permission: expenses.read
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: cash_account_id, in: query, schema: { type: string, format: uuid } }
+        - { name: payee, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: unpaid_only, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+      responses:
+        "200": { description: Filtered totals, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseTotals" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/{id}:
+    get:
+      tags: [Expenses]
+      summary: Read an expense with journal, payments and corrections
+      x-surface: admin
+      x-permission: expenses.read
+      x-error-codes: [EXPENSE_NOT_FOUND]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Expense detail, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/{id}/post:
+    post:
+      tags: [Expenses]
+      summary: Post a draft expense to the immutable ledger
+      x-surface: admin
+      x-permission: expenses.post
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_INVALID_STATE, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePostInput" } } } }
+      responses:
+        "200": { description: Posted expense, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/{id}/payments:
+    post:
+      tags: [Expenses]
+      summary: Make a partial or final payment against an accrued expense
+      x-surface: admin
+      x-permission: expenses.pay
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_INVALID_STATE, EXPENSE_OVERPAYMENT, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePaymentInput" } } } }
+      responses:
+        "201": { description: Expense with the new payment, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/{id}/reverse:
+    post:
+      tags: [Expenses]
+      summary: Correct an expense by reversing every one of its immutable postings
+      x-surface: admin
+      x-permission: expenses.reverse
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_INVALID_STATE, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseReverseInput" } } } }
+      responses:
+        "201": { description: Reversed expense, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -5399,6 +5597,11 @@ components:
       in: query
       required: true
       schema: { type: string, minLength: 3, maxLength: 500 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[\x20-\x7E]+$' }
   responses:
     BadRequest: { description: Invalid filter range (`BAD_REQUEST`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
@@ -10728,6 +10931,302 @@ components:
         month: { type: string, pattern: '^\d{4}-\d{2}$' }
         can_close: { type: boolean }
         checks: { type: array, items: { type: object, additionalProperties: true } }
+
+    ExpenseCategoryInput:
+      type: object
+      additionalProperties: false
+      required: [name_ar, name_en]
+      properties:
+        name_ar: { type: string, minLength: 1, maxLength: 160 }
+        name_en: { type: string, minLength: 1, maxLength: 160 }
+        ledger_account_id: { type: string, format: uuid, description: Optional existing enabled expense GL account; when omitted the server creates one. }
+
+    ExpenseCategoryPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name_ar: { type: string, minLength: 1, maxLength: 160 }
+        name_en: { type: string, minLength: 1, maxLength: 160 }
+        ledger_account_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+
+    ExpenseCategory:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en, ledger_account_id, is_active, is_system, created_at, updated_at, ledger_account]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        ledger_account_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+        is_system: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        ledger_account: { $ref: "#/components/schemas/LedgerAccount" }
+        expense_count: { type: integer, minimum: 0 }
+
+    ExpenseCreateInput:
+      type: object
+      additionalProperties: false
+      required: [category_id, amount, currency_code, payment_mode, description, document_date]
+      properties:
+        category_id: { type: string, format: uuid }
+        amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        payment_mode: { type: string, enum: [paid_now, owed] }
+        cash_account_id: { type: string, format: uuid, description: Required for paid_now and forbidden for owed. }
+        supplier_id: { type: string, format: uuid }
+        payee: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        reference_number: { type: string, maxLength: 160 }
+        receipt_media_id: { type: string, format: uuid }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    ExpensePostInput:
+      type: object
+      additionalProperties: false
+      properties:
+        note: { type: string, minLength: 3, maxLength: 500 }
+
+    ExpensePaymentInput:
+      type: object
+      additionalProperties: false
+      required: [cash_account_id, amount, document_date]
+      properties:
+        cash_account_id: { type: string, format: uuid }
+        amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+        reference_number: { type: string, maxLength: 160 }
+        notes: { type: string, maxLength: 1000 }
+
+    ExpenseReverseInput:
+      type: object
+      additionalProperties: false
+      required: [reason, document_date]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    ExpenseActor:
+      type: object
+      additionalProperties: false
+      required: [id, name, username]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: [string, "null"] }
+        username: { type: [string, "null"] }
+
+    ExpensePartyLink:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    ExpenseCategoryLink:
+      type: object
+      additionalProperties: false
+      required: [id, name_ar, name_en]
+      properties:
+        id: { type: string, format: uuid }
+        name_ar: { type: string }
+        name_en: { type: string }
+
+    ExpenseCashAccountSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+
+    ExpenseCashAccountLink:
+      type: object
+      additionalProperties: false
+      required: [id, name, kind, currency_code]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [cash, bank] }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+
+    ExpenseReceiptUpload:
+      type: object
+      additionalProperties: false
+      required: [id, public_url, mime_type, size_bytes, checksum, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        public_url: { type: string, format: uri }
+        mime_type: { type: string, enum: [image/jpeg, image/png, image/webp, image/avif, application/pdf] }
+        size_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+        checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+        created_at: { type: string, format: date-time }
+
+    ExpenseReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, public_url, download_url, mime_type, size_bytes]
+      properties:
+        id: { type: string, format: uuid }
+        public_url: { type: string, format: uri }
+        download_url: { type: string, format: uri }
+        mime_type: { type: string, enum: [image/jpeg, image/png, image/webp, image/avif, application/pdf] }
+        size_bytes: { type: integer, minimum: 1, maximum: 8388608 }
+
+    ExpensePayment:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, amount_currency, currency_code, exchange_rate, amount_iqd, cash_account, document_date, accounting_date, backdate_reason, reference_number, notes, created_by, created_at, creator, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        amount_currency: { $ref: "#/components/schemas/Money" }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        exchange_rate: { type: number, exclusiveMinimum: 0 }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        cash_account: { $ref: "#/components/schemas/ExpenseCashAccountSummary" }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
+        reference_number: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        creator: { $ref: "#/components/schemas/ExpenseActor" }
+        journal_entry: { $ref: "#/components/schemas/JournalEntry" }
+
+    ExpenseCorrectionPosting:
+      type: object
+      additionalProperties: false
+      required: [id, role, expense_payment_id, original_journal_entry_id, reversal_journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string }
+        expense_payment_id: { type: [string, "null"], format: uuid }
+        original_journal_entry_id: { type: string, format: uuid }
+        reversal_journal_entry: { $ref: "#/components/schemas/JournalEntry" }
+
+    ExpenseCorrection:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, reason, document_date, accounting_date, backdate_reason, created_by, created_at, creator, postings]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        reason: { type: string }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        creator: { $ref: "#/components/schemas/ExpenseActor" }
+        postings: { type: array, items: { $ref: "#/components/schemas/ExpenseCorrectionPosting" } }
+
+    Expense:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, category, amount_currency, currency_code, exchange_rate, amount_iqd, paid_currency, balance_currency, balance_iqd, payment_mode, cash_account, supplier, payee, description, reference_number, receipt, document_date, accounting_date, backdate_reason, created_by, posted_by, posted_at, created_at, updated_at, creator, poster, journal_entry, payments, corrections]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [draft, posted, reversed] }
+        category: { $ref: "#/components/schemas/ExpenseCategory" }
+        amount_currency: { $ref: "#/components/schemas/Money" }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        exchange_rate: { type: [number, "null"], exclusiveMinimum: 0 }
+        amount_iqd: { type: [number, "null"], exclusiveMinimum: 0 }
+        paid_currency: { type: number, minimum: 0 }
+        balance_currency: { type: number, minimum: 0 }
+        balance_iqd: { type: [number, "null"], minimum: 0 }
+        payment_mode: { type: string, enum: [paid_now, owed] }
+        cash_account: { oneOf: [{ $ref: "#/components/schemas/ExpenseCashAccountLink" }, { type: "null" }] }
+        supplier: { oneOf: [{ $ref: "#/components/schemas/ExpensePartyLink" }, { type: "null" }] }
+        payee: { type: [string, "null"] }
+        description: { type: string }
+        reference_number: { type: [string, "null"] }
+        receipt: { oneOf: [{ $ref: "#/components/schemas/ExpenseReceipt" }, { type: "null" }] }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        posted_by: { type: [string, "null"], format: uuid }
+        posted_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        creator: { $ref: "#/components/schemas/ExpenseActor" }
+        poster: { oneOf: [{ $ref: "#/components/schemas/ExpenseActor" }, { type: "null" }] }
+        journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
+        payments: { type: array, items: { $ref: "#/components/schemas/ExpensePayment" } }
+        corrections: { type: array, items: { $ref: "#/components/schemas/ExpenseCorrection" } }
+
+    ExpenseSummary:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, category, amount_currency, amount_iqd, paid_currency, balance_currency, currency_code, payment_mode, payee, supplier, cash_account, description, document_date, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [draft, posted, reversed] }
+        category: { $ref: "#/components/schemas/ExpenseCategoryLink" }
+        amount_currency: { type: number }
+        amount_iqd: { type: [number, "null"] }
+        paid_currency: { type: number, minimum: 0 }
+        balance_currency: { type: number, minimum: 0 }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        payment_mode: { type: string, enum: [paid_now, owed] }
+        payee: { type: [string, "null"] }
+        supplier: { oneOf: [{ $ref: "#/components/schemas/ExpensePartyLink" }, { type: "null" }] }
+        cash_account:
+          oneOf:
+            - { $ref: "#/components/schemas/ExpenseCashAccountSummary" }
+            - { type: "null" }
+        description: { type: string }
+        document_date: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+
+    ExpensePage:
+      type: object
+      additionalProperties: false
+      required: [items, pagination]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ExpenseSummary" } }
+        pagination:
+          type: object
+          additionalProperties: false
+          required: [page, per_page, total, pages]
+          properties:
+            page: { type: integer, minimum: 1 }
+            per_page: { type: integer, minimum: 1, maximum: 100 }
+            total: { type: integer, minimum: 0 }
+            pages: { type: integer, minimum: 0 }
+
+    ExpenseTotals:
+      type: object
+      additionalProperties: false
+      required: [total_iqd, document_count, per_category]
+      properties:
+        total_iqd: { type: number, minimum: 0 }
+        document_count: { type: integer, minimum: 0 }
+        per_category:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [category, total_iqd, document_count]
+            properties:
+              category: { $ref: "#/components/schemas/ExpenseCategoryLink" }
+              total_iqd: { type: number, minimum: 0 }
+              document_count: { type: integer, minimum: 0 }
 
     AdminFinancialSettings:
       type: object

@@ -183,6 +183,7 @@ try {
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
+  await run('test/expenses.acceptance.mjs', [], acceptanceEnv);
   await run('test/catalog-v2.acceptance.mjs', [], acceptanceEnv);
   await run('test/catalog-import-d2.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-costing.acceptance.mjs', [], acceptanceEnv);
