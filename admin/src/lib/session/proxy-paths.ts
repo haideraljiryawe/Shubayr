@@ -23,6 +23,8 @@ const EXTRA: ReadonlyArray<{ method: string; pattern: RegExp }> = [
   { method: "PATCH", pattern: new RegExp(`^/me/notifications/${UUID}/read$`) },
   // Assigning a delivery agent lives outside /admin in the contract.
   { method: "PATCH", pattern: new RegExp(`^/deliveries/${UUID}/assign$`) },
+  // So do the staff steps of a customer return (contract 17.0).
+  { method: "POST", pattern: new RegExp(`^/returns/${UUID}/(approve|receive|inspect|refund)$`) },
 ];
 
 export function isProxyablePath(path: string, method = "GET"): boolean {
