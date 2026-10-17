@@ -70,6 +70,7 @@ paths:
     post:
       tags: [Auth]
       summary: Send an OTP to a phone number
+      x-error-codes: [SMS_NOT_CONFIGURED, OTP_DELIVERY_UNAVAILABLE]
       security: []
       requestBody:
         required: true
@@ -98,6 +99,7 @@ paths:
                     description: Present only when APP_ENV=development; never returned in production.
         "429": { $ref: "#/components/responses/RateLimited" }
         "422": { $ref: "#/components/responses/Validation" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /auth/verify-otp:
     post:
       tags: [Auth]
