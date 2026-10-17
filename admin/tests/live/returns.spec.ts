@@ -316,7 +316,7 @@ test("refusals in words: a step someone else already took, a fee refund over the
 test("each step only for its permission: a receiver sees no approval, then receives", async ({ page, request }) => {
   const order = await deliveredOrder(request);
   const created = await requestReturn(request, order);
-  const receiver = await activateStaff(request, await createStaff(request, { permissionKeys: ["returns.receive"], prefix: "ret-recv" }));
+  const receiver = await activateStaff(request, await createStaff(request, { permissionKeys: ["returns.view", "inventory.view", "returns.receive"], prefix: "ret-recv" }));
 
   await switchUser(page, receiver.username, KNOWN_PASSWORD);
   await page.goto(`/returns/${created.id}`);
