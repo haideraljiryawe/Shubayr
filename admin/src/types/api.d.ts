@@ -386,7 +386,15 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                /** @description Account deletion is blocked by open business records */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountDeletionBlockedError"];
+                    };
+                };
             };
         };
         options?: never;
@@ -5323,7 +5331,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** White-label store settings (name, logo, colors, currency) */
+        /** Public store identity, contact, policy and catalog settings */
         get: {
             parameters: {
                 query?: never;
@@ -12139,6 +12147,19 @@ export interface components {
             /** @example 2026-11 */
             period: string;
         };
+        AccountDeletionBlockedError: {
+            /** @enum {integer} */
+            status: 409;
+            /** @enum {string} */
+            code: "ACCOUNT_DELETION_BLOCKED";
+            message: string;
+            errors: components["schemas"]["FieldError"][];
+            details: {
+                open_orders: number;
+                pending_returns: number;
+                unsettled_amounts: number;
+            };
+        };
         FieldError: {
             /** @example items.0.quantity */
             field: string;
@@ -15651,6 +15672,23 @@ export interface components {
             default_low_stock_threshold?: string;
             /** @description Zero uses base-currency precision; otherwise linked prices round upward to this multiple. */
             sale_rounding_multiple?: string;
+            store_legal_name_ar?: string | null;
+            store_legal_name_en?: string | null;
+            store_address_ar?: string | null;
+            store_address_en?: string | null;
+            support_phone?: string | null;
+            support_whatsapp?: string | null;
+            /** Format: email */
+            support_email?: string | null;
+            /** Format: email */
+            privacy_email?: string | null;
+            support_hours_ar?: string | null;
+            support_hours_en?: string | null;
+            refund_days?: number | null;
+            /** Format: date */
+            policy_effective_date?: string | null;
+            /** @description Existing operational return-window setting; no duplicate policy key is introduced. */
+            return_window_days?: number | null;
         };
         ExactDecimal: string | number;
         Currency: {
@@ -16678,6 +16716,22 @@ export interface components {
                  * @enum {string|null}
                  */
                 separation_of_duties_level: "standard" | "strict" | null;
+                store_legal_name_ar?: string | null;
+                store_legal_name_en?: string | null;
+                store_address_ar?: string | null;
+                store_address_en?: string | null;
+                support_phone?: string | null;
+                support_whatsapp?: string | null;
+                /** Format: email */
+                support_email?: string | null;
+                /** Format: email */
+                privacy_email?: string | null;
+                support_hours_ar?: string | null;
+                support_hours_en?: string | null;
+                refund_days?: string | null;
+                /** Format: date */
+                policy_effective_date?: string | null;
+                return_window_days?: string | null;
             } & {
                 [key: string]: string | null;
             };
@@ -16689,6 +16743,22 @@ export interface components {
             settings?: {
                 /** @enum {string|null} */
                 separation_of_duties_level?: "standard" | "strict" | null;
+                store_legal_name_ar?: string | null;
+                store_legal_name_en?: string | null;
+                store_address_ar?: string | null;
+                store_address_en?: string | null;
+                support_phone?: string | null;
+                support_whatsapp?: string | null;
+                /** Format: email */
+                support_email?: string | null;
+                /** Format: email */
+                privacy_email?: string | null;
+                support_hours_ar?: string | null;
+                support_hours_en?: string | null;
+                refund_days?: string | null;
+                /** Format: date */
+                policy_effective_date?: string | null;
+                return_window_days?: string | null;
             } & {
                 [key: string]: string | null;
             };

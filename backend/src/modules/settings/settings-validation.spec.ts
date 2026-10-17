@@ -42,6 +42,24 @@ describe('server-side settings validation', () => {
       { settings: { separation_of_duties_level: 'relaxed' } },
       'settings.separation_of_duties_level',
     ],
+    [{ settings: { support_phone: '07700000000' } }, 'settings.support_phone'],
+    [
+      { settings: { support_whatsapp: '+964 770 000 0000' } },
+      'settings.support_whatsapp',
+    ],
+    [
+      { settings: { support_email: 'support-at-example.test' } },
+      'settings.support_email',
+    ],
+    [
+      { settings: { privacy_email: '@example.test' } },
+      'settings.privacy_email',
+    ],
+    [{ settings: { refund_days: '-1' } }, 'settings.refund_days'],
+    [
+      { settings: { policy_effective_date: '2026-02-30' } },
+      'settings.policy_effective_date',
+    ],
   ])('rejects invalid field input %#', (input, field) => {
     expect(
       validateSettingsUpdate(input as AdminSettingsUpdateDto, before, 0),
@@ -104,6 +122,30 @@ describe('server-side settings validation', () => {
           { weekday: 6, opens_at: null, closes_at: null, is_closed: true },
         ],
         protection_thresholds: { price: 50.25 },
+      },
+      before,
+      0,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts valid public store info and null to unset optional values', () => {
+    const errors = validateSettingsUpdate(
+      {
+        settings: {
+          store_legal_name_ar: 'شركة شبير',
+          store_legal_name_en: 'Shubayr Store LLC',
+          store_address_ar: null,
+          store_address_en: 'Baghdad, Iraq',
+          support_phone: '+9647700000000',
+          support_whatsapp: '+9647800000000',
+          support_email: 'support@example.test',
+          privacy_email: 'privacy@example.test',
+          support_hours_ar: 'يومياً 09:00–21:00',
+          support_hours_en: 'Daily 09:00–21:00',
+          refund_days: '0',
+          policy_effective_date: '2026-10-17',
+        },
       },
       before,
       0,

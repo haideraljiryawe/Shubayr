@@ -55,6 +55,7 @@ while read -r dir; do
   if older "$dir"; then rclone purge "${BACKUP_TARGET}/media/deleted/${dir}"; log "  removed media/deleted/${dir}"; fi
 done < <(rclone lsf "${BACKUP_TARGET}/media/deleted" --dirs-only 2>/dev/null || true)
 
+/usr/local/bin/target-size.sh --record
 date +%s > /backups/last-success
 echo "${name}" > /backups/last-dump
 log "done: ${name}"

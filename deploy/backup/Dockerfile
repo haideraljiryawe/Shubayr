@@ -2,10 +2,11 @@
 # on a daily schedule (crond), with restore. See docs/deploy/production.md.
 FROM alpine:3.20
 RUN apk add --no-cache bash coreutils tzdata postgresql16-client rclone
-COPY --chmod=0755 entrypoint.sh backup.sh restore.sh health.sh /usr/local/bin/
+COPY --chmod=0755 entrypoint.sh backup.sh restore.sh health.sh target-size.sh /usr/local/bin/
 ENV TZ=Asia/Baghdad \
     BACKUP_SCHEDULE="30 3 * * *" \
-    BACKUP_RETENTION_DAYS=14
+    BACKUP_RETENTION_DAYS=14 \
+    BACKUP_TARGET_WARN_GB=8
 VOLUME ["/backups"]
 HEALTHCHECK --interval=1h --timeout=10s --start-period=1m CMD ["/usr/local/bin/health.sh"]
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

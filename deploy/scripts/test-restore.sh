@@ -44,7 +44,17 @@ snapshot() { # prints: counts | media size | picture sha
 }
 
 say "1. backup of the running stack (${source_project})"
-dc exec -T backup /usr/local/bin/backup.sh restore-test
+backup_output="$(dc exec -T backup /usr/local/bin/backup.sh restore-test)"
+echo "$backup_output"
+echo "$backup_output" | grep -q 'backup target size: [0-9][0-9]* bytes'
+target_bytes="$(dc exec -T backup cat /backups/target-bytes)"
+[[ "$target_bytes" =~ ^[0-9]+$ ]]
+list_output="$(dc exec -T backup /usr/local/bin/entrypoint.sh list)"
+echo "$list_output"
+echo "$list_output" | grep -q "backup target size: ${target_bytes} bytes"
+warning_output="$(dc exec -T -e BACKUP_TARGET_WARN_GB=0 backup /usr/local/bin/target-size.sh)"
+echo "$warning_output"
+echo "$warning_output" | grep -q '^WARNING: backup target size '
 dump="$(dc exec -T backup cat /backups/last-dump)"
 before="$(snapshot)"
 echo "   ${before}"
