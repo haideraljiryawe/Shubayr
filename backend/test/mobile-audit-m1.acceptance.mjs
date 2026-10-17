@@ -125,6 +125,11 @@ try {
     'deletion reports every blocker group',
   );
   check(
+    refused.details,
+    { open_orders: 1, pending_returns: 1, unsettled_amounts: 1 },
+    'deletion reports machine-readable counts for every blocker group',
+  );
+  check(
     Number(
       (
         await db.query(

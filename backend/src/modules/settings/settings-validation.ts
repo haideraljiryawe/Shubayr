@@ -9,6 +9,8 @@ type SettingsSnapshot = {
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DECIMAL = /^\d+(?:\.\d+)?$/;
+const E164 = /^\+[1-9]\d{7,14}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PERCENT_KEYS = new Set(['cost', 'price', 'quantity', 'exchange_rate']);
 
 function error(field: string, code: string, message: string): ApiFieldError {
@@ -32,6 +34,26 @@ function positiveInteger(
     return undefined;
   }
   return Number(value);
+}
+
+function nonNegativeInteger(
+  value: string | null | undefined,
+  field: string,
+  errors: ApiFieldError[],
+): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  const numeric = Number(value);
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(numeric)) {
+    errors.push(
+      error(
+        field,
+        'non_negative_integer',
+        `${field} must be a non-negative integer`,
+      ),
+    );
+    return undefined;
+  }
+  return numeric;
 }
 
 function decimalPlaces(value: string): number {
@@ -66,11 +88,36 @@ export function validateSettingsUpdate(
       continue;
     }
     const value = raw?.trim() ?? null;
-    if (['store_name', 'store_address', 'store_phone'].includes(key)) {
+    if (
+      [
+        'store_name',
+        'store_address',
+        'store_phone',
+        'store_legal_name_ar',
+        'store_legal_name_en',
+        'store_address_ar',
+        'store_address_en',
+        'support_hours_ar',
+        'support_hours_en',
+      ].includes(key)
+    ) {
+      const nullable = !['store_name', 'store_address', 'store_phone'].includes(
+        key,
+      );
+      if (nullable && raw === null) continue;
       if (!value)
         errors.push(error(field, 'not_empty', `${field} must not be empty`));
-      const maximum =
-        key === 'store_address' ? 500 : key === 'store_name' ? 160 : 40;
+      const maximum = key.includes('address')
+        ? 500
+        : key.includes('support_hours')
+          ? 500
+          : [
+                'store_name',
+                'store_legal_name_ar',
+                'store_legal_name_en',
+              ].includes(key)
+            ? 160
+            : 40;
       if (value && value.length > maximum)
         errors.push(
           error(
@@ -79,6 +126,36 @@ export function validateSettingsUpdate(
             `${field} must be at most ${maximum} characters`,
           ),
         );
+    } else if (['support_phone', 'support_whatsapp'].includes(key)) {
+      if (value !== null && !E164.test(value)) {
+        errors.push(
+          error(
+            field,
+            'e164',
+            `${field} must be an E.164 phone number such as +9647700000000`,
+          ),
+        );
+      }
+    } else if (['support_email', 'privacy_email'].includes(key)) {
+      if (value !== null && (value.length > 254 || !EMAIL.test(value))) {
+        errors.push(
+          error(field, 'email', `${field} must be a valid email address`),
+        );
+      }
+    } else if (key === 'refund_days') {
+      nonNegativeInteger(value, field, errors);
+    } else if (
+      key === 'policy_effective_date' &&
+      value !== null &&
+      !validCalendarDate(value)
+    ) {
+      errors.push(
+        error(
+          field,
+          'date',
+          `${field} must be a valid YYYY-MM-DD calendar date`,
+        ),
+      );
     } else if (key === 'logo_url' && value) {
       try {
         new URL(value);

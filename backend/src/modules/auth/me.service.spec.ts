@@ -180,6 +180,11 @@ describe('MeService account deletion', () => {
     ).rejects.toMatchObject({
       response: {
         code: 'ACCOUNT_DELETION_BLOCKED',
+        details: {
+          open_orders: 2,
+          pending_returns: 1,
+          unsettled_amounts: 2,
+        },
         errors: [
           expect.objectContaining({ code: 'OPEN_ORDERS' }),
           expect.objectContaining({ code: 'PENDING_RETURNS' }),

@@ -1,5 +1,24 @@
 # Changelog
 
+## 17.2.0 - 2026-10-17
+
+### Added
+
+- Audited owner settings for bilingual legal name, address and support hours,
+  support contacts, policy dates and refund timing, exposed with the existing
+  return window through the public settings read.
+- Machine-readable account-deletion blocker counts for open orders, pending
+  returns and unsettled financial records.
+- Persistent off-site backup target-size reporting and a configurable warning
+  threshold, plus Cloudflare R2 deployment guidance.
+- The 2026-10-17 product decision moving phase-10 agent wages to the future
+  delivery add-on.
+
+### Changed
+
+- The API contract is version 17.2.0. The change is additive and
+  non-breaking; existing account-deletion messages and error entries remain.
+
 ## 17.1.0 - 2026-10-17
 
 ### Added
