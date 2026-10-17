@@ -400,7 +400,9 @@ let orders: Order[] = [
     // Paid 5 short on delivery, so the page has a balance to show.
     { discount: 20, collected: "short" },
   ),
-  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1)], {
+  // A weighed line too (2.5 kg of rice), so a return in kilograms is
+  // exercisable; 0.5 kg of it is already refunded (ret-2).
+  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1), orderItem("p36", 2.5)], {
     collected: "full",
   }),
   buildOrder("SB-1031", "cancelled", 21, [orderItem("p14", 1)], {
@@ -692,9 +694,149 @@ let returns: Return[] = [
     refund_payments: [],
     postings: [],
   },
+  // Settled end to end: 0.5 kg of the rice, refunded in cash with its
+  // loyalty points reversed — what the return detail page explains.
+  {
+    id: "ret-2",
+    document_number: "CRN-MOCK-0002",
+    order_id: "sb-1028",
+    order_number: "SB-1028",
+    user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
+    type: "return",
+    status: "refunded",
+    reason: null,
+    expected_refund: 1.5,
+    refund_amount: 1.5,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 1.5,
+    points_effect: { earned_reversed: 2, redeemed_restored: 0, net: -2 },
+    currency: "IQD",
+    document_date: "2026-08-10",
+    accounting_date: "2026-08-10",
+    reviewed_by: "staff-1",
+    reviewed_at: isoAgo(22),
+    completed_at: isoAgo(20),
+    created_at: isoAgo(23),
+    items: [
+      {
+        id: "ret-2-item-1",
+        order_item_id: "oi-p36",
+        variant_id: "p36-kg",
+        product_name_ar: "أرز بسمتي",
+        product_name_en: "Basmati rice",
+        quantity: 0.5,
+        approved_quantity: 0.5,
+        base_unit: "kg",
+        whole_units_only: false,
+        customer_reason: "الكيس مفتوح",
+        reason_code: "defect",
+        unit_price: 3,
+        discount_share: 0,
+        net_amount: 1.5,
+        approved_refund: 1.5,
+        earned_points_share: 2,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: "opened",
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
+      },
+    ],
+    refund: null,
+    events: [
+      { id: "ret-2-e1", type: "requested", operation_id: "op-r2-1", document_date: "2026-08-09", accounting_date: "2026-08-09", actor_id: mockUser.id, note: null, created_at: isoAgo(23) },
+      { id: "ret-2-e2", type: "approved", operation_id: "op-r2-2", document_date: "2026-08-10", accounting_date: "2026-08-10", actor_id: "staff-1", note: null, created_at: isoAgo(22) },
+      { id: "ret-2-e3", type: "received", operation_id: "op-r2-3", document_date: "2026-08-11", accounting_date: "2026-08-11", actor_id: "staff-2", note: null, created_at: isoAgo(21, 6) },
+      { id: "ret-2-e4", type: "inspected", operation_id: "op-r2-4", document_date: "2026-08-11", accounting_date: "2026-08-11", actor_id: "staff-1", note: null, created_at: isoAgo(21) },
+      { id: "ret-2-e5", type: "refunded", operation_id: "op-r2-5", document_date: "2026-08-12", accounting_date: "2026-08-12", actor_id: "staff-2", note: null, created_at: isoAgo(20) },
+    ],
+    refund_payments: [
+      {
+        id: "ret-2-pay-1",
+        method: "cash_account",
+        amount_iqd: 1.5,
+        cash_account: { id: "cash-1", name: "Main till" },
+        collection: null,
+        proof_reference: null,
+        document_date: "2026-08-12",
+        accounting_date: "2026-08-12",
+        created_by: "staff-2",
+        created_at: isoAgo(20),
+      },
+    ],
+    postings: [],
+  },
+  // Refused, with the reason the customer is shown.
+  {
+    id: "ret-3",
+    document_number: "CRN-MOCK-0003",
+    order_id: "sb-1035",
+    order_number: "SB-1035",
+    user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
+    type: "return",
+    status: "rejected",
+    reason: null,
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-08-28",
+    accounting_date: "2026-08-28",
+    reviewed_by: "staff-1",
+    reviewed_at: isoAgo(4),
+    completed_at: null,
+    created_at: isoAgo(5),
+    items: [
+      {
+        id: "ret-3-item-1",
+        order_item_id: "oi-p4",
+        variant_id: "variant-p4",
+        product_name_ar: "منتج",
+        product_name_en: "Product",
+        quantity: 1,
+        approved_quantity: 0,
+        base_unit: "piece",
+        whole_units_only: true,
+        customer_reason: "لم يعجبني اللون",
+        reason_code: "change_of_mind",
+        unit_price: 0,
+        discount_share: 0,
+        net_amount: 0,
+        approved_refund: 0,
+        earned_points_share: 0,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: null,
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
+      },
+    ],
+    refund: null,
+    events: [
+      { id: "ret-3-e1", type: "requested", operation_id: "op-r3-1", document_date: "2026-08-27", accounting_date: "2026-08-27", actor_id: mockUser.id, note: null, created_at: isoAgo(5) },
+      { id: "ret-3-e2", type: "rejected", operation_id: "op-r3-2", document_date: "2026-08-28", accounting_date: "2026-08-28", actor_id: "staff-1", note: "المنتج مستعمل", created_at: isoAgo(4) },
+    ],
+    refund_payments: [],
+    postings: [],
+  },
 ];
 
 let returnSeq = returns.length;
+
+/** One of the customer's own returns, or undefined (the API's 404). */
+export function getMockReturn(id: string): Return | undefined {
+  return returns.find((entry) => entry.id === id);
+}
 
 export function listMockReturns(): Return[] {
   return [...returns].sort((a, b) =>

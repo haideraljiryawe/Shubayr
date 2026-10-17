@@ -137,8 +137,8 @@ ADMIN_MODULES=catalog,stock,orders,settings,users            # the launch core
 ADMIN_MODULES=catalog,stock,orders,settings,users,finance    # + currencies (USD prices)
 ```
 
-Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `purchasing`,
-`finance`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
+Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `returns`,
+`purchasing`, `finance`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
 module that is off leaves the menu and the dashboard, and its routes show a
 "not enabled" page (`src/proxy.ts`); unknown keys are ignored, and a value
 naming no known module falls back to everything. It is presentation only —
@@ -159,6 +159,8 @@ core first: catalog, stock, orders, settings, users.
 | `/work-phones` | `users.manage` | Search, role/status filters, sort and pagination on the API; register a phone as delivery agent / order monitor with the person's name; change role; revoke |
 | `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
 | `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / **reject** (pending only, reason required) / start preparing / mark ready / hand over / cancel (reason required); assign a delivery agent from a server-searched picker |
+| `/returns` | `returns.view` (module `returns`, off at launch) | Customer returns queue: status, date range and order-number filters, server-side sort (date, number, refund) and pagination |
+| `/returns/[id]` | `returns.view` (+ each step's key) | Lines with net-paid shares, delivery-fee outcome, points effect, refund split (offset vs cash) and timeline; the next step only for its permission: approve quantities or reject (`returns.approve`, fee exception with `returns.refund_delivery_fee`), receive (`returns.receive`), inspect condition + location per line (`returns.inspect`), refund from a cash account or delivery custody (`returns.refund`) |
 | `/audit` | `audit.view` | The audit log: actor, action, entity (type and id) and store-day date-range filters, server-side pagination, reason and before → after per record |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
 | `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |
