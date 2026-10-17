@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Logo } from "@/components/layout/logo";
+import { PolicyLinks } from "@/components/legal/policy-links";
 import { storeIsPublic } from "@/lib/store-gate";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 /**
  * "Opening soon" — what every store address shows while STORE_PUBLIC=false
  * (the proxy rewrites to here; src/lib/store-gate.ts). Branded with the
- * store's own name and logo, in both languages, and nothing to click into.
+ * store's own name and logo, in both languages, with nothing to click into
+ * but the language and the privacy, terms and support pages (open even now).
  * Once the store is open this address is simply not found.
  */
 export default async function ComingSoonPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -50,6 +52,9 @@ export default async function ComingSoonPage({ params }: { params: Promise<{ loc
       >
         {t("otherLanguage")}
       </a>
+      <div data-testid="coming-soon-policies">
+        <PolicyLinks only={["privacy", "terms", "support"]} className="[&_ul]:justify-center" />
+      </div>
     </main>
   );
 }

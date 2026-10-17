@@ -28,6 +28,8 @@ import {
   type NotificationPreferences,
   type NotificationType,
 } from "@/lib/api";
+import { STORE_INFO, telLink, whatsappLink } from "@/config/store-info";
+import { PolicyLinks } from "@/components/legal/policy-links";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useResource } from "@/lib/use-resource";
@@ -352,26 +354,20 @@ export function LanguagePanel() {
 
 /* ------------------------------------------------------------------ help */
 
-const SUPPORT_PHONE = "+9647700000000";
-const SUPPORT_EMAIL = "support@shubayr.example";
-
+/** Contacts and hours come from the one store config (src/config/store-info.ts). */
 export function HelpPanel() {
   const t = useTranslations("settings");
+  const locale = useLocale() as Locale;
 
   const channels: [string, string, string, typeof Phone][] = [
-    [t("helpCall"), SUPPORT_PHONE, `tel:${SUPPORT_PHONE}`, Phone],
-    [
-      t("helpWhatsapp"),
-      SUPPORT_PHONE,
-      `https://wa.me/${SUPPORT_PHONE.replace("+", "")}`,
-      MessageCircle,
-    ],
-    [t("helpEmail"), SUPPORT_EMAIL, `mailto:${SUPPORT_EMAIL}`, Mail],
+    [t("helpCall"), STORE_INFO.phone, telLink(), Phone],
+    [t("helpWhatsapp"), STORE_INFO.whatsapp, whatsappLink(), MessageCircle],
+    [t("helpEmail"), STORE_INFO.email, `mailto:${STORE_INFO.email}`, Mail],
   ];
 
   const faqs: [string, string][] = [
     [t("faq1Q"), t("faq1A")],
-    [t("faq2Q"), t("faq2A")],
+    [t("faq2Q"), t("faq2A", { days: STORE_INFO.returnWindowDays })],
     [t("faq3Q"), t("faq3A")],
   ];
 
@@ -419,7 +415,7 @@ export function HelpPanel() {
                 {t("helpHours")}
               </span>
               <span className="block text-xs text-text-muted">
-                {t("helpHoursValue")}
+                {STORE_INFO.hours[locale]}
               </span>
             </span>
           </li>
@@ -436,6 +432,10 @@ export function HelpPanel() {
             </div>
           ))}
         </dl>
+      </Card>
+
+      <Card padding="md">
+        <PolicyLinks />
       </Card>
     </div>
   );

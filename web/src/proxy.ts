@@ -10,6 +10,7 @@ import {
   localeOfPath,
   previewDigest,
   previewToken,
+  isInfoPath,
   sameSecret,
   storeIsPublic,
   unprefixed,
@@ -30,7 +31,8 @@ import {
  *
  * And before the store opens (STORE_PUBLIC=false) it is the gate: every page
  * becomes the "opening soon" page unless the visitor holds the owner's preview
- * cookie (src/lib/store-gate.ts).
+ * cookie (src/lib/store-gate.ts). The legal, support and account deletion
+ * pages stay reachable, but are not indexed until the store opens.
  *
  * Must live in `src/` because the app uses a `src` directory; a proxy file at
  * the package root is silently ignored.
@@ -66,6 +68,7 @@ export default async function proxy(request: NextRequest) {
     } else {
       request.headers.set(GATE_HEADER, gate);
       response = intl(request);
+      if (gate === "info") response.headers.set("X-Robots-Tag", "noindex, nofollow");
     }
     // Nothing behind the gate may be kept by a shared cache.
     response.headers.set("Cache-Control", "private, no-store");
@@ -75,8 +78,8 @@ export default async function proxy(request: NextRequest) {
 }
 
 /**
- * The closed store: the preview link, a valid preview cookie ("preview"), or
- * the "opening soon" page for everyone else.
+ * The closed store: the preview link, a valid preview cookie ("preview"), the
+ * pages open to all ("info"), or the "opening soon" page for everyone else.
  */
 async function storeGate(request: NextRequest): Promise<StoreGate | NextResponse> {
   const { pathname, searchParams } = request.nextUrl;
@@ -108,6 +111,7 @@ async function storeGate(request: NextRequest): Promise<StoreGate | NextResponse
 
   const held = request.cookies.get(PREVIEW_COOKIE)?.value;
   if (expected && held && sameSecret(held, expected)) return "preview";
+  if (isInfoPath(pathname)) return "info";
 
   const target = request.nextUrl.clone();
   target.pathname = `/${locale}/${COMING_SOON_SEGMENT}`;

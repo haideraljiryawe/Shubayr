@@ -18,15 +18,23 @@
  *
  * While the store is closed every page response is `private, no-store`, so a
  * shared cache can never hand a previewed page to the public.
+ *
+ * The legal and support pages and the account deletion page (INFO_PATHS) stay
+ * open to everyone even then: the app stores need their addresses to work
+ * before the store opens. They render in a small shell of their own — logo,
+ * language, footer — with no way into the store behind the gate.
  * ------------------------------------------------------------------------- */
 
 export const PREVIEW_COOKIE = "shubayr_store_preview";
 export const PREVIEW_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-/** Set by the proxy on the request (never trusted from the client): "closed" or "preview". */
+/** Set by the proxy on the request (never trusted from the client): "closed", "preview" or "info". */
 export const GATE_HEADER = "x-store-gate";
 export const COMING_SOON_SEGMENT = "coming-soon";
 
-export type StoreGate = "closed" | "preview";
+export type StoreGate = "closed" | "preview" | "info";
+
+/** Pages anyone can open while the store is closed (without the locale prefix). */
+export const INFO_PATHS = ["/privacy", "/terms", "/returns", "/support", "/account/delete"] as const;
 
 /** Whether the store is open to everyone. Only an explicit "false" (or 0/no/off) closes it. */
 export function storeIsPublic(raw: string | undefined = process.env.STORE_PUBLIC): boolean {
@@ -63,4 +71,10 @@ export function localeOfPath(pathname: string): "ar" | "en" {
 export function unprefixed(pathname: string): string {
   if (pathname === "/en") return "/";
   return pathname.startsWith("/en/") ? pathname.slice(3) : pathname;
+}
+
+/** Whether a public path is one of the pages open while the store is closed. */
+export function isInfoPath(pathname: string): boolean {
+  const path = unprefixed(pathname).replace(/\/+$/, "") || "/";
+  return (INFO_PATHS as readonly string[]).includes(path);
 }
