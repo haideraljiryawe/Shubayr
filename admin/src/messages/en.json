@@ -40,7 +40,8 @@
     "deliveryZones": "Delivery zones",
     "discountTiers": "Automatic discounts",
     "catalogImport": "Excel import",
-    "catalogImages": "Bulk images"
+    "catalogImages": "Bulk images",
+    "returns": "Returns"
   },
   "auth": {
     "signIn": "Sign in",
@@ -189,7 +190,8 @@
       "deliveryZones": "Delivery fees by governorate: zones, the governorates in each, and where you don't deliver yet.",
       "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD.",
       "catalogImport": "Add and update products and opening stock from an Excel file, with a preview before anything is saved.",
-      "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU."
+      "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
+      "returns": "Review customer returns: approve, receive, inspect and refund."
     },
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
@@ -3579,6 +3581,256 @@
       "CATALOG_IMAGE_ZIP_INVALID": "The file couldn't be opened as a ZIP archive. Create the archive again and upload it.",
       "tooLarge": "The archive is too large or has too many pictures. Split it into several ZIP files.",
       "generic": "The pictures couldn't be uploaded. Try again."
+    }
+  },
+  "returns": {
+    "statuses": {
+      "requested": "Requested",
+      "approved": "Approved",
+      "partially_approved": "Partly approved",
+      "rejected": "Rejected",
+      "received": "Received",
+      "inspected": "Inspected",
+      "refunded": "Refunded",
+      "completed": "Completed"
+    },
+    "sources": {
+      "customer": "Customer",
+      "staff": "Staff"
+    },
+    "steps": {
+      "approve": "Approve",
+      "receive": "Receive",
+      "inspect": "Inspect",
+      "refund": "Refund"
+    },
+    "events": {
+      "requested": "Return requested",
+      "approved": "Approved",
+      "partially_approved": "Partly approved",
+      "rejected": "Rejected",
+      "received": "Goods received",
+      "inspected": "Goods inspected",
+      "refunded": "Refund paid"
+    },
+    "actors": {
+      "customer": "Customer",
+      "staff": "Staff"
+    },
+    "reasonCodes": {
+      "change_of_mind": "Changed mind",
+      "defect": "Defective",
+      "store_error": "Store error",
+      "wrong_item": "Wrong item",
+      "other": "Other"
+    },
+    "conditions": {
+      "sellable": "Sellable",
+      "opened": "Opened",
+      "damaged": "Damaged",
+      "expired": "Expired"
+    },
+    "postingRoles": {
+      "restock_issue_cost": "Restock at original cost",
+      "write_down": "Write-down",
+      "return_against_uncollected": "Against uncollected cash",
+      "delivery_fee_refund": "Delivery-fee refund",
+      "refund_payment": "Refund payment"
+    },
+    "list": {
+      "title": "Customer returns",
+      "description": "Return requests and where each one is in the flow, newest first.",
+      "search": "Order number",
+      "forOrder": "Showing returns for order {number} only.",
+      "orderMissing": "No order is numbered {number}.",
+      "orderForbidden": "Searching by order number needs permission to view orders (orders.view).",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No returns match.",
+      "anyStatus": "All",
+      "from": "From",
+      "to": "To",
+      "columns": {
+        "number": "Return",
+        "date": "Requested",
+        "order": "Order",
+        "source": "From",
+        "lines": "Lines",
+        "refund": "Refund",
+        "status": "Status"
+      }
+    },
+    "detail": {
+      "title": "Return",
+      "back": "All returns",
+      "description": "The return's lines, its money and the next step.",
+      "status": "Status",
+      "order": "Order",
+      "customer": "Customer",
+      "noName": "No name",
+      "customerHidden": "Shown with permission to view orders",
+      "source": "Requested by",
+      "requestedAt": "Requested",
+      "documentDate": "Document date",
+      "reviewedAt": "Reviewed",
+      "reason": "Customer's note",
+      "waiting": "Next step: {step}. It needs the {permission} permission, which you don't have.",
+      "lines": "Lines",
+      "product": "Product",
+      "reasonCode": "Reason",
+      "requested": "Requested",
+      "approved": "Approved",
+      "unitPrice": "Unit price",
+      "discountShare": "Discount share",
+      "netPaid": "Net paid",
+      "lineRefund": "Refund",
+      "points": "Points",
+      "pointsShare": "Earned {earned} · Redeemed {redeemed}",
+      "inspection": "Inspection",
+      "restocked": "Back in stock at original cost",
+      "writtenDown": "Written down",
+      "netPaidHint": "Net paid is this line's share of what the customer paid, fixed when the order was placed: its price less its share of the order's discounts and points. Refunds come from it, never from today's prices.",
+      "money": "Money",
+      "expectedRefund": "Expected refund",
+      "deliveryFeeRefund": "Delivery-fee refund",
+      "deliveryFeeCharged": "Delivery fee charged",
+      "refundAmount": "Refund (goods + fee)",
+      "uncollectedOffset": "Set against unpaid cash",
+      "cashRefund": "Cash to pay the customer",
+      "feePolicy": "The delivery fee is refunded automatically only when the whole order is returned for a store error, a wrong item or a defect. All returns of an order together can never refund more than the fee charged.",
+      "feePolicyRefunded": "The delivery fee is part of this refund.",
+      "feePolicyNone": "No delivery fee is refunded for this return.",
+      "pointsEffect": "Loyalty points",
+      "pointsEffectBody": "{reversed} earned points reversed · {restored} redeemed points restored · net {net}",
+      "pointsApplied": "Applied with the refund. A negative net is taken from future rewards, never from the cash refund.",
+      "pointsPending": "Applied when the refund is paid. A negative net is taken from future rewards, never from the cash refund.",
+      "payments": "Refund paid",
+      "paidFromCash": "from {account}",
+      "paidFromCustody": "from the delivery party's custody (proof: {proof})",
+      "postings": "Journal entries",
+      "timeline": "Timeline",
+      "done": {
+        "approve": "Decision recorded.",
+        "receive": "Goods recorded as received.",
+        "inspect": "Inspection posted: the goods are in their locations.",
+        "refund": "Refund recorded."
+      }
+    },
+    "approve": {
+      "title": "Approve or reject",
+      "body": "Approve the quantities you accept for each line (0 to refuse a line), or reject the whole return.",
+      "decision": "Decision",
+      "decisions": {
+        "approve": "Approve quantities",
+        "reject": "Reject the whole return"
+      },
+      "product": "Product",
+      "requested": "Requested",
+      "approvedQuantity": "Approved quantity",
+      "netPaid": "Net paid (requested)",
+      "zeroHint": "Enter 0 to refuse a line. At least one line must be approved; otherwise reject the return.",
+      "rejectReason": "Reason for rejecting (the customer sees it)",
+      "note": "Note (optional)",
+      "rejectReasonRequired": "Write a reason of at least 3 characters.",
+      "feePolicy": "Delivery fee: the server refunds it automatically only for a full return caused by a store error, a wrong item or a defect.",
+      "feeCharged": "Fee charged on the order: {fee}.",
+      "feeOverride": "Refund a different delivery fee (exception)",
+      "feeAmount": "Delivery fee to refund (IQD)",
+      "feeInvalid": "Enter a whole number of dinars.",
+      "feeReason": "Reason for the exception",
+      "feeReasonRequired": "Write a reason of at least 3 characters.",
+      "empty": "No line is approved. Approve at least one line, or reject the return.",
+      "submitApprove": "Approve",
+      "submitReject": "Reject return"
+    },
+    "quantity": {
+      "wholeHint": "Whole pieces only.",
+      "decimalHint": "Up to 3 decimals, in {unit}.",
+      "required": "Enter a quantity.",
+      "invalid": "Enter a number.",
+      "negative": "The quantity cannot be negative.",
+      "whole": "This product is sold in whole pieces.",
+      "precision": "At most 3 decimal places.",
+      "exceeds": "No more than requested ({max})."
+    },
+    "receive": {
+      "title": "Receive the goods",
+      "body": "Record that the approved goods are back with the store. Nothing enters stock until they are inspected.",
+      "note": "Note (optional)",
+      "submit": "Mark as received"
+    },
+    "inspect": {
+      "title": "Inspect",
+      "body": "For each line, record its condition and the location it goes to.",
+      "noLocations": "No active stock location is available. Add one under Warehouses first.",
+      "condition": "Condition",
+      "conditionRequired": "Choose the condition.",
+      "chooseCondition": "Choose…",
+      "location": "Location",
+      "sellableHint": "A sellable location.",
+      "nonSellableHint": "A non-sellable location (quarantine, damage).",
+      "locationRequired": "Choose a location.",
+      "locationMismatch": "This location doesn't fit the condition.",
+      "noFittingLocation": "No location fits this condition",
+      "chooseLocation": "Choose…",
+      "costRule": "Sellable goods go back into stock at their original issue cost. Opened, damaged or expired goods go to a non-sellable location and are written down.",
+      "note": "Note (optional)",
+      "submit": "Post inspection"
+    },
+    "refund": {
+      "title": "Refund",
+      "body": "Pay the customer what is still owed after inspection, and apply the loyalty points.",
+      "toPay": "To pay:",
+      "offsetNote": "{offset} of the refund was set against cash the customer never paid.",
+      "pointsNote": "Earned points are reversed and redeemed points restored at the same time.",
+      "nothingToPay": "There is no cash to pay: the whole refund was set against unpaid cash. Recording this step applies the points and closes the return.",
+      "method": "Pay from",
+      "methods": {
+        "cash_account": "A cash account",
+        "delivery_custody": "The delivery party's custody"
+      },
+      "custodyUnavailable": "(not available for this order)",
+      "cashAccountsForbidden": "Choosing a cash account needs permission to view cash accounts (cash_accounts.view).",
+      "cashAccount": "Cash account",
+      "cashAccountRequired": "Choose the cash account.",
+      "chooseCashAccount": "Choose…",
+      "noCashAccounts": "No active IQD cash account",
+      "collection": "The order's collection: {collected} collected ({status}).",
+      "collectionStatuses": {
+        "confirmed_full": "confirmed in full",
+        "confirmed_short": "confirmed short",
+        "unconfirmed": "not confirmed"
+      },
+      "proof": "Proof reference",
+      "proofHint": "E.g. the signed receipt the party gave the customer.",
+      "proofRequired": "Enter the proof reference.",
+      "submit": "Pay refund",
+      "submitNothing": "Record refund"
+    },
+    "refusals": {
+      "RETURN_INVALID_STATE": "Someone else already moved this return to another step. Reload the page to see where it is.",
+      "RETURN_REJECTION_HAS_LINES": "A whole rejection can't carry line quantities.",
+      "RETURN_REJECTION_REASON_REQUIRED": "Write a reason for the rejection.",
+      "RETURN_APPROVAL_INCOMPLETE": "Every line needs an approved quantity (0 to refuse it).",
+      "RETURN_APPROVAL_EXCEEDS_REQUEST": "An approved quantity is more than the customer asked to return.",
+      "RETURN_APPROVAL_EMPTY": "No line is approved. Approve at least one line, or reject the return.",
+      "RETURN_DELIVERY_FEE_PERMISSION_REQUIRED": "A delivery-fee exception needs the returns.refund_delivery_fee permission.",
+      "RETURN_DELIVERY_FEE_REASON_REQUIRED": "Give a reason for the delivery-fee exception.",
+      "RETURN_DELIVERY_FEE_EXCEEDS_CHARGED": "All returns of this order together would refund more than the delivery fee charged.",
+      "RETURN_INSPECTION_INCOMPLETE": "Every approved line must be inspected.",
+      "RETURN_LOCATION_UNAVAILABLE": "A chosen location is inactive or doesn't exist any more.",
+      "RETURN_LOCATION_CONDITION_MISMATCH": "Sellable goods need a sellable location; opened, damaged or expired goods a non-sellable one.",
+      "RETURN_EXCEEDS_ISSUED_QUANTITY": "More would come back than was issued for this order line.",
+      "INVENTORY_COST_NEGATIVE": "Posting this would make a stock cost negative. Check the line's stock history.",
+      "RETURN_REFUND_METHOD_FIELDS_INVALID": "A cash refund needs only the cash account.",
+      "RETURN_CUSTODY_REFUND_PROOF_REQUIRED": "A custody refund needs the order's collection and a proof reference.",
+      "RETURN_CASH_ACCOUNT_UNAVAILABLE": "Choose an active IQD cash account.",
+      "RETURN_COLLECTION_UNAVAILABLE": "The order's delivery collection isn't available to refund from.",
+      "RETURN_REFUND_EXCEEDS_CUSTODY": "The delivery party doesn't hold enough of this order's cash. Refund from a cash account instead.",
+      "RETURN_REFUND_EXCEEDS_PAID": "The refund would be more than the customer actually paid for this order.",
+      "SKU_WHOLE_UNITS_ONLY": "This product is sold in whole pieces: use whole numbers.",
+      "RETURN_QUANTITY_PRECISION": "Quantities take at most 3 decimal places.",
+      "SEPARATION_OF_DUTIES_VIOLATION": "Separation of duties: this step must be done by a different person from the one who did the previous step (or created the return).",
+      "PERIOD_CLOSED": "The accounting period for today is closed, so the server refused to post. Ask for the period to be reopened."
     }
   }
 }

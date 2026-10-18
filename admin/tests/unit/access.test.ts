@@ -79,6 +79,7 @@ describe("visibleNav", () => {
         "users.manage",
         "roles.manage",
         "orders.view",
+        "returns.view",
         "catalog.products",
         "catalog.categories",
         "catalog.brands",

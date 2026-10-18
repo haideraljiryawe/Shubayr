@@ -30,6 +30,7 @@ import {
   getMockLoyalty,
   createMockReturn,
   listMockReturns,
+  getMockReturn,
   createMockReview,
   createMockDeliveryRating,
   listMockReviewedOrderItems,
@@ -1216,6 +1217,24 @@ export const api = {
         query: { status, per_page: 50 },
       });
       return page.data ?? [];
+    });
+  },
+
+  /**
+   * One of the customer's own returns (GET /returns/{id}): its lines, the
+   * refund and points the server worked out, how it was paid, and its
+   * timeline. Another customer's id answers 404, like a missing one.
+   */
+  async getReturn(id: string): Promise<Return> {
+    return withFreshToken(async () => {
+      if (!isLive("returns")) {
+        await mockLatency(120);
+        requireMockAuth();
+        const found = getMockReturn(id);
+        if (!found) throw new ApiError(404, "Return not found");
+        return found;
+      }
+      return request<Return>(`/returns/${encodeURIComponent(id)}`);
     });
   },
 
