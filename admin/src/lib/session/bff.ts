@@ -67,6 +67,22 @@ export interface ForwardInit {
   /** Give up after this long (default 15 s; uploads take longer). */
   timeoutMs?: number;
   responseType?: "text" | "arrayBuffer";
+  /**
+   * Extra request headers for the API — only ones a caller has checked
+   * (today: Idempotency-Key, see idempotencyHeader). Never the browser's
+   * headers wholesale.
+   */
+  headers?: Record<string, string>;
+}
+
+/**
+ * The browser's Idempotency-Key, when it has the contract's shape (8–128
+ * printable ASCII characters). The expense writes require it (contract 17.1);
+ * a key of any other shape is dropped and the API answers its own refusal.
+ */
+export function idempotencyHeader(request: Pick<Request, "headers">): Record<string, string> {
+  const key = request.headers.get("idempotency-key");
+  return key && /^[ -~]{8,128}$/.test(key) ? { "Idempotency-Key": key } : {};
 }
 
 export interface Forwarded<TBody = string> {
@@ -91,7 +107,7 @@ async function send(
   // member's address — taken only from a trusted front proxy, never from what
   // the client sent — lets the API rate-limit and audit per person once it
   // trusts this server (see forwarding.ts and docs/deploy/web-and-admin.md).
-  const headers: Record<string, string> = { Accept: "application/json", ...forwarded };
+  const headers: Record<string, string> = { Accept: "application/json", ...forwarded, ...init.headers };
   if (typeof init.body === "string") headers["Content-Type"] = "application/json";
   if (init.authenticated !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;

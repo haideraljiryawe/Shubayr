@@ -71,6 +71,8 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   trips: "trips",
   custodyExceptions: "custody",
   cashReceipts: "cashReceipts",
+  expenses: "expenses",
+  expenseCategories: "expenses",
   audit: "audit",
 };
 
@@ -90,6 +92,7 @@ const ROUTES: ReadonlyArray<[prefix: string, owner: ModuleKey]> = [
   ["/orders", "orders"],
   ["/retrievals", "orders"],
   ["/returns", "returns"],
+  ["/expenses", "expenses"],
   ["/settings", "settings"],
   ["/staff", "users"],
   ["/presets", "users"],

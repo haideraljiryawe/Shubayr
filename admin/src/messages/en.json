@@ -41,7 +41,9 @@
     "discountTiers": "Automatic discounts",
     "catalogImport": "Excel import",
     "catalogImages": "Bulk images",
-    "returns": "Returns"
+    "returns": "Returns",
+    "expenses": "Expenses",
+    "expenseCategories": "Expense categories"
   },
   "auth": {
     "signIn": "Sign in",
@@ -191,7 +193,9 @@
       "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD.",
       "catalogImport": "Add and update products and opening stock from an Excel file, with a preview before anything is saved.",
       "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
-      "returns": "Review customer returns: approve, receive, inspect and refund."
+      "returns": "Review customer returns: approve, receive, inspect and refund.",
+      "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
+      "expenseCategories": "The kinds of expense and the ledger account each one posts to."
     },
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
@@ -3881,5 +3885,241 @@
     "save": "Save store info",
     "saved": "Store info saved",
     "unchanged": "Nothing changed."
+  },
+  "expenses": {
+    "statuses": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "reversed": "Reversed"
+    },
+    "modes": {
+      "paid_now": "Paid now",
+      "owed": "Owed"
+    },
+    "list": {
+      "title": "Expenses",
+      "description": "The store's expense documents and what is still owed, filtered and sorted by the server.",
+      "new": "New expense",
+      "manageCategories": "Manage categories",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No expenses match.",
+      "search": "Search number, payee, description, reference",
+      "from": "From",
+      "to": "To",
+      "any": "All",
+      "cashAccount": "Cash account",
+      "unpaid": "Payment",
+      "unpaidOnly": "Still owed",
+      "columns": {
+        "number": "Expense",
+        "date": "Date",
+        "category": "Category",
+        "payee": "Payee",
+        "amount": "Amount",
+        "balance": "Owed",
+        "mode": "Payment",
+        "status": "Status"
+      }
+    },
+    "totals": {
+      "title": "Totals for these filters",
+      "overall": "{count, plural, one {# posted expense} other {# posted expenses}}:",
+      "postedOnly": "Totals count posted expenses only, in IQD at each expense's rate; drafts and reversed expenses are left out."
+    },
+    "categories": {
+      "back": "All expenses",
+      "title": "Expense categories",
+      "description": "Each category posts to its own expense account in the ledger.",
+      "readOnly": "Changing categories needs the expense_categories.manage permission.",
+      "columns": {
+        "name": "Category",
+        "account": "Expense account",
+        "used": "Expenses",
+        "status": "Status"
+      },
+      "empty": "No categories yet.",
+      "createTitle": "New category",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "account": "Expense account",
+      "accountHint": "A new account is created for the category, or reuse one another category posts to.",
+      "newAccount": "Create a new expense account",
+      "problems": {
+        "required": "Enter a name.",
+        "tooLong": "At most 160 characters."
+      },
+      "create": "Add category",
+      "created": "Category added",
+      "active": "Active",
+      "inactive": "Inactive",
+      "system": "built-in",
+      "cancel": "Cancel",
+      "save": "Save",
+      "renamed": "Category renamed",
+      "rename": "Rename",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "deactivated": "Category deactivated: it can't be chosen for new expenses",
+      "activated": "Category active again"
+    },
+    "form": {
+      "title": "New expense",
+      "back": "All expenses",
+      "description": "Description",
+      "noCategories": "There is no active expense category yet. Add one under Expense categories first.",
+      "category": "Category",
+      "choose": "Choose…",
+      "problems": {
+        "required": "This is required.",
+        "tooLong": "At most {max} characters.",
+        "amount": {
+          "required": "Enter the amount.",
+          "invalid": "Enter a number, e.g. 125000 or 45.50.",
+          "zero": "The amount must be more than zero.",
+          "precision": "At most {digits} decimal places for this currency.",
+          "overpayment": "More than is still owed."
+        },
+        "cash": {
+          "required": "Choose the cash account it was paid from.",
+          "currency": "The cash account must be in the expense's currency.",
+          "inactive": "This cash account is inactive."
+        }
+      },
+      "amount": "Amount",
+      "currency": "Currency",
+      "rate": "Central rate: 1 {currency} = {rate} IQD",
+      "rateMissing": "No central rate is recorded for {currency} at this date; the server will refuse the expense. Record the rate first.",
+      "rateHidden": "The central rate is applied when you save (seeing it needs fx_rates.view).",
+      "rateLoading": "Reading the central rate…",
+      "payee": "Paid to",
+      "payeeKinds": {
+        "text": "A person or business (type the name)",
+        "supplier": "A supplier"
+      },
+      "supplier": "Supplier",
+      "chooseSupplier": "Choose a supplier…",
+      "payeeHint": "Who was or will be paid, e.g. the landlord or the electricity company.",
+      "reference": "Reference number",
+      "referenceHint": "Optional: the invoice or bill number.",
+      "receipt": "Receipt",
+      "receiptHint": "Optional: a photo or PDF (up to 8 MB). Stored privately.",
+      "receiptType": "A receipt must be an image (JPEG, PNG, WebP, AVIF) or a PDF.",
+      "receiptSize": "The receipt is larger than 8 MB.",
+      "receiptFailed": "The receipt couldn't be uploaded. Try again.",
+      "uploading": "Uploading… {percent}%",
+      "receiptAttached": "Attached: {name}",
+      "receiptRemove": "Remove",
+      "paymentMode": "Payment",
+      "modeHints": {
+        "paid_now": "Already paid: the amount leaves a cash account when the expense is posted.",
+        "owed": "Not paid yet: it is owed when posted, and paid later, in one go or in parts."
+      },
+      "cashAccountsForbidden": "Choosing a cash account needs permission to view cash accounts (cash_accounts.view).",
+      "cashAccount": "Paid from",
+      "cashAccountHint": "Cash accounts in {currency}.",
+      "noAccountInCurrency": "No active cash account in {currency}",
+      "saveDraft": "Save draft",
+      "draftHint": "A draft changes nothing in the books."
+    },
+    "detail": {
+      "title": "Expense",
+      "back": "All expenses",
+      "description": "The expense, its payments and its journal entries.",
+      "done": {
+        "post": "Posted to the books.",
+        "pay": "Payment recorded.",
+        "reverse": "Reversed: a correction document cancels its postings."
+      },
+      "status": "Status",
+      "category": "Category",
+      "payee": "Paid to",
+      "date": "Date",
+      "amount": "Amount",
+      "rate": "rate {rate} IQD per {currency}",
+      "mode": "Payment",
+      "paid": "Paid",
+      "balance": "Still owed",
+      "descriptionLabel": "Description",
+      "reference": "Reference",
+      "createdBy": "Created by",
+      "postedBy": "Posted by",
+      "backdateReason": "Back-dating reason",
+      "receipt": "Receipt",
+      "receiptPdf": "A PDF receipt.",
+      "receiptOpen": "Open",
+      "receiptDownload": "Download",
+      "payments": "Payments",
+      "paymentColumns": {
+        "number": "Payment",
+        "date": "Date",
+        "account": "From",
+        "amount": "Amount"
+      },
+      "remaining": "Still owed:",
+      "corrections": "Corrections",
+      "journals": "Journal entries",
+      "journal": {
+        "posting": "Posting",
+        "payment": "Payment {number}",
+        "reversal": "Reversal {number}"
+      },
+      "timelineTitle": "History",
+      "timeline": {
+        "created": "Draft created",
+        "posted": "Posted to the books",
+        "paid": "Paid {amount} ({number})",
+        "reversed": "Reversed ({number})"
+      }
+    },
+    "actions": {
+      "sodBlocked": "Separation of duties is strict in this store: you created this expense, so someone else must take this step.",
+      "sodHint": "You created this expense. If separation of duties is strict, someone else must take this step.",
+      "postTitle": "Post",
+      "postBody": "Posting records the expense in the books; it can then only be corrected by a reversal.",
+      "note": "Note (optional)",
+      "noteTooShort": "At least 3 characters, or leave it empty.",
+      "post": "Post expense",
+      "payTitle": "Pay",
+      "payBody": "Still owed: {balance}. Pay all of it or a part.",
+      "payAmount": "Amount",
+      "payAmountHint": "No more than is still owed.",
+      "notes": "Notes (optional)",
+      "pay": "Record payment",
+      "reverse": "Reverse expense",
+      "reverseTitle": "Reverse",
+      "reverseBody": "A correction document reverses every posting of this expense, payments included. Nothing is deleted.",
+      "reverseReason": "Reason",
+      "reverseReasonRequired": "Give a reason of at least 3 characters.",
+      "cancel": "Cancel",
+      "reverseConfirm": "Reverse"
+    },
+    "refusals": {
+      "EXPENSE_IDEMPOTENCY_KEY_REQUIRED": "The request was sent without its safety key. Reload the page and try again.",
+      "EXPENSE_IDEMPOTENCY_KEY_INVALID": "The request's safety key was refused. Reload the page and try again.",
+      "EXPENSE_NOT_FOUND": "This expense doesn't exist any more.",
+      "EXPENSE_CATEGORY_NOT_FOUND": "The category doesn't exist any more. Choose another.",
+      "EXPENSE_CATEGORY_INACTIVE": "The category is inactive. Choose an active one, or reactivate it under Expense categories.",
+      "EXPENSE_CATEGORY_IN_USE": "The category is used by expenses, so its account can't change. Deactivate it and add a new one instead.",
+      "EXPENSE_LEDGER_ACCOUNT_INVALID": "That ledger account can't be used: it must be an enabled expense account.",
+      "EXPENSE_CURRENCY_DISABLED": "That currency isn't enabled for this store.",
+      "EXCHANGE_RATE_NOT_FOUND": "No central rate is recorded for that currency at this date. Record the rate first.",
+      "EXPENSE_AMOUNT_INVALID": "The amount must be more than zero.",
+      "EXPENSE_AMOUNT_PRECISION": "Too many decimal places for this currency.",
+      "EXPENSE_PAYEE_REQUIRED": "Say who was paid: a name or a supplier.",
+      "EXPENSE_SUPPLIER_NOT_FOUND": "That supplier doesn't exist any more.",
+      "EXPENSE_CASH_ACCOUNT_REQUIRED": "Choose the cash account it was paid from.",
+      "EXPENSE_CASH_ACCOUNT_NOT_ALLOWED": "An owed expense has no cash account until it is paid.",
+      "EXPENSE_CASH_ACCOUNT_NOT_FOUND": "That cash account doesn't exist any more.",
+      "EXPENSE_CASH_ACCOUNT_INACTIVE": "That cash account is inactive.",
+      "EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH": "The cash account must be in the expense's currency.",
+      "EXPENSE_PERIOD_CLOSED": "The accounting period for this date is closed. Choose a date in an open period, or ask for it to be reopened.",
+      "EXPENSE_BACKDATE_WINDOW": "The date is outside the 90-day back-dating window. It needs the back-dating approval permission and a reason.",
+      "EXPENSE_RECEIPT_INVALID": "The receipt was refused: it must be an image or a PDF, up to 8 MB.",
+      "EXPENSE_ALREADY_POSTED": "This expense is already posted.",
+      "EXPENSE_INVALID_STATE": "This step isn't possible any more: someone else changed the expense. Reload the page.",
+      "EXPENSE_SELF_APPROVAL_FORBIDDEN": "Separation of duties: the person who created an expense can't post, pay or reverse it. Someone else must.",
+      "EXPENSE_OVERPAYMENT": "That is more than is still owed on this expense.",
+      "PERIOD_CLOSED": "The accounting period for this date is closed."
+    }
   }
 }
