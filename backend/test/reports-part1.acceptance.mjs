@@ -469,12 +469,12 @@ check(
   'performance dataset contains at least 20,000 order lines',
 );
 
-const reportTimes = [];
-const timed = async (path) => {
+const reportTimes = new Map();
+const timed = async (name, path) => {
   const start = performance.now();
   const payload = await request(path, { token: adminToken });
   const elapsed = performance.now() - start;
-  reportTimes.push(elapsed);
+  reportTimes.set(name, [...(reportTimes.get(name) ?? []), elapsed]);
   check(
     elapsed < 2000,
     true,
@@ -484,6 +484,7 @@ const timed = async (path) => {
 };
 
 const sales = await timed(
+  'sales',
   '/admin/reports/sales?from=2026-08-01&to=2026-08-31&group_by=sku',
 );
 check(sales.touches_open_period, true, 'August is marked as an open period');
@@ -527,6 +528,7 @@ check(
 );
 
 const profit = await timed(
+  'profitability',
   '/admin/reports/profitability?from=2026-08-01&to=2026-08-31&group_by=sku',
 );
 check(
@@ -551,6 +553,7 @@ check(
 );
 
 const pnl = await timed(
+  'profit_loss',
   '/admin/reports/profit-loss?from=2026-08-01&to=2026-08-31',
 );
 check(
@@ -646,6 +649,7 @@ check(
 );
 
 const trial = await timed(
+  'trial_balance',
   '/admin/reports/trial-balance?as_of=2026-08-31&per_page=500',
 );
 check(trial.balanced, true, 'trial balance is balanced');
@@ -676,6 +680,7 @@ check(
 );
 
 const balance = await timed(
+  'balance_sheet',
   '/admin/reports/balance-sheet?as_of=2026-08-31&per_page=500',
 );
 check(balance.totals.balanced, true, 'balance sheet balances');
@@ -684,6 +689,26 @@ check(
   balance.totals.liabilities_and_equity,
   'balance sheet equation reconciles',
 );
+
+const stabilityReports = [
+  ['sales', '/admin/reports/sales?from=2026-08-01&to=2026-08-31&group_by=sku'],
+  [
+    'profitability',
+    '/admin/reports/profitability?from=2026-08-01&to=2026-08-31&group_by=sku',
+  ],
+  ['profit_loss', '/admin/reports/profit-loss?from=2026-08-01&to=2026-08-31'],
+  [
+    'trial_balance',
+    '/admin/reports/trial-balance?as_of=2026-08-31&per_page=500',
+  ],
+  [
+    'balance_sheet',
+    '/admin/reports/balance-sheet?as_of=2026-08-31&per_page=500',
+  ],
+];
+for (let pass = 1; pass < 10; pass += 1) {
+  for (const [name, path] of stabilityReports) await timed(name, path);
+}
 
 const audits = await client.query(
   `
@@ -743,6 +768,13 @@ check(
 check(csv.toString('utf8').includes('الرمز'), true, 'CSV has Arabic headers');
 
 await client.end();
+const timingSummary = [...reportTimes.entries()]
+  .map(([name, timings]) => {
+    const sorted = [...timings].sort((left, right) => left - right);
+    const median = (sorted[4] + sorted[5]) / 2;
+    return `${name} min/median/max ${sorted[0].toFixed(1)}/${median.toFixed(1)}/${sorted.at(-1).toFixed(1)} ms`;
+  })
+  .join('; ');
 console.log(
-  `Reports part 1 acceptance assertions: ${assertions}; one-month report max ${Math.max(...reportTimes).toFixed(1)} ms over 20,001 order lines`,
+  `Reports part 1 acceptance assertions: ${assertions}; 10 consecutive passes over 20,001 order lines: ${timingSummary}`,
 );

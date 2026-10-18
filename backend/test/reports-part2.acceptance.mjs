@@ -95,10 +95,12 @@ async function postEntry({
   }
   return id;
 }
-async function timed(path, token, limit) {
+const reportTimes = new Map();
+async function timed(name, path, token, limit) {
   const started = performance.now();
   const payload = await request(path, { token });
   const elapsed = performance.now() - started;
+  reportTimes.set(name, [...(reportTimes.get(name) ?? []), elapsed]);
   check(
     elapsed < limit,
     true,
@@ -541,6 +543,7 @@ await db.query(
 const restrictedToken = await login('operations', 'Shubayr-Dev-Staff!2026');
 
 const cash = await timed(
+  'cash',
   '/admin/reports/cash?from=2025-01-10&to=2025-01-31&per_page=500',
   adminToken,
   2000,
@@ -596,6 +599,7 @@ check(
 );
 
 const custody = await timed(
+  'delivery_custody',
   '/admin/reports/delivery-custody?as_of=2025-01-31&per_page=500',
   adminToken,
   2000,
@@ -639,6 +643,7 @@ ok(
 );
 
 const liabilities = await timed(
+  'liabilities',
   '/admin/reports/liabilities?as_of=2025-01-31&per_page=500',
   adminToken,
   2000,
@@ -710,6 +715,7 @@ check(
 );
 
 const inventory = await timed(
+  'inventory_valuation',
   '/admin/reports/inventory-valuation?as_of=2025-01-31&slow_days=10&per_page=500',
   adminToken,
   2000,
@@ -752,6 +758,7 @@ check(
 );
 
 const restrictedDashboard = await timed(
+  'dashboard_restricted',
   '/admin/reports/dashboard',
   restrictedToken,
   300,
@@ -777,11 +784,45 @@ check(
   false,
   'cost.view alone never exposes dashboard profit',
 );
-const adminDashboard = await timed('/admin/reports/dashboard', adminToken, 300);
+const adminDashboard = await timed(
+  'dashboard',
+  '/admin/reports/dashboard',
+  adminToken,
+  300,
+);
 ok(
   'month_to_date_gross_profit' in adminDashboard.sales,
   'reports.profit.read exposes dashboard gross profit',
 );
+
+const stabilityReports = [
+  [
+    'cash',
+    '/admin/reports/cash?from=2025-01-10&to=2025-01-31&per_page=500',
+    2000,
+  ],
+  [
+    'delivery_custody',
+    '/admin/reports/delivery-custody?as_of=2025-01-31&per_page=500',
+    2000,
+  ],
+  [
+    'liabilities',
+    '/admin/reports/liabilities?as_of=2025-01-31&per_page=500',
+    2000,
+  ],
+  [
+    'inventory_valuation',
+    '/admin/reports/inventory-valuation?as_of=2025-01-31&slow_days=10&per_page=500',
+    2000,
+  ],
+  ['dashboard', '/admin/reports/dashboard', 300],
+];
+for (let pass = 1; pass < 10; pass += 1) {
+  for (const [name, path, limit] of stabilityReports) {
+    await timed(name, path, adminToken, limit);
+  }
+}
 
 const audits = await db.query(
   `SELECT after->>'report' report FROM audit_logs
@@ -849,4 +890,14 @@ check(
 );
 
 await db.end();
-console.log(`Reports part 2 acceptance assertions: ${assertions}`);
+const timingSummary = [...reportTimes.entries()]
+  .filter(([name]) => name !== 'dashboard_restricted')
+  .map(([name, timings]) => {
+    const sorted = [...timings].sort((left, right) => left - right);
+    const median = (sorted[4] + sorted[5]) / 2;
+    return `${name} min/median/max ${sorted[0].toFixed(1)}/${median.toFixed(1)}/${sorted.at(-1).toFixed(1)} ms`;
+  })
+  .join('; ');
+console.log(
+  `Reports part 2 acceptance assertions: ${assertions}; 10 consecutive passes: ${timingSummary}`,
+);

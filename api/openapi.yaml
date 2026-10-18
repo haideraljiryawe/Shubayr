@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.4.0
+  version: 17.5.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -5644,6 +5644,15 @@ paths:
         "201": { description: Created category, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCategory" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/expense-categories/ledger-accounts:
+    get:
+      tags: [Expenses]
+      summary: List enabled expense GL accounts available for category mapping
+      x-surface: admin
+      x-permission: expense_categories.manage
+      responses:
+        "200": { description: Expense GL account options, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ExpenseLedgerAccountOption" } } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /admin/expense-categories/{id}:
     patch:
       tags: [Expenses]
@@ -5762,6 +5771,21 @@ paths:
         "200": { description: Filtered totals, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseTotals" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/form-options:
+    get:
+      tags: [Expenses]
+      summary: Read scoped expense-create pickers without broad read permissions
+      description: Returns only active categories, enabled currencies, active cash-account names for the selected currency, active supplier names, the applicable central-rate preview and the back-dating window. Cash balances are never included.
+      x-surface: admin
+      x-permission: expenses.create
+      x-error-codes: [EXCHANGE_RATE_NOT_FOUND]
+      parameters:
+        - { name: currency_code, in: query, schema: { type: string, pattern: '^[A-Z]{3}$' } }
+        - { name: document_date, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Expense form options, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseFormOptions" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
   /admin/expenses/{id}:
     get:
       tags: [Expenses]
@@ -5774,6 +5798,33 @@ paths:
         "200": { description: Expense detail, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    patch:
+      tags: [Expenses]
+      summary: Edit a draft expense; posted expenses remain immutable
+      x-surface: admin
+      x-permission: expenses.create
+      x-error-codes: [EXPENSE_UPDATE_EMPTY, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePatchInput" } } } }
+      responses:
+        "200": { description: Updated draft expense, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+    delete:
+      tags: [Expenses]
+      summary: Delete a draft expense; posted expenses remain immutable
+      x-surface: admin
+      x-permission: expenses.create
+      x-error-codes: [EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "204": { description: Draft expense deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/expenses/{id}/post:
     post:
@@ -11787,6 +11838,16 @@ components:
         ledger_account: { $ref: "#/components/schemas/LedgerAccount" }
         expense_count: { type: integer, minimum: 0 }
 
+    ExpenseLedgerAccountOption:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+
     ExpenseCreateInput:
       type: object
       additionalProperties: false
@@ -11805,6 +11866,69 @@ components:
         document_date: { type: string, format: date }
         accounting_date: { type: string, format: date }
         backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+
+    ExpensePatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        category_id: { type: string, format: uuid }
+        amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        payment_mode: { type: string, enum: [paid_now, owed] }
+        cash_account_id: { type: [string, "null"], format: uuid, description: Required for paid_now and forbidden for owed. }
+        supplier_id: { type: [string, "null"], format: uuid }
+        payee: { type: [string, "null"], minLength: 1, maxLength: 200 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        reference_number: { type: [string, "null"], maxLength: 160 }
+        receipt_media_id: { type: [string, "null"], format: uuid }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: [string, "null"], minLength: 3, maxLength: 500 }
+
+    ExpenseFormOptions:
+      type: object
+      additionalProperties: false
+      required: [categories, currencies, cash_accounts, suppliers, rate_preview, backdating_window_days]
+      properties:
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/ExpenseCategoryLink" }
+        currencies:
+          type: array
+          items: { $ref: "#/components/schemas/ExpenseFormCurrencyOption" }
+        cash_accounts:
+          type: array
+          description: Active accounts for the selected currency; balances are intentionally omitted.
+          items: { $ref: "#/components/schemas/ExpensePartyLink" }
+        suppliers:
+          type: array
+          items: { $ref: "#/components/schemas/ExpensePartyLink" }
+        rate_preview: { $ref: "#/components/schemas/ExpenseRatePreview" }
+        backdating_window_days: { type: integer, minimum: 0 }
+
+    ExpenseFormCurrencyOption:
+      type: object
+      additionalProperties: false
+      required: [code, name_ar, name_en, symbol, display_precision, is_base]
+      properties:
+        code: { type: string, pattern: '^[A-Z]{3}$' }
+        name_ar: { type: string }
+        name_en: { type: string }
+        symbol: { type: string }
+        display_precision: { type: integer, minimum: 0, maximum: 6 }
+        is_base: { type: boolean }
+
+    ExpenseRatePreview:
+      type: object
+      additionalProperties: false
+      required: [currency_code, base_currency_code, rate, effective_at, not_from_today]
+      properties:
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        base_currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: "#/components/schemas/ExactDecimal" }
+        effective_at: { type: [string, "null"], format: date-time }
+        not_from_today: { type: boolean }
 
     ExpensePostInput:
       type: object

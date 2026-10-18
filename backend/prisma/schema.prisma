@@ -1700,6 +1700,7 @@ model OrderItem {
   custody_exception_lines CustodyExceptionLine[]
 
   @@index([order_id], map: "idx_order_items_order")
+  @@index([order_id, variant_id, product_id], map: "idx_order_items_report_dimensions")
   @@map("order_items")
 }
 

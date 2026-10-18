@@ -12267,6 +12267,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/expense-categories/ledger-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List enabled expense GL accounts available for category mapping */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense GL account options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseLedgerAccountOption"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/expense-categories/{id}": {
         parameters: {
             query?: never;
@@ -12554,6 +12591,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/expenses/form-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read scoped expense-create pickers without broad read permissions
+         * @description Returns only active categories, enabled currencies, active cash-account names for the selected currency, active supplier names, the applicable central-rate preview and the back-dating window. Cash balances are never included.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    currency_code?: string;
+                    document_date?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense form options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseFormOptions"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["ExchangeRateValidation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/expenses/{id}": {
         parameters: {
             query?: never;
@@ -12589,10 +12670,64 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete a draft expense; posted expenses remain immutable */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Draft expense deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
         options?: never;
         head?: never;
-        patch?: never;
+        /** Edit a draft expense; posted expenses remain immutable */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpensePatchInput"];
+                };
+            };
+            responses: {
+                /** @description Updated draft expense */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ExchangeRateValidation"];
+            };
+        };
         trace?: never;
     };
     "/admin/expenses/{id}/post": {
@@ -17516,6 +17651,13 @@ export interface components {
             ledger_account: components["schemas"]["LedgerAccount"];
             expense_count?: number;
         };
+        ExpenseLedgerAccountOption: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+        };
         ExpenseCreateInput: {
             /** Format: uuid */
             category_id: string;
@@ -17540,6 +17682,56 @@ export interface components {
             /** Format: date */
             accounting_date?: string;
             backdate_reason?: string;
+        };
+        ExpensePatchInput: {
+            /** Format: uuid */
+            category_id?: string;
+            amount?: string;
+            currency_code?: string;
+            /** @enum {string} */
+            payment_mode?: "paid_now" | "owed";
+            /**
+             * Format: uuid
+             * @description Required for paid_now and forbidden for owed.
+             */
+            cash_account_id?: string | null;
+            /** Format: uuid */
+            supplier_id?: string | null;
+            payee?: string | null;
+            description?: string;
+            reference_number?: string | null;
+            /** Format: uuid */
+            receipt_media_id?: string | null;
+            /** Format: date */
+            document_date?: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string | null;
+        };
+        ExpenseFormOptions: {
+            categories: components["schemas"]["ExpenseCategoryLink"][];
+            currencies: components["schemas"]["ExpenseFormCurrencyOption"][];
+            /** @description Active accounts for the selected currency; balances are intentionally omitted. */
+            cash_accounts: components["schemas"]["ExpensePartyLink"][];
+            suppliers: components["schemas"]["ExpensePartyLink"][];
+            rate_preview: components["schemas"]["ExpenseRatePreview"];
+            backdating_window_days: number;
+        };
+        ExpenseFormCurrencyOption: {
+            code: string;
+            name_ar: string;
+            name_en: string;
+            symbol: string;
+            display_precision: number;
+            is_base: boolean;
+        };
+        ExpenseRatePreview: {
+            currency_code: string;
+            base_currency_code: string;
+            rate: components["schemas"]["ExactDecimal"];
+            /** Format: date-time */
+            effective_at: string | null;
+            not_from_today: boolean;
         };
         ExpensePostInput: {
             note?: string;

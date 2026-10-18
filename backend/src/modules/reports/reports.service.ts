@@ -87,25 +87,34 @@ export class ReportsService {
     const dimension = this.dimension(group);
     const order = this.order(query.sort, query.direction);
     const rows = await this.prisma.$queryRaw<GroupRow[]>(Prisma.sql`
-      WITH activity AS (
+      WITH sold_activity AS MATERIALIZED (
+        SELECT dc.accounting_date, dc.order_id, oi.product_id, oi.variant_id,
+          SUM(oi.line_total) AS gross_sales,
+          SUM(oi.tier_discount_share) AS tier_discounts,
+          SUM(oi.coupon_discount_share) AS coupon_discounts,
+          SUM(GREATEST(oi.line_total - oi.net_paid_total - oi.tier_discount_share - oi.coupon_discount_share, 0)) AS other_discounts,
+          SUM(oi.net_paid_total) AS net_sales
+        FROM delivery_collections dc
+        JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
+        JOIN order_items oi ON oi.order_id = dc.order_id
+        WHERE dc.accounting_date BETWEEN ${range.from} AND ${range.to}
+        GROUP BY dc.accounting_date, dc.order_id, oi.product_id, oi.variant_id
+      ), activity AS (
         SELECT
           ${dimension.key} AS group_key,
           ${dimension.ar} AS name_ar,
           ${dimension.en} AS name_en,
-          oi.line_total AS gross_sales,
-          oi.tier_discount_share AS tier_discounts,
-          oi.coupon_discount_share AS coupon_discounts,
-          GREATEST(oi.line_total - oi.net_paid_total - oi.tier_discount_share - oi.coupon_discount_share, 0) AS other_discounts,
+          dc.gross_sales,
+          dc.tier_discounts,
+          dc.coupon_discounts,
+          dc.other_discounts,
           0::numeric AS returns,
-          oi.net_paid_total AS net_sales,
-          o.id AS order_id,
+          dc.net_sales,
+          dc.order_id,
           TRUE AS sale_order
-        FROM delivery_collections dc
-        JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
-        JOIN orders o ON o.id = dc.order_id
-        JOIN order_items oi ON oi.order_id = o.id
-        JOIN products product ON product.id = oi.product_id
-        JOIN product_variants variant ON variant.id = oi.variant_id
+        FROM sold_activity dc
+        JOIN products product ON product.id = dc.product_id
+        JOIN product_variants variant ON variant.id = dc.variant_id
         JOIN categories category ON category.id = product.category_id
         LEFT JOIN categories parent ON parent.id = category.parent_id
         LEFT JOIN brands brand ON brand.id = product.brand_id
@@ -160,8 +169,8 @@ export class ReportsService {
         Omit<GroupRow, 'group_key' | 'name_ar' | 'name_en' | 'total_groups'>
       >
     >(Prisma.sql`
-      WITH sold AS (
-        SELECT o.id, o.original_delivery_fee, o.delivery_fee,
+      WITH sold_lines AS MATERIALIZED (
+        SELECT dc.order_id,
           SUM(oi.line_total) AS gross_sales,
           SUM(oi.tier_discount_share) AS tier_discounts,
           SUM(oi.coupon_discount_share) AS coupon_discounts,
@@ -169,10 +178,13 @@ export class ReportsService {
           SUM(oi.net_paid_total) AS sold_net
         FROM delivery_collections dc
         JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
-        JOIN orders o ON o.id = dc.order_id
-        JOIN order_items oi ON oi.order_id = o.id
+        JOIN order_items oi ON oi.order_id = dc.order_id
         WHERE dc.accounting_date BETWEEN ${range.from} AND ${range.to}
-        GROUP BY o.id, o.original_delivery_fee, o.delivery_fee
+        GROUP BY dc.order_id
+      ), sold AS (
+        SELECT lines.*, o.original_delivery_fee, o.delivery_fee
+        FROM sold_lines lines
+        JOIN orders o ON o.id = lines.order_id
       ), sold_totals AS (
         SELECT
           COALESCE(SUM(gross_sales), 0) AS gross_sales,
@@ -180,7 +192,7 @@ export class ReportsService {
           COALESCE(SUM(coupon_discounts), 0) AS coupon_discounts,
           COALESCE(SUM(other_discounts), 0) AS other_discounts,
           COALESCE(SUM(sold_net), 0) AS sold_net,
-          COUNT(id) AS order_count,
+          COUNT(order_id) AS order_count,
           COALESCE(SUM(original_delivery_fee), 0) AS original_delivery_fees,
           COALESCE(SUM(delivery_fee), 0) AS charged_delivery_fees,
           COALESCE(SUM(delivery_fee - original_delivery_fee), 0) AS delivery_fee_adjustments
@@ -316,29 +328,39 @@ export class ReportsService {
     const dimension = this.dimension(group);
     const order = this.order(query.sort, query.direction);
     const rows = await this.prisma.$queryRaw<ProfitRow[]>(Prisma.sql`
-      WITH item_cost AS (
+      WITH item_cost AS MATERIALIZED (
         SELECT order_item_id, SUM(quantity * unit_cost_iqd) AS issue_cost
         FROM custody_holdings
         GROUP BY order_item_id
+      ), sold_activity AS MATERIALIZED (
+        SELECT dc.accounting_date, dc.order_id, oi.product_id, oi.variant_id,
+          SUM(oi.line_total) AS gross_sales,
+          SUM(oi.tier_discount_share) AS tier_discounts,
+          SUM(oi.coupon_discount_share) AS coupon_discounts,
+          SUM(GREATEST(oi.line_total - oi.net_paid_total - oi.tier_discount_share - oi.coupon_discount_share, 0)) AS other_discounts,
+          SUM(oi.net_paid_total) AS net_sales,
+          SUM(COALESCE(item_cost.issue_cost, 0)) AS cost_of_goods_sold
+        FROM delivery_collections dc
+        JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
+        JOIN order_items oi ON oi.order_id = dc.order_id
+        LEFT JOIN item_cost ON item_cost.order_item_id = oi.id
+        WHERE dc.accounting_date BETWEEN ${range.from} AND ${range.to}
+        GROUP BY dc.accounting_date, dc.order_id, oi.product_id, oi.variant_id
       ), activity AS (
         SELECT ${dimension.key} AS group_key,
           ${dimension.ar} AS name_ar, ${dimension.en} AS name_en,
-          oi.line_total AS gross_sales,
-          oi.tier_discount_share AS tier_discounts,
-          oi.coupon_discount_share AS coupon_discounts,
-          GREATEST(oi.line_total - oi.net_paid_total - oi.tier_discount_share - oi.coupon_discount_share, 0) AS other_discounts,
-          0::numeric AS returns, oi.net_paid_total AS net_sales,
-          COALESCE(item_cost.issue_cost, 0) AS cost_of_goods_sold,
+          dc.gross_sales,
+          dc.tier_discounts,
+          dc.coupon_discounts,
+          dc.other_discounts,
+          0::numeric AS returns, dc.net_sales,
+          dc.cost_of_goods_sold,
           0::numeric AS return_cost_reversals,
           0::numeric AS inventory_write_downs,
-          o.id AS order_id, TRUE AS sale_order
-        FROM delivery_collections dc
-        JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
-        JOIN orders o ON o.id = dc.order_id
-        JOIN order_items oi ON oi.order_id = o.id
-        LEFT JOIN item_cost ON item_cost.order_item_id = oi.id
-        JOIN products product ON product.id = oi.product_id
-        JOIN product_variants variant ON variant.id = oi.variant_id
+          dc.order_id, TRUE AS sale_order
+        FROM sold_activity dc
+        JOIN products product ON product.id = dc.product_id
+        JOIN product_variants variant ON variant.id = dc.variant_id
         JOIN categories category ON category.id = product.category_id
         LEFT JOIN categories parent ON parent.id = category.parent_id
         LEFT JOIN brands brand ON brand.id = product.brand_id
@@ -396,17 +418,23 @@ export class ReportsService {
       LIMIT ${perPage} OFFSET ${(page - 1) * perPage}
     `);
     const totalsRows = await this.prisma.$queryRaw<ProfitRow[]>(Prisma.sql`
-      WITH item_cost AS (
+      WITH item_cost AS MATERIALIZED (
         SELECT order_item_id, SUM(quantity * unit_cost_iqd) AS issue_cost
         FROM custody_holdings GROUP BY order_item_id
       ), sold AS (
-        SELECT oi.*, o.id AS sold_order_id, COALESCE(item_cost.issue_cost, 0) AS issue_cost
+        SELECT dc.order_id AS sold_order_id,
+          SUM(oi.line_total) AS line_total,
+          SUM(oi.tier_discount_share) AS tier_discount_share,
+          SUM(oi.coupon_discount_share) AS coupon_discount_share,
+          SUM(oi.net_paid_total) AS net_paid_total,
+          SUM(GREATEST(oi.line_total - oi.net_paid_total - oi.tier_discount_share - oi.coupon_discount_share, 0)) AS other_discounts,
+          SUM(COALESCE(item_cost.issue_cost, 0)) AS issue_cost
         FROM delivery_collections dc
         JOIN journal_entries posted ON posted.id = dc.delivery_journal_entry_id
-        JOIN orders o ON o.id = dc.order_id
-        JOIN order_items oi ON oi.order_id = o.id
+        JOIN order_items oi ON oi.order_id = dc.order_id
         LEFT JOIN item_cost ON item_cost.order_item_id = oi.id
         WHERE dc.accounting_date BETWEEN ${range.from} AND ${range.to}
+        GROUP BY dc.order_id
       ), returned AS (
         SELECT COALESCE(SUM(ri.approved_refund), 0) AS amount,
           COALESCE(SUM(ri.issue_cost_value), 0) AS cost
@@ -423,7 +451,7 @@ export class ReportsService {
           COALESCE(SUM(line_total), 0) AS gross_sales,
           COALESCE(SUM(tier_discount_share), 0) AS tier_discounts,
           COALESCE(SUM(coupon_discount_share), 0) AS coupon_discounts,
-          COALESCE(SUM(GREATEST(line_total - net_paid_total - tier_discount_share - coupon_discount_share, 0)), 0) AS other_discounts,
+          COALESCE(SUM(other_discounts), 0) AS other_discounts,
           COALESCE(SUM(net_paid_total), 0) AS sold_net,
           COALESCE(SUM(issue_cost), 0) AS issue_cost,
           COUNT(DISTINCT sold_order_id) AS order_count

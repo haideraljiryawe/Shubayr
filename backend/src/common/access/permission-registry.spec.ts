@@ -29,4 +29,8 @@ describe('seeded permission presets', () => {
       'supplier_payments.record',
     );
   });
+
+  it('lets expenses.create use the scoped form options without broad reads', () => {
+    expect(PERMISSION_DEPENDENCIES['expenses.create']).toEqual([]);
+  });
 });
