@@ -3,8 +3,8 @@
 #
 # Writes .env.production from .env.production.example with fresh random
 # secrets (database, Redis, search, storage, JWT, store preview token).
-# Refuses to overwrite an existing file. The SMS gateway and, later, the FCM
-# key are still yours to fill in.
+# Refuses to overwrite an existing file. The optional SMS and FCM provider
+# credentials are still yours to fill in when those providers are enabled.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -26,5 +26,5 @@ set_env_value S3_SECRET_KEY "$(hex 24)"
 set_env_value JWT_SECRET "$(hex 32)"
 set_env_value JWT_REFRESH_SECRET "$(hex 32)"
 set_env_value STORE_PREVIEW_TOKEN "$(hex 24)"
-say "wrote ${ENV_FILE} (mode 600). Still to fill in: SMS_GATEWAY_URL, SMS_GATEWAY_TOKEN, SHUBAYR_TAG, and the backup target."
+say "wrote ${ENV_FILE} (mode 600). Still to fill in: SHUBAYR_TAG and the backup target. SMS stays disabled until provider credentials are configured."
 grep -nE '=(CHANGE_ME|change_me)' "$ENV_FILE" || true

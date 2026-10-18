@@ -18,7 +18,10 @@ jest.mock('@nestjs/jwt', () => ({
   },
 }));
 
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, createHmac } from 'node:crypto';
 import { AuthService } from './auth.service';
@@ -95,6 +98,36 @@ describe('AuthService', () => {
     };
     expect(createInput.data.phone).toBe('+9647700000000');
     expect(createInput.data.code_hash).not.toContain('000000');
+  });
+
+  it('does not persist or invalidate an OTP when delivery fails', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const create = jest.fn().mockResolvedValue({});
+    const transaction = jest.fn();
+    const prisma = {
+      otpCode: { updateMany, create },
+      $transaction: transaction,
+    };
+    const sms = {
+      sendOtp: jest.fn().mockRejectedValue(
+        new ServiceUnavailableException({
+          code: 'OTP_DELIVERY_UNAVAILABLE',
+        }),
+      ),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      sms as never,
+    );
+
+    await expect(
+      service.requestOtp({ phone: '+9647700000000' }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('consumes a valid OTP, creates a customer, and persists a refresh digest', async () => {

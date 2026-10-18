@@ -150,8 +150,16 @@ edit it and fill in:
 
 - `SHUBAYR_TAG` — the release to run (e.g. `v1.0.0`);
 - `SMS_GATEWAY_URL`, `SMS_GATEWAY_TOKEN` — the SMS provider for customer
-  sign-in codes (the API POSTs `{"phone","code"}` with a Bearer token);
+  sign-in codes (the API POSTs `{"phone","code"}` with a Bearer token). Until
+  one is chosen, leave `SMS_GATEWAY_URL=disabled` and the token empty. Disabled
+  mode makes no outbound request and returns `SMS_NOT_CONFIGURED` (503);
 - read every comment once: `.env.production.example` documents each variable.
+
+An OTP is persisted only after the gateway confirms delivery. A disabled,
+timed-out, unreachable, or non-2xx gateway creates no OTP record, consumes no
+OTP verification attempt, and leaves any previously delivered unexpired code
+unchanged. The HTTP endpoint remains abuse-throttled even when delivery fails.
+Gateway tokens and OTP values are never written to application logs.
 
 **The off-server backup target.** Create `deploy/secrets/rclone.conf`
 (git-ignored, `chmod 600`) with a remote named `offsite`, and point
@@ -416,11 +424,16 @@ Before opening day, check each item on the running server.
 - [ ] `STORE_PUBLIC=false` until opening: `https://<domain>` shows the "opening soon" page, `robots.txt` disallows everything.
 - [ ] The store details in `web/src/config/store-info.ts` are real (legal name, address, contacts, hours, return rules) and the owner approved the policy drafts ([../launch/legal-pages.md](../launch/legal-pages.md)); `https://<domain>/privacy`, `/terms`, `/support` and `/account/delete` open even while closed ([../launch/store-urls.md](../launch/store-urls.md)).
 - [ ] `STORE_PREVIEW_TOKEN` was generated with `openssl rand -hex 24`; `https://<domain>/preview?t=<token>` shows the real store to the owner.
-- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users` — the launch menu.
+- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users` — the launch menu;
+  `expenses` and `reports` remain off until their Web Admin screens are ready.
 - [ ] Opening day: set `STORE_PUBLIC=true` (or remove it), `dc up -d web`, and check the home page and `robots.txt`.
 
 **Customer sign-in and notifications**
-- [ ] `SMS_GATEWAY_URL` / `SMS_GATEWAY_TOKEN` are the provider's production values; a real phone receives a sign-in code.
+- [ ] SMS is deliberately configured: either `SMS_GATEWAY_URL=disabled` while
+  no provider is available, or the URL/token are the provider's production
+  values and a real phone receives a sign-in code. Provider requests abort
+  after `SMS_GATEWAY_TIMEOUT_MS` (10 seconds by default). A failed delivery
+  returns `OTP_DELIVERY_UNAVAILABLE` (503).
 - [ ] `NOTIFICATION_PROVIDER`: `disabled` until the Firebase key is installed; then `fcm` with `FCM_PROJECT_ID` and `FCM_SERVICE_ACCOUNT_JSON_BASE64` set on the server by the key holder; `npm run push:diagnose` passes ([push-notifications.md](push-notifications.md)).
 
 **Store setup (owner)**

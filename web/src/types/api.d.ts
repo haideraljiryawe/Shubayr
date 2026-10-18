@@ -45,6 +45,7 @@ export interface paths {
                 };
                 422: components["responses"]["Validation"];
                 429: components["responses"]["RateLimited"];
+                503: components["responses"]["ServiceUnavailable"];
             };
         };
         delete?: never;
@@ -5291,12 +5292,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sales & analytics summary */
+        /** Posted sales, discounts, returns and delivery-fee report */
         get: {
             parameters: {
                 query?: {
+                    /** @description Defaults to `to`, or the current Baghdad business date when both are omitted. */
                     from?: string;
+                    /** @description Defaults to `from`, or the current Baghdad business date when both are omitted. */
                     to?: string;
+                    group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+                    sort?: "group" | "gross_sales" | "net_sales" | "order_count";
+                    direction?: "asc" | "desc";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
                 };
                 header?: never;
                 path?: never;
@@ -5314,6 +5322,304 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/profitability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted product profitability at original issue cost */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    group_by?: "department" | "category" | "product" | "sku";
+                    sort?: "group" | "gross_sales" | "net_sales" | "order_count";
+                    direction?: "asc" | "desc";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profitability report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfitabilityReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/profit-loss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted profit and loss with the immediately preceding comparison period */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profit and loss */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfitLossReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/trial-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted trial balance as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    direction?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Trial balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTrialBalance"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/balance-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Simple posted balance sheet as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Balance sheet */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BalanceSheetReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a CSV or XLSX report export */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReportExportInput"];
+                };
+            };
+            responses: {
+                /** @description Export queued */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportExportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+                503: components["responses"]["ServiceUnavailable"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Poll report export progress without report rows */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Export progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportExportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a completed report export */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description CSV or XLSX file */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -15639,29 +15945,239 @@ export interface components {
         UserPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["User"][];
         };
-        /** @description Aggregated sales & analytics for the selected date range. */
+        /** @description Posted sales and returns. Compatibility fields from the earlier optional summary shape remain present. */
         SalesReport: {
             /** Format: date */
-            from?: string | null;
+            from: string;
             /** Format: date */
-            to?: string | null;
-            orders_count?: number;
-            gross_sales?: number;
-            discounts?: number;
-            net_sales?: number;
-            by_day?: {
+            to: string;
+            /** @deprecated */
+            orders_count: number;
+            /** @deprecated */
+            gross_sales: number;
+            /** @deprecated */
+            discounts: number;
+            /** @deprecated */
+            net_sales: number;
+            /** @deprecated */
+            by_day: {
                 /** Format: date */
-                date?: string;
-                orders_count?: number;
-                net_sales?: number;
+                date: string;
+                orders_count: number;
+                net_sales: number;
             }[];
-            top_products?: {
+            /** @deprecated */
+            top_products: {
                 /** Format: uuid */
-                product_id?: string;
-                name?: string;
-                qty_sold?: number;
-                net_sales?: number;
+                product_id: string;
+                name: string;
+                qty_sold: number;
+                net_sales: number;
             }[];
+            /** @enum {string} */
+            group_by: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["SalesReportTotals"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["SalesReportRow"][];
+        };
+        ReportPagination: {
+            page: number;
+            per_page: number;
+            total: number;
+            pages: number;
+        };
+        SalesReportRow: {
+            key: string;
+            name_ar: string;
+            name_en: string;
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+        };
+        SalesReportTotals: {
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            original_delivery_fees: components["schemas"]["ExactDecimal"];
+            charged_delivery_fees: components["schemas"]["ExactDecimal"];
+            delivery_fee_adjustments: components["schemas"]["ExactDecimal"];
+            delivery_fee_refunds: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+            cancelled_count: number;
+            rejected_count: number;
+        };
+        ProfitabilityReportRow: {
+            key: string;
+            name_ar: string;
+            name_en: string;
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+            cost_of_goods_sold: components["schemas"]["ExactDecimal"];
+            return_cost_reversals: components["schemas"]["ExactDecimal"];
+            gross_profit: components["schemas"]["ExactDecimal"];
+            margin_percent: components["schemas"]["ExactDecimal"] | null;
+            inventory_write_downs: components["schemas"]["ExactDecimal"];
+        };
+        ProfitabilityReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            group_by: "department" | "category" | "product" | "sku";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["ProfitabilityReportRow"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["ProfitabilityReportRow"][];
+        };
+        ProfitLossPeriod: {
+            sales_revenue: components["schemas"]["ExactDecimal"];
+            delivery_revenue: components["schemas"]["ExactDecimal"];
+            sales_returns: components["schemas"]["ExactDecimal"];
+            delivery_fee_refunds: components["schemas"]["ExactDecimal"];
+            net_revenue: components["schemas"]["ExactDecimal"];
+            cost_of_goods_sold: components["schemas"]["ExactDecimal"];
+            gross_profit: components["schemas"]["ExactDecimal"];
+            operating_expenses: components["schemas"]["ExactDecimal"];
+            inventory_write_downs: components["schemas"]["ExactDecimal"];
+            other_income: components["schemas"]["ExactDecimal"];
+            other_costs: components["schemas"]["ExactDecimal"];
+            net_profit: components["schemas"]["ExactDecimal"];
+            expenses: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name_ar: string;
+                name_en: string;
+                amount: components["schemas"]["ExactDecimal"];
+            }[];
+        };
+        ProfitLossReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: date */
+            previous_from: string;
+            /** Format: date */
+            previous_to: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            current: components["schemas"]["ProfitLossPeriod"];
+            previous: components["schemas"]["ProfitLossPeriod"];
+        };
+        TrialBalanceReportRow: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            type: string;
+            /** @enum {string} */
+            normal_side: "debit" | "credit";
+            debit: components["schemas"]["ExactDecimal"];
+            credit: components["schemas"]["ExactDecimal"];
+            balance: components["schemas"]["ExactDecimal"];
+        };
+        ReportTrialBalance: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            debit_total: components["schemas"]["ExactDecimal"];
+            credit_total: components["schemas"]["ExactDecimal"];
+            balanced: boolean;
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["TrialBalanceReportRow"][];
+        };
+        BalanceSheetReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                assets: components["schemas"]["ExactDecimal"];
+                liabilities: components["schemas"]["ExactDecimal"];
+                equity: components["schemas"]["ExactDecimal"];
+                current_earnings: components["schemas"]["ExactDecimal"];
+                liabilities_and_equity: components["schemas"]["ExactDecimal"];
+                balanced: boolean;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name_ar: string;
+                name_en: string;
+                /** @enum {string} */
+                type: "asset" | "liability" | "equity";
+                balance: components["schemas"]["ExactDecimal"];
+            }[];
+        };
+        ReportExportInput: {
+            /** @enum {string} */
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet";
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+            /**
+             * @description Defaults to en when omitted.
+             * @enum {string}
+             */
+            language?: "ar" | "en";
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            /** Format: date */
+            as_of?: string;
+            /** @enum {string} */
+            group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+        };
+        ReportExportProgress: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet";
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+            /** @enum {string} */
+            language: "ar" | "en";
+            /** @enum {string} */
+            status: "queued" | "processing" | "completed" | "failed";
+            rows_done: number;
+            rows_total: number;
+            last_error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            download_ready: boolean;
         };
         StoreSettings: {
             store_name?: string;

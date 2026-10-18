@@ -2,7 +2,6 @@ import {
   Injectable,
   HttpException,
   HttpStatus,
-  Logger,
   Optional,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -65,8 +64,6 @@ type RefreshPayload = {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -86,7 +83,8 @@ export class AuthService {
     const expiresAt = new Date(
       now.getTime() + this.config.get<number>('OTP_TTL_SECONDS', 300) * 1000,
     );
-    const [, createdOtp] = await this.prisma.$transaction([
+    await this.sms.sendOtp(phone, code);
+    await this.prisma.$transaction([
       this.prisma.otpCode.updateMany({
         where: { phone, consumed_at: null },
         data: { consumed_at: now },
@@ -99,17 +97,7 @@ export class AuthService {
         },
       }),
     ]);
-    try {
-      await this.sms.sendOtp(phone, code);
-    } catch (error) {
-      await this.prisma.otpCode.update({
-        where: { id: createdOtp.id },
-        data: { consumed_at: new Date() },
-      });
-      throw error;
-    }
     if (development) {
-      this.logger.warn(`Development OTP for ${phone}: ${code}`);
       return { otp_sent: true, dev_otp: code };
     }
     return { otp_sent: true };

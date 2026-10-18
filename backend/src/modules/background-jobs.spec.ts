@@ -20,6 +20,9 @@ import { NotificationsProcessor } from './notifications/notifications.processor'
 import { NotificationsScheduler } from './notifications/notifications.scheduler';
 import { orderWorkerProviders } from './orders/orders.module';
 import { OrderTimeoutScheduler } from './orders/order-timeout.scheduler';
+import { reportWorkerProviders } from './reports/reports.module';
+import { ReportExportProcessor } from './reports/report-export.processor';
+import { ReportExportScheduler } from './reports/report-export.scheduler';
 
 describe('background job roles and scheduling', () => {
   const originalRole = process.env.PROCESS_ROLE;
@@ -35,6 +38,7 @@ describe('background job roles and scheduling', () => {
     expect(catalogImportWorkerProviders()).toEqual([]);
     expect(catalogSearchWorkerProviders()).toEqual([]);
     expect(orderWorkerProviders()).toEqual([]);
+    expect(reportWorkerProviders()).toEqual([]);
   });
 
   it('registers every processor and scheduler in worker mode', () => {
@@ -43,6 +47,7 @@ describe('background job roles and scheduling', () => {
     expect(catalogImportWorkerProviders()).toHaveLength(2);
     expect(catalogSearchWorkerProviders()).toHaveLength(2);
     expect(orderWorkerProviders()).toHaveLength(2);
+    expect(reportWorkerProviders()).toHaveLength(2);
   });
 
   it('upserts stable scheduler ids when two workers start', async () => {
@@ -59,6 +64,7 @@ describe('background job roles and scheduling', () => {
       () => new CatalogImportScheduler(queue),
       () => new CatalogSearchScheduler(queue),
       () => new OrderTimeoutScheduler(queue),
+      () => new ReportExportScheduler(queue),
     ];
 
     for (const factory of factories) {
@@ -66,8 +72,8 @@ describe('background job roles and scheduling', () => {
       await factory().onApplicationBootstrap();
     }
 
-    expect(schedulers.size).toBe(5);
-    expect(upsertJobScheduler).toHaveBeenCalledTimes(10);
+    expect(schedulers.size).toBe(6);
+    expect(upsertJobScheduler).toHaveBeenCalledTimes(12);
   });
 
   it('worker processors dispatch notifications and import batches', async () => {
@@ -95,6 +101,14 @@ describe('background job roles and scheduling', () => {
       data: { importId: 'import-1', commitAttempt: 2 },
     } as never);
     expect(imports.processCommit).toHaveBeenCalledWith('import-1', 2);
+
+    const exports = { process: jest.fn().mockResolvedValue(undefined) };
+    const exportProcessor = new ReportExportProcessor(exports as never);
+    await exportProcessor.process({
+      name: 'generate',
+      data: { exportId: 'export-1' },
+    } as never);
+    expect(exports.process).toHaveBeenCalledWith('export-1');
   });
 
   it('propagates an interrupted job so BullMQ can retry it', async () => {

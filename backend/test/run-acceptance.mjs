@@ -244,6 +244,9 @@ try {
   await run('test/c13-settings.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
+  // Reports seed 20,001 immutable posted order lines across three months and
+  // intentionally close one period, so keep this last in the shared database.
+  await run('test/reports-part1.acceptance.mjs', [], acceptanceEnv);
 } finally {
   await stopApi();
   if (closingCreated) {

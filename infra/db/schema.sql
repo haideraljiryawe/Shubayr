@@ -1709,3 +1709,6 @@ ON CONFLICT DO NOTHING;
 
 -- Phase 11 expenses uses the production migration as its single DDL source.
 \ir ../../backend/prisma/migrations/20261017120000_expenses_phase11/migration.sql
+
+-- Phase 12 reports part 1 uses the production migration as its single DDL source.
+\ir ../../backend/prisma/migrations/20261018090000_reports_part1/migration.sql
