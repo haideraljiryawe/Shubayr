@@ -208,8 +208,8 @@ test("categories: create, rename, deactivate — then it can't be chosen for a n
   await create.getByTestId("expense-category-create-submit").click();
   const row = page.getByTestId("expense-category-row").filter({ hasText: `وقود ${run}` });
   await expect(row).toBeVisible();
-  // The server created an expense account for it.
-  await expect(row.getByTestId("expense-category-ledger")).toContainText(/\d{4}/);
+  // The server created an expense account for it (coded EXP- and ten hex digits).
+  await expect(row.getByTestId("expense-category-ledger")).toContainText(/EXP-[0-9A-F]{10}/);
 
   await row.getByTestId("expense-category-rename").click();
   await row.getByTestId("expense-category-edit-ar").fill(`وقود السيارة ${run}`);
