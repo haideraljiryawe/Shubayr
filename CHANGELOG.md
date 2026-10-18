@@ -1,5 +1,24 @@
 # Changelog
 
+## 17.5.0 - 2026-10-18
+
+### Added
+
+- Draft-expense editing and deletion while preserving posted-document
+  immutability and correction-only accounting changes.
+- Scoped expense-form options for active categories, currencies, cash-account
+  names, supplier names, the current central-rate preview and back-dating
+  policy, available with `expenses.create` alone.
+- An expense GL-account picker for category management.
+
+### Changed
+
+- Sales and profitability report queries pre-aggregate order-line activity
+  before joining catalog dimensions, backed by a composite report index, so
+  fresh database statistics cannot trigger the former row-by-row join plan.
+- The API contract is version 17.5.0. All contract changes are additive and
+  staff-only; no customer or mobile response shape changed.
+
 ## 17.4.0 - 2026-10-18
 
 ### Added

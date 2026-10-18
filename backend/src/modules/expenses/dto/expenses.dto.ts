@@ -50,6 +50,46 @@ export class CreateExpenseDto {
   backdate_reason?: string;
 }
 
+export class UpdateExpenseDto {
+  @IsOptional() @IsUUID('4') category_id?: string;
+  @IsOptional()
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false })
+  amount?: string;
+  @IsOptional() @Matches(CURRENCY) currency_code?: string;
+  @IsOptional()
+  @IsIn(['paid_now', 'owed'])
+  payment_mode?: 'paid_now' | 'owed';
+  @IsOptional() @IsUUID('4') cash_account_id?: string | null;
+  @IsOptional() @IsUUID('4') supplier_id?: string | null;
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  payee?: string | null;
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  description?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  reference_number?: string | null;
+  @IsOptional() @IsUUID('4') receipt_media_id?: string | null;
+  @IsOptional() @Matches(DATE) document_date?: string;
+  @IsOptional() @Matches(DATE) accounting_date?: string;
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  backdate_reason?: string | null;
+}
+
+export class ExpenseFormOptionsQueryDto {
+  @IsOptional() @Matches(CURRENCY) currency_code?: string;
+  @IsOptional() @Matches(DATE) document_date?: string;
+}
+
 export class PostExpenseDto {
   @IsOptional() @IsString() @MinLength(3) @MaxLength(500) note?: string;
 }

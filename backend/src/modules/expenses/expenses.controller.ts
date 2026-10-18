@@ -23,11 +23,13 @@ import type { UploadedImage } from '../media/media.service';
 import {
   CreateExpenseCategoryDto,
   CreateExpenseDto,
+  ExpenseFormOptionsQueryDto,
   ExpenseQueryDto,
   PayExpenseDto,
   PostExpenseDto,
   ReverseExpenseDto,
   UpdateExpenseCategoryDto,
+  UpdateExpenseDto,
 } from './dto/expenses.dto';
 import { ExpensesService } from './expenses.service';
 
@@ -42,6 +44,12 @@ export class ExpenseCategoriesController {
   @AdminPolicy('expenses.read')
   list() {
     return this.expenses.listCategories();
+  }
+
+  @Get('ledger-accounts')
+  @AdminPolicy('expense_categories.manage')
+  ledgerAccounts() {
+    return this.expenses.listExpenseLedgerAccounts();
   }
 
   @Post()
@@ -135,10 +143,37 @@ export class ExpensesController {
     return this.expenses.totals(query);
   }
 
+  @Get('form-options')
+  @AdminPolicy('expenses.create')
+  formOptions(@Query() query: ExpenseFormOptionsQueryDto) {
+    return this.expenses.formOptions(query);
+  }
+
   @Get(':id')
   @AdminPolicy('expenses.read')
   get(@Param('id', uuid) id: string) {
     return this.expenses.get(id);
+  }
+
+  @Patch(':id')
+  @AdminPolicy('expenses.create')
+  update(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: UpdateExpenseDto,
+  ) {
+    return this.expenses.updateDraft(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      input,
+    );
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @AdminPolicy('expenses.create')
+  remove(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
+    return this.expenses.deleteDraft(request.user.id, id);
   }
 
   @Post(':id/post')

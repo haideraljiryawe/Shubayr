@@ -247,7 +247,8 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'fx_rates.update': ['fx_rates.view'],
   'ledger.reverse': ['ledger.view'],
   'cash_accounts.manage': ['cash_accounts.view'],
-  'expenses.create': ['expenses.read'],
+  // Draft creation is self-contained through /admin/expenses/form-options.
+  'expenses.create': [],
   'expenses.post': ['expenses.read'],
   'expenses.pay': ['expenses.read', 'cash_accounts.view'],
   'expenses.reverse': ['expenses.read', 'ledger.view'],

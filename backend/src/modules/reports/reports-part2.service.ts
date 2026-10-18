@@ -458,10 +458,13 @@ export class ReportsPart2Service {
         SELECT b.variant_id,m.location_id,SUM(m.quantity) quantity,SUM(m.value) value
         FROM movement_lines m JOIN inventory_batches b ON b.id=m.batch_id
         GROUP BY b.variant_id,m.location_id HAVING SUM(m.quantity)<>0 OR SUM(m.value)<>0
+      ), sold_orders AS MATERIALIZED (
+        SELECT order_id,MAX(accounting_date) accounting_date
+        FROM delivery_collections WHERE accounting_date<=${asOf} GROUP BY order_id
       ), last_sales AS (
-        SELECT oi.variant_id,MAX(dc.accounting_date) last_sale_date
-        FROM delivery_collections dc JOIN order_items oi ON oi.order_id=dc.order_id
-        WHERE dc.accounting_date<=${asOf} GROUP BY oi.variant_id
+        SELECT oi.variant_id,MAX(sold.accounting_date) last_sale_date
+        FROM sold_orders sold JOIN order_items oi ON oi.order_id=sold.order_id
+        GROUP BY oi.variant_id
       ), settings AS (
         SELECT COALESCE((SELECT value::numeric FROM store_settings WHERE key='default_low_stock_threshold' AND value ~ '^\\d+(\\.\\d+)?$'),0) threshold
       ), valued AS (

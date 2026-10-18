@@ -4,7 +4,9 @@ import pg from 'pg';
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 const databaseName = process.env.ACCEPTANCE_DATABASE_NAME ?? '';
 if (!/^shubayr_[a-f0-9]{16}_verify$/.test(databaseName)) {
-  throw new Error('Expenses acceptance requires the disposable *_verify database');
+  throw new Error(
+    'Expenses acceptance requires the disposable *_verify database',
+  );
 }
 if (!api || new URL(api).hostname !== '127.0.0.1') {
   throw new Error('Expenses acceptance requires the runner-owned loopback API');
@@ -112,16 +114,44 @@ await client.query(`
     AND admin.username = 'admin'
   ON CONFLICT DO NOTHING
 `);
+await client.query(`
+  INSERT INTO users (id, name, username, password_hash, is_active)
+  SELECT gen_random_uuid(), 'Expense Creator Only', 'expense-creator-only', password_hash, TRUE
+  FROM users WHERE username = 'operations'
+  ON CONFLICT (username) DO NOTHING
+`);
+await client.query(`
+  INSERT INTO user_permission_grants (user_id, permission_id, granted_by, reason)
+  SELECT creator.id, permission.id, admin.id, 'C14c scoped create flow'
+  FROM users creator
+  CROSS JOIN permissions permission
+  CROSS JOIN users admin
+  WHERE creator.username = 'expense-creator-only'
+    AND permission.key = 'expenses.create'
+    AND admin.username = 'admin'
+  ON CONFLICT DO NOTHING
+`);
 const approverLogin = await request('/admin/auth/login', {
-  method: 'POST', expected: 201,
+  method: 'POST',
+  expected: 201,
   body: { username: 'expense-approver', password: 'Shubayr-Dev-Admin!2026' },
 });
 const accountantLogin = await request('/admin/auth/login', {
-  method: 'POST', expected: 201,
+  method: 'POST',
+  expected: 201,
   body: { username: 'expense-accountant', password: 'Shubayr-Dev-Staff!2026' },
+});
+const creatorLogin = await request('/admin/auth/login', {
+  method: 'POST',
+  expected: 201,
+  body: {
+    username: 'expense-creator-only',
+    password: 'Shubayr-Dev-Staff!2026',
+  },
 });
 const approver = approverLogin.access_token;
 const accountant = accountantLogin.access_token;
+const creator = creatorLogin.access_token;
 
 await request('/admin/expenses', { token: operations, expected: 403 });
 await request('/admin/expenses', {
@@ -131,13 +161,39 @@ await request('/admin/expenses', {
   expected: 403,
   body: {},
 });
-await request('/admin/expenses/not-a-uuid', { token: accountant, expected: 422 });
+await request('/admin/expenses/not-a-uuid', {
+  token: accountant,
+  expected: 422,
+});
 
 const categories = await request('/admin/expense-categories', { token: admin });
 check(categories.length >= 11, true, 'common expense categories are seeded');
 const rent = categories.find((category) => category.code === 'rent');
-const electricity = categories.find((category) => category.code === 'electricity');
-check(Boolean(rent?.ledger_account?.code), true, 'seeded category is mapped to a GL account');
+const electricity = categories.find(
+  (category) => category.code === 'electricity',
+);
+check(
+  Boolean(rent?.ledger_account?.code),
+  true,
+  'seeded category is mapped to a GL account',
+);
+const expenseAccounts = await request(
+  '/admin/expense-categories/ledger-accounts',
+  { token: admin },
+);
+check(
+  expenseAccounts.every(
+    (account) =>
+      account.id && account.code && account.name_ar && account.name_en,
+  ),
+  true,
+  'category manager can list named expense GL accounts',
+);
+check(
+  expenseAccounts.some((account) => account.id === rent.ledger_account.id),
+  true,
+  'seeded expense account is available for category mapping',
+);
 
 const till = await request('/admin/cash-accounts', {
   token: admin,
@@ -156,10 +212,124 @@ await request('/admin/exchange-rates', {
   method: 'POST',
   expected: 201,
   body: {
-    currency_code: 'USD', rate: '1310', basis: 1,
-    effective_at: new Date().toISOString(), reason: 'C12 acceptance rate',
+    currency_code: 'USD',
+    rate: '1310',
+    basis: 1,
+    effective_at: new Date().toISOString(),
+    reason: 'C12 acceptance rate',
   },
 });
+const formSupplier = await request('/admin/suppliers', {
+  token: admin,
+  method: 'POST',
+  expected: 201,
+  body: {
+    name: 'C14c scoped expense supplier',
+    default_currency: 'IQD',
+    payment_terms_days: 0,
+  },
+});
+
+for (const path of [
+  '/admin/expenses',
+  '/admin/cash-accounts',
+  '/admin/exchange-rates',
+  '/admin/suppliers',
+  '/admin/settings',
+]) {
+  await request(path, { token: creator, expected: 403 });
+}
+const creatorOptions = await request(
+  `/admin/expenses/form-options?currency_code=IQD&document_date=${today}`,
+  { token: creator },
+);
+check(
+  Object.keys(creatorOptions.cash_accounts[0]).sort(),
+  ['id', 'name'],
+  'create-scoped cash picker exposes names without balances',
+);
+check(
+  creatorOptions.categories.some((category) => category.id === rent.id),
+  true,
+  'create-scoped options include active expense categories',
+);
+check(
+  creatorOptions.suppliers.find((item) => item.id === formSupplier.id),
+  { id: formSupplier.id, name: formSupplier.name },
+  'create-scoped supplier picker exposes only id and name',
+);
+check(
+  creatorOptions.rate_preview.rate,
+  '1',
+  'create-scoped options include the current IQD central-rate preview',
+);
+check(
+  creatorOptions.backdating_window_days,
+  90,
+  'create-scoped options include the back-dating policy',
+);
+const createOnlyDraft = await request('/admin/expenses', {
+  token: creator,
+  method: 'POST',
+  key: key('create-only-flow'),
+  expected: 201,
+  body: {
+    category_id: rent.id,
+    amount: '12345',
+    currency_code: 'IQD',
+    payment_mode: 'paid_now',
+    cash_account_id: creatorOptions.cash_accounts.find(
+      (item) => item.id === till.id,
+    ).id,
+    supplier_id: creatorOptions.suppliers.find(
+      (item) => item.id === formSupplier.id,
+    ).id,
+    description: 'Created without broad picker permissions',
+    document_date: today,
+  },
+});
+check(
+  createOnlyDraft.status,
+  'draft',
+  'expenses.create alone completes the form flow',
+);
+
+const editableDraft = await request('/admin/expenses', {
+  token: admin,
+  method: 'POST',
+  key: key('editable-draft'),
+  expected: 201,
+  body: {
+    category_id: rent.id,
+    amount: '1000',
+    currency_code: 'IQD',
+    payment_mode: 'owed',
+    payee: 'Original draft payee',
+    description: 'Draft before edit',
+    document_date: today,
+  },
+});
+const editedDraft = await request(`/admin/expenses/${editableDraft.id}`, {
+  token: admin,
+  method: 'PATCH',
+  body: {
+    amount: '1750',
+    payee: 'Edited draft payee',
+    description: 'Draft after edit',
+  },
+});
+check(editedDraft.amount_currency, 1750, 'draft amount is editable');
+check(editedDraft.payee, 'Edited draft payee', 'draft payee is editable');
+await request(`/admin/expenses/${editableDraft.id}`, {
+  token: admin,
+  method: 'DELETE',
+  expected: 204,
+});
+const deletedDraft = await client.query(
+  'SELECT id FROM expenses WHERE id = $1',
+  [editableDraft.id],
+);
+check(deletedDraft.rowCount, 0, 'draft expense is deleted');
 
 const receiptForm = new FormData();
 receiptForm.append(
@@ -170,7 +340,10 @@ receiptForm.append(
   'receipt.pdf',
 );
 const receipt = await request('/admin/expense-receipts', {
-  token: admin, method: 'POST', form: receiptForm, expected: 201,
+  token: admin,
+  method: 'POST',
+  form: receiptForm,
+  expected: 201,
 });
 check(receipt.mime_type, 'application/pdf', 'PDF receipt is stored privately');
 await request(`/media/${receipt.id}`, { expected: 404 });
@@ -195,22 +368,62 @@ const cashInput = {
   document_date: today,
 };
 const cashDraft = await request('/admin/expenses', {
-  token: admin, method: 'POST', key: cashCreateKey, expected: 201, body: cashInput,
+  token: admin,
+  method: 'POST',
+  key: cashCreateKey,
+  expected: 201,
+  body: cashInput,
 });
 const cashReplay = await request('/admin/expenses', {
-  token: admin, method: 'POST', key: cashCreateKey, expected: 201, body: cashInput,
+  token: admin,
+  method: 'POST',
+  key: cashCreateKey,
+  expected: 201,
+  body: cashInput,
 });
 check(cashReplay.id, cashDraft.id, 'create retry returns the same expense');
 check(cashDraft.amount_iqd, 250000, 'IQD conversion snapshot is exact');
 await request(`/admin/expenses/${cashDraft.id}/post`, {
-  token: admin, method: 'POST', key: key('self-post'), expected: 403, body: {},
+  token: admin,
+  method: 'POST',
+  key: key('self-post'),
+  expected: 403,
+  body: {},
 });
 const cashPosted = await request(`/admin/expenses/${cashDraft.id}/post`, {
-  token: approver, method: 'POST', key: key('iqd-post'), body: {},
+  token: approver,
+  method: 'POST',
+  key: key('iqd-post'),
+  body: {},
 });
 check(cashPosted.status, 'posted', 'second actor posts the cash expense');
 check(cashPosted.balance_currency, 0, 'paid-now expense has no balance');
-check(cashPosted.journal_entry.lines[0].account.code, rent.ledger_account.code, 'cash expense debits category account');
+check(
+  cashPosted.journal_entry.lines[0].account.code,
+  rent.ledger_account.code,
+  'cash expense debits category account',
+);
+const postedEdit = await request(`/admin/expenses/${cashDraft.id}`, {
+  token: admin,
+  method: 'PATCH',
+  expected: 409,
+  body: { description: 'Forbidden posted edit' },
+});
+check(
+  postedEdit.code,
+  'EXPENSE_ALREADY_POSTED',
+  'posted expense refuses API edit',
+);
+const postedDelete = await request(`/admin/expenses/${cashDraft.id}`, {
+  token: admin,
+  method: 'DELETE',
+  expected: 409,
+});
+check(
+  postedDelete.code,
+  'EXPENSE_ALREADY_POSTED',
+  'posted expense refuses API deletion',
+);
 await assert.rejects(
   client.query('UPDATE expenses SET description = $1 WHERE id = $2', [
     'forbidden edit',
@@ -241,7 +454,10 @@ const usdDraft = await request('/admin/expenses', {
 check(usdDraft.exchange_rate, 1310, 'USD expense stores the central rate');
 check(usdDraft.amount_iqd, 33405, 'USD expense stores its IQD amount');
 await request(`/admin/expenses/${usdDraft.id}/post`, {
-  token: approver, method: 'POST', key: key('usd-post'), body: {},
+  token: approver,
+  method: 'POST',
+  key: key('usd-post'),
+  body: {},
 });
 
 const owedDraft = await request('/admin/expenses', {
@@ -260,49 +476,99 @@ const owedDraft = await request('/admin/expenses', {
   },
 });
 await request(`/admin/expenses/${owedDraft.id}/post`, {
-  token: approver, method: 'POST', key: key('owed-post'), body: {},
+  token: approver,
+  method: 'POST',
+  key: key('owed-post'),
+  body: {},
 });
 const partOneKey = key('payment-one');
-const partOneInput = { cash_account_id: till.id, amount: '100000', document_date: today };
+const partOneInput = {
+  cash_account_id: till.id,
+  amount: '100000',
+  document_date: today,
+};
 const partOne = await request(`/admin/expenses/${owedDraft.id}/payments`, {
-  token: approver, method: 'POST', key: partOneKey, expected: 201, body: partOneInput,
+  token: approver,
+  method: 'POST',
+  key: partOneKey,
+  expected: 201,
+  body: partOneInput,
 });
-const partOneReplay = await request(`/admin/expenses/${owedDraft.id}/payments`, {
-  token: approver, method: 'POST', key: partOneKey, expected: 201, body: partOneInput,
-});
-check(partOneReplay.payments.length, partOne.payments.length, 'payment retry does not duplicate');
-check(partOne.balance_currency, 200000, 'first partial payment leaves the exact balance');
+const partOneReplay = await request(
+  `/admin/expenses/${owedDraft.id}/payments`,
+  {
+    token: approver,
+    method: 'POST',
+    key: partOneKey,
+    expected: 201,
+    body: partOneInput,
+  },
+);
+check(
+  partOneReplay.payments.length,
+  partOne.payments.length,
+  'payment retry does not duplicate',
+);
+check(
+  partOne.balance_currency,
+  200000,
+  'first partial payment leaves the exact balance',
+);
 await request(`/admin/expenses/${owedDraft.id}/payments`, {
-  token: approver, method: 'POST', key: key('overpay'), expected: 409,
+  token: approver,
+  method: 'POST',
+  key: key('overpay'),
+  expected: 409,
   body: { cash_account_id: till.id, amount: '200001', document_date: today },
 });
 const paid = await request(`/admin/expenses/${owedDraft.id}/payments`, {
-  token: approver, method: 'POST', key: key('payment-two'), expected: 201,
+  token: approver,
+  method: 'POST',
+  key: key('payment-two'),
+  expected: 201,
   body: { cash_account_id: till.id, amount: '200000', document_date: today },
 });
 check(paid.balance_currency, 0, 'two payments clear the accrued expense');
 check(paid.payments.length, 2, 'two immutable payment documents are retained');
 
 const reversal = await request(`/admin/expenses/${cashDraft.id}/reverse`, {
-  token: approver, method: 'POST', key: key('reverse'), expected: 201,
+  token: approver,
+  method: 'POST',
+  key: key('reverse'),
+  expected: 201,
   body: { reason: 'Acceptance correction', document_date: today },
 });
 check(reversal.status, 'reversed', 'correction reverses the posted expense');
 check(reversal.corrections.length, 1, 'correction history is visible');
-check(reversal.corrections[0].postings.length, 1, 'cash expense has one reversed journal');
+check(
+  reversal.corrections[0].postings.length,
+  1,
+  'cash expense has one reversed journal',
+);
 
 const old = new Date();
 old.setUTCDate(old.getUTCDate() - 100);
 const tooOld = old.toISOString().slice(0, 10);
 const oldRefusal = await request('/admin/expenses', {
-  token: accountant, method: 'POST', key: key('old'), expected: 403,
+  token: accountant,
+  method: 'POST',
+  key: key('old'),
+  expected: 403,
   body: {
-    category_id: rent.id, amount: '1000', currency_code: 'IQD',
-    payment_mode: 'owed', payee: 'Old Payee', description: 'Too old expense',
+    category_id: rent.id,
+    amount: '1000',
+    currency_code: 'IQD',
+    payment_mode: 'owed',
+    payee: 'Old Payee',
+    description: 'Too old expense',
     document_date: tooOld,
   },
 });
-check(oldRefusal.code, 'EXPENSE_BACKDATE_WINDOW', 'older-than-window expense has a stable code');
+check(
+  oldRefusal.code,
+  'EXPENSE_BACKDATE_WINDOW',
+  'older-than-window expense has a stable code',
+);
 
 const closedDateObject = new Date();
 closedDateObject.setUTCDate(closedDateObject.getUTCDate() - 60);
@@ -315,20 +581,40 @@ await client.query(
   [closedMonth],
 );
 const closedRefusal = await request('/admin/expenses', {
-  token: admin, method: 'POST', key: key('closed'), expected: 409,
+  token: admin,
+  method: 'POST',
+  key: key('closed'),
+  expected: 409,
   body: {
-    category_id: rent.id, amount: '1000', currency_code: 'IQD',
-    payment_mode: 'owed', payee: 'Closed Payee', description: 'Closed expense',
+    category_id: rent.id,
+    amount: '1000',
+    currency_code: 'IQD',
+    payment_mode: 'owed',
+    payee: 'Closed Payee',
+    description: 'Closed expense',
     document_date: closedDate,
   },
 });
-check(closedRefusal.code, 'EXPENSE_PERIOD_CLOSED', 'closed period has a stable expense code');
-await client.query('DELETE FROM accounting_periods WHERE month = $1::date', [closedMonth]);
+check(
+  closedRefusal.code,
+  'EXPENSE_PERIOD_CLOSED',
+  'closed period has a stable expense code',
+);
+await client.query('DELETE FROM accounting_periods WHERE month = $1::date', [
+  closedMonth,
+]);
 
-const page = await request('/admin/expenses?unpaid_only=true&sort=amount&direction=desc', {
-  token: accountant,
-});
-check(Array.isArray(page.items), true, 'accountant can read the paginated expense list');
+const page = await request(
+  '/admin/expenses?unpaid_only=true&sort=amount&direction=desc',
+  {
+    token: accountant,
+  },
+);
+check(
+  Array.isArray(page.items),
+  true,
+  'accountant can read the paginated expense list',
+);
 const totals = await request('/admin/expenses/totals', { token: accountant });
 check(totals.total_iqd > 0, true, 'filtered totals expose posted IQD value');
 check(totals.per_category.length > 0, true, 'totals are grouped per category');
@@ -346,6 +632,17 @@ const audit = await client.query(
   `SELECT count(*)::int AS count FROM audit_logs WHERE entity_type IN ('expense','expense_category','media_object') AND action LIKE 'expense%'`,
 );
 check(audit.rows[0].count >= 10, true, 'expense writes are audited');
+const draftAudit = await client.query(
+  `SELECT array_agg(DISTINCT action ORDER BY action) AS actions
+   FROM audit_logs
+   WHERE entity_type = 'expense' AND entity_id = $1`,
+  [editableDraft.id],
+);
+check(
+  draftAudit.rows[0].actions,
+  ['expense.create', 'expense.delete', 'expense.update'],
+  'draft create, edit and delete are each audited',
+);
 const presets = await client.query(`
   SELECT preset.name, array_agg(permission.key ORDER BY permission.key) AS permissions
   FROM permission_presets preset
@@ -356,7 +653,11 @@ const presets = await client.query(`
   GROUP BY preset.name
   ORDER BY preset.name
 `);
-check(presets.rows, [{ name: 'accountant', permissions: ['expenses.create', 'expenses.read'] }], 'only accountant create/read is seeded outside owner/admin');
+check(
+  presets.rows,
+  [{ name: 'accountant', permissions: ['expenses.create', 'expenses.read'] }],
+  'only accountant create/read is seeded outside owner/admin',
+);
 
 await request('/admin/settings', {
   token: admin,

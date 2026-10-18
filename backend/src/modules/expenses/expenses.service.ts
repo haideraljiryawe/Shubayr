@@ -21,16 +21,22 @@ import {
 import { DocumentNumberService } from '../finance/document-number.service';
 import { LedgerService } from '../finance/ledger.service';
 import { OperationService } from '../finance/operation.service';
-import { parseBusinessDate } from '../finance/business-date';
+import {
+  businessDateText,
+  exchangeRateCutoff,
+  parseBusinessDate,
+} from '../finance/business-date';
 import { MediaService, type UploadedImage } from '../media/media.service';
 import {
   CreateExpenseCategoryDto,
   CreateExpenseDto,
+  ExpenseFormOptionsQueryDto,
   ExpenseQueryDto,
   PayExpenseDto,
   PostExpenseDto,
   ReverseExpenseDto,
   UpdateExpenseCategoryDto,
+  UpdateExpenseDto,
 } from './dto/expenses.dto';
 import { expenseIdempotencyKey, expensePostingLines } from './expense-rules';
 
@@ -94,6 +100,78 @@ export class ExpensesService {
       orderBy: [{ is_active: 'desc' }, { name_en: 'asc' }, { id: 'asc' }],
     });
     return categories.map((category) => this.presentCategory(category));
+  }
+
+  listExpenseLedgerAccounts() {
+    return this.prisma.ledgerAccount.findMany({
+      where: { type: 'expense', enabled: true },
+      select: {
+        id: true,
+        code: true,
+        name_ar: true,
+        name_en: true,
+      },
+      orderBy: [{ code: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  async formOptions(query: ExpenseFormOptionsQueryDto) {
+    const base = await this.currencies.baseCurrency();
+    const currencyCode = query.currency_code ?? base.code;
+    const documentDateText = query.document_date ?? businessDateText();
+    const documentDate = parseBusinessDate(documentDateText);
+    const [categories, currencies, cashAccounts, suppliers, setting, rate] =
+      await Promise.all([
+        this.prisma.expenseCategory.findMany({
+          where: { is_active: true },
+          select: { id: true, name_ar: true, name_en: true },
+          orderBy: [{ name_en: 'asc' }, { id: 'asc' }],
+        }),
+        this.prisma.currency.findMany({
+          where: { enabled: true },
+          select: {
+            code: true,
+            name_ar: true,
+            name_en: true,
+            symbol: true,
+            display_precision: true,
+            is_base: true,
+          },
+          orderBy: { code: 'asc' },
+        }),
+        this.prisma.cashAccount.findMany({
+          where: { is_active: true, currency_code: currencyCode },
+          select: { id: true, name: true },
+          orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        }),
+        this.prisma.supplier.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true },
+          orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        }),
+        this.prisma.storeSetting.findUnique({
+          where: { key: 'backdating_window_days' },
+          select: { value: true },
+        }),
+        this.currencies.applicable(
+          currencyCode,
+          exchangeRateCutoff(documentDate),
+        ),
+      ]);
+    return {
+      categories,
+      currencies,
+      cash_accounts: cashAccounts,
+      suppliers,
+      rate_preview: {
+        currency_code: rate.currency_code,
+        base_currency_code: rate.base_currency_code,
+        rate: rate.rate,
+        effective_at: rate.effective_at,
+        not_from_today: rate.not_from_today,
+      },
+      backdating_window_days: Number(setting?.value ?? '90'),
+    };
   }
 
   async createCategory(actorId: string, input: CreateExpenseCategoryDto) {
@@ -384,6 +462,177 @@ export class ExpensesService {
         });
         return this.present(expense);
       },
+    });
+  }
+
+  async updateDraft(actor: Actor, id: string, input: UpdateExpenseDto) {
+    if (!Object.keys(input).length) {
+      throw invalid('EXPENSE_UPDATE_EMPTY', 'At least one field is required');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM expenses WHERE id = ${id}::uuid FOR UPDATE`;
+      const current = await tx.expense.findUnique({
+        where: { id },
+        include: detailInclude,
+      });
+      if (!current) throw notFound('EXPENSE_NOT_FOUND', 'Expense not found');
+      if (current.status !== 'draft') {
+        throw conflict(
+          'EXPENSE_ALREADY_POSTED',
+          'Posted expenses are immutable; use a correction',
+        );
+      }
+
+      const categoryId = input.category_id ?? current.category_id;
+      const currencyCode = input.currency_code ?? current.currency_code;
+      const paymentMode = input.payment_mode ?? current.payment_mode;
+      const cashAccountId =
+        input.cash_account_id === undefined
+          ? current.cash_account_id
+          : input.cash_account_id;
+      const supplierId =
+        input.supplier_id === undefined
+          ? current.supplier_id
+          : input.supplier_id;
+      const payee =
+        input.payee === undefined ? current.payee : input.payee?.trim() || null;
+      const receiptId =
+        input.receipt_media_id === undefined
+          ? current.receipt_media_id
+          : input.receipt_media_id;
+      const dates = await this.expenseDates({
+        documentDate:
+          input.document_date ?? businessDateText(current.document_date),
+        accountingDate:
+          input.accounting_date ?? businessDateText(current.accounting_date),
+        backdateReason:
+          input.backdate_reason === undefined
+            ? (current.backdate_reason ?? undefined)
+            : (input.backdate_reason ?? undefined),
+        permissions: actor.permissions,
+      });
+      const category = await tx.expenseCategory.findUnique({
+        where: { id: categoryId },
+      });
+      if (!category) {
+        throw notFound(
+          'EXPENSE_CATEGORY_NOT_FOUND',
+          'Expense category not found',
+        );
+      }
+      if (!category.is_active) {
+        throw conflict(
+          'EXPENSE_CATEGORY_INACTIVE',
+          'Expense category is inactive',
+        );
+      }
+      const currency = await tx.currency.findUnique({
+        where: { code: currencyCode },
+      });
+      if (!currency?.enabled) {
+        throw invalid(
+          'EXPENSE_CURRENCY_DISABLED',
+          'Expense currency is not enabled',
+        );
+      }
+      const amount = new Prisma.Decimal(
+        input.amount ?? current.amount_currency.toString(),
+      );
+      if (!amount.gt(0)) {
+        throw invalid(
+          'EXPENSE_AMOUNT_INVALID',
+          'Expense amount must be positive',
+        );
+      }
+      if (amount.decimalPlaces() > currency.display_precision) {
+        throw invalid(
+          'EXPENSE_AMOUNT_PRECISION',
+          `Expense amount exceeds ${currency.display_precision} decimal places for ${currency.code}`,
+        );
+      }
+      if (!supplierId && !payee) {
+        throw invalid(
+          'EXPENSE_PAYEE_REQUIRED',
+          'A payee or supplier is required',
+        );
+      }
+      if (supplierId) {
+        const supplier = await tx.supplier.findUnique({
+          where: { id: supplierId },
+        });
+        if (!supplier) {
+          throw notFound('EXPENSE_SUPPLIER_NOT_FOUND', 'Supplier not found');
+        }
+      }
+      const cash = await this.validateCashAccount(
+        tx,
+        paymentMode as 'paid_now' | 'owed',
+        cashAccountId ?? undefined,
+        currencyCode,
+      );
+      if (receiptId) await this.media.requireExpenseReceipt(receiptId);
+      const rate = await this.currencies.requireRate(
+        currencyCode,
+        dates.documentDate,
+      );
+      const updated = await tx.expense.update({
+        where: { id },
+        data: {
+          category_id: categoryId,
+          amount_currency: amount,
+          currency_code: currencyCode,
+          exchange_rate: rate,
+          amount_iqd: amount.times(rate),
+          paid_currency: new Prisma.Decimal(0),
+          balance_currency: amount,
+          payment_mode: paymentMode,
+          cash_account_id: cash?.id ?? null,
+          supplier_id: supplierId,
+          payee,
+          description: input.description?.trim() ?? current.description,
+          reference_number:
+            input.reference_number === undefined
+              ? current.reference_number
+              : input.reference_number?.trim() || null,
+          receipt_media_id: receiptId,
+          document_date: dates.documentDate,
+          accounting_date: dates.accountingDate,
+          backdate_reason: dates.backdateReason,
+          updated_at: new Date(),
+        },
+        include: detailInclude,
+      });
+      await this.audit.record(tx, {
+        actorId: actor.id,
+        action: 'expense.update',
+        entityType: 'expense',
+        entityId: id,
+        before: this.auditExpense(current),
+        after: this.auditExpense(updated),
+      });
+      return this.present(updated);
+    });
+  }
+
+  async deleteDraft(actorId: string, id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM expenses WHERE id = ${id}::uuid FOR UPDATE`;
+      const expense = await tx.expense.findUnique({ where: { id } });
+      if (!expense) throw notFound('EXPENSE_NOT_FOUND', 'Expense not found');
+      if (expense.status !== 'draft') {
+        throw conflict(
+          'EXPENSE_ALREADY_POSTED',
+          'Posted expenses are immutable; use a correction',
+        );
+      }
+      await tx.expense.delete({ where: { id } });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'expense.delete',
+        entityType: 'expense',
+        entityId: id,
+        before: this.auditExpense(expense),
+      });
     });
   }
 
