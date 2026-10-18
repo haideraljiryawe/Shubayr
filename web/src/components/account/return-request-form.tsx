@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -9,15 +9,69 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
-import { ApiError, api, type Order, type OrderItem, type Return } from "@/lib/api";
+import {
+  ApiError,
+  api,
+  type Order,
+  type OrderItem,
+  type Return,
+} from "@/lib/api";
+import {
+  RETURN_REASON_CODES,
+  mayRefundDeliveryFee,
+  returnLineProblem,
+  type ReturnReasonCode,
+} from "@/lib/return-reasons";
 import { useResource } from "@/lib/use-resource";
 import { OrderItemLine } from "./order-item-line";
 import { AccountError, AccountSkeleton } from "./states";
 
-type Selection = { checked: boolean; quantity: number; reason: string };
+type Selection = {
+  checked: boolean;
+  quantity: number;
+  /** One of the API's reasons; "" until the shopper picks one. */
+  reasonCode: ReturnReasonCode | "";
+  reason: string;
+  /** A weighed or measured line's quantity as typed ("0.25"). */
+  text?: string;
+};
+
+/**
+ * Quantities are exact to the thousandth (multipleOf 0.001 in the contract)
+ * and compared as integer thousandths, so 1.5 − 0.25 is never 1.2500000001
+ * and nothing the server would refuse for its precision is ever sent.
+ */
+const toMilli = (value: number) => Math.round(value * 1000);
+const fromMilli = (milli: number) => milli / 1000;
+
+/** A typed weighed quantity: up to three decimals, more than 0, at most `max`. */
+export function parseWeighedQuantity(
+  text: string,
+  max: number,
+):
+  | { ok: true; value: number }
+  | { ok: false; problem: "invalid" | "precision" | "exceeds" } {
+  const cleaned = text
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(/[٫,]/g, ".")
+    .trim();
+  if (!/^\d+(?:\.\d+)?$|^\.\d+$/.test(cleaned)) {
+    return { ok: false, problem: "invalid" };
+  }
+  const decimals = cleaned.includes(".")
+    ? cleaned.split(".")[1].replace(/0+$/, "").length
+    : 0;
+  if (decimals > 3) return { ok: false, problem: "precision" };
+  const milli = toMilli(Number(cleaned));
+  if (milli <= 0) return { ok: false, problem: "invalid" };
+  if (milli > toMilli(max)) return { ok: false, problem: "exceeds" };
+  return { ok: true, value: fromMilli(milli) };
+}
 
 /**
  * How much of a line is already spoken for by earlier returns.
@@ -82,6 +136,11 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  // One operation id per distinct request: a retry of the same request (a
+  // timeout, a double tap) reuses it and the server answers it once; a
+  // corrected request after a refusal gets a new one — the server refuses an
+  // old id that comes back with a different payload.
+  const operation = useRef<{ signature: string; id: string } | null>(null);
 
   const items = useMemo(
     () => (order && !("notFound" in order) ? (order.items ?? []) : []),
@@ -93,6 +152,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       const existing = current[id] ?? {
         checked: false,
         quantity: 1,
+        reasonCode: "",
         reason: "",
       };
       return { ...current, [id]: { ...existing, ...patch } };
@@ -105,9 +165,12 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       const reserved = reservedByOrderItem(
         (myReturns ?? []).filter((entry) => entry.order_id === orderId),
       );
-      return Math.max(
-        0,
-        (item.quantity ?? 0) - (reserved.get(item.id ?? "") ?? 0),
+      return fromMilli(
+        Math.max(
+          0,
+          toMilli(item.quantity ?? 0) -
+            toMilli(reserved.get(item.id ?? "") ?? 0),
+        ),
       );
     },
     [myReturns, orderId],
@@ -127,15 +190,28 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
   const chosen = items
     .map((item) => {
       const line = selection[item.id ?? ""];
-      return line?.checked
-        ? {
-            order_item_id: item.id ?? "",
-            quantity: line.quantity,
-            // Per LINE, which is what the contract requires: one line may be
-            // damaged while another is simply the wrong size.
-            reason: line.reason.trim(),
-          }
-        : null;
+      if (!line?.checked) return null;
+      const cap = eligible(item);
+      // A weighed line is what was typed (0 when it isn't a valid quantity,
+      // which submit refuses); pieces never exceed what is still returnable,
+      // whatever the stepper last held.
+      const weighed =
+        item.whole_units_only === false
+          ? parseWeighedQuantity(line.text ?? String(cap), cap)
+          : null;
+      const quantity = weighed
+        ? weighed.ok
+          ? weighed.value
+          : 0
+        : Math.min(Math.round(line.quantity), Math.floor(cap));
+      return {
+        order_item_id: item.id ?? "",
+        quantity,
+        reason_code: line.reasonCode,
+        // Per LINE, which is what the contract requires: one line may be
+        // damaged while another is simply the wrong size.
+        reason: line.reason.trim(),
+      };
     })
     .filter(
       (
@@ -144,6 +220,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         order_item_id: string;
         quantity: number;
         reason: string;
+        reason_code: ReturnReasonCode | "";
       } => Boolean(line),
     );
 
@@ -152,21 +229,36 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       setError(t("errNoItems"));
       return;
     }
-    // The contract makes the per-line reason mandatory, so an unfilled one is
-    // caught here rather than spent on a 422.
-    if (chosen.some((line) => !line.reason)) {
+    // The contract makes a reason and a note mandatory on every line, so a
+    // missing one is caught here rather than spent on a 422.
+    const problems = chosen.map((line) => returnLineProblem({ reasonCode: line.reason_code, note: line.reason }));
+    if (problems.includes("reasonCode")) {
+      setError(t("errNoReasonCode"));
+      return;
+    }
+    if (problems.includes("note")) {
       setError(t("errNoLineReason"));
       return;
     }
+    if (chosen.some((line) => line.quantity <= 0)) {
+      setError(t("errQuantity"));
+      return;
+    }
+    const payload = {
+      order_id: order.id ?? orderId,
+      reason: reason.trim() || undefined,
+      items: chosen.map((line) => ({ ...line, reason_code: line.reason_code as ReturnReasonCode })),
+    };
+    const signature = JSON.stringify(payload);
+    if (operation.current?.signature !== signature) {
+      operation.current = { signature, id: crypto.randomUUID() };
+    }
+    const operationId = operation.current.id;
 
     setSaving(true);
     setError(undefined);
     try {
-      await api.createReturn({
-        order_id: order.id ?? orderId,
-        reason: reason.trim() || undefined,
-        items: chosen,
-      });
+      await api.createReturn({ ...payload, operation_id: operationId });
       showToast(t("submitted"));
       router.push("/account/returns");
     } catch (cause) {
@@ -174,8 +266,9 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       // terms; relaying that beats "something went wrong" when the answer is
       // "you already returned that one".
       setError(
-        cause instanceof ApiError && (cause.status === 422 || cause.status === 409)
-          ? (cause.message || t("errFailed"))
+        cause instanceof ApiError &&
+          (cause.status === 422 || cause.status === 409)
+          ? cause.message || t("errFailed")
           : t("errFailed"),
       );
     } finally {
@@ -197,7 +290,10 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         <p className="text-sm text-text-muted">{t("requestIntro")}</p>
         <p className="flex items-center gap-2 text-sm">
           <span className="text-text-muted">{t("forOrder")}</span>
-          <span dir="ltr" className="font-bold text-text [unicode-bidi:isolate]">
+          <span
+            dir="ltr"
+            className="font-bold text-text [unicode-bidi:isolate]"
+          >
             {order.order_number}
           </span>
         </p>
@@ -217,6 +313,19 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
             />
           ))}
         </ul>
+
+        {/* No amounts: the delivery-fee outcome is the server's, decided at review. */}
+        <p
+          data-testid="return-fee-hint"
+          data-highlight={mayRefundDeliveryFee(chosen.map((line) => line.reason_code)) || undefined}
+          className={
+            mayRefundDeliveryFee(chosen.map((line) => line.reason_code))
+              ? "rounded-md bg-primary/10 px-3 py-2 text-xs text-text"
+              : "text-xs text-text-muted"
+          }
+        >
+          {t("feeHint")}
+        </p>
 
         {error ? (
           <p
@@ -291,8 +400,15 @@ function ReturnLine({
   const t = useTranslations("returns");
   const id = item.id ?? "";
   const bought = item.quantity ?? 1;
+  const weighed = item.whole_units_only === false;
+  const unit = item.base_unit ?? "";
   const checked = selection?.checked ?? false;
-  const quantity = Math.min(selection?.quantity ?? 1, Math.max(1, eligible));
+  // Pieces step in whole units; a weighed line is typed, to three decimals.
+  const pieces = Math.max(1, Math.floor(eligible));
+  const quantity = Math.min(selection?.quantity ?? 1, pieces);
+  const typed = selection?.text ?? String(eligible);
+  const typedCheck = weighed ? parseWeighedQuantity(typed, eligible) : null;
+  const typedProblem = typedCheck && !typedCheck.ok ? typedCheck.problem : null;
   const spent = eligible <= 0;
 
   return (
@@ -319,7 +435,10 @@ function ReturnLine({
           )}
 
           {/* ×N of what was bought: Latin digits, isolated from the RTL run. */}
-          <span dir="ltr" className="text-xs text-text-muted [unicode-bidi:isolate]">
+          <span
+            dir="ltr"
+            className="text-xs text-text-muted [unicode-bidi:isolate]"
+          >
             ×{bought}
           </span>
 
@@ -342,26 +461,71 @@ function ReturnLine({
               >
                 {t("quantity")}
               </span>
-              <span
-                role="group"
-                aria-labelledby={`return-qty-label-${id}`}
-                data-testid={`return-qty-${id}`}
-              >
-                <QuantityStepper
-                  value={quantity}
-                  min={1}
-                  max={eligible}
-                  onValueChange={(next) => onChange({ quantity: next })}
-                />
-              </span>
+              {weighed ? (
+                <span className="flex items-center gap-2">
+                  <Input
+                    aria-labelledby={`return-qty-label-${id}`}
+                    data-testid={`return-qty-input-${id}`}
+                    inputMode="decimal"
+                    dir="ltr"
+                    className="w-28"
+                    value={typed}
+                    onChange={(event) => onChange({ text: event.target.value })}
+                  />
+                  <span dir="ltr" className="text-xs text-text-muted">
+                    {unit}
+                  </span>
+                </span>
+              ) : (
+                <span
+                  role="group"
+                  aria-labelledby={`return-qty-label-${id}`}
+                  data-testid={`return-qty-${id}`}
+                >
+                  <QuantityStepper
+                    value={quantity}
+                    min={1}
+                    max={pieces}
+                    step={1}
+                    onValueChange={(next) => onChange({ quantity: next })}
+                  />
+                </span>
+              )}
             </span>
+            {weighed ? (
+              <span
+                data-testid={`return-qty-hint-${id}`}
+                className={
+                  typedProblem
+                    ? "text-xs font-medium text-error"
+                    : "text-xs text-text-muted"
+                }
+              >
+                {typedProblem
+                  ? t(`qty_${typedProblem}`, { max: eligible, unit })
+                  : t("weighedHint", { max: eligible, unit })}
+              </span>
+            ) : null}
 
             {/* Required per line by the contract, and genuinely per line: one
                 item can arrive damaged while another is the wrong size. */}
-            <Field
-              label={t("lineReason")}
-              htmlFor={`return-line-reason-${id}`}
-            >
+            <Field label={t("reasonCode")} htmlFor={`return-line-code-${id}`}>
+              <Select
+                id={`return-line-code-${id}`}
+                name={`return-line-code-${id}`}
+                data-testid={`return-line-code-${id}`}
+                value={selection?.reasonCode ?? ""}
+                placeholder={t("reasonCodePlaceholder")}
+                onChange={(event) => onChange({ reasonCode: event.target.value as ReturnReasonCode })}
+              >
+                {RETURN_REASON_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {t(`reasonCodes.${code}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("lineReason")} htmlFor={`return-line-reason-${id}`}>
               <Input
                 id={`return-line-reason-${id}`}
                 name={`return-line-reason-${id}`}

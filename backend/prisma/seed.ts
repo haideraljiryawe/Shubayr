@@ -63,6 +63,16 @@ const appAccounts = [
   ['delivery', 'delivery_agent', '+9647700000005', 'Development Delivery'],
   ['monitor', 'order_monitor', '+9647700000008', 'Development Order Monitor'],
   ['customer', 'customer', '+9647700000006', 'Development Customer'],
+  ...(process.env.APP_ENV === 'development'
+    ? ([
+        [
+          'push_test_customer',
+          'customer',
+          '+9647700000066',
+          'Development Push Test Customer',
+        ],
+      ] as const)
+    : []),
 ] as const;
 
 const DEV_ADMIN_PASSWORD = 'Shubayr-Dev-Admin!2026';
@@ -254,6 +264,26 @@ async function main(): Promise<void> {
       where: { key },
       update: { value },
       create: { key, value },
+    });
+  }
+
+  // Local/demo data starts with one editable nationwide zone so seeded checkout
+  // journeys remain usable. Production migrations seed only governorates; an
+  // owner must define the production zones and fees explicitly.
+  if ((await prisma.deliveryZone.count()) === 0) {
+    const legacyFee = await prisma.storeSetting.findUnique({
+      where: { key: 'delivery_fee' },
+    });
+    const zone = await prisma.deliveryZone.create({
+      data: {
+        name_ar: 'كل العراق (تجريبي)',
+        name_en: 'All Iraq (development)',
+        fee_iqd: legacyFee?.value ?? '5000',
+      },
+    });
+    await prisma.governorate.updateMany({
+      where: { delivery_zone_id: null },
+      data: { delivery_zone_id: zone.id },
     });
   }
 
@@ -1192,6 +1222,9 @@ async function seedPartialReturnDemo(
           quantity: quantities[index],
           unit_price: prices[index],
           line_total: calculateLineTotal(prices[index], quantities[index]),
+          discount_share: 0,
+          net_line_total: calculateLineTotal(prices[index], quantities[index]),
+          net_paid_total: calculateLineTotal(prices[index], quantities[index]),
         })),
       },
       payments: {
@@ -1371,8 +1404,10 @@ async function seedPartialReturnDemo(
     update: {},
     create: {
       id: returnId,
+      document_number: 'RET-SEED-000001',
       order_id: orderId,
       user_id: customerId,
+      created_by: customerId,
       status: 'completed',
       reason: 'Seeded partial return',
       expected_refund: refund,
@@ -1392,6 +1427,8 @@ async function seedPartialReturnDemo(
             approved_quantity: 1,
             customer_reason: 'Unneeded unit',
             unit_price: prices[0],
+            discount_share: 0,
+            net_amount: prices[0],
             condition: 'sellable',
             restock: true,
             batch_id: seedId(7, 1),
@@ -1403,6 +1440,8 @@ async function seedPartialReturnDemo(
             approved_quantity: 1,
             customer_reason: 'Arrived damaged',
             unit_price: prices[1],
+            discount_share: 0,
+            net_amount: prices[1],
             condition: 'damaged',
             restock: false,
           },
@@ -1703,6 +1742,9 @@ async function seedCustomerOrders(
               quantity: sample.quantity,
               unit_price: unitPrice,
               line_total: lineTotal,
+              discount_share: 0,
+              net_line_total: lineTotal,
+              net_paid_total: lineTotal,
             },
           },
           payments: {

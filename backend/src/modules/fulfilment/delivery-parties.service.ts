@@ -410,6 +410,7 @@ export class DeliveryPartiesService {
                 },
               },
             },
+            return_refund_payments: { select: { amount_iqd: true } },
           },
         }),
         this.prisma.cashReceiptVoucher.findMany({
@@ -568,6 +569,10 @@ export class DeliveryPartiesService {
           (sum, allocation) => sum.plus(allocation.amount_iqd),
           new Prisma.Decimal(0),
         );
+        const refunded = collection.return_refund_payments.reduce(
+          (sum, payment) => sum.plus(payment.amount_iqd),
+          new Prisma.Decimal(0),
+        );
         const collected = collection.collected_amount!;
         return {
           id: collection.id,
@@ -579,9 +584,12 @@ export class DeliveryPartiesService {
           voucher_id: null,
           voucher_document_number: null,
           amount_iqd: Number(collected),
-          allocated_amount_iqd: Number(allocated.plus(netted)),
+          allocated_amount_iqd: Number(allocated.plus(netted).plus(refunded)),
           unsettled_amount_iqd: Number(
-            Prisma.Decimal.max(0, collected.minus(allocated).minus(netted)),
+            Prisma.Decimal.max(
+              0,
+              collected.minus(allocated).minus(netted).minus(refunded),
+            ),
           ),
           allocation_orders: [] as Array<{
             order_id: string;
@@ -940,6 +948,7 @@ export class DeliveryPartiesService {
             select: { amount_iqd: true },
           },
           trip_settlement_allocations: { select: { amount_iqd: true } },
+          return_refund_payments: { select: { amount_iqd: true } },
         },
       }),
       this.prisma.cashReceiptVoucher.findMany({
@@ -1005,6 +1014,12 @@ export class DeliveryPartiesService {
             .minus(
               collection.trip_settlement_allocations.reduce(
                 (sum, allocation) => sum.plus(allocation.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
+            )
+            .minus(
+              collection.return_refund_payments.reduce(
+                (sum, payment) => sum.plus(payment.amount_iqd),
                 new Prisma.Decimal(0),
               ),
             ),

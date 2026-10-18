@@ -85,7 +85,19 @@ async function mintDeliveredOrder(
   for (const status of ["confirmed", "preparing", "ready_for_dispatch"]) {
     const moved = await request.patch(
       `${API}/admin/orders/${order.id}/status`,
-      { headers: bearer(admin), data: { status, version: orderVersion } },
+      {
+        headers: bearer(admin),
+        data: {
+          status,
+          version: orderVersion,
+          ...(status === "confirmed"
+            ? {
+                customer_contacted: true,
+                customer_contact_note: "Customer confirmed by phone",
+              }
+            : {}),
+        },
+      },
     );
     expect(moved.ok()).toBe(true);
     orderVersion = ((await moved.json()) as { version: number }).version;
@@ -99,27 +111,33 @@ async function mintDeliveredOrder(
     data: { agent_id: me.id },
   });
   for (const status of ["out_for_delivery", "delivered"]) {
-    const moved = await request.patch(`${API}/deliveries/${order.delivery_id}`, {
-      headers: bearer(agent),
-      data: {
-        status,
-        order_version: orderVersion,
-        // API 12.0: delivered says what was collected — here, all of it.
-        ...(status === "delivered"
-          ? {
-              operation_id: `live-account-${order.delivery_id}`,
-              collection_confirmation: "confirmed",
-              collected_amount: String(order.total),
-            }
-          : {}),
+    const moved = await request.patch(
+      `${API}/deliveries/${order.delivery_id}`,
+      {
+        headers: bearer(agent),
+        data: {
+          status,
+          order_version: orderVersion,
+          // API 12.0: delivered says what was collected — here, all of it.
+          ...(status === "delivered"
+            ? {
+                operation_id: `live-account-${order.delivery_id}`,
+                collection_confirmation: "confirmed",
+                collected_amount: String(order.total),
+              }
+            : {}),
+        },
       },
-    });
+    );
     expect(moved.ok()).toBe(true);
-    orderVersion = ((await moved.json()) as { order_version: number }).order_version;
+    orderVersion = ((await moved.json()) as { order_version: number })
+      .order_version;
   }
 
   const fresh = await (
-    await request.get(`${API}/orders/${order.id}`, { headers: bearer(customer) })
+    await request.get(`${API}/orders/${order.id}`, {
+      headers: bearer(customer),
+    })
   ).json();
   expect(fresh.status).toBe("delivered");
 
@@ -161,6 +179,10 @@ test.describe("live account extras", () => {
     await page.getByTestId("return-submit").click();
     await expect(page.getByTestId("return-error")).toBeVisible();
 
+    // A reason from the API's list (since A7), then the note it also requires.
+    await page
+      .getByTestId(`return-line-code-${order.orderItemId}`)
+      .selectOption("defect");
     await page
       .getByTestId(`return-line-reason-${order.orderItemId}`)
       .fill("Arrived damaged");
@@ -184,10 +206,9 @@ test.describe("live account extras", () => {
     );
     expect(mine).toBeTruthy();
     expect(mine.items[0].customer_reason).toBe("Arrived damaged");
+    expect(mine.items[0].reason_code).toBe("defect");
     expect(mine.items[0].quantity).toBe(1);
-    await expect(
-      page.getByTestId(`return-refund-${mine.id}`),
-    ).toBeVisible();
+    await expect(page.getByTestId(`return-refund-${mine.id}`)).toBeVisible();
 
     // One unit is now spent, so the form offers only the remaining one.
     await page.goto(`/account/orders/${order.id}/return`);
@@ -235,7 +256,9 @@ test.describe("live account extras", () => {
     // Spending more than you hold is the server's refusal, surfaced as such.
     await page.getByTestId("redeem-points").fill("99999999");
     await page.getByTestId("redeem-submit").click();
-    await expect(page.getByTestId("redeem-form").getByRole("alert")).toBeVisible();
+    await expect(
+      page.getByTestId("redeem-form").getByRole("alert"),
+    ).toBeVisible();
 
     // And the balance did not move on a refused redemption.
     const after = await (
@@ -280,9 +303,7 @@ test.describe("live account extras", () => {
     // Edit: the review is still identifiable in this session, so the controls
     // are offered and PATCH /reviews/{id} is reachable.
     await page.getByTestId(`review-edit-${order.orderItemId}`).click();
-    await form
-      .getByTestId(`review-stars-${order.orderItemId}-star-5`)
-      .click();
+    await form.getByTestId(`review-stars-${order.orderItemId}-star-5`).click();
     await page.getByTestId(`review-submit-${order.orderItemId}`).click();
     await expect(badge).toHaveAttribute("data-status", "pending");
 
@@ -478,17 +499,14 @@ test.describe("live account extras", () => {
 
   test("the server rejects an unknown preference type", async ({ request }) => {
     const customer = await customerToken(request);
-    const response = await request.patch(
-      `${API}/me/notification-preferences`,
-      {
-        headers: bearer(customer),
-        data: {
-          preferences: [
-            { type: "not_a_real_type", channel: "push", enabled: true },
-          ],
-        },
+    const response = await request.patch(`${API}/me/notification-preferences`, {
+      headers: bearer(customer),
+      data: {
+        preferences: [
+          { type: "not_a_real_type", channel: "push", enabled: true },
+        ],
       },
-    );
+    });
     expect(response.status()).toBe(422);
   });
 });

@@ -65,8 +65,13 @@ test("a partial return can be requested and shows up in the list", async ({
   await expect(stepper).toBeVisible();
   await stepper.getByRole("button", { name: "زيادة الكمية" }).click();
 
-  // The contract requires a reason on every LINE, so submitting without one
-  // is refused here rather than spent on a 422.
+  // The contract requires a reason from its list AND a note on every LINE,
+  // so submitting without either is refused here rather than spent on a 422.
+  await page.getByTestId("return-submit").click();
+  await expect(page.getByTestId("return-error")).toContainText(
+    "اختر سببًا لكل منتج",
+  );
+  await page.getByTestId("return-line-code-oi-p10").selectOption("change_of_mind");
   await page.getByTestId("return-submit").click();
   await expect(page.getByTestId("return-error")).toContainText(
     "اذكر سبب الإرجاع لكل منتج",
@@ -105,4 +110,135 @@ test("the returns list starts from the account menu", async ({ page }) => {
   // The fixture seeds one approved return against the older delivered order.
   await expect(page.getByTestId("returns-list")).toBeVisible();
   await expect(page.getByText("تمت الموافقة")).toBeVisible();
+});
+
+/* ---------------------------------------------------------------------------
+ * Returns v2 (contract 17.0): weighed quantities and the return detail.
+ *
+ * SB-1028 (`sb-1028`) also carries 2.5 kg of rice (oi-p36), 0.5 kg of which
+ * is already refunded (ret-2), so 2 kg are still returnable. ret-3 is a
+ * rejected return on SB-1035.
+ * ------------------------------------------------------------------------- */
+
+test("a weighed product is returned by typed weight, to three decimals at most", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/orders/sb-1028/return");
+  await page.getByTestId("return-check-oi-p36").check();
+
+  // No stepper for kilograms: a field, prefilled with what is still returnable.
+  await expect(page.getByTestId("return-qty-oi-p36")).toHaveCount(0);
+  const weight = page.getByTestId("return-qty-input-oi-p36");
+  await expect(weight).toHaveValue("2");
+  const hint = page.getByTestId("return-qty-hint-oi-p36");
+  await expect(hint).toContainText("2 kg");
+
+  await weight.fill("2.25");
+  await expect(hint).toContainText("لا يمكن إرجاع أكثر من 2 kg");
+  await weight.fill("0.1234");
+  await expect(hint).toContainText("ثلاث منازل عشرية");
+  await page.getByTestId("return-line-code-oi-p36").selectOption("defect");
+  await page.getByTestId("return-line-reason-oi-p36").fill("الكيس ممزق");
+  await page.getByTestId("return-submit").click();
+  await expect(page.getByTestId("return-error")).toContainText("راجع كمية كل منتج");
+
+  // Arabic digits and the Arabic decimal mark are what people type.
+  await weight.fill("٠٫٧٥");
+  await page.getByTestId("return-submit").click();
+  await expect(page).toHaveURL(/\/account\/returns$/);
+  const first = page.getByTestId("returns-list").locator("> li").first();
+  await expect(first).toContainText("قيد المراجعة");
+  await expect(first).toContainText("×0.75 kg");
+
+  await first.getByRole("link", { name: "عرض التفاصيل" }).click();
+  await expect(page.getByTestId("return-detail")).toHaveAttribute("data-status", "requested");
+  await expect(page.getByTestId("return-detail-asked")).toHaveText("0.75 kg");
+  await expect(page.getByTestId("return-detail-explain")).toContainText("سنراجعه قريبًا");
+});
+
+test("a refunded return explains what was accepted, paid and done with the points", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/returns/ret-2");
+
+  const detail = page.getByTestId("return-detail");
+  await expect(detail).toHaveAttribute("data-status", "refunded");
+  await expect(page.getByTestId("return-detail-status")).toHaveText("تم الاسترداد");
+  await expect(page.getByTestId("return-detail-explain")).toContainText("دُفع لك المبلغ المسترد");
+  for (const stage of ["requested", "reviewed", "received", "inspected", "refunded"]) {
+    await expect(page.getByTestId(`return-stage-${stage}`)).toHaveAttribute("data-state", "done");
+  }
+  await expect(page.getByTestId("return-detail-asked")).toHaveText("0.5 kg");
+  await expect(page.getByTestId("return-detail-accepted")).toHaveText("0.5 kg");
+  await expect(page.getByTestId("return-detail-cash")).toBeVisible();
+  await expect(page.getByTestId("return-detail-paid-how")).toContainText("دُفع نقدًا");
+  // Points are a balance matter, never taken off the cash.
+  const points = page.getByTestId("return-detail-points");
+  await expect(points).toContainText("سُحبت نقطتان");
+  await expect(points).toContainText("لا تُنقص المبلغ النقدي");
+  await expect(page.getByTestId("return-detail-event")).toHaveCount(5);
+  // The shopper's words only: nothing about custody, ledgers or inspections' internals.
+  await expect(detail).not.toContainText(/عهدة|قيد|custody|ledger|journal/i);
+
+  await page.goto("/en/account/returns/ret-2");
+  await expect(page.getByTestId("return-detail-explain")).toContainText("Your refund has been paid");
+  await expect(page.getByTestId("return-detail-points")).toContainText("2 points you earned on these items were taken back");
+});
+
+test("a rejected return says so, with the reason, and goes no further", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/returns");
+  await page.getByTestId("return-details-ret-3").click();
+  await expect(page).toHaveURL(/\/account\/returns\/ret-3$/);
+
+  await expect(page.getByTestId("return-detail-status")).toHaveText("مرفوض");
+  await expect(page.getByTestId("return-detail-rejection")).toContainText("المنتج مستعمل");
+  await expect(page.getByTestId("return-stage-received")).toHaveAttribute("data-state", "skipped");
+  await expect(page.getByTestId("return-stage-refunded")).toHaveAttribute("data-state", "skipped");
+  await expect(page.getByTestId("return-detail-refund")).toHaveCount(0);
+});
+
+test("an unknown return is not found", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/returns/ret-missing");
+  await expect(page.getByTestId("return-not-found")).toBeVisible();
+});
+
+test("each line picks a reason the API accepts; defects may bring the delivery fee back", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/orders/sb-1035/return");
+  await page.getByTestId("return-check-oi-p10").check();
+  const picker = page.getByTestId("return-line-code-oi-p10");
+  // Exactly the five reasons, with Arabic labels, and nothing chosen for the shopper.
+  await expect(picker.locator("option:not([disabled])")).toHaveText([
+    "معيب أو تالف",
+    "ليس ما طلبته",
+    "خطأ من المتجر",
+    "غيّرت رأيي",
+    "سبب آخر",
+  ]);
+  await expect(picker).toHaveValue("");
+
+  // A neutral hint, no amounts; it stands out once a qualifying reason is chosen.
+  const hint = page.getByTestId("return-fee-hint");
+  await expect(hint).toContainText("قد تُسترد أجرة التوصيل");
+  await expect(hint).not.toContainText(/[0-9٠-٩]/);
+  await expect(hint).not.toHaveAttribute("data-highlight", "true");
+  await picker.selectOption("change_of_mind");
+  await expect(hint).not.toHaveAttribute("data-highlight", "true");
+  await picker.selectOption("defect");
+  await expect(hint).toHaveAttribute("data-highlight", "true");
+
+  await page.getByTestId("return-line-reason-oi-p10").fill("Screen cracked");
+  await page.getByTestId("return-submit").click();
+  await expect(page).toHaveURL(/\/account\/returns$/);
+  await expect(page.getByTestId("returns-list").locator("> li").first()).toContainText("Screen cracked");
+
+  await page.goto("/en/account/orders/sb-1035/return");
+  await page.getByTestId("return-check-oi-p4").check();
+  await expect(page.getByTestId("return-line-code-oi-p4").locator("option:not([disabled])")).toHaveText([
+    "Faulty or damaged",
+    "Not what I ordered",
+    "The store made a mistake",
+    "Changed my mind",
+    "Something else",
+  ]);
 });

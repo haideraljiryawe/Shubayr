@@ -36,7 +36,14 @@
     "deliveryParties": "Delivery parties",
     "cashReceipts": "Cash receipts",
     "trips": "Driver trips",
-    "custodyExceptions": "Custody exceptions"
+    "custodyExceptions": "Custody exceptions",
+    "deliveryZones": "Delivery zones",
+    "discountTiers": "Automatic discounts",
+    "catalogImport": "Excel import",
+    "catalogImages": "Bulk images",
+    "returns": "Returns",
+    "expenses": "Expenses",
+    "expenseCategories": "Expense categories"
   },
   "auth": {
     "signIn": "Sign in",
@@ -181,7 +188,14 @@
       "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody.",
       "cashReceipts": "Cash handed in by delivery parties, and the orders it settles.",
       "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
-      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle."
+      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle.",
+      "deliveryZones": "Delivery fees by governorate: zones, the governorates in each, and where you don't deliver yet.",
+      "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD.",
+      "catalogImport": "Add and update products and opening stock from an Excel file, with a preview before anything is saved.",
+      "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
+      "returns": "Review customer returns: approve, receive, inspect and refund.",
+      "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
+      "expenseCategories": "The kinds of expense and the ledger account each one posts to."
     },
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
@@ -945,6 +959,17 @@
       "failBody": "The goods stay in the agent's custody. Retry the delivery later, or bring the goods back with a retrieval.",
       "retry": "Send this order out again? It reuses the goods already in the agent's custody."
     },
+    "confirmation": {
+      "customerContacted": "I phoned the customer and confirmed this order",
+      "contactNote": "Contact note",
+      "contactNoteHint": "Briefly record what the customer confirmed.",
+      "adjustedFee": "Adjusted delivery fee (IQD, optional)",
+      "adjustedFeeHint": "Leave blank to keep the current fee of {amount}.",
+      "adjustmentReason": "Reason for changing the delivery fee",
+      "feeChange": "Delivery fee:",
+      "newTotal": "New order total:",
+      "customerNotified": "The customer is told the new total after confirmation."
+    },
     "dispatchBlocked": {
       "noDelivery": "Can't hand over: this order has no delivery.",
       "noAgent": "Assign an agent first, then hand the order over.",
@@ -1674,7 +1699,7 @@
     "published": "Published",
     "unpublished": "Awaiting publish",
     "empty": "No products match.",
-    "search": "Search by product name",
+    "search": "Search by name, SKU or barcode",
     "allCategories": "All categories",
     "allBrands": "All brands",
     "newTitle": "New product",
@@ -1797,6 +1822,10 @@
     "openApproval": "Open approval request",
     "copyTitle": "Copy of a product",
     "copyNotice": "This is a copy of “{name}” with its pictures, variants and prices. Change what differs and save; variant codes were moved on by one to stay unique, and the copy starts hidden.",
+    "import": {
+      "open": "Import Excel",
+      "images": "Bulk images"
+    },
     "noImage": "No picture",
     "duplicate": "Duplicate",
     "duplicateNamed": "Duplicate “{name}”",
@@ -1804,19 +1833,23 @@
     "filters": {
       "allStatuses": "All statuses",
       "allStock": "All stock states",
+      "image": {
+        "label": "Picture",
+        "all": "With or without picture",
+        "with": "Has picture",
+        "without": "No picture"
+      },
       "stock": {
         "in_stock": "In stock",
         "low_stock": "Low stock",
         "out_of_stock": "Out of stock"
-      },
-      "truncated": "Only the first {limit} matching products are shown. Narrow the search by name, category or brand to see the rest."
+      }
     },
     "bulk": {
       "label": "Change the selected products",
       "selectPage": "Select every product on this page",
       "selectOne": "Select “{name}”",
       "selected": "{count, plural, one {# product selected} other {# products selected}}",
-      "running": "Working: {done} of {total}…",
       "publish": "Show in store",
       "hide": "Hide",
       "moveTo": "Move to category…",
@@ -1824,8 +1857,16 @@
       "apply": "Apply",
       "clear": "Clear selection",
       "done": "{count, plural, =0 {No product changed.} one {# product changed.} other {# products changed.}}",
-      "failed": "{count, plural, one {# product could not be changed (still selected):} other {# products could not be changed (still selected):}}",
-      "failedUnknown": "Could not be saved."
+      "failed": "{count, plural, one {# product could not be changed and stays selected.} other {# products could not be changed and stay selected.}}",
+      "failedUnknown": "Could not be saved.",
+      "applying": "Applying to {count, plural, one {# product} other {# products}}…",
+      "selectMatching": "Select all {count} matching products",
+      "selectFirstMatching": "Select the first {count} of {total} matching products",
+      "selectingMatching": "Selecting…",
+      "problem": "No product was changed.",
+      "perProduct": "Result for each product ({count})",
+      "updated": "Changed",
+      "notUpdated": "Not changed"
     },
     "createdNext": "Product created. Add the next one.",
     "statusChoice": {
@@ -2922,6 +2963,10 @@
     "events": {
       "handover": "Handed over",
       "started": "Trip started",
+      "delivered": "Order delivered",
+      "failed": "Delivery failed",
+      "return_at_door": "Returned at the door",
+      "lost": "Goods lost or damaged",
       "closed": "Trip closed"
     },
     "refusals": {
@@ -3096,6 +3141,985 @@
       "upload": "The picture could not be uploaded. Check the connection and retry.",
       "forbidden": "You don't have permission to upload pictures.",
       "decode": "This picture could not be read. Try another one."
+    }
+  },
+  "settingsTabs": {
+    "label": "Settings sections",
+    "store": "Store settings",
+    "zones": "Delivery zones",
+    "governorates": "Governorates",
+    "discounts": "Automatic discounts",
+    "storeInfo": "Store info"
+  },
+  "deliveryZones": {
+    "title": "Delivery zones",
+    "description": "Each zone has a delivery fee and a set of governorates. Customers pay their governorate's zone fee at checkout.",
+    "unservedTitle": "{count, plural, one {# governorate you don't deliver to} other {# governorates you don't deliver to}}",
+    "inInactiveZone": "zone inactive",
+    "unservedHint": "Customers there cannot check out until the governorate is in an active zone.",
+    "allServed": "Every active governorate is in an active delivery zone.",
+    "oneZoneRule": "A governorate belongs to one zone only.",
+    "new": "New zone",
+    "empty": "No delivery zones yet. Add a zone and choose its governorates.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "governorates": "Governorates",
+    "noGovernorates": "This zone has no governorates.",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "delete": "Delete",
+    "activated": "“{name}” activated",
+    "deactivated": "“{name}” deactivated: its governorates are not served until it is active again.",
+    "created": "“{name}” created",
+    "saved": "“{name}” saved",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteBody": "The zone is deleted and its governorates are left without a zone — not served until another zone takes them. Past orders keep their fee.",
+    "deleted": "Zone deleted",
+    "editTitle": "Edit delivery zone",
+    "newTitle": "New delivery zone",
+    "save": "Save",
+    "create": "Create",
+    "errors": {
+      "nameAr": "Enter the zone's Arabic name.",
+      "fee": "Enter a whole-number fee of 0 or more."
+    },
+    "fields": {
+      "nameAr": "Arabic name",
+      "nameEn": "English name (optional)",
+      "nameEnHint": "Left empty, the Arabic name is used.",
+      "fee": "Delivery fee (IQD)",
+      "feeHint": "0 = free delivery for this zone.",
+      "active": "Active (deliver to its governorates)",
+      "governorates": "Governorates"
+    },
+    "selectedCount": "{count, plural, =0 {none selected} one {# governorate} other {# governorates}}",
+    "searchGovernorate": "Search governorates",
+    "governorateInactive": "inactive",
+    "inZone": "In zone: {zone}",
+    "inThisZone": "In this zone",
+    "noZoneYet": "No zone",
+    "conflictRefused": "Not saved: a governorate can belong to one zone only.",
+    "conflictItem": "{governorate} — in “{zone}”",
+    "conflictHint": "Remove them from that zone first, or unselect them here.",
+    "conflictRefusedStale": "Not saved: a governorate was just added to another zone. Refresh the page and try again."
+  },
+  "governorates": {
+    "title": "Governorates",
+    "description": "The 18 governorates and Halabja. Inactive ones are not offered in customers' addresses.",
+    "columns": {
+      "nameAr": "Arabic name",
+      "nameEn": "English name",
+      "zone": "Delivery zone",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "zoneInactive": "inactive",
+    "noZone": "No zone",
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit",
+    "saved": "“{name}” saved",
+    "editTitle": "Edit “{name}”",
+    "save": "Save",
+    "errors": {
+      "nameAr": "Enter the Arabic name.",
+      "nameEn": "Enter the English name."
+    },
+    "activeLabel": "Active (shown to customers)",
+    "activeHint": "An inactive governorate leaves the address forms; saved addresses stay as they are."
+  },
+  "discountTiers": {
+    "title": "Automatic discounts",
+    "description": "A percentage off that grows with the goods in the order. The highest tier an order reaches applies automatically, no coupon needed.",
+    "stackingOff": "Automatic discounts don't combine with coupons: a customer with a coupon gets whichever discount is larger.",
+    "stackingOn": "Automatic discounts currently combine with coupons (store setting).",
+    "noDeliveryFee": "The discount is on the goods only, never the delivery fee.",
+    "new": "New tier",
+    "empty": "No automatic discounts. Add a tier, such as 5% on orders from 150,000 IQD.",
+    "rowTitle": "From {minimum}: {percent}% off",
+    "active": "Active",
+    "inactive": "Inactive",
+    "example": "An order of {subtotal} gets {percent}% = {discount} off.",
+    "exampleEmpty": "Enter the minimum and the percent to see an example.",
+    "notBetter": "This tier is no better than a lower one, so nobody benefits from it.",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "delete": "Delete",
+    "created": "Tier added",
+    "saved": "Tier saved",
+    "deleteTitle": "Delete this tier?",
+    "deleteBody": "New orders stop getting it. Past orders keep their discount.",
+    "deleted": "Tier deleted",
+    "editTitle": "Edit discount tier",
+    "newTitle": "New discount tier",
+    "save": "Save",
+    "create": "Add",
+    "errors": {
+      "minimum": "Enter a whole-number minimum of 0 or more.",
+      "percent": "Enter a percent above 0 and up to 50, with at most two decimals.",
+      "thresholdTaken": "Another tier already uses this minimum."
+    },
+    "fields": {
+      "minimum": "Minimum goods value (IQD)",
+      "minimumHint": "Before the discount, without the delivery fee.",
+      "percent": "Discount (%)",
+      "percentHint": "Up to 50%.",
+      "active": "Active"
+    }
+  },
+  "catalogImport": {
+    "title": "Import products from Excel",
+    "description": "Add new products or update existing ones by SKU, and enter opening stock, from one file. Every row is checked first; nothing is saved until you apply it.",
+    "imagesLink": "Bulk image upload",
+    "template": {
+      "title": "1. Download the template",
+      "body": "The template is an Excel file with Arabic and English headers and an instructions sheet. Don't rename the sheets or the headers, and delete the two example rows before uploading.",
+      "download": "Download template"
+    },
+    "upload": {
+      "title": "2. Upload the filled-in workbook",
+      "file": "Excel workbook (.xlsx)",
+      "fileHint": "Up to 5,000 rows in total across the products and stock sheets.",
+      "chooseFile": "Choose an Excel workbook first.",
+      "notWorkbook": "That isn't an .xlsx file. Save the workbook as Excel (.xlsx) and choose it again.",
+      "createMissing": "Create missing categories and brands",
+      "createMissingHelp": "Categories have exactly two levels: a main category (level 1, e.g. Electronics) and a subcategory under it (level 2, e.g. Headphones). A product always goes in a subcategory. With this option on, a main category, subcategory or brand that doesn't exist yet is created hidden, so you can check the names before customers see them. With it off, those rows show as errors.",
+      "check": "Check the file",
+      "uploading": "Uploading… {percent}%",
+      "processing": "Reading the file…"
+    },
+    "status": {
+      "queued": "Waiting to start",
+      "validating": "Checking rows",
+      "ready": "Checked — ready to apply",
+      "committing": "Applying",
+      "completed": "Applied",
+      "failed": "Failed"
+    },
+    "progress": {
+      "label": "Checking progress",
+      "applying": "Applied {rowsApplied} of {rowsTotal} rows; batch {batchesDone} of {batchesTotal}.",
+      "background": "Large file: checking runs in the background. You can leave this page and come back to it from the import history below.",
+      "failed": "This file could not be checked. Make sure it comes from the template, then upload it again."
+    },
+    "preview": {
+      "title": "3. Review the preview",
+      "file": "File: {name}",
+      "nothingWritten": "Nothing has been saved yet. Fix the errors in Excel and upload again, or apply only the valid rows.",
+      "filterLabel": "Show rows by result",
+      "all": "All",
+      "actions": {
+        "create": "New",
+        "update": "Update",
+        "warning": "Warning",
+        "error": "Error"
+      },
+      "actionHelp": {
+        "create": "A new product or variant will be added.",
+        "update": "The SKU exists: its details will be updated.",
+        "warning": "Will be applied, with a note worth checking.",
+        "error": "Won't be applied until you fix it."
+      },
+      "search": "Find a SKU or a cell (e.g. H4)",
+      "columns": {
+        "where": "Sheet / row",
+        "sku": "SKU",
+        "action": "Result",
+        "issues": "Details"
+      },
+      "sheets": {
+        "products": "Products",
+        "stock": "Stock"
+      },
+      "row": "Row {row}",
+      "cell": "Cell {cell}",
+      "fine": "OK",
+      "empty": "No rows match.",
+      "showing": "{from}–{to} of {total}",
+      "previous": "Previous",
+      "next": "Next",
+      "createsTaxonomy": "“Create missing” is on: new categories and brands are created hidden.",
+      "commitFilterLabel": "Show rows by apply result",
+      "commit": {
+        "applied": "Applied",
+        "failed": "Failed",
+        "pending": "Not applied",
+        "skipped": "Skipped"
+      }
+    },
+    "commit": {
+      "title": "4. Apply the valid rows",
+      "button": "Apply {count, plural, one {# valid row} other {# valid rows}}",
+      "applying": "Starting…",
+      "skipped": "{count, plural, one {# row with an error will be skipped.} other {# rows with errors will be skipped.}}",
+      "once": "An import is applied once only, even if the button is pressed twice.",
+      "stockNote": "The stock rows create one opening-stock document.",
+      "none": "There are no valid rows to apply. Fix the errors and upload again."
+    },
+    "result": {
+      "title": "Import applied",
+      "created": "{count} new",
+      "updated": "{count} updated",
+      "skipped": "{count} skipped for errors",
+      "opening": "Open the opening-stock document",
+      "products": "See products",
+      "another": "Import another file"
+    },
+    "report": {
+      "download": "Download the validation report (CSV)",
+      "hint": "Every row with its result and the cell to fix; opens in Excel."
+    },
+    "history": {
+      "title": "Import history",
+      "empty": "No imports yet.",
+      "columns": {
+        "when": "When",
+        "file": "File",
+        "who": "By",
+        "status": "Status",
+        "counts": "Rows",
+        "actions": "Actions"
+      },
+      "open": "Open",
+      "opened": "Shown",
+      "you": "You",
+      "counts": "{create} new · {update} updates · {warning} warnings · {error} errors",
+      "report": "Report",
+      "previous": "Newer",
+      "next": "Older",
+      "applied": "{count} applied"
+    },
+    "errors": {
+      "CATALOG_IMPORT_FILE_REQUIRED": "Choose a non-empty Excel workbook.",
+      "CATALOG_IMPORT_FILE_INVALID": "The file could not be read. Save it as Excel (.xlsx) from the template and upload it.",
+      "CATALOG_IMPORT_HEADERS_INVALID": "The column headers don't match the template. Download the template again and copy your data into it without changing the headers.",
+      "CATALOG_IMPORT_SHEET_REQUIRED": "The “Products+Variants” sheet is missing. Don't rename the template's sheets.",
+      "CATALOG_IMPORT_ROW_LIMIT": "The file has more than 5,000 rows. Split it into smaller files.",
+      "CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED": "The stock sheet needs the manage-inventory and view-cost permissions. Remove the stock rows or ask for the permissions.",
+      "CATALOG_IMPORT_ALREADY_COMMITTED": "This import was already applied.",
+      "CATALOG_IMPORT_NOT_READY": "The file hasn't finished checking yet.",
+      "CATALOG_IMPORT_NO_VALID_ROWS": "There are no valid rows to apply.",
+      "tooLarge": "The file is larger than allowed. Split it into smaller files.",
+      "generic": "That didn't work. Try again.",
+      "CATALOG_IMPORT_OPERATION_ID_REUSED": "That operation id belongs to another import. Reload the page and try again.",
+      "CATALOG_IMPORT_QUEUE_UNAVAILABLE": "The import service isn't available right now. Nothing was applied; try again in a minute."
+    },
+    "help": {
+      "title": "How to fill in the workbook",
+      "intro": "Each row of the “Products+Variants” sheet is one variant with its own SKU. Rows with the same names, category and brand become one product with several variants (colours, sizes). If the SKU already exists, the row updates that variant — so fill in the whole row.",
+      "sheets": "The “Stock” sheet is optional: each row is a quantity of a SKU at a location in your warehouses, and together they become one opening-stock document.",
+      "required": "Required",
+      "optional": "Optional",
+      "productsTitle": "Products sheet columns",
+      "stockTitle": "Stock sheet columns",
+      "columns": {
+        "category_level_1": "The main category (level 1). Write the Arabic or English name, or “English | عربي”.",
+        "category_level_2": "The subcategory inside the main category (level 2). The product always goes here.",
+        "brand": "The brand, by name. Leave empty when there is none.",
+        "product_name_ar": "The product name customers see in Arabic.",
+        "product_name_en": "The product name in English.",
+        "description_ar": "The description in Arabic.",
+        "description_en": "The description in English.",
+        "sku": "The stock code, unique per variant. It decides whether a row is new or an update, and it matches the pictures.",
+        "attributes": "The variant's attributes, like color=black;size=L, or JSON. Leave empty for a product without variants.",
+        "base_unit": "The selling unit, like piece or kg.",
+        "whole_units_only": "Sold in whole units only? Write yes or no (or نعم/لا). Don't leave it empty.",
+        "price_iqd": "The selling price in Iraqi dinars. Leave it empty only when the price is linked to another currency.",
+        "reference_currency_code": "For a currency-linked price: the currency code, like USD; it must be enabled in Currencies & rates.",
+        "reference_price": "The price in the linked currency; the dinar price comes from the recorded exchange rate.",
+        "low_stock_threshold": "When the quantity drops to this number, the product shows as low stock.",
+        "barcode": "The barcode, unique per variant.",
+        "status": "active shows it in the store, hidden hides it, archived archives it. Left empty, a new product stays hidden.",
+        "image_url_1": "Picture links on the internet (up to three columns), downloaded when the import is applied. Or upload pictures later from Bulk images."
+      },
+      "stockColumns": {
+        "sku": "A SKU that exists, or that the products sheet of the same file adds.",
+        "location_code": "The location code as in Warehouses & locations (e.g. MAIN-A1).",
+        "quantity": "The opening quantity, above zero.",
+        "unit_cost_iqd": "The unit cost in dinars. Only people with the view-cost permission see it.",
+        "expiry": "The expiry date as 2027-12-31, or leave empty."
+      },
+      "errorsTitle": "Common errors and how to fix them",
+      "errorsHint": "In the preview each error names its cell (e.g. Products+Variants!H4: column H, row 4)."
+    },
+    "issues": {
+      "REQUIRED": {
+        "what": "A required cell is empty.",
+        "fix": "Fill in the named cell."
+      },
+      "CATEGORY_NOT_FOUND": {
+        "what": "The category or subcategory doesn't exist.",
+        "fix": "Correct the name as it appears in Categories, or turn on “Create missing categories and brands”."
+      },
+      "BRAND_NOT_FOUND": {
+        "what": "The brand doesn't exist.",
+        "fix": "Correct the name, leave the cell empty, or turn on the create option."
+      },
+      "SKU_DUPLICATE_IN_FILE": {
+        "what": "The SKU appears twice in the file.",
+        "fix": "Give each variant its own SKU, or delete the repeated row."
+      },
+      "BARCODE_DUPLICATE": {
+        "what": "The barcode is used by another variant.",
+        "fix": "Correct the barcode or leave it empty."
+      },
+      "PRICE_REQUIRED": {
+        "what": "There is no price.",
+        "fix": "Write the dinar price, or the linked currency with the reference price."
+      },
+      "PRICE_INVALID": {
+        "what": "The price isn't a valid number.",
+        "fix": "Write digits only, without a currency or text, like 25000."
+      },
+      "REFERENCE_PRICE_INVALID": {
+        "what": "The reference price isn't valid.",
+        "fix": "Write a number above zero."
+      },
+      "CURRENCY_INVALID": {
+        "what": "The currency code isn't valid.",
+        "fix": "Write a three-letter code like USD."
+      },
+      "CURRENCY_NOT_ENABLED": {
+        "what": "The currency isn't enabled.",
+        "fix": "Enable it in Currencies & rates, or use a dinar price."
+      },
+      "EXCHANGE_RATE_REQUIRED": {
+        "what": "There is no exchange rate for this currency.",
+        "fix": "Record the rate in Currencies & rates, then check the file again."
+      },
+      "ATTRIBUTES_INVALID": {
+        "what": "The attributes can't be read.",
+        "fix": "Write them like color=black;size=L (name=value, separated by semicolons)."
+      },
+      "BOOLEAN_INVALID": {
+        "what": "“Whole units only” can't be read.",
+        "fix": "Write yes or no (or نعم/لا)."
+      },
+      "LOW_STOCK_INVALID": {
+        "what": "The low-stock threshold isn't valid.",
+        "fix": "Write zero or a larger number, or leave it empty."
+      },
+      "STATUS_INVALID": {
+        "what": "The status isn't known.",
+        "fix": "Write active, hidden or archived."
+      },
+      "STATUS_DEFAULTED": {
+        "what": "The status is empty.",
+        "fix": "Only a warning: a new product stays hidden until you show it."
+      },
+      "SKU_NOT_FOUND": {
+        "what": "A stock-sheet SKU doesn't exist.",
+        "fix": "Add the product in the products sheet of the same file, or correct the code."
+      },
+      "LOCATION_NOT_FOUND": {
+        "what": "The location code doesn't exist or isn't active.",
+        "fix": "Copy the code from Warehouses & locations."
+      },
+      "LOCATION_CODE_AMBIGUOUS": {
+        "what": "The location code is used in more than one warehouse.",
+        "fix": "Make location codes unique in Warehouses & locations."
+      },
+      "QUANTITY_INVALID": {
+        "what": "The quantity isn't valid.",
+        "fix": "Write a number above zero, without fractions for a whole-units product."
+      },
+      "UNIT_COST_INVALID": {
+        "what": "The unit cost isn't valid.",
+        "fix": "Write zero or a larger number."
+      },
+      "EXPIRY_INVALID": {
+        "what": "The expiry date can't be read.",
+        "fix": "Write it as 2027-12-31."
+      }
+    },
+    "outcome": {
+      "applying": "Applying",
+      "completed": "Applied",
+      "partial": "Partly applied",
+      "failed": "Not applied"
+    },
+    "apply": {
+      "title": "Applying the import",
+      "rows": "Rows applied",
+      "background": "It runs on the server: you can leave or close this page and the import carries on. Reopen it any time from the import history.",
+      "partialTitle": "The import stopped part-way",
+      "partialBody": "Rows applied: {applied} (they stay applied). Rows not applied yet: {remaining}.",
+      "failedTitle": "The import could not be applied",
+      "failedBody": "No row was applied.",
+      "failedRows": "Rows that failed",
+      "resume": "Resume the import",
+      "resumeHelp": "Fix the cause first (for example, record a missing exchange rate). Resuming continues where it stopped: rows already applied are not applied again.",
+      "resuming": "Resuming…"
+    }
+  },
+  "catalogImages": {
+    "title": "Bulk image upload",
+    "description": "Upload a ZIP of product pictures, each named by its SKU, and they are added to the matching products.",
+    "importLink": "Excel import",
+    "naming": {
+      "title": "How to name the pictures",
+      "body": "Name each picture by the variant's SKU and put them all in one ZIP file. For a second and third picture add -2 and -3 at the end of the name. Pictures are added after the product's current ones.",
+      "formats": "Accepted formats: JPG, PNG, WebP and AVIF. Other files in the archive are ignored.",
+      "examples": "Example:"
+    },
+    "file": "ZIP file",
+    "chooseZip": "Choose a ZIP file first.",
+    "notZip": "That isn't a .zip file. Put the pictures in a ZIP archive and choose it.",
+    "upload": "Upload pictures",
+    "uploading": "Uploading… {percent}%",
+    "processing": "Matching the pictures to products and saving them…",
+    "result": {
+      "title": "Upload result",
+      "matched": "{count, plural, =0 {No picture was added} one {# picture added} other {# pictures added}}",
+      "products": "{count, plural, one {to # product} other {to # products}}",
+      "unmatched": "{count, plural, =0 {Every file matched a product.} one {# file didn't match any SKU.} other {# files didn't match any SKU.}}",
+      "matchedTitle": "Pictures added",
+      "unmatchedTitle": "Files without a matching product",
+      "unmatchedHelp": "Make sure the file name is exactly the SKU (-2 and -3 may follow), then upload just these files in a new ZIP.",
+      "open": "Open product",
+      "files": "{count, plural, one {# picture} other {# pictures}}",
+      "another": "Upload another file"
+    },
+    "errors": {
+      "CATALOG_IMAGE_ZIP_INVALID": "The file couldn't be opened as a ZIP archive. Create the archive again and upload it.",
+      "tooLarge": "The archive is too large or has too many pictures. Split it into several ZIP files.",
+      "generic": "The pictures couldn't be uploaded. Try again."
+    }
+  },
+  "returns": {
+    "statuses": {
+      "requested": "Requested",
+      "approved": "Approved",
+      "partially_approved": "Partly approved",
+      "rejected": "Rejected",
+      "received": "Received",
+      "inspected": "Inspected",
+      "refunded": "Refunded",
+      "completed": "Completed"
+    },
+    "sources": {
+      "customer": "Customer",
+      "staff": "Staff"
+    },
+    "steps": {
+      "approve": "Approve",
+      "receive": "Receive",
+      "inspect": "Inspect",
+      "refund": "Refund"
+    },
+    "events": {
+      "requested": "Return requested",
+      "approved": "Approved",
+      "partially_approved": "Partly approved",
+      "rejected": "Rejected",
+      "received": "Goods received",
+      "inspected": "Goods inspected",
+      "refunded": "Refund paid"
+    },
+    "actors": {
+      "customer": "Customer",
+      "staff": "Staff"
+    },
+    "reasonCodes": {
+      "change_of_mind": "Changed mind",
+      "defect": "Defective",
+      "store_error": "Store error",
+      "wrong_item": "Wrong item",
+      "other": "Other"
+    },
+    "conditions": {
+      "sellable": "Sellable",
+      "opened": "Opened",
+      "damaged": "Damaged",
+      "expired": "Expired"
+    },
+    "postingRoles": {
+      "restock_issue_cost": "Restock at original cost",
+      "write_down": "Write-down",
+      "return_against_uncollected": "Against uncollected cash",
+      "delivery_fee_refund": "Delivery-fee refund",
+      "refund_payment": "Refund payment"
+    },
+    "list": {
+      "title": "Customer returns",
+      "description": "Return requests and where each one is in the flow, newest first.",
+      "search": "Order number",
+      "forOrder": "Showing returns for order {number} only.",
+      "orderMissing": "No order is numbered {number}.",
+      "orderForbidden": "Searching by order number needs permission to view orders (orders.view).",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No returns match.",
+      "anyStatus": "All",
+      "from": "From",
+      "to": "To",
+      "columns": {
+        "number": "Return",
+        "date": "Requested",
+        "order": "Order",
+        "source": "From",
+        "lines": "Lines",
+        "refund": "Refund",
+        "status": "Status"
+      }
+    },
+    "detail": {
+      "title": "Return",
+      "back": "All returns",
+      "description": "The return's lines, its money and the next step.",
+      "status": "Status",
+      "order": "Order",
+      "customer": "Customer",
+      "noName": "No name",
+      "customerHidden": "Shown with permission to view orders",
+      "source": "Requested by",
+      "requestedAt": "Requested",
+      "documentDate": "Document date",
+      "reviewedAt": "Reviewed",
+      "reason": "Customer's note",
+      "waiting": "Next step: {step}. It needs the {permission} permission, which you don't have.",
+      "lines": "Lines",
+      "product": "Product",
+      "reasonCode": "Reason",
+      "requested": "Requested",
+      "approved": "Approved",
+      "unitPrice": "Unit price",
+      "discountShare": "Discount share",
+      "netPaid": "Net paid",
+      "lineRefund": "Refund",
+      "points": "Points",
+      "pointsShare": "Earned {earned} · Redeemed {redeemed}",
+      "inspection": "Inspection",
+      "restocked": "Back in stock at original cost",
+      "writtenDown": "Written down",
+      "netPaidHint": "Net paid is this line's share of what the customer paid, fixed when the order was placed: its price less its share of the order's discounts and points. Refunds come from it, never from today's prices.",
+      "money": "Money",
+      "expectedRefund": "Expected refund",
+      "deliveryFeeRefund": "Delivery-fee refund",
+      "deliveryFeeCharged": "Delivery fee charged",
+      "refundAmount": "Refund (goods + fee)",
+      "uncollectedOffset": "Set against unpaid cash",
+      "cashRefund": "Cash to pay the customer",
+      "feePolicy": "The delivery fee is refunded automatically only when the whole order is returned for a store error, a wrong item or a defect. All returns of an order together can never refund more than the fee charged.",
+      "feePolicyRefunded": "The delivery fee is part of this refund.",
+      "feePolicyNone": "No delivery fee is refunded for this return.",
+      "pointsEffect": "Loyalty points",
+      "pointsEffectBody": "{reversed} earned points reversed · {restored} redeemed points restored · net {net}",
+      "pointsApplied": "Applied with the refund. A negative net is taken from future rewards, never from the cash refund.",
+      "pointsPending": "Applied when the refund is paid. A negative net is taken from future rewards, never from the cash refund.",
+      "payments": "Refund paid",
+      "paidFromCash": "from {account}",
+      "paidFromCustody": "from the delivery party's custody (proof: {proof})",
+      "postings": "Journal entries",
+      "timeline": "Timeline",
+      "done": {
+        "approve": "Decision recorded.",
+        "receive": "Goods recorded as received.",
+        "inspect": "Inspection posted: the goods are in their locations.",
+        "refund": "Refund recorded."
+      }
+    },
+    "approve": {
+      "title": "Approve or reject",
+      "body": "Approve the quantities you accept for each line (0 to refuse a line), or reject the whole return.",
+      "decision": "Decision",
+      "decisions": {
+        "approve": "Approve quantities",
+        "reject": "Reject the whole return"
+      },
+      "product": "Product",
+      "requested": "Requested",
+      "approvedQuantity": "Approved quantity",
+      "netPaid": "Net paid (requested)",
+      "zeroHint": "Enter 0 to refuse a line. At least one line must be approved; otherwise reject the return.",
+      "rejectReason": "Reason for rejecting (the customer sees it)",
+      "note": "Note (optional)",
+      "rejectReasonRequired": "Write a reason of at least 3 characters.",
+      "feePolicy": "Delivery fee: the server refunds it automatically only for a full return caused by a store error, a wrong item or a defect.",
+      "feeCharged": "Fee charged on the order: {fee}.",
+      "feeOverride": "Refund a different delivery fee (exception)",
+      "feeAmount": "Delivery fee to refund (IQD)",
+      "feeInvalid": "Enter a whole number of dinars.",
+      "feeReason": "Reason for the exception",
+      "feeReasonRequired": "Write a reason of at least 3 characters.",
+      "empty": "No line is approved. Approve at least one line, or reject the return.",
+      "submitApprove": "Approve",
+      "submitReject": "Reject return"
+    },
+    "quantity": {
+      "wholeHint": "Whole pieces only.",
+      "decimalHint": "Up to 3 decimals, in {unit}.",
+      "required": "Enter a quantity.",
+      "invalid": "Enter a number.",
+      "negative": "The quantity cannot be negative.",
+      "whole": "This product is sold in whole pieces.",
+      "precision": "At most 3 decimal places.",
+      "exceeds": "No more than requested ({max})."
+    },
+    "receive": {
+      "title": "Receive the goods",
+      "body": "Record that the approved goods are back with the store. Nothing enters stock until they are inspected.",
+      "note": "Note (optional)",
+      "submit": "Mark as received"
+    },
+    "inspect": {
+      "title": "Inspect",
+      "body": "For each line, record its condition and the location it goes to.",
+      "noLocations": "No active stock location is available. Add one under Warehouses first.",
+      "condition": "Condition",
+      "conditionRequired": "Choose the condition.",
+      "chooseCondition": "Choose…",
+      "location": "Location",
+      "sellableHint": "A sellable location.",
+      "nonSellableHint": "A non-sellable location (quarantine, damage).",
+      "locationRequired": "Choose a location.",
+      "locationMismatch": "This location doesn't fit the condition.",
+      "noFittingLocation": "No location fits this condition",
+      "chooseLocation": "Choose…",
+      "costRule": "Sellable goods go back into stock at their original issue cost. Opened, damaged or expired goods go to a non-sellable location and are written down.",
+      "note": "Note (optional)",
+      "submit": "Post inspection"
+    },
+    "refund": {
+      "title": "Refund",
+      "body": "Pay the customer what is still owed after inspection, and apply the loyalty points.",
+      "toPay": "To pay:",
+      "offsetNote": "{offset} of the refund was set against cash the customer never paid.",
+      "pointsNote": "Earned points are reversed and redeemed points restored at the same time.",
+      "nothingToPay": "There is no cash to pay: the whole refund was set against unpaid cash. Recording this step applies the points and closes the return.",
+      "method": "Pay from",
+      "methods": {
+        "cash_account": "A cash account",
+        "delivery_custody": "The delivery party's custody"
+      },
+      "custodyUnavailable": "(not available for this order)",
+      "cashAccountsForbidden": "Choosing a cash account needs permission to view cash accounts (cash_accounts.view).",
+      "cashAccount": "Cash account",
+      "cashAccountRequired": "Choose the cash account.",
+      "chooseCashAccount": "Choose…",
+      "noCashAccounts": "No active IQD cash account",
+      "collection": "The order's collection: {collected} collected ({status}).",
+      "collectionStatuses": {
+        "confirmed_full": "confirmed in full",
+        "confirmed_short": "confirmed short",
+        "unconfirmed": "not confirmed"
+      },
+      "proof": "Proof reference",
+      "proofHint": "E.g. the signed receipt the party gave the customer.",
+      "proofRequired": "Enter the proof reference.",
+      "submit": "Pay refund",
+      "submitNothing": "Record refund"
+    },
+    "refusals": {
+      "RETURN_INVALID_STATE": "Someone else already moved this return to another step. Reload the page to see where it is.",
+      "RETURN_REJECTION_HAS_LINES": "A whole rejection can't carry line quantities.",
+      "RETURN_REJECTION_REASON_REQUIRED": "Write a reason for the rejection.",
+      "RETURN_APPROVAL_INCOMPLETE": "Every line needs an approved quantity (0 to refuse it).",
+      "RETURN_APPROVAL_EXCEEDS_REQUEST": "An approved quantity is more than the customer asked to return.",
+      "RETURN_APPROVAL_EMPTY": "No line is approved. Approve at least one line, or reject the return.",
+      "RETURN_DELIVERY_FEE_PERMISSION_REQUIRED": "A delivery-fee exception needs the returns.refund_delivery_fee permission.",
+      "RETURN_DELIVERY_FEE_REASON_REQUIRED": "Give a reason for the delivery-fee exception.",
+      "RETURN_DELIVERY_FEE_EXCEEDS_CHARGED": "All returns of this order together would refund more than the delivery fee charged.",
+      "RETURN_INSPECTION_INCOMPLETE": "Every approved line must be inspected.",
+      "RETURN_LOCATION_UNAVAILABLE": "A chosen location is inactive or doesn't exist any more.",
+      "RETURN_LOCATION_CONDITION_MISMATCH": "Sellable goods need a sellable location; opened, damaged or expired goods a non-sellable one.",
+      "RETURN_EXCEEDS_ISSUED_QUANTITY": "More would come back than was issued for this order line.",
+      "INVENTORY_COST_NEGATIVE": "Posting this would make a stock cost negative. Check the line's stock history.",
+      "RETURN_REFUND_METHOD_FIELDS_INVALID": "A cash refund needs only the cash account.",
+      "RETURN_CUSTODY_REFUND_PROOF_REQUIRED": "A custody refund needs the order's collection and a proof reference.",
+      "RETURN_CASH_ACCOUNT_UNAVAILABLE": "Choose an active IQD cash account.",
+      "RETURN_COLLECTION_UNAVAILABLE": "The order's delivery collection isn't available to refund from.",
+      "RETURN_REFUND_EXCEEDS_CUSTODY": "The delivery party doesn't hold enough of this order's cash. Refund from a cash account instead.",
+      "RETURN_REFUND_EXCEEDS_PAID": "The refund would be more than the customer actually paid for this order.",
+      "SKU_WHOLE_UNITS_ONLY": "This product is sold in whole pieces: use whole numbers.",
+      "RETURN_QUANTITY_PRECISION": "Quantities take at most 3 decimal places.",
+      "SEPARATION_OF_DUTIES_VIOLATION": "Separation of duties: this step must be done by a different person from the one who did the previous step (or created the return).",
+      "PERIOD_CLOSED": "The accounting period for today is closed, so the server refused to post. Ask for the period to be reopened."
+    }
+  },
+  "storeInfo": {
+    "title": "Store info",
+    "description": "The legal, contact and policy details your store and app show customers.",
+    "intro": "Customers see these on the privacy, terms, returns and contact pages, in the footer and in their account's help. A field left empty is hidden from them — nothing is made up in its place.",
+    "sections": {
+      "legal": "Business",
+      "contact": "Contact",
+      "policy": "Returns and policies"
+    },
+    "fields": {
+      "store_legal_name_ar": "Legal name (Arabic)",
+      "store_legal_name_en": "Legal name (English)",
+      "store_address_ar": "Registered address (Arabic)",
+      "store_address_en": "Registered address (English)",
+      "support_phone": "Support phone",
+      "support_whatsapp": "WhatsApp number",
+      "support_email": "Support e-mail",
+      "privacy_email": "Privacy e-mail",
+      "support_hours_ar": "Support hours (Arabic)",
+      "support_hours_en": "Support hours (English)",
+      "return_window_days": "Return window (days)",
+      "refund_days": "Refund within (days)",
+      "policy_effective_date": "Policies effective from"
+    },
+    "hints": {
+      "store_legal_name_ar": "The registered business name, as in its papers.",
+      "support_phone": "E.g. 0770 123 4567 or +9647701234567.",
+      "support_whatsapp": "The number customers message on WhatsApp.",
+      "privacy_email": "Where customers send privacy requests. Leave empty to use the support e-mail.",
+      "support_hours_ar": "E.g. السبت إلى الخميس، ٩ صباحًا – ٩ مساءً",
+      "return_window_days": "Days after delivery a customer may ask for a return. The server applies this rule; it can be changed but not left empty.",
+      "refund_days": "Days to refund an accepted return (0 = the same day).",
+      "policy_effective_date": "Shown as \"Last updated\" on the policy pages."
+    },
+    "problems": {
+      "required": "This is required.",
+      "maxLength": "At most {max} characters.",
+      "phone": "Enter a phone number such as 0770 123 4567 or +9647701234567.",
+      "email": "Enter a valid e-mail address.",
+      "positiveInteger": "Enter a whole number of days, 1 or more.",
+      "nonNegativeInteger": "Enter a whole number of days (0 or more).",
+      "date": "Enter a valid date.",
+      "invalid": "The server refused this value."
+    },
+    "save": "Save store info",
+    "saved": "Store info saved",
+    "unchanged": "Nothing changed."
+  },
+  "expenses": {
+    "statuses": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "reversed": "Reversed"
+    },
+    "modes": {
+      "paid_now": "Paid now",
+      "owed": "Owed"
+    },
+    "list": {
+      "title": "Expenses",
+      "description": "The store's expense documents and what is still owed, filtered and sorted by the server.",
+      "new": "New expense",
+      "manageCategories": "Manage categories",
+      "ignoredDates": "The start date is after the end date, so the date filter isn't applied.",
+      "empty": "No expenses match.",
+      "search": "Search number, payee, description, reference",
+      "from": "From",
+      "to": "To",
+      "any": "All",
+      "cashAccount": "Cash account",
+      "unpaid": "Payment",
+      "unpaidOnly": "Still owed",
+      "columns": {
+        "number": "Expense",
+        "date": "Date",
+        "category": "Category",
+        "payee": "Payee",
+        "amount": "Amount",
+        "balance": "Owed",
+        "mode": "Payment",
+        "status": "Status"
+      }
+    },
+    "totals": {
+      "title": "Totals for these filters",
+      "overall": "{count, plural, one {# posted expense} other {# posted expenses}}:",
+      "postedOnly": "Totals count posted expenses only, in IQD at each expense's rate; drafts and reversed expenses are left out."
+    },
+    "categories": {
+      "back": "All expenses",
+      "title": "Expense categories",
+      "description": "Each category posts to its own expense account in the ledger.",
+      "readOnly": "Changing categories needs the expense_categories.manage permission.",
+      "columns": {
+        "name": "Category",
+        "account": "Expense account",
+        "used": "Expenses",
+        "status": "Status"
+      },
+      "empty": "No categories yet.",
+      "createTitle": "New category",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "account": "Expense account",
+      "accountHint": "A new account is created for the category, or reuse one another category posts to.",
+      "newAccount": "Create a new expense account",
+      "problems": {
+        "required": "Enter a name.",
+        "tooLong": "At most 160 characters."
+      },
+      "create": "Add category",
+      "created": "Category added",
+      "active": "Active",
+      "inactive": "Inactive",
+      "system": "built-in",
+      "cancel": "Cancel",
+      "save": "Save",
+      "renamed": "Category renamed",
+      "rename": "Rename",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "deactivated": "Category deactivated: it can't be chosen for new expenses",
+      "activated": "Category active again"
+    },
+    "form": {
+      "title": "New expense",
+      "back": "All expenses",
+      "description": "Description",
+      "noCategories": "There is no active expense category yet. Add one under Expense categories first.",
+      "category": "Category",
+      "choose": "Choose…",
+      "problems": {
+        "required": "This is required.",
+        "tooLong": "At most {max} characters.",
+        "amount": {
+          "required": "Enter the amount.",
+          "invalid": "Enter a number, e.g. 125000 or 45.50.",
+          "zero": "The amount must be more than zero.",
+          "precision": "At most {digits} decimal places for this currency.",
+          "overpayment": "More than is still owed."
+        },
+        "cash": {
+          "required": "Choose the cash account it was paid from.",
+          "currency": "The cash account must be in the expense's currency.",
+          "inactive": "This cash account is inactive."
+        }
+      },
+      "amount": "Amount",
+      "currency": "Currency",
+      "rate": "Central rate: 1 {currency} = {rate} IQD",
+      "rateMissing": "No central rate is recorded for {currency} at this date; the server will refuse the expense. Record the rate first.",
+      "rateHidden": "The central rate is applied when you save (seeing it needs fx_rates.view).",
+      "rateLoading": "Reading the central rate…",
+      "payee": "Paid to",
+      "payeeKinds": {
+        "text": "A person or business (type the name)",
+        "supplier": "A supplier"
+      },
+      "supplier": "Supplier",
+      "chooseSupplier": "Choose a supplier…",
+      "payeeHint": "Who was or will be paid, e.g. the landlord or the electricity company.",
+      "reference": "Reference number",
+      "referenceHint": "Optional: the invoice or bill number.",
+      "receipt": "Receipt",
+      "receiptHint": "Optional: a photo or PDF (up to 8 MB). Stored privately.",
+      "receiptType": "A receipt must be an image (JPEG, PNG, WebP, AVIF) or a PDF.",
+      "receiptSize": "The receipt is larger than 8 MB.",
+      "receiptFailed": "The receipt couldn't be uploaded. Try again.",
+      "uploading": "Uploading… {percent}%",
+      "receiptAttached": "Attached: {name}",
+      "receiptRemove": "Remove",
+      "paymentMode": "Payment",
+      "modeHints": {
+        "paid_now": "Already paid: the amount leaves a cash account when the expense is posted.",
+        "owed": "Not paid yet: it is owed when posted, and paid later, in one go or in parts."
+      },
+      "cashAccountsForbidden": "Choosing a cash account needs permission to view cash accounts (cash_accounts.view).",
+      "cashAccount": "Paid from",
+      "cashAccountHint": "Cash accounts in {currency}.",
+      "noAccountInCurrency": "No active cash account in {currency}",
+      "saveDraft": "Save draft",
+      "draftHint": "A draft changes nothing in the books."
+    },
+    "detail": {
+      "title": "Expense",
+      "back": "All expenses",
+      "description": "The expense, its payments and its journal entries.",
+      "done": {
+        "post": "Posted to the books.",
+        "pay": "Payment recorded.",
+        "reverse": "Reversed: a correction document cancels its postings."
+      },
+      "status": "Status",
+      "category": "Category",
+      "payee": "Paid to",
+      "date": "Date",
+      "amount": "Amount",
+      "rate": "rate {rate} IQD per {currency}",
+      "mode": "Payment",
+      "paid": "Paid",
+      "balance": "Still owed",
+      "descriptionLabel": "Description",
+      "reference": "Reference",
+      "createdBy": "Created by",
+      "postedBy": "Posted by",
+      "backdateReason": "Back-dating reason",
+      "receipt": "Receipt",
+      "receiptPdf": "A PDF receipt.",
+      "receiptOpen": "Open",
+      "receiptDownload": "Download",
+      "payments": "Payments",
+      "paymentColumns": {
+        "number": "Payment",
+        "date": "Date",
+        "account": "From",
+        "amount": "Amount"
+      },
+      "remaining": "Still owed:",
+      "corrections": "Corrections",
+      "journals": "Journal entries",
+      "journal": {
+        "posting": "Posting",
+        "payment": "Payment {number}",
+        "reversal": "Reversal {number}"
+      },
+      "timelineTitle": "History",
+      "timeline": {
+        "created": "Draft created",
+        "posted": "Posted to the books",
+        "paid": "Paid {amount} ({number})",
+        "reversed": "Reversed ({number})"
+      }
+    },
+    "actions": {
+      "sodBlocked": "Separation of duties is strict in this store: you created this expense, so someone else must take this step.",
+      "sodHint": "You created this expense. If separation of duties is strict, someone else must take this step.",
+      "postTitle": "Post",
+      "postBody": "Posting records the expense in the books; it can then only be corrected by a reversal.",
+      "note": "Note (optional)",
+      "noteTooShort": "At least 3 characters, or leave it empty.",
+      "post": "Post expense",
+      "payTitle": "Pay",
+      "payBody": "Still owed: {balance}. Pay all of it or a part.",
+      "payAmount": "Amount",
+      "payAmountHint": "No more than is still owed.",
+      "notes": "Notes (optional)",
+      "pay": "Record payment",
+      "reverse": "Reverse expense",
+      "reverseTitle": "Reverse",
+      "reverseBody": "A correction document reverses every posting of this expense, payments included. Nothing is deleted.",
+      "reverseReason": "Reason",
+      "reverseReasonRequired": "Give a reason of at least 3 characters.",
+      "cancel": "Cancel",
+      "reverseConfirm": "Reverse"
+    },
+    "refusals": {
+      "EXPENSE_IDEMPOTENCY_KEY_REQUIRED": "The request was sent without its safety key. Reload the page and try again.",
+      "EXPENSE_IDEMPOTENCY_KEY_INVALID": "The request's safety key was refused. Reload the page and try again.",
+      "EXPENSE_NOT_FOUND": "This expense doesn't exist any more.",
+      "EXPENSE_CATEGORY_NOT_FOUND": "The category doesn't exist any more. Choose another.",
+      "EXPENSE_CATEGORY_INACTIVE": "The category is inactive. Choose an active one, or reactivate it under Expense categories.",
+      "EXPENSE_CATEGORY_IN_USE": "The category is used by expenses, so its account can't change. Deactivate it and add a new one instead.",
+      "EXPENSE_LEDGER_ACCOUNT_INVALID": "That ledger account can't be used: it must be an enabled expense account.",
+      "EXPENSE_CURRENCY_DISABLED": "That currency isn't enabled for this store.",
+      "EXCHANGE_RATE_NOT_FOUND": "No central rate is recorded for that currency at this date. Record the rate first.",
+      "EXPENSE_AMOUNT_INVALID": "The amount must be more than zero.",
+      "EXPENSE_AMOUNT_PRECISION": "Too many decimal places for this currency.",
+      "EXPENSE_PAYEE_REQUIRED": "Say who was paid: a name or a supplier.",
+      "EXPENSE_SUPPLIER_NOT_FOUND": "That supplier doesn't exist any more.",
+      "EXPENSE_CASH_ACCOUNT_REQUIRED": "Choose the cash account it was paid from.",
+      "EXPENSE_CASH_ACCOUNT_NOT_ALLOWED": "An owed expense has no cash account until it is paid.",
+      "EXPENSE_CASH_ACCOUNT_NOT_FOUND": "That cash account doesn't exist any more.",
+      "EXPENSE_CASH_ACCOUNT_INACTIVE": "That cash account is inactive.",
+      "EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH": "The cash account must be in the expense's currency.",
+      "EXPENSE_PERIOD_CLOSED": "The accounting period for this date is closed. Choose a date in an open period, or ask for it to be reopened.",
+      "EXPENSE_BACKDATE_WINDOW": "The date is outside the 90-day back-dating window. It needs the back-dating approval permission and a reason.",
+      "EXPENSE_RECEIPT_INVALID": "The receipt was refused: it must be an image or a PDF, up to 8 MB.",
+      "EXPENSE_ALREADY_POSTED": "This expense is already posted.",
+      "EXPENSE_INVALID_STATE": "This step isn't possible any more: someone else changed the expense. Reload the page.",
+      "EXPENSE_SELF_APPROVAL_FORBIDDEN": "Separation of duties: the person who created an expense can't post, pay or reverse it. Someone else must.",
+      "EXPENSE_OVERPAYMENT": "That is more than is still owed on this expense.",
+      "PERIOD_CLOSED": "The accounting period for this date is closed."
     }
   }
 }

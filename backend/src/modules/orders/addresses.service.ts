@@ -4,6 +4,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { Prisma } from '../../generated/prisma/client';
 import { conflict } from '../../common/http/api-error';
 import {
   AddressCreateDto,
@@ -41,6 +42,7 @@ export class AddressesService {
   async create(userId: string, input: AddressCreateDto) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      await this.requireActiveGovernorate(tx, input.governorate_id);
       const count = await tx.address.count({ where: { user_id: userId } });
       const isDefault = count === 0 || input.is_default === true;
       if (isDefault)
@@ -63,6 +65,9 @@ export class AddressesService {
         where: { id, user_id: userId },
       });
       if (!current) throw new NotFoundException('Address not found');
+      if (input.governorate_id) {
+        await this.requireActiveGovernorate(tx, input.governorate_id);
+      }
       if (input.is_default === false && current.is_default)
         throw conflict(
           'ONLY_DEFAULT_ADDRESS_REQUIRED',
@@ -97,5 +102,18 @@ export class AddressesService {
           });
       }
     });
+  }
+
+  private async requireActiveGovernorate(
+    tx: Prisma.TransactionClient,
+    id: string,
+  ) {
+    const governorate = await tx.governorate.findUnique({ where: { id } });
+    if (!governorate?.is_active) {
+      throw conflict(
+        'GOVERNORATE_NOT_AVAILABLE',
+        'Select an active governorate',
+      );
+    }
   }
 }

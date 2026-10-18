@@ -12,6 +12,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { CatalogImportModule } from './modules/catalog-import/catalog-import.module';
 import { FulfilmentModule } from './modules/fulfilment/fulfilment.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
@@ -27,6 +28,9 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
+import { WorkerHealthService } from './config/worker-health.service';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -52,11 +56,14 @@ import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
     RbacModule,
     BannersModule,
     CatalogModule,
+    CatalogImportModule,
     PurchasingModule,
     InventoryModule,
     OrdersModule,
     FulfilmentModule,
     FinanceModule,
+    ExpensesModule,
+    ReportsModule,
     ReturnsModule,
     LoyaltyModule,
     MediaModule,
@@ -70,6 +77,7 @@ import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     RoutePolicyCoverageService,
+    WorkerHealthService,
   ],
 })
 export class AppModule {}

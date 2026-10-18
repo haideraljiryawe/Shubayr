@@ -3,6 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, ArrowLeft, Banknote, Loader2, MapPin } from "lucide-react";
 import { OrderSummary } from "@/components/cart/order-summary";
+import { TierProgress } from "@/components/cart/tier-progress";
+import type { TierProgress as Progress } from "@/lib/delivery";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Price } from "@/components/ui/price";
@@ -21,6 +23,8 @@ export interface ChosenAddress {
   title: string;
   phone: string | null;
   lines: string[];
+  /** The governorate's name, which decides the delivery fee. */
+  governorate: string | null;
 }
 
 /**
@@ -38,7 +42,13 @@ export function ReviewStep({
   placing,
   onEditAddress,
   onPlaceOrder,
+  tiers = null,
+  blocked = null,
 }: {
+  /** The automatic discount's progress (server cart). */
+  tiers?: Progress | null;
+  /** Why this address cannot be ordered to, shown in place of the button. */
+  blocked?: string | null;
   lines: CartViewLine[];
   couponCode: string | null;
   serverPriced?: boolean;
@@ -113,6 +123,11 @@ export function ReviewStep({
                   {address.phone}
                 </span>
               ) : null}
+              {address.governorate ? (
+                <span className="font-medium text-text" data-testid="review-governorate">
+                  {address.governorate}
+                </span>
+              ) : null}
               {address.lines.map((line) => (
                 <span key={line}>{line}</span>
               ))}
@@ -130,11 +145,22 @@ export function ReviewStep({
       </div>
 
       <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+        <TierProgress progress={tiers} />
         <OrderSummary
           totals={totals}
           couponCode={couponCode ?? undefined}
           serverPriced={serverPriced}
         >
+          {blocked ? (
+            <p
+              role="alert"
+              data-testid="checkout-delivery-blocked"
+              className="mt-2 flex items-start gap-2 rounded-md border border-error/40 bg-error/8 px-3 py-2 text-sm font-medium text-error-dark"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {blocked}
+            </p>
+          ) : null}
           {error ? (
             <p
               role="alert"
@@ -150,7 +176,7 @@ export function ReviewStep({
             variant="cta"
             size="lg"
             block
-            disabled={placing}
+            disabled={placing || Boolean(blocked)}
             onClick={onPlaceOrder}
             data-testid="place-order"
             startIcon={

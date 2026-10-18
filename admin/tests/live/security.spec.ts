@@ -31,7 +31,9 @@ function expectHardened(headers: Record<string, string>, path: string) {
   if (PRODUCTION) expect(scripts, path).not.toContain("'unsafe-eval'");
   expect(directive(csp, "frame-ancestors"), path).toBe("frame-ancestors 'none'");
   expect(directive(csp, "connect-src"), path).toMatch(/^connect-src 'self'/);
-  expect(headers["x-frame-options"], path).toBe("DENY");
+  // The app no longer doubles the proxy's X-Frame-Options (Caddy sets it in
+  // production); CSP frame-ancestors above refuses framing on its own.
+  expect(headers["x-frame-options"], path).toBeUndefined();
   expect(headers["x-robots-tag"], path).toBe("noindex, nofollow");
   expect(headers["strict-transport-security"], path).toMatch(/max-age=\d{7,}/);
   expect(headers["x-content-type-options"], path).toBe("nosniff");

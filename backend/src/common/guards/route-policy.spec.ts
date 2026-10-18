@@ -42,6 +42,13 @@ import {
 import { OrdersController } from '../../modules/orders/orders.controller';
 import { MonitorOrdersController } from '../../modules/orders/monitor-orders.controller';
 import {
+  AdminGovernoratesController,
+  DeliveryZonesController,
+  DiscountTiersController,
+  GovernoratesController,
+  PublicDiscountTiersController,
+} from '../../modules/orders/delivery-pricing.controller';
+import {
   PermissionsController,
   PresetsController,
   StaffController,
@@ -81,6 +88,11 @@ const controllers: Type[] = [
   CouponController,
   OrdersController,
   MonitorOrdersController,
+  GovernoratesController,
+  PublicDiscountTiersController,
+  AdminGovernoratesController,
+  DeliveryZonesController,
+  DiscountTiersController,
   StaffController,
   PresetsController,
   PermissionsController,

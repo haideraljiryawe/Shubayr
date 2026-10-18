@@ -16,6 +16,7 @@ interface JwtPayload {
   surface: AuthSurface;
   client?: 'mobile' | 'web_store';
   ver: number;
+  sid?: string;
 }
 
 @Injectable()
@@ -79,6 +80,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       permissions,
       permissionVersion: user.permission_version,
       sessionVersion: user.session_version,
+      sessionId: payload.sid ?? null,
       mustChangePassword: user.must_change_password,
     };
   }

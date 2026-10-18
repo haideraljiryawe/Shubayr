@@ -8,19 +8,41 @@ export class SmsGatewayService {
   async sendOtp(phone: string, code: string): Promise<void> {
     if (this.config.get<string>('APP_ENV') === 'development') return;
 
-    const response = await fetch(
-      this.config.getOrThrow<string>('SMS_GATEWAY_URL'),
-      {
+    const url = this.config.getOrThrow<string>('SMS_GATEWAY_URL');
+    if (url === 'disabled') {
+      throw new ServiceUnavailableException({
+        status: 503,
+        code: 'SMS_NOT_CONFIGURED',
+        message: 'SMS delivery is not configured',
+        errors: [],
+      });
+    }
+
+    try {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${this.config.getOrThrow<string>('SMS_GATEWAY_TOKEN')}`,
         },
         body: JSON.stringify({ phone, code }),
-      },
-    );
-    if (!response.ok) {
-      throw new ServiceUnavailableException('OTP delivery is unavailable');
+        signal: AbortSignal.timeout(
+          this.config.get<number>('SMS_GATEWAY_TIMEOUT_MS', 10_000),
+        ),
+      });
+      if (!response.ok) this.unavailable();
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      this.unavailable();
     }
+  }
+
+  private unavailable(): never {
+    throw new ServiceUnavailableException({
+      status: 503,
+      code: 'OTP_DELIVERY_UNAVAILABLE',
+      message: 'OTP delivery is unavailable',
+      errors: [],
+    });
   }
 }

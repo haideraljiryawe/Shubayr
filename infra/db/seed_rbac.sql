@@ -28,6 +28,7 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('catalog.categories', 'catalog', 'Manage categories'),
   ('catalog.brands', 'catalog', 'Manage brands'),
   ('catalog.products', 'catalog', 'Manage products and banners'),
+  ('catalog.import', 'catalog', 'Import products, variants and catalog images'),
   ('prices.change', 'catalog', 'Change sale prices'),
   ('cost.view', 'purchasing', 'View product cost'),
   ('suppliers.view', 'purchasing', 'View suppliers'),
@@ -40,9 +41,13 @@ INSERT INTO permissions(key, "group", description) VALUES
   ('inventory.pick', 'inventory', 'Pick reserved inventory'),
   ('inventory.transfer', 'inventory', 'Transfer inventory'),
   ('inventory.adjust', 'inventory', 'Adjust inventory'),
+  ('returns.view', 'returns', 'View customer returns'),
+  ('returns.create', 'returns', 'Create a return for a customer'),
+  ('returns.receive', 'returns', 'Receive approved return goods'),
   ('returns.inspect', 'returns', 'Inspect returns'),
   ('returns.approve', 'returns', 'Approve returns'),
   ('returns.refund', 'returns', 'Refund returns'),
+  ('returns.refund_delivery_fee', 'returns', 'Authorize a delivery-fee refund exception'),
   ('reviews.moderate', 'reviews', 'Moderate product reviews'),
   ('loyalty.adjust', 'loyalty', 'Adjust loyalty balances'),
   ('deliveries.manage', 'deliveries', 'List and manage deliveries'),
@@ -74,19 +79,40 @@ SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'super_admin'
 ON CONFLICT DO NOTHING;
 
+-- Phase 11 expense permissions. Accountants deliberately receive create/read
+-- only; posting, paying, reversing and category maintenance remain owner/admin.
+INSERT INTO permissions(key, "group", description) VALUES
+  ('expenses.read', 'expenses', 'View expense documents and categories'),
+  ('expenses.create', 'expenses', 'Create draft expense documents'),
+  ('expenses.post', 'expenses', 'Post draft expense documents'),
+  ('expenses.pay', 'expenses', 'Pay accrued expense documents'),
+  ('expenses.reverse', 'expenses', 'Reverse posted expense documents'),
+  ('expense_categories.manage', 'expenses', 'Manage expense categories')
+ON CONFLICT (key) DO UPDATE
+SET "group" = EXCLUDED."group", description = EXCLUDED.description;
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT preset.id, permission.id
+FROM permission_presets preset
+CROSS JOIN permissions permission
+WHERE preset.name = 'super_admin'
+   OR (preset.name = 'accountant' AND permission.key IN ('expenses.read','expenses.create'))
+ON CONFLICT DO NOTHING;
+
 INSERT INTO preset_permissions(preset_id, permission_id)
 SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'operations' AND p.key IN
   ('orders.view','orders.accept','orders.reject','orders.prepare','orders.mark_ready',
    'orders.handover','orders.cancel','orders.assign_agent','deliveries.manage',
-   'returns.inspect','returns.approve','returns.refund','reviews.moderate',
+   'returns.view','returns.create','returns.receive','returns.inspect',
+   'returns.approve','returns.refund','returns.refund_delivery_fee','reviews.moderate',
    'loyalty.adjust','reports.view')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO preset_permissions(preset_id, permission_id)
 SELECT pp.id, p.id FROM permission_presets pp CROSS JOIN permissions p
 WHERE pp.name = 'catalog_editor' AND p.key IN
-  ('catalog.categories','catalog.brands','catalog.products','prices.change')
+  ('catalog.categories','catalog.brands','catalog.products','catalog.import','prices.change')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO preset_permissions(preset_id, permission_id)
@@ -139,4 +165,12 @@ JOIN permissions permission ON (
 )
 WHERE preset.name IN
   ('super_admin','stock_controller','catalog_editor','cashier','accountant')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO preset_permissions(preset_id, permission_id)
+SELECT preset.id, permission.id
+FROM permission_presets preset
+CROSS JOIN permissions permission
+WHERE preset.name = 'accountant'
+  AND permission.key IN ('expenses.read','expenses.create')
 ON CONFLICT DO NOTHING;

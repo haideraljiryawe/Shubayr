@@ -6,13 +6,20 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { Link } from "@/i18n/navigation";
+import { api, type Address } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { cartStore } from "@/lib/cart-store";
+import { deliveryLocation, useDeliveryLocation } from "@/lib/delivery-location";
 import { useCart } from "@/lib/use-cart";
 import { useCartLineDetails } from "@/lib/cart-sync";
+import { useDeliveryPricing } from "@/lib/use-pricing";
+import { useResource } from "@/lib/use-resource";
 import { CartRow } from "./cart-row";
 import { CouponForm } from "./coupon-form";
+import { DeliveryPicker } from "./delivery-picker";
 import { EmptyCart } from "./empty-cart";
 import { OrderSummary } from "./order-summary";
+import { TierProgress } from "./tier-progress";
 
 /** Placeholder rows while localStorage is read — never an empty cart first. */
 function CartSkeleton() {
@@ -43,7 +50,24 @@ function CartSkeleton() {
 export function CartView() {
   const t = useTranslations("cart");
   const showToast = useToast();
-  const { lines, totals, hydrated, isServerBacked, couponCode } = useCart();
+  const view = useCart();
+  const { lines, hydrated, couponCode } = view;
+  const { isAuthenticated } = useAuth();
+  const chosen = useDeliveryLocation();
+  // A signed-in shopper's saved addresses; the default one is used until
+  // another is picked.
+  const savedAddresses = useResource<Address[]>(
+    () => (isAuthenticated ? api.listAddresses() : Promise.resolve([])),
+    [isAuthenticated],
+  );
+  const addresses = isAuthenticated ? (savedAddresses.data ?? []) : [];
+  const address = addresses.find((item) => item.id === chosen.addressId) ?? addresses.find((item) => item.is_default) ?? addresses[0] ?? null;
+  const location = address
+    ? { addressId: address.id ?? null, governorateId: address.governorate_id ?? null }
+    : { addressId: null, governorateId: chosen.governorateId };
+  // The delivery fee and the full total for that location, the same way
+  // checkout shows them.
+  const pricing = useDeliveryPricing(view, location);
 
   // Checkout refuses the whole order while any line is unavailable, so the
   // cart says which ones and holds the CTA rather than letting the shopper
@@ -65,7 +89,7 @@ export function CartView() {
           </h1>
           {hydrated && lines.length > 0 ? (
             <span className="text-sm text-text-muted" data-testid="cart-count">
-              {t("itemCount", { count: totals.itemCount })}
+              {t("itemCount", { count: view.totals.itemCount })}
             </span>
           ) : null}
         </div>
@@ -145,10 +169,20 @@ export function CartView() {
 
           {/* Sticky on desktop so the totals stay beside a long basket. */}
           <div className="flex flex-col gap-3 lg:sticky lg:top-24">
+            <DeliveryPicker
+              governorates={[...pricing.governorates.values()]}
+              addresses={addresses}
+              governorateId={location.governorateId}
+              addressId={location.addressId}
+              problem={pricing.problem}
+              onGovernorate={(id) => deliveryLocation.setGovernorate(id)}
+              onAddress={(picked) => deliveryLocation.setAddress(picked.id ?? null, picked.governorate_id ?? null)}
+            />
+            <TierProgress progress={pricing.tiers} />
             <OrderSummary
-              totals={totals}
+              totals={pricing.totals}
               couponCode={couponCode ?? undefined}
-              serverPriced={isServerBacked}
+              serverPriced={pricing.serverPriced}
             >
               {unavailable.length > 0 ? (
                 // Not a link at all: there is nothing behind it that could

@@ -224,7 +224,12 @@ try {
   );
   check(
     customerOrders.total,
-    all.total,
+    Number(
+      await scalar(
+        'SELECT count(*)::int AS value FROM orders WHERE user_id=$1',
+        [customerId],
+      ),
+    ),
     'customer filter returns only the seeded customer orders',
   );
   check(
@@ -339,7 +344,16 @@ try {
     const updated = await request(`/admin/orders/${pending.id}/status`, {
       token: admin,
       method: 'PATCH',
-      body: { status, version: currentOrder.version },
+      body: {
+        status,
+        version: currentOrder.version,
+        ...(status === 'confirmed'
+          ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
+            }
+          : {}),
+      },
     });
     check(updated.status, status, `legal staff transition to ${status}`);
     currentOrder = updated;

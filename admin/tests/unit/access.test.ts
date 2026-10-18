@@ -5,7 +5,7 @@ import {
   fieldErrorMap,
   toApiError,
 } from "@/lib/api/errors";
-import { NAV_ITEMS, isNavActive, visibleNav } from "@/lib/nav";
+import { NAV_ITEMS, activeNavKey, isNavActive, visibleNav } from "@/lib/nav";
 import {
   groupPermissions,
   keysFromPresets,
@@ -32,6 +32,12 @@ describe("visibleNav", () => {
     expect(
       visibleNav(["catalog.categories", "catalog.brands"]).map((item) => item.key),
     ).toEqual(["dashboard", "categories", "brands"]);
+    // Excel import and bulk images share catalog.import (API 15.1).
+    expect(visibleNav(["catalog.import"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "catalogImport",
+      "catalogImages",
+    ]);
     expect(visibleNav(["users.manage"]).map((item) => item.key)).toEqual([
       "dashboard",
       "staff",
@@ -73,9 +79,13 @@ describe("visibleNav", () => {
         "users.manage",
         "roles.manage",
         "orders.view",
+        "returns.view",
+        "expenses.read",
+        "expense_categories.manage",
         "catalog.products",
         "catalog.categories",
         "catalog.brands",
+        "catalog.import",
         "suppliers.view",
         "ledger.view",
         "fx_rates.view",
@@ -87,6 +97,8 @@ describe("visibleNav", () => {
         "deliveries.manage",
         "trips.view",
         "custody_exceptions.view",
+        "delivery_zones.manage",
+        "discount_tiers.manage",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
     expect(visibleNav(["deliveries.manage"]).map((item) => item.key)).toEqual([
@@ -104,6 +116,16 @@ describe("visibleNav", () => {
     expect(isNavActive(staff, "/staffing")).toBe(false);
     expect(isNavActive(dashboard, "/staff")).toBe(false);
     expect(isNavActive(dashboard, "/")).toBe(true);
+  });
+
+  it("highlights only the most specific of nested entries", () => {
+    expect(activeNavKey(NAV_ITEMS, "/settings")).toBe("settings");
+    expect(activeNavKey(NAV_ITEMS, "/settings/delivery-zones")).toBe("deliveryZones");
+    expect(activeNavKey(NAV_ITEMS, "/settings/discounts")).toBe("discountTiers");
+    // The governorates tab has no entry of its own: Store settings stays lit.
+    expect(activeNavKey(NAV_ITEMS, "/settings/governorates")).toBe("settings");
+    expect(activeNavKey(NAV_ITEMS, "/")).toBe("dashboard");
+    expect(activeNavKey(NAV_ITEMS, "/nowhere")).toBeNull();
   });
 });
 

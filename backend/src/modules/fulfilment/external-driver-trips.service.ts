@@ -89,6 +89,7 @@ const tripInclude = {
               trip_settlement_allocations: {
                 select: { amount_iqd: true },
               },
+              return_refund_payments: { select: { amount_iqd: true } },
             },
           },
           custody_exceptions: {
@@ -547,6 +548,7 @@ export class ExternalDriverTripsService {
                           },
                         },
                         trip_settlement_allocations: true,
+                        return_refund_payments: true,
                       },
                     },
                   },
@@ -597,7 +599,14 @@ export class ExternalDriverTripsService {
         );
         const expected = collections.reduce(
           (sum, collection) =>
-            sum.plus(collection.collected_amount ?? new Prisma.Decimal(0)),
+            sum
+              .plus(collection.collected_amount ?? new Prisma.Decimal(0))
+              .minus(
+                collection.return_refund_payments.reduce(
+                  (inner, payment) => inner.plus(payment.amount_iqd),
+                  new Prisma.Decimal(0),
+                ),
+              ),
           new Prisma.Decimal(0),
         );
         const received = collections.reduce(
@@ -663,11 +672,16 @@ export class ExternalDriverTripsService {
                   (sum, row) => sum.plus(row.amount_iqd),
                   new Prisma.Decimal(0),
                 );
+              const returnedRefunds = collection.return_refund_payments.reduce(
+                (sum, payment) => sum.plus(payment.amount_iqd),
+                new Prisma.Decimal(0),
+              );
               const open = (
                 collection.collected_amount ?? new Prisma.Decimal(0)
               )
                 .minus(cashAllocated)
-                .minus(priorNetting);
+                .minus(priorNetting)
+                .minus(returnedRefunds);
               const amount = Prisma.Decimal.min(open, left);
               if (amount.gt(0)) {
                 await tx.externalDriverTripSettlementAllocation.create({
@@ -822,6 +836,7 @@ export class ExternalDriverTripsService {
                       },
                     },
                     trip_settlement_allocations: true,
+                    return_refund_payments: true,
                   },
                 },
               },
@@ -858,7 +873,14 @@ export class ExternalDriverTripsService {
     );
     const expected = collections.reduce(
       (sum, collection) =>
-        sum.plus(collection.collected_amount ?? new Prisma.Decimal(0)),
+        sum
+          .plus(collection.collected_amount ?? new Prisma.Decimal(0))
+          .minus(
+            collection.return_refund_payments.reduce(
+              (inner, payment) => inner.plus(payment.amount_iqd),
+              new Prisma.Decimal(0),
+            ),
+          ),
       new Prisma.Decimal(0),
     );
     const received = collections.reduce(
@@ -954,7 +976,16 @@ export class ExternalDriverTripsService {
   ) {
     const liveExpected = row.orders.reduce(
       (sum, item) =>
-        sum.plus(item.order.delivery_collection?.collected_amount ?? 0),
+        item.order.delivery_collection
+          ? sum
+              .plus(item.order.delivery_collection.collected_amount ?? 0)
+              .minus(
+                item.order.delivery_collection.return_refund_payments.reduce(
+                  (inner, payment) => inner.plus(payment.amount_iqd),
+                  new Prisma.Decimal(0),
+                ),
+              )
+          : sum,
       new Prisma.Decimal(0),
     );
     const liveReceived = row.orders.reduce((sum, item) => {

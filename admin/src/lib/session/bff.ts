@@ -66,12 +66,30 @@ export interface ForwardInit {
   authenticated?: boolean;
   /** Give up after this long (default 15 s; uploads take longer). */
   timeoutMs?: number;
+  responseType?: "text" | "arrayBuffer";
+  /**
+   * Extra request headers for the API — only ones a caller has checked
+   * (today: Idempotency-Key, see idempotencyHeader). Never the browser's
+   * headers wholesale.
+   */
+  headers?: Record<string, string>;
 }
 
-export interface Forwarded {
+/**
+ * The browser's Idempotency-Key, when it has the contract's shape (8–128
+ * printable ASCII characters). The expense writes require it (contract 17.1);
+ * a key of any other shape is dropped and the API answers its own refusal.
+ */
+export function idempotencyHeader(request: Pick<Request, "headers">): Record<string, string> {
+  const key = request.headers.get("idempotency-key");
+  return key && /^[ -~]{8,128}$/.test(key) ? { "Idempotency-Key": key } : {};
+}
+
+export interface Forwarded<TBody = string> {
   status: number;
-  body: string;
+  body: TBody;
   contentType: string | null;
+  contentDisposition: string | null;
   /** A pair minted by a refresh during this call, to be written as cookies. */
   refreshed: TokenPair | null;
   /** The session is gone (refresh refused): the cookies must be cleared. */
@@ -89,7 +107,7 @@ async function send(
   // member's address — taken only from a trusted front proxy, never from what
   // the client sent — lets the API rate-limit and audit per person once it
   // trusts this server (see forwarding.ts and docs/deploy/web-and-admin.md).
-  const headers: Record<string, string> = { Accept: "application/json", ...forwarded };
+  const headers: Record<string, string> = { Accept: "application/json", ...forwarded, ...init.headers };
   if (typeof init.body === "string") headers["Content-Type"] = "application/json";
   if (init.authenticated !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
@@ -107,10 +125,18 @@ async function send(
  * Call the API as the signed-in user: refresh first if the access token is
  * about to expire, and once more if the API still answers 401.
  */
+export function forward(
+  request: NextRequest,
+  init: ForwardInit & { responseType: "arrayBuffer" },
+): Promise<Forwarded<ArrayBuffer>>;
+export function forward(
+  request: NextRequest,
+  init: ForwardInit,
+): Promise<Forwarded<string>>;
 export async function forward(
   request: NextRequest,
   init: ForwardInit,
-): Promise<Forwarded> {
+): Promise<Forwarded<string | ArrayBuffer>> {
   const authenticated = init.authenticated !== false;
   const forwarded = clientForwardHeaders(request.headers);
   let access = request.cookies.get(ACCESS_COOKIE)?.value;
@@ -141,6 +167,7 @@ export async function forward(
       status: 503,
       body: JSON.stringify({ status: 503, code: "API_UNAVAILABLE", message: "The API can't be reached", errors: [] }),
       contentType: "application/json",
+      contentDisposition: null,
       refreshed: null,
       signedOut: false,
       retryAfter: null,
@@ -153,8 +180,14 @@ export async function forward(
 
   return {
     status: response.status,
-    body: response.status === 204 ? "" : await response.text(),
+    body:
+      response.status === 204
+        ? ""
+        : init.responseType === "arrayBuffer"
+          ? await response.arrayBuffer()
+          : await response.text(),
     contentType: response.headers.get("content-type"),
+    contentDisposition: response.headers.get("content-disposition"),
     refreshed,
     signedOut,
     retryAfter: response.headers.get("retry-after"),
@@ -162,7 +195,7 @@ export async function forward(
 }
 
 /** Turn a forwarded result into the route handler's response. */
-export function respond(result: Forwarded): NextResponse {
+export function respond(result: Forwarded<string | ArrayBuffer>): NextResponse {
   const response =
     result.status === 204 || result.body === ""
       ? new NextResponse(null, { status: result.status })
@@ -174,6 +207,8 @@ export function respond(result: Forwarded): NextResponse {
           },
         });
   if (result.retryAfter) response.headers.set("Retry-After", result.retryAfter);
+  if (result.contentDisposition)
+    response.headers.set("Content-Disposition", result.contentDisposition);
   if (result.refreshed) applySession(response, result.refreshed);
   if (result.signedOut) clearSession(response);
   return response;

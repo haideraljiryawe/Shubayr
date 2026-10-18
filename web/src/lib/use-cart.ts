@@ -2,9 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import { cartItemCount, cartTotals, lineTotal, type CartTotals } from "./cart";
-import { DELIVERY_FEE } from "./config";
-import { cartStore, lineId, type CartLine, type CartState } from "./cart-store";
+import type { Cart } from "./api";
+import { cartStore, lineId, type AppliedCoupon, type CartLine, type CartState } from "./cart-store";
 import { lineUnits } from "./quantity";
+import { tierProgress, type TierProgress } from "./delivery";
 
 /**
  * Subscribe to the raw store. Reading through useSyncExternalStore — rather
@@ -44,6 +45,13 @@ export interface CartView {
   pending: boolean;
   /** The coupon code on the cart, whichever side owns it. */
   couponCode: string | null;
+  /** A guest's validated coupon (its type and value price the guest cart). */
+  guestCoupon: AppliedCoupon | null;
+  /**
+   * The automatic discount's progress bar, from the server cart. Null for a
+   * guest (tiers come only with a signed-in cart) or when no tier applies.
+   */
+  tiers: TierProgress | null;
 }
 
 /**
@@ -74,11 +82,13 @@ export function useCart(): CartView {
         // arithmetic — the only place in the app that still does.
         line_total: lineTotal(line),
       })),
-      totals: cartTotals(basket, state.coupon, DELIVERY_FEE),
+      totals: cartTotals(basket, state.coupon),
       hydrated: state.hydrated,
       isServerBacked: false,
       pending: state.pending,
       couponCode: state.coupon?.code ?? null,
+      guestCoupon: state.coupon,
+      tiers: null,
     };
   }
 
@@ -119,17 +129,37 @@ export function useCart(): CartView {
 
   return {
     lines,
-    totals: {
-      itemCount: lines.reduce((sum, line) => sum + lineUnits(line.quantity), 0),
-      subtotal: server.subtotal ?? 0,
-      deliveryFee: server.delivery_fee ?? 0,
-      discount: server.discount ?? 0,
-      total: server.total ?? 0,
-    },
+    // Read without a delivery location, the server cart's fee is 0: pending.
+    totals: serverTotals(server, lines, false),
     hydrated: state.hydrated,
     isServerBacked: true,
     pending: state.pending,
     couponCode: server.coupon_code ?? null,
+    guestCoupon: null,
+    tiers: lines.length > 0 ? tierProgress(server) : null,
+  };
+}
+
+/**
+ * The totals block from a priced cart — the server's, or a guest cart priced
+ * the same way. `deliveryKnown` says whether a delivery location priced it;
+ * until one did, the delivery line is pending and the total is before delivery.
+ */
+export function serverTotals(
+  cart: Pick<Cart, "subtotal" | "delivery_fee" | "discount" | "coupon_discount" | "tier_discount" | "applied_tier" | "total">,
+  lines: ReadonlyArray<Pick<CartLine, "quantity">>,
+  deliveryKnown: boolean,
+): CartTotals {
+  return {
+    itemCount: lines.reduce((sum, line) => sum + lineUnits(line.quantity), 0),
+    subtotal: cart.subtotal ?? 0,
+    deliveryFee: cart.delivery_fee ?? 0,
+    deliveryPending: lines.length > 0 && !deliveryKnown,
+    discount: cart.discount ?? 0,
+    couponDiscount: cart.coupon_discount ?? 0,
+    tierDiscount: cart.tier_discount ?? 0,
+    tierPercent: cart.applied_tier?.percent ?? null,
+    total: cart.total ?? 0,
   };
 }
 

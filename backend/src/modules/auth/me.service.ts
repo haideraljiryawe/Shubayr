@@ -116,6 +116,11 @@ export class MeService {
             code: 'ACCOUNT_DELETION_BLOCKED',
             message:
               'Resolve open orders, pending returns, and unsettled amounts before deleting the account',
+            details: {
+              open_orders: openOrders,
+              pending_returns: pendingReturns,
+              unsettled_amounts: unsettledAmounts,
+            },
             errors: [
               ...(openOrders
                 ? [
@@ -168,6 +173,22 @@ export class MeService {
           },
         });
         await tx.address.deleteMany({ where: { user_id: userId } });
+        await tx.notificationEvent.updateMany({
+          where: { user_id: userId, processed_at: null },
+          data: { processed_at: now },
+        });
+        await tx.notificationLog.updateMany({
+          where: {
+            user_id: userId,
+            status: { in: ['queued', 'sending', 'failed'] },
+          },
+          data: {
+            status: 'skipped',
+            error: 'ACCOUNT_DELETED',
+            error_code: 'ACCOUNT_DELETED',
+            lease_until: null,
+          },
+        });
         await tx.deviceToken.deleteMany({ where: { user_id: userId } });
         await tx.refreshToken.deleteMany({ where: { user_id: userId } });
         if (user.phone) {

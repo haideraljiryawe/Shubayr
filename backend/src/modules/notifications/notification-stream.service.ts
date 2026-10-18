@@ -1,7 +1,6 @@
 import {
   Injectable,
   Logger,
-  OnApplicationBootstrap,
   OnModuleDestroy,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -18,13 +17,10 @@ type Ticket = Pick<
 >;
 
 @Injectable()
-export class NotificationStreamService
-  implements OnApplicationBootstrap, OnModuleDestroy
-{
+export class NotificationStreamService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationStreamService.name);
   private readonly redis: Redis;
   private readonly prefix: string;
-  private timer?: ReturnType<typeof setInterval>;
   private publishing = false;
 
   constructor(
@@ -38,14 +34,7 @@ export class NotificationStreamService
     this.redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
   }
 
-  onApplicationBootstrap() {
-    this.timer = setInterval(() => void this.publishPending(), 500);
-    this.timer.unref();
-    void this.publishPending();
-  }
-
   async onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
     await this.redis.quit();
   }
 
@@ -164,25 +153,31 @@ export class NotificationStreamService
     });
   }
 
-  private async publishPending() {
+  async publishPending() {
     if (this.publishing) return;
     this.publishing = true;
     try {
-      const rows = await this.prisma.notificationStreamEvent.findMany({
-        where: { published_at: null },
-        orderBy: { sequence: 'asc' },
-        take: 200,
-      });
-      for (const row of rows) {
-        await this.redis.publish(
-          `${this.prefix}:stream:${row.user_id}`,
-          this.serialize(row),
-        );
-        await this.prisma.notificationStreamEvent.updateMany({
-          where: { sequence: row.sequence, published_at: null },
-          data: { published_at: new Date() },
+      await this.prisma.$transaction(async (tx) => {
+        const [lock] = await tx.$queryRaw<Array<{ acquired: boolean }>>`
+          SELECT pg_try_advisory_xact_lock(hashtext('notification-stream-publish')) AS acquired
+        `;
+        if (!lock?.acquired) return;
+        const rows = await tx.notificationStreamEvent.findMany({
+          where: { published_at: null },
+          orderBy: { sequence: 'asc' },
+          take: 200,
         });
-      }
+        for (const row of rows) {
+          await this.redis.publish(
+            `${this.prefix}:stream:${row.user_id}`,
+            this.serialize(row),
+          );
+          await tx.notificationStreamEvent.updateMany({
+            where: { sequence: row.sequence, published_at: null },
+            data: { published_at: new Date() },
+          });
+        }
+      });
     } catch (error) {
       this.logger.warn(`Notification stream publish failed: ${String(error)}`);
     } finally {

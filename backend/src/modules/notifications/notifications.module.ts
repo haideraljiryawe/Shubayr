@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { createHash } from 'node:crypto';
@@ -14,6 +14,11 @@ import {
   PUSH_PROVIDER,
   SMS_PROVIDER,
 } from './notification-provider';
+import { NotificationsScheduler } from './notifications.scheduler';
+import { runsBackgroundJobs } from '../../config/process-role';
+
+export const notificationWorkerProviders = () =>
+  runsBackgroundJobs() ? [NotificationsProcessor, NotificationsScheduler] : [];
 
 @Global()
 @Module({
@@ -46,18 +51,22 @@ import {
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
-    NotificationsProcessor,
     NotificationStreamService,
+    ...notificationWorkerProviders(),
     {
       provide: PUSH_PROVIDER,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const provider = config.get<string>('NOTIFICATION_PROVIDER');
         if (provider === 'fcm') {
-          return new FcmPushProvider(
+          const fcm = new FcmPushProvider(
             config.getOrThrow<string>('FCM_SERVICE_ACCOUNT_JSON_BASE64'),
             config.getOrThrow<string>('FCM_PROJECT_ID'),
           );
+          new Logger('PushConfiguration').log(
+            `FCM HTTP v1 configured for project ${config.getOrThrow<string>('FCM_PROJECT_ID')}; run npm run push:diagnose to authenticate credentials`,
+          );
+          return fcm;
         }
         return provider === 'disabled'
           ? new DisabledNotificationProvider()

@@ -61,3 +61,7 @@ yarn-error.log*
 coverage/
 *.log
 tmp/
+
+# --- Deployment (docs/deploy/production.md) ---
+deploy/secrets/
+deploy/state/

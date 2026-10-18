@@ -20,7 +20,11 @@ export function Select({
     <div className="relative">
       <select
         aria-invalid={invalid || undefined}
-        defaultValue={placeholder && !defaultValue ? "" : defaultValue}
+        defaultValue={
+          props.value === undefined && placeholder && !defaultValue
+            ? ""
+            : defaultValue
+        }
         className={cn(
           controlBase,
           "h-12 ps-4 pe-11 text-sm appearance-none cursor-pointer",

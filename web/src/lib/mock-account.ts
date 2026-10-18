@@ -14,6 +14,7 @@ import type {
   Order,
   OrderStatus,
   OrderTracking,
+  FieldError,
   Return,
   ReturnRequest,
   Review,
@@ -120,12 +121,86 @@ export function signInMockPhone(phoneE164: string, phone: string): User {
   return currentUser;
 }
 
+/**
+ * Test hook for DELETE /me/account (the account deletion page). Hermetic
+ * tests set this sessionStorage key before the page loads:
+ *
+ *   "none"                          the deletion succeeds
+ *   "OPEN_ORDERS,PENDING_RETURNS:2"  refused for those reasons (count 1 unless given)
+ *   "legacy:OPEN_ORDERS:2"          the same, as an API before 17.2 answered:
+ *                                   counts only inside the English messages
+ *
+ * Like the API since 17.2, the refusal carries the counts in `details`, and
+ * its messages here say no number at all — so a page that still parsed them
+ * would show none. Unset, the refusal follows the fixtures.
+ */
+export const MOCK_ACCOUNT_DELETION_KEY = "shubayr.mock.account-deletion";
+
+const DELETION_FIELDS = {
+  OPEN_ORDERS: ["open_orders", "open order(s) remain"],
+  PENDING_RETURNS: ["pending_returns", "pending return(s) remain"],
+  UNSETTLED_AMOUNTS: ["unsettled_amounts", "unsettled financial record(s) remain"],
+} as const;
+
+type DeletionCode = keyof typeof DELETION_FIELDS;
+
+export interface MockDeletionRefusal {
+  errors: FieldError[];
+  /** The contract's counts; null for the "legacy" shape. */
+  details: { open_orders: number; pending_returns: number; unsettled_amounts: number } | null;
+}
+
+function refusal(counts: Partial<Record<DeletionCode, number>>, legacy: boolean): MockDeletionRefusal {
+  const errors: FieldError[] = [];
+  for (const [code, count] of Object.entries(counts) as Array<[DeletionCode, number]>) {
+    if (!count) continue;
+    const [field, words] = DELETION_FIELDS[code];
+    errors.push({ field, code, message: legacy ? `${count} ${words}` : words });
+  }
+  return {
+    errors,
+    details: legacy
+      ? null
+      : { open_orders: counts.OPEN_ORDERS ?? 0, pending_returns: counts.PENDING_RETURNS ?? 0, unsettled_amounts: counts.UNSETTLED_AMOUNTS ?? 0 },
+  };
+}
+
+/** Why the mock refuses to delete the account; no errors when it may go ahead. */
+export function mockAccountDeletionRefusal(): MockDeletionRefusal {
+  let override: string | null = null;
+  try {
+    override = window.sessionStorage.getItem(MOCK_ACCOUNT_DELETION_KEY);
+  } catch {
+    override = null;
+  }
+  if (override !== null) {
+    const legacy = override.startsWith("legacy:");
+    const counts: Partial<Record<DeletionCode, number>> = {};
+    for (const part of override.replace(/^legacy:/, "").split(",")) {
+      const [code, count] = part.trim().split(":");
+      if (code in DELETION_FIELDS) counts[code as DeletionCode] = count ? Number(count) : 1;
+    }
+    return refusal(counts, legacy);
+  }
+  const open = listMockOrders().filter(
+    (order) =>
+      !["rejected", "cancelled", "delivered", "returned"].includes(
+        order.status ?? "",
+      ),
+  ).length;
+  const pending = returns.filter((item) =>
+    ["requested", "approved", "partially_approved"].includes(item.status),
+  ).length;
+  return refusal({ OPEN_ORDERS: open, PENDING_RETURNS: pending }, false);
+}
+
 /* ------------------------------------------------------------------ addresses */
 
 let addresses: Address[] = [
   {
     id: "addr-1",
     user_id: mockUser.id,
+    governorate_id: "11111111-1111-4111-8111-111111111111",
     label: "المنزل",
     city: "واسط",
     area: "الكوت — حي الزهراء",
@@ -142,6 +217,7 @@ let addresses: Address[] = [
   {
     id: "addr-2",
     user_id: mockUser.id,
+    governorate_id: "22222222-2222-4222-8222-222222222222",
     label: "العمل",
     city: "بغداد",
     area: "الكرادة",
@@ -192,7 +268,12 @@ export function updateMockAddress(
   const existing = addresses.find((item) => item.id === id);
   if (!existing) return undefined;
 
-  const updated: Address = { ...existing, ...input, id, user_id: existing.user_id };
+  const updated: Address = {
+    ...existing,
+    ...input,
+    id,
+    user_id: existing.user_id,
+  };
   // Exactly one default: promoting this one demotes the rest.
   addresses = addresses.map((item) =>
     item.id === id
@@ -249,6 +330,13 @@ function orderItem(
     whole_units_only: variant?.whole_units_only ?? true,
     unit_price: unit,
     line_total: unit * quantity,
+    discount_share: 0,
+    coupon_discount_share: 0,
+    tier_discount_share: 0,
+    loyalty_discount_share: 0,
+    other_adjustment_share: 0,
+    net_line_total: unit * quantity,
+    net_paid_total: unit * quantity,
   };
 }
 
@@ -338,9 +426,17 @@ let orders: Order[] = [
     // Paid 5 short on delivery, so the page has a balance to show.
     { discount: 20, collected: "short" },
   ),
-  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1)], {
-    collected: "full",
-  }),
+  // A weighed line too (2.5 kg of rice), so a return in kilograms is
+  // exercisable; 0.5 kg of it is already refunded (ret-2).
+  buildOrder(
+    "SB-1028",
+    "delivered",
+    30,
+    [orderItem("p7", 1), orderItem("p36", 2.5)],
+    {
+      collected: "full",
+    },
+  ),
   buildOrder("SB-1031", "cancelled", 21, [orderItem("p14", 1)], {
     address_id: "addr-2",
   }),
@@ -520,9 +616,10 @@ const loyalty: LoyaltyAccount = {
   ],
 };
 
-export function getMockLoyalty(
-  { page = 1, per_page = 20 }: { page?: number; per_page?: number } = {},
-): LoyaltyAccount {
+export function getMockLoyalty({
+  page = 1,
+  per_page = 20,
+}: { page?: number; per_page?: number } = {}): LoyaltyAccount {
   // Newest first; the contract does not promise an order, so the page cannot
   // rely on one and the fixture sorts the way the page renders.
   const ledger = [...(loyalty.ledger ?? [])].sort((a, b) =>
@@ -576,24 +673,279 @@ export function redeemMockLoyalty(
 let returns: Return[] = [
   {
     id: "ret-1",
+    document_number: "CRN-MOCK-0001",
     order_id: "sb-1028",
+    order_number: "SB-1028",
     user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
     type: "return",
     status: "approved",
     reason: "المقاس غير مناسب",
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-08-07",
+    accounting_date: "2026-08-07",
+    reviewed_by: null,
+    reviewed_at: null,
+    completed_at: null,
     created_at: isoAgo(26),
     items: [
       {
+        id: "ret-1-item-1",
         order_item_id: "oi-p7",
+        variant_id: "variant-p7",
+        product_name_ar: "منتج",
+        product_name_en: "Product",
         quantity: 1,
+        approved_quantity: 1,
         base_unit: "piece",
         whole_units_only: true,
+        customer_reason: "المقاس غير مناسب",
+        reason_code: "change_of_mind",
+        unit_price: 0,
+        discount_share: 0,
+        net_amount: 0,
+        approved_refund: 0,
+        earned_points_share: 0,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: null,
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
       },
     ],
+    refund: null,
+    events: [],
+    refund_payments: [],
+    postings: [],
+  },
+  // Settled end to end: 0.5 kg of the rice, refunded in cash with its
+  // loyalty points reversed — what the return detail page explains.
+  {
+    id: "ret-2",
+    document_number: "CRN-MOCK-0002",
+    order_id: "sb-1028",
+    order_number: "SB-1028",
+    user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
+    type: "return",
+    status: "refunded",
+    reason: null,
+    expected_refund: 1.5,
+    refund_amount: 1.5,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 1.5,
+    points_effect: { earned_reversed: 2, redeemed_restored: 0, net: -2 },
+    currency: "IQD",
+    document_date: "2026-08-10",
+    accounting_date: "2026-08-10",
+    reviewed_by: "staff-1",
+    reviewed_at: isoAgo(22),
+    completed_at: isoAgo(20),
+    created_at: isoAgo(23),
+    items: [
+      {
+        id: "ret-2-item-1",
+        order_item_id: "oi-p36",
+        variant_id: "p36-kg",
+        product_name_ar: "أرز بسمتي",
+        product_name_en: "Basmati rice",
+        quantity: 0.5,
+        approved_quantity: 0.5,
+        base_unit: "kg",
+        whole_units_only: false,
+        customer_reason: "الكيس مفتوح",
+        reason_code: "defect",
+        unit_price: 3,
+        discount_share: 0,
+        net_amount: 1.5,
+        approved_refund: 1.5,
+        earned_points_share: 2,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: "opened",
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
+      },
+    ],
+    refund: null,
+    events: [
+      {
+        id: "ret-2-e1",
+        type: "requested",
+        operation_id: "op-r2-1",
+        document_date: "2026-08-09",
+        accounting_date: "2026-08-09",
+        actor_id: mockUser.id,
+        actor_display_name: "you",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(23),
+      },
+      {
+        id: "ret-2-e2",
+        type: "approved",
+        operation_id: "op-r2-2",
+        document_date: "2026-08-10",
+        accounting_date: "2026-08-10",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(22),
+      },
+      {
+        id: "ret-2-e3",
+        type: "received",
+        operation_id: "op-r2-3",
+        document_date: "2026-08-11",
+        accounting_date: "2026-08-11",
+        actor_id: "staff-2",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(21, 6),
+      },
+      {
+        id: "ret-2-e4",
+        type: "inspected",
+        operation_id: "op-r2-4",
+        document_date: "2026-08-11",
+        accounting_date: "2026-08-11",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(21),
+      },
+      {
+        id: "ret-2-e5",
+        type: "refunded",
+        operation_id: "op-r2-5",
+        document_date: "2026-08-12",
+        accounting_date: "2026-08-12",
+        actor_id: "staff-2",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(20),
+      },
+    ],
+    refund_payments: [
+      {
+        id: "ret-2-pay-1",
+        method: "cash_account",
+        amount_iqd: 1.5,
+        cash_account: { id: "cash-1", name: "Main till" },
+        collection: null,
+        proof_reference: null,
+        document_date: "2026-08-12",
+        accounting_date: "2026-08-12",
+        created_by: "staff-2",
+        created_at: isoAgo(20),
+      },
+    ],
+    postings: [],
+  },
+  // Refused, with the reason the customer is shown.
+  {
+    id: "ret-3",
+    document_number: "CRN-MOCK-0003",
+    order_id: "sb-1035",
+    order_number: "SB-1035",
+    user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
+    type: "return",
+    status: "rejected",
+    reason: null,
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-08-28",
+    accounting_date: "2026-08-28",
+    reviewed_by: "staff-1",
+    reviewed_at: isoAgo(4),
+    completed_at: null,
+    created_at: isoAgo(5),
+    items: [
+      {
+        id: "ret-3-item-1",
+        order_item_id: "oi-p4",
+        variant_id: "variant-p4",
+        product_name_ar: "منتج",
+        product_name_en: "Product",
+        quantity: 1,
+        approved_quantity: 0,
+        base_unit: "piece",
+        whole_units_only: true,
+        customer_reason: "لم يعجبني اللون",
+        reason_code: "change_of_mind",
+        unit_price: 0,
+        discount_share: 0,
+        net_amount: 0,
+        approved_refund: 0,
+        earned_points_share: 0,
+        redeemed_points_share: 0,
+        currency: "IQD",
+        condition: null,
+        restock: false,
+        batch_id: null,
+        inspection_location: null,
+      },
+    ],
+    refund: null,
+    events: [
+      {
+        id: "ret-3-e1",
+        type: "requested",
+        operation_id: "op-r3-1",
+        document_date: "2026-08-27",
+        accounting_date: "2026-08-27",
+        actor_id: mockUser.id,
+        actor_display_name: "you",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(5),
+      },
+      {
+        id: "ret-3-e2",
+        type: "rejected",
+        operation_id: "op-r3-2",
+        document_date: "2026-08-28",
+        accounting_date: "2026-08-28",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: "المنتج مستعمل",
+        created_at: isoAgo(4),
+      },
+    ],
+    refund_payments: [],
+    postings: [],
   },
 ];
 
 let returnSeq = returns.length;
+
+/** One of the customer's own returns, or undefined (the API's 404). */
+export function getMockReturn(id: string): Return | undefined {
+  return returns.find((entry) => entry.id === id);
+}
 
 export function listMockReturns(): Return[] {
   return [...returns].sort((a, b) =>
@@ -604,14 +956,34 @@ export function listMockReturns(): Return[] {
 export function createMockReturn(body: ReturnRequest): Return {
   const created: Return = {
     id: `ret-${++returnSeq}`,
+    document_number: `CRN-MOCK-${String(returnSeq).padStart(4, "0")}`,
     order_id: body.order_id,
+    order_number: "",
     user_id: mockUser.id,
+    source: "customer",
+    created_by: mockUser.id,
     type: "return",
     // Every request starts here; moving it on is a staff action.
     status: "requested",
     reason: body.reason ?? null,
+    expected_refund: 0,
+    refund_amount: 0,
+    delivery_fee_refund: 0,
+    uncollected_offset: 0,
+    cash_refund_amount: 0,
+    points_effect: { earned_reversed: 0, redeemed_restored: 0, net: 0 },
+    currency: "IQD",
+    document_date: "2026-09-02",
+    accounting_date: "2026-09-02",
+    reviewed_by: null,
+    reviewed_at: null,
+    completed_at: null,
     created_at: new Date(SEEDED_NOW).toISOString(),
     items: [],
+    refund: null,
+    events: [],
+    refund_payments: [],
+    postings: [],
   };
 
   // The server prices a return from the order line's IMMUTABLE unit price and
@@ -623,28 +995,38 @@ export function createMockReturn(body: ReturnRequest): Return {
     (order?.items ?? []).map((item) => [item.id ?? "", item]),
   );
 
-  const createdItems = body.items.map((item, index) => {
+  created.order_number = order?.order_number ?? body.order_id;
+  const createdItems: Return["items"] = body.items.map((item, index) => {
     const orderItem = orderItems.get(item.order_item_id);
     const unit = orderItem?.unit_price ?? 0;
     return {
       id: `${created.id}-item-${index + 1}`,
       order_item_id: item.order_item_id,
+      variant_id: orderItem?.variant_id ?? "variant-missing",
+      product_name_ar: orderItem?.product_name_ar ?? "",
+      product_name_en: orderItem?.product_name_en ?? "",
       quantity: item.quantity,
       approved_quantity: 0,
       base_unit: orderItem?.base_unit ?? "piece",
       whole_units_only: orderItem?.whole_units_only ?? true,
       customer_reason: item.reason,
+      reason_code: item.reason_code,
       unit_price: unit,
-      expected_refund: unit * item.quantity,
+      discount_share: 0,
+      net_amount: unit * item.quantity,
       approved_refund: 0,
+      earned_points_share: 0,
+      redeemed_points_share: 0,
+      currency: "IQD",
       condition: null,
       restock: false,
       batch_id: null,
+      inspection_location: null,
     };
   });
   created.items = createdItems;
   created.expected_refund = createdItems.reduce(
-    (sum, item) => sum + (item.expected_refund ?? 0),
+    (sum, item) => sum + item.net_amount,
     0,
   );
   created.refund_amount = 0;
@@ -756,9 +1138,7 @@ export function listMockMyReviews({
 }
 
 /** The caller's own review of a purchased line, if they wrote one. */
-export function findMockReviewForItem(
-  orderItemId: string,
-): Review | undefined {
+export function findMockReviewForItem(orderItemId: string): Review | undefined {
   return myReviews.find((review) => review.order_item_id === orderItemId);
 }
 
@@ -850,7 +1230,9 @@ function defaultPreferences(): NotificationPreferenceEntry[] {
 let notificationPreferences = defaultPreferences();
 
 export function getMockNotificationPreferences(): NotificationPreferences {
-  return { preferences: notificationPreferences.map((entry) => ({ ...entry })) };
+  return {
+    preferences: notificationPreferences.map((entry) => ({ ...entry })),
+  };
 }
 
 /**

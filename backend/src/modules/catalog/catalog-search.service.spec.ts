@@ -1,4 +1,5 @@
 import type { PrismaService } from '../../database/prisma.service';
+import type { Queue } from 'bullmq';
 import { CatalogSearchService } from './catalog-search.service';
 
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
@@ -25,6 +26,7 @@ jest.mock('meilisearch', () => ({
 }));
 
 describe('CatalogSearchService outage handling', () => {
+  const originalRole = process.env.PROCESS_ROLE;
   const product = {
     id: 'product-1',
     category_id: 'category-1',
@@ -55,6 +57,32 @@ describe('CatalogSearchService outage handling', () => {
     mockAddDocuments.mockResolvedValue({ taskUid: 1 });
     mockDeleteDocument.mockResolvedValue({ taskUid: 2 });
     mockWaitForTask.mockResolvedValue({ status: 'succeeded' });
+  });
+
+  afterEach(() => {
+    if (originalRole === undefined) delete process.env.PROCESS_ROLE;
+    else process.env.PROCESS_ROLE = originalRole;
+  });
+
+  it('only enqueues from an API process', async () => {
+    process.env.PROCESS_ROLE = 'api';
+    const findUnique = jest.fn();
+    const add = jest.fn().mockResolvedValue(undefined);
+    const prisma = {
+      product: { findUnique },
+    } as unknown as PrismaService;
+    const service = new CatalogSearchService(prisma, {
+      add,
+    } as unknown as Queue);
+
+    await service.indexProduct(product.id);
+
+    expect(add).toHaveBeenCalledWith(
+      'index-product',
+      { productId: product.id },
+      expect.objectContaining({ jobId: `product-${product.id}` }),
+    );
+    expect(findUnique).not.toHaveBeenCalled();
   });
 
   it('drops the client when startup synchronization cannot reach search', async () => {
@@ -102,5 +130,37 @@ describe('CatalogSearchService outage handling', () => {
         search_synced_at: expect.any(Date) as Date,
       },
     });
+  });
+
+  it('drains large pending sets in bounded bulk batches', async () => {
+    const firstBatch = Array.from({ length: 500 }, (_, index) => ({
+      ...product,
+      id: `product-${index}`,
+    }));
+    const secondBatch = [{ ...product, id: 'product-500' }];
+    const findMany = jest
+      .fn()
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce(secondBatch)
+      .mockResolvedValueOnce([]);
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const prisma = {
+      product: { findMany, updateMany },
+    } as unknown as PrismaService;
+    const service = new CatalogSearchService(prisma);
+    Object.assign(service, {
+      client: { index: mockIndex, tasks: { waitForTask: mockWaitForTask } },
+    });
+
+    await service.reindexPending();
+
+    const addDocumentCalls = mockAddDocuments.mock.calls as unknown as Array<
+      [unknown[]]
+    >;
+    expect(mockAddDocuments).toHaveBeenCalledTimes(2);
+    expect(addDocumentCalls[0]?.[0]).toHaveLength(500);
+    expect(addDocumentCalls[1]?.[0]).toHaveLength(1);
+    expect(updateMany).toHaveBeenCalledTimes(2);
+    expect(findMany).toHaveBeenCalledTimes(3);
   });
 });

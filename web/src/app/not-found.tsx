@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 /**
- * A 404 outside any locale (a path the middleware doesn't route, such as one
+ * A 404 outside any locale (a path the proxy doesn't route, such as one
  * with a file extension). The root layout is a passthrough, so this renders
  * its own document — Arabic first, like the store.
  */

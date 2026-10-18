@@ -30,10 +30,12 @@ import {
   getMockLoyalty,
   createMockReturn,
   listMockReturns,
+  getMockReturn,
   createMockReview,
   createMockDeliveryRating,
   listMockReviewedOrderItems,
   listMockMyReviews,
+  mockAccountDeletionRefusal,
 } from "./mock-account";
 import {
   getMockCustody,
@@ -98,6 +100,10 @@ export type OrderTracking = Schemas["OrderTracking"];
 export type Address = Schemas["Address"];
 export type AddressCreate = Schemas["AddressCreate"];
 export type AddressPatch = Schemas["AddressPatch"];
+export type Governorate = Schemas["Governorate"];
+export type PublicDiscountTierSettings = Schemas["PublicDiscountTierSettings"];
+/** Prices GET /cart's delivery line (API 16.2): one or the other, never both. */
+export type CartDeliverySelector = { governorate_id: string } | { address_id: string };
 export type Order = Schemas["Order"];
 export type OrderItem = Schemas["OrderItem"];
 export type UserSelfUpdate = Schemas["UserSelfUpdate"];
@@ -189,6 +195,12 @@ export class ApiError extends Error {
      */
     readonly code?: string,
     readonly errors: FieldError[] = [],
+    /**
+     * Structured facts some refusals carry next to the envelope, e.g. the
+     * account-deletion counts (contract 17.2, `AccountDeletionBlockedError`).
+     * Unknown shape here: each caller reads it through its own guard.
+     */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -198,6 +210,12 @@ export class ApiError extends Error {
 /** API 6.0: purchase functions answer this 403 to a work account. */
 export const WORK_ACCOUNT_SHOPPING_FORBIDDEN =
   "WORK_ACCOUNT_SHOPPING_FORBIDDEN";
+
+/** DELETE /me/account refused: open orders, pending returns or unsettled amounts. */
+export const ACCOUNT_DELETION_BLOCKED = "ACCOUNT_DELETION_BLOCKED";
+
+/** The refusal reasons and counts of a 409 ACCOUNT_DELETION_BLOCKED (src/lib/account-deletion.ts). */
+export { ACCOUNT_DELETION_REASONS, type AccountDeletionReason } from "./account-deletion";
 
 export function isWorkAccountForbidden(error: unknown): boolean {
   return (
@@ -230,6 +248,7 @@ async function toApiError(
       : `${method} ${path} failed with ${response.status}`,
     typeof body?.code === "string" ? body.code : undefined,
     Array.isArray(body?.errors) ? body.errors : [],
+    (body as { details?: unknown } | null)?.details,
   );
   if (isWorkAccountForbidden(error)) tokenProvider?.onWorkAccountForbidden?.();
   return error;
@@ -505,6 +524,66 @@ export const api = {
     return request<StoreSettings>("/settings", init);
   },
 
+  async listGovernorates(init?: RequestInit): Promise<Governorate[]> {
+    if (!isLive("addresses")) {
+      return [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          code: "wasit",
+          name_ar: "واسط",
+          name_en: "Wasit",
+          is_active: true,
+          is_served: true,
+          // The sample store prices in dollars, so its fees are dollar-sized.
+          delivery_fee: 5,
+          currency: "IQD",
+        },
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          code: "baghdad",
+          name_ar: "بغداد",
+          name_en: "Baghdad",
+          is_active: true,
+          is_served: true,
+          delivery_fee: 6,
+          currency: "IQD",
+        },
+        // In no active delivery zone: checkout must say so.
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          code: "basra",
+          name_ar: "البصرة",
+          name_en: "Basra",
+          is_active: true,
+          is_served: false,
+          delivery_fee: null,
+          currency: "IQD",
+        },
+      ];
+    }
+    return request<Governorate[]>("/governorates", init);
+  },
+
+  /**
+   * The active automatic-discount tiers and whether a coupon stacks with
+   * them (API 16.2, public): a guest's progress bar and totals. Checkout and
+   * the signed-in cart stay the authority.
+   */
+  async listDiscountTiers(init?: RequestInit): Promise<PublicDiscountTierSettings> {
+    if (!isLive("addresses")) {
+      // Sample store, in dollars: 5% from $200, 10% from $400.
+      return {
+        currency: "IQD",
+        coupon_stacking_enabled: false,
+        tiers: [
+          { min_subtotal: 200, percent: 5 },
+          { min_subtotal: 400, percent: 10 },
+        ],
+      };
+    }
+    return request<PublicDiscountTierSettings>("/discount-tiers", init);
+  },
+
   /** Departments with their subcategories — exactly two levels, see twoLevelTree. */
   async getCategories(init?: RequestInit): Promise<Category[]> {
     if (!isLive("catalog")) return twoLevelTree(mockCategories);
@@ -773,6 +852,36 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(input),
       });
+    });
+  },
+
+  /**
+   * Delete and anonymize the signed-in customer account (DELETE /me/account).
+   *
+   * 204: the account is anonymized and every session revoked; the caller then
+   * signs out locally. 409 ACCOUNT_DELETION_BLOCKED carries one field error per
+   * reason — OPEN_ORDERS, PENDING_RETURNS, UNSETTLED_AMOUNTS — and nothing is
+   * deleted.
+   */
+  async deleteAccount(): Promise<void> {
+    return withFreshToken(async () => {
+      if (!isLive("profile")) {
+        await mockLatency();
+        requireMockAuth();
+        const refusal = mockAccountDeletionRefusal();
+        if (refusal.errors.length) {
+          throw new ApiError(
+            409,
+            "Resolve open orders, pending returns, and unsettled amounts before deleting the account",
+            ACCOUNT_DELETION_BLOCKED,
+            refusal.errors,
+            refusal.details ?? undefined,
+          );
+        }
+        return;
+      }
+      requireAuthenticated();
+      await requestNoContent("/me/account", { method: "DELETE" });
     });
   },
 
@@ -1115,6 +1224,24 @@ export const api = {
         query: { status, per_page: 50 },
       });
       return page.data ?? [];
+    });
+  },
+
+  /**
+   * One of the customer's own returns (GET /returns/{id}): its lines, the
+   * refund and points the server worked out, how it was paid, and its
+   * timeline. Another customer's id answers 404, like a missing one.
+   */
+  async getReturn(id: string): Promise<Return> {
+    return withFreshToken(async () => {
+      if (!isLive("returns")) {
+        await mockLatency(120);
+        requireMockAuth();
+        const found = getMockReturn(id);
+        if (!found) throw new ApiError(404, "Return not found");
+        return found;
+      }
+      return request<Return>(`/returns/${encodeURIComponent(id)}`);
     });
   },
 
@@ -1523,10 +1650,15 @@ export const api = {
    * response is the authority: prices, availability and every total come back
    * computed, and the store adopts them verbatim rather than recomputing.
    */
-  async getCart(): Promise<Cart> {
+  async getCart(delivery?: CartDeliverySelector | null): Promise<Cart> {
+    // With a governorate or a saved address, the cart carries that zone's
+    // delivery fee and the full total (API 16.2); without, the fee is 0.
+    const query = delivery
+      ? `?${new URLSearchParams("address_id" in delivery ? { address_id: delivery.address_id } : { governorate_id: delivery.governorate_id })}`
+      : "";
     return withFreshToken(async () => {
       requireAuthenticated();
-      return request<Cart>("/cart");
+      return request<Cart>(`/cart${query}`);
     });
   },
 

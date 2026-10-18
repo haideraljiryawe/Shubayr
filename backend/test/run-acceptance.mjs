@@ -161,6 +161,12 @@ try {
   closingCreated = false;
   console.log(`Dropped disposable closing database: ${closingName}`);
 
+  // This pack deliberately deploys every later migration first, then adds the
+  // older corrective push-test migration. Keep it in the CI acceptance run so
+  // both historical-upgrade ordering and the isolated delivery safeguards are
+  // continuously verified.
+  await run('test/push-test-migration.acceptance.mjs', [], environment);
+
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   const acceptanceEnv = {
@@ -170,8 +176,16 @@ try {
     NODE_OPTIONS:
       `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
   };
+  await run('test/delivery-pricing-d1.acceptance.mjs', [], acceptanceEnv);
+  // The D1 pack uses several independent app/admin sessions; reset only the
+  // in-memory throttles before the established acceptance sequence.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/financial-core.acceptance.mjs', [], acceptanceEnv);
+  await run('test/expenses.acceptance.mjs', [], acceptanceEnv);
   await run('test/catalog-v2.acceptance.mjs', [], acceptanceEnv);
+  await run('test/catalog-import-d2.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-costing.acceptance.mjs', [], acceptanceEnv);
   await run('test/purchasing.acceptance.mjs', [], acceptanceEnv);
   await run('test/real-data.acceptance.mjs', [], acceptanceEnv);
@@ -206,6 +220,10 @@ try {
   await run('test/loyalty.acceptance.mjs', [], acceptanceEnv);
   await run('test/reviews.acceptance.mjs', [], acceptanceEnv);
   await run('test/notifications.acceptance.mjs', [], acceptanceEnv);
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
+  await run('test/push-p1.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase2-monitoring.acceptance.mjs', [], acceptanceEnv);
   // Reset the in-memory admin-login throttle before the final packs. The C5
   // delivery collection pack adds another staff session to the combined run.
@@ -223,8 +241,13 @@ try {
   await stopApi();
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
+  await run('test/c13-settings.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
+  // Reports seed 20,001 immutable posted order lines across three months and
+  // intentionally close one period, so keep this last in the shared database.
+  await run('test/reports-part1.acceptance.mjs', [], acceptanceEnv);
+  await run('test/reports-part2.acceptance.mjs', [], acceptanceEnv);
 } finally {
   await stopApi();
   if (closingCreated) {

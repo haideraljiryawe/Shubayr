@@ -4,6 +4,9 @@
 
 - Shubayr: single-owner multi-department store in Iraq. Base currency IQD (precision 0), optional USD. Time zone Asia/Baghdad. Weekday convention Sunday=0…Saturday=6.
 - Spec: `docs/Shubayr_Software_Engineering_Analysis_v5.1` (.docx/.pdf + Markdown copy). The contract `api/openapi.yaml` is the source of truth.
+- Product decisions: [`2026-10-12`](docs/decisions/2026-10-12.md) and
+  [`2026-10-17`](docs/decisions/2026-10-17.md). Shubayr has no delivery-agent
+  app; delivery-agent app work, including agent wages, is a future add-on.
 
 ## Git workflow
 
@@ -70,6 +73,9 @@ the Mobile policy above.
 - Bump the version per semver and state in the PR description what is breaking (if anything).
 - Declare every new error code on every affected route.
 - web/ and admin/ live suites must pass before a breaking change merges. mobile/ on main is a stale snapshot of the app: do not block on it — instead document every mobile-affecting change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. Backend/web/admin contract work does not authorize edits to mobile/ or the mobile branches; authorized Mobile work follows the Flutter/Mobile policy above.
+- Delivery-pricing changes may merge only after the checkout → confirmation → delivery → receipt acceptance flow proves that the order total, collection amount, revenue posting, receipt, and exact return allocation reconcile.
+- Catalog imports may merge only when preview is proven read-only for catalog/inventory data, every committed row is durably idempotent and restart-resumable, failed batches report exactly what was retained, Stock rows create exactly one phase-5 opening document after product rows succeed, costs remain gated by `cost.view`, and the 5,000-row limit is covered.
+- Returns changes may merge only after acceptance proves immutable net-paid shares across successive piece and decimal-quantity returns, delivered-minus-returned eligibility, original-issue-cost inspection, delivery-fee caps, loyalty reversal/restoration, custody and cash refund sources, idempotency, separation of duties, and inventory/custody/cash/loyalty/GL reconciliation.
 
 ## Money and dates
 

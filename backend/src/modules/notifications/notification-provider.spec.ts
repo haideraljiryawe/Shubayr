@@ -2,6 +2,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import {
   FcmPushProvider,
   InvalidNotificationRecipientError,
+  NotificationDeliveryError,
 } from './notification-provider';
 
 function serviceAccount() {
@@ -20,12 +21,13 @@ function response(ok: boolean, status: number, payload: unknown) {
   return {
     ok,
     status,
+    headers: new Headers(),
     json: jest.fn().mockResolvedValue(payload),
   } as unknown as Response;
 }
 
 describe('FcmPushProvider', () => {
-  it('uses a service-account OAuth token and sends an HTTP v1 notification', async () => {
+  it('sends the visible HTTP v1 payload with default APNs sound and no Android overrides', async () => {
     const http = jest
       .fn()
       .mockResolvedValueOnce(
@@ -38,11 +40,13 @@ describe('FcmPushProvider', () => {
       http,
     );
 
-    await provider.send({
-      recipient: 'registration-token',
-      title: 'Order update',
-      body: 'Your order is ready.',
-    });
+    await expect(
+      provider.send({
+        recipient: 'registration-token',
+        title: 'Order update',
+        body: 'Your order is ready.',
+      }),
+    ).resolves.toEqual({ messageId: 'message-1' });
 
     expect(http).toHaveBeenNthCalledWith(
       1,
@@ -67,10 +71,98 @@ describe('FcmPushProvider', () => {
               title: 'Order update',
               body: 'Your order is ready.',
             },
+            apns: { payload: { aps: { sound: 'default' } } },
           },
         }),
       }),
     );
+  });
+
+  it('does not classify payload INVALID_ARGUMENT as an invalid token', async () => {
+    const http = jest
+      .fn()
+      .mockResolvedValueOnce(
+        response(true, 200, { access_token: 'oauth-token', expires_in: 3600 }),
+      )
+      .mockResolvedValueOnce(
+        response(false, 400, {
+          error: {
+            status: 'INVALID_ARGUMENT',
+            details: [{ errorCode: 'INVALID_ARGUMENT' }],
+          },
+        }),
+      );
+    const provider = new FcmPushProvider(
+      serviceAccount(),
+      'shubayr-production',
+      http,
+    );
+
+    await expect(
+      provider.send({ recipient: 'still-valid', title: 'Title', body: 'Body' }),
+    ).rejects.toMatchObject({
+      code: 'FCM_INVALID_ARGUMENT',
+      retryable: false,
+    });
+  });
+
+  it.each([
+    [429, 'FCM_RATE_LIMITED'],
+    [503, 'FCM_UNAVAILABLE'],
+  ])(
+    'classifies HTTP %s as retryable without provider text',
+    async (status, code) => {
+      const http = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response(true, 200, {
+            access_token: 'oauth-token',
+            expires_in: 3600,
+          }),
+        )
+        .mockResolvedValueOnce(
+          response(false, status, {
+            error: { status: 'UNAVAILABLE', message: 'token=secret-token' },
+          }),
+        );
+      const provider = new FcmPushProvider(
+        serviceAccount(),
+        'shubayr-production',
+        http,
+      );
+
+      await expect(
+        provider.send({
+          recipient: 'secret-token',
+          title: 'Title',
+          body: 'Body',
+        }),
+      ).rejects.toEqual(expect.objectContaining({ code, retryable: true }));
+    },
+  );
+
+  it('classifies network failures as retryable with a sanitized code', async () => {
+    const http = jest
+      .fn()
+      .mockResolvedValueOnce(
+        response(true, 200, { access_token: 'oauth-token', expires_in: 3600 }),
+      )
+      .mockRejectedValueOnce(new Error('request contained secret-token'));
+    const provider = new FcmPushProvider(
+      serviceAccount(),
+      'shubayr-production',
+      http,
+    );
+
+    const caught = await provider
+      .send({ recipient: 'secret-token', title: 'Title', body: 'Body' })
+      .catch((error: unknown) => error);
+    expect(caught).toBeInstanceOf(NotificationDeliveryError);
+    expect(caught).toMatchObject({
+      code: 'FCM_NETWORK_ERROR',
+      retryable: true,
+    });
+    expect(String(caught)).not.toContain('secret-token');
   });
 
   it('identifies an unregistered token so the caller can remove it', async () => {

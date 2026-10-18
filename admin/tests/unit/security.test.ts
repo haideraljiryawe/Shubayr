@@ -29,7 +29,8 @@ describe("security headers", () => {
     const headers = Object.fromEntries(STATIC_SECURITY_HEADERS.map(({ key, value }) => [key, value]));
     expect(headers["Strict-Transport-Security"]).toMatch(/^max-age=\d{7,}; includeSubDomains$/);
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
-    expect(headers["X-Frame-Options"]).toBe("DENY");
+    // Set once, by Caddy (deploy/caddy/Caddyfile); framing is refused here by CSP frame-ancestors.
+    expect(headers["X-Frame-Options"]).toBeUndefined();
     expect(headers["Referrer-Policy"]).toBe("same-origin");
     expect(headers["Permissions-Policy"]).toContain("camera=()");
     expect(headers["X-Robots-Tag"]).toBe("noindex, nofollow");

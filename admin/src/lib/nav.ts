@@ -11,11 +11,14 @@ import { isNavEnabled, type ModuleKey } from "./modules";
 export type NavKey =
   | "dashboard"
   | "orders"
+  | "returns"
   | "deliveryParties"
   | "trips"
   | "products"
   | "categories"
   | "brands"
+  | "catalogImport"
+  | "catalogImages"
   | "stock"
   | "movements"
   | "warehouses"
@@ -30,10 +33,14 @@ export type NavKey =
   | "currencies"
   | "cashAccounts"
   | "cashReceipts"
+  | "expenses"
+  | "expenseCategories"
   | "custodyExceptions"
   | "periods"
   | "ledger"
   | "settings"
+  | "deliveryZones"
+  | "discountTiers"
   | "staff"
   | "presets"
   | "workPhones"
@@ -53,6 +60,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
   { key: "brands", href: "/catalog/brands", requires: ["catalog.brands"] },
+  // Excel import and bulk images (API 15.1).
+  { key: "catalogImport", href: "/catalog/import", requires: ["catalog.import"] },
+  { key: "catalogImages", href: "/catalog/images", requires: ["catalog.import"] },
   // Inventory (API 8.2): every screen reads with inventory.view; each action
   // carries its own permission (manage, transfer, count, adjust, write_down).
   { key: "stock", href: "/inventory/stock", requires: ["inventory.view"] },
@@ -63,7 +73,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "counts", href: "/inventory/counts", requires: ["inventory.view"] },
   { key: "writeDowns", href: "/inventory/write-downs", requires: ["inventory.view"] },
   { key: "orders", href: "/orders", requires: ["orders.view"] },
+  // Customer returns v2 (API 17.0): approve, receive, inspect, refund — each
+  // step its own permission. Its own module, off at launch.
+  { key: "returns", href: "/returns", requires: ["returns.view"] },
   { key: "settings", href: "/settings", requires: ["settings.manage"] },
+  // Delivery pricing (API 15.0): zones and governorates, automatic discounts.
+  { key: "deliveryZones", href: "/settings/delivery-zones", requires: ["delivery_zones.manage"] },
+  { key: "discountTiers", href: "/settings/discounts", requires: ["discount_tiers.manage"] },
   { key: "staff", href: "/staff", requires: ["users.manage"] },
   { key: "presets", href: "/presets", requires: ["roles.manage"] },
   { key: "workPhones", href: "/work-phones", requires: ["users.manage"] },
@@ -87,6 +103,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "custodyExceptions", href: "/finance/custody-exceptions", requires: ["custody_exceptions.view"] },
   // Cash handed in by delivery parties (API 13.2).
   { key: "cashReceipts", href: "/finance/cash-receipts", requires: ["deliveries.manage"] },
+  // Expenses (API 17.1): documents and their categories — its own module,
+  // off at launch. Categories are managed with expense_categories.manage.
+  { key: "expenses", href: "/expenses", requires: ["expenses.read"] },
+  { key: "expenseCategories", href: "/expenses/categories", requires: ["expense_categories.manage"] },
   { key: "audit", href: "/audit", requires: ["audit.view"] },
 ];
 
@@ -110,4 +130,17 @@ export function visibleNav(
 export function isNavActive(item: NavItem, pathname: string): boolean {
   if (item.href === "/") return pathname === "/";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/**
+ * The one entry to highlight: the most specific match. Nested entries share a
+ * prefix (/settings and /settings/delivery-zones), and only the deeper one is
+ * the page the person is on.
+ */
+export function activeNavKey(items: readonly NavItem[], pathname: string): NavKey | null {
+  return (
+    items
+      .filter((item) => isNavActive(item, pathname))
+      .sort((a, b) => b.href.length - a.href.length)[0]?.key ?? null
+  );
 }

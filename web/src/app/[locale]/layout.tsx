@@ -6,6 +6,7 @@ import { cairoVariables } from "@/fonts/cairo";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
+import { InfoShell } from "@/components/layout/info-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WishlistSync } from "@/components/providers/wishlist-sync";
 import { CartSync } from "@/lib/cart-sync";
@@ -15,6 +16,8 @@ import { localeDirection, routing, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api";
 import { SITE_URL, openGraphFor } from "@/lib/site";
 import { OfflineNotice } from "@/components/layout/offline-notice";
+import { PreviewBanner } from "@/components/layout/preview-banner";
+import { GATE_HEADER } from "@/lib/store-gate";
 import "../globals.css";
 import { getSettingsOnce } from "@/lib/server-data";
 
@@ -65,12 +68,46 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
   const messages = await getMessages();
   // Reading the request makes every page render per request, which the CSP
-  // nonce (set by the middleware) requires.
-  await headers();
+  // nonce (set by the proxy) requires. The proxy also says whether the store
+  // is gated (src/lib/store-gate.ts): "closed" renders the bare "opening
+  // soon" page, "preview" the real store under a preview banner, "info" a
+  // legal, support or account deletion page in a small shell of its own.
+  const gate = (await headers()).get(GATE_HEADER);
 
   // White-label identity (rule #1). Fetched on the server so the brand is in
   // the first byte of HTML — no flash of the default green.
   const settings = await getSettingsOnce().catch(() => null);
+
+  if (gate === "closed") {
+    // No shell, sign-in, cart or inbox: there is nothing to use yet.
+    return (
+      <html lang={locale} dir={localeDirection[locale as Locale]} className={cairoVariables} suppressHydrationWarning>
+        <body>
+          <NextIntlClientProvider messages={messages}>
+            <ThemeProvider settings={settings}>{children}</ThemeProvider>
+          </NextIntlClientProvider>
+        </body>
+      </html>
+    );
+  }
+
+  if (gate === "info") {
+    // Sign-in (for account deletion), but no cart, inbox or store navigation:
+    // everything behind them is still the "opening soon" page.
+    return (
+      <html lang={locale} dir={localeDirection[locale as Locale]} className={cairoVariables} suppressHydrationWarning>
+        <body>
+          <NextIntlClientProvider messages={messages}>
+            <AuthProvider>
+              <ThemeProvider settings={settings}>
+                <InfoShell>{children}</InfoShell>
+              </ThemeProvider>
+            </AuthProvider>
+          </NextIntlClientProvider>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html
@@ -93,6 +130,7 @@ export default async function LocaleLayout({
               <CartSync />
               <NotificationCenterSync />
               <OfflineNotice />
+              {gate === "preview" ? <PreviewBanner /> : null}
               <AppShell>{children}</AppShell>
             </ThemeProvider>
           </AuthProvider>

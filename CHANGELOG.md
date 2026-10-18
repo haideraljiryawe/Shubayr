@@ -1,5 +1,107 @@
 # Changelog
 
+## 17.4.0 - 2026-10-18
+
+### Added
+
+- Permission-aware return queue customer, custody, issue-cost and actor details,
+  refund-account discovery, and a read-only delivery-fee policy preview.
+- Posted-ledger cash, delivery-custody, liabilities and inventory-valuation
+  reports plus a permission-filtered owner dashboard.
+- CSV/XLSX background exports for every phase-12 part-2 report.
+- Optional best-effort backup success and failure heartbeats without secret URL
+  logging or changes to backup health semantics.
+
+### Changed
+
+- Return queues can filter directly by customer phone and order number without
+  requiring order-read permission.
+- The API contract is version 17.4.0. All changes are additive and
+  non-breaking; no customer/mobile response shape changed.
+
+## 17.3.0 - 2026-10-18
+
+### Added
+
+- Scoped, ledger-reconciled sales, profitability, profit-and-loss, trial
+  balance and balance-sheet reports with Baghdad business-date parameters,
+  open-period markers and database pagination.
+- Background CSV/XLSX exports with progress polling, UTF-8 BOM CSV output and
+  Arabic or English headings.
+- Structured OTP delivery failures, a configurable gateway timeout and an
+  explicit production `SMS_GATEWAY_URL=disabled` mode.
+
+### Changed
+
+- An OTP record is persisted only after confirmed gateway delivery. Failed
+  sends do not create a usable code or consume a verification attempt.
+- The API contract is version 17.3.0. The change is additive and non-breaking;
+  the existing sales-summary fields remain as deprecated compatibility aliases.
+
+## 17.2.0 - 2026-10-17
+
+### Added
+
+- Audited owner settings for bilingual legal name, address and support hours,
+  support contacts, policy dates and refund timing, exposed with the existing
+  return window through the public settings read.
+- Machine-readable account-deletion blocker counts for open orders, pending
+  returns and unsettled financial records.
+- Persistent off-site backup target-size reporting and a configurable warning
+  threshold, plus Cloudflare R2 deployment guidance.
+- The 2026-10-17 product decision moving phase-10 agent wages to the future
+  delivery add-on.
+
+### Changed
+
+- The API contract is version 17.2.0. The change is additive and
+  non-breaking; existing account-deletion messages and error entries remain.
+
+## 17.1.0 - 2026-10-17
+
+### Added
+
+- Owner-managed expense categories mapped to expense GL accounts, including
+  reference categories for rent, cash salaries, utilities, fuel, internet,
+  marketing, packaging, transport, maintenance, government fees and other.
+- Draft-to-post expense documents, paid-now and accrued-payment posting,
+  partial payments, private receipt attachments, filtered totals and
+  reversal-only corrections.
+- Expense permissions, audit coverage, strict separation of duties,
+  `Idempotency-Key` replay safety and an acceptance pack that reconciles every
+  expense journal.
+
+### Changed
+
+- The API contract is version 17.1.0. This is additive and non-breaking; all
+  new routes are staff-only under `/admin/expense-*` and `/admin/expenses`.
+- `expenses` is a recognized Web Admin module but remains absent from the
+  launch `ADMIN_MODULES` example until the separate UI is ready.
+
+## 15.0.0 - 2026-10-12
+
+### Added
+
+- Seeded administration for Iraq's 18 governorates plus Halabja, owner-managed
+  delivery zones, and per-governorate checkout fees.
+- Permissioned confirmation-time delivery-fee adjustment with customer contact
+  evidence, audit history, customer notification, and reconciled collection,
+  revenue, and receipt amounts.
+- Owner-managed automatic discount tiers, cart progress data, coupon comparison
+  with optional stacking, and exact whole-IQD line allocation for returns.
+
+### Changed
+
+- New addresses require a governorate. Legacy addresses remain readable but are
+  refused at checkout with `ADDRESS_GOVERNORATE_REQUIRED` until updated.
+- Order confirmation now requires `customer_contacted: true` and a non-empty
+  contact note because staff phone every customer before accepting an order.
+- The store-wide `delivery_fee` setting is retained for compatibility but is no
+  longer used for cart or checkout pricing; active delivery-zone fees replace it.
+- The API contract is version 15.0.0. This is a breaking major release because
+  address creation and order-confirmation request bodies gained required
+  business data.
+
 ## 14.2.0 - 2026-10-12
 
 ### Added

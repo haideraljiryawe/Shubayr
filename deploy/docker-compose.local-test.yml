@@ -1,0 +1,52 @@
+# A production stack on a workstation, for testing the kit (never on a server):
+#
+#   SHUBAYR_ENV_FILE=/path/to/test.env SHUBAYR_COMPOSE_EXTRA=deploy/docker-compose.local-test.yml \
+#     deploy/scripts/bootstrap.sh --build
+#
+# with SHUBAYR_DOMAIN=shubayr.localhost and CADDY_TLS="tls internal" in test.env
+# (browsers resolve *.localhost to this machine). Differences from production:
+#   - the store's server reaches https://api.<domain> through the host, and
+#     trusts Caddy's local certificate authority (its public root certificate
+#     is copied out for it: Caddy keeps its CA folder root-only);
+#   - the store image is built to optimize pictures from that private address
+#     (IMAGES_ALLOW_LOCAL_IP; production keeps the SSRF protection);
+#   - the off-server backup target is a local folder, OFFSITE_TEST_DIR.
+services:
+  local-ca:
+    image: caddy:2.8.4-alpine
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        until [ -s /data/caddy/pki/authorities/local/root.crt ]; do sleep 1; done;
+        cp /data/caddy/pki/authorities/local/root.crt /ca/root.crt && chmod 0644 /ca/root.crt
+    volumes:
+      - caddy_data:/data:ro
+      - local_ca:/ca
+    restart: on-failure
+    network_mode: none
+
+  web:
+    build:
+      args:
+        # The API resolves to Docker's private host gateway here.
+        IMAGES_ALLOW_LOCAL_IP: "true"
+    depends_on:
+      - local-ca
+    extra_hosts:
+      - "api.${SHUBAYR_DOMAIN}:host-gateway"
+    environment:
+      NODE_EXTRA_CA_CERTS: /ca/root.crt
+    volumes:
+      - local_ca:/ca:ro
+    # Node reads the CA once at start: wait until it is there.
+    command: ["sh", "-c", "until [ -s /ca/root.crt ]; do sleep 1; done; exec node server.js"]
+
+  backup:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${OFFSITE_TEST_DIR:?set OFFSITE_TEST_DIR}:/offsite
+
+volumes:
+  local_ca:

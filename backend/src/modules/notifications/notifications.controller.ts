@@ -39,7 +39,12 @@ export class NotificationsController {
 
   @Post('devices/token')
   register(@Req() request: UserRequest, @Body() input: RegisterDeviceDto) {
-    return this.notifications.register(request.user.id, input);
+    return this.notifications.register(
+      request.user.id,
+      request.user.sessionId,
+      request.user.sessionVersion,
+      input,
+    );
   }
 
   @Delete('devices/token')

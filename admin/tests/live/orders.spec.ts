@@ -24,6 +24,12 @@ test.beforeEach(async ({ request }) => {
 async function confirm(page: Page, reason?: string) {
   const dialog = page.getByTestId("confirm-dialog");
   await expect(dialog).toBeVisible();
+  if (await dialog.getByTestId("customer-contacted").count()) {
+    await dialog.getByTestId("customer-contacted").check();
+    await dialog
+      .getByTestId("customer-contact-note")
+      .fill("Customer confirmed by phone");
+  }
   if (reason) await dialog.getByTestId("confirm-reason").fill(reason);
   await dialog.getByTestId("confirm-submit").click();
   await expect(dialog).toBeHidden();
@@ -56,7 +62,9 @@ test("the list filters and pages on the server", async ({ page, request }) => {
 
   // Combined: status + search + today's date range still finds it…
   // The store's date (Asia/Baghdad), not UTC: they differ from 21:00 UTC.
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Baghdad",
+  }).format(new Date());
   await page.goto(
     `/orders?status=pending&q=${order.order_number}&from=${today}&to=${today}`,
   );
@@ -96,7 +104,10 @@ test("every transition path, with the timeline", async ({ page, request }) => {
 
   await page.getByTestId("order-action-markReady").click();
   await confirm(page);
-  await expect(status(page)).toHaveAttribute("data-status", "ready_for_dispatch");
+  await expect(status(page)).toHaveAttribute(
+    "data-status",
+    "ready_for_dispatch",
+  );
 
   // Handover needs an agent: the button explains, then assignment unblocks it.
   await expect(page.getByTestId("order-action-dispatch")).toBeDisabled();
@@ -104,9 +115,14 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   // An internal agent (the picker also lists external drivers, 11.2).
   // Searched, as staff would: other specs add many external drivers.
   await page.getByTestId("party-search").fill("Development Delivery");
-  await page.locator('[data-testid="party-option"][data-kind="internal_agent"]').first().click();
+  await page
+    .locator('[data-testid="party-option"][data-kind="internal_agent"]')
+    .first()
+    .click();
   await page.getByTestId("assign-submit").click();
-  await expect(page.getByTestId("delivery-agent")).not.toHaveText(/بلا مندوب|No agent/);
+  await expect(page.getByTestId("delivery-agent")).not.toHaveText(
+    /بلا مندوب|No agent/,
+  );
   await expect(page.getByTestId("order-action-dispatch")).toBeEnabled();
 
   await page.getByTestId("order-action-dispatch").click();
@@ -117,13 +133,25 @@ test("every transition path, with the timeline", async ({ page, request }) => {
   await expect(page.getByTestId("order-action-fail")).toBeVisible();
 
   const timeline = page.getByTestId("timeline-event");
-  for (const step of ["pending", "confirmed", "preparing", "ready_for_dispatch", "dispatched"]) {
-    await expect(timeline.and(page.locator(`[data-status="${step}"]`)).first(), step).toBeVisible();
+  for (const step of [
+    "pending",
+    "confirmed",
+    "preparing",
+    "ready_for_dispatch",
+    "dispatched",
+  ]) {
+    await expect(
+      timeline.and(page.locator(`[data-status="${step}"]`)).first(),
+      step,
+    ).toBeVisible();
   }
   expect(await orderStatus(request, order.id)).toBe("dispatched");
 });
 
-test("cancel needs a reason, from pending and from later states", async ({ page, request }) => {
+test("cancel needs a reason, from pending and from later states", async ({
+  page,
+  request,
+}) => {
   const pending = await placeOrder(request);
   const preparing = await placeOrder(request);
   await advanceOrder(request, preparing.id, ["confirmed", "preparing"]);
@@ -138,7 +166,9 @@ test("cancel needs a reason, from pending and from later states", async ({ page,
     await expect(dialog).toBeVisible();
     await confirm(page, "Customer asked by phone");
     await expect(status(page)).toHaveAttribute("data-status", "cancelled");
-    await expect(page.getByTestId("order-timeline")).toContainText("Customer asked by phone");
+    await expect(page.getByTestId("order-timeline")).toContainText(
+      "Customer asked by phone",
+    );
     expect(await orderStatus(request, order.id)).toBe("cancelled");
   }
 });
@@ -150,7 +180,12 @@ test("a permission-limited user sees only allowed actions; a refusal is handled"
   const staff = await activateStaff(
     request,
     await createStaff(request, {
-      permissionKeys: ["orders.view", "orders.accept", "orders.reject", "orders.assign_agent"],
+      permissionKeys: [
+        "orders.view",
+        "orders.accept",
+        "orders.reject",
+        "orders.assign_agent",
+      ],
       prefix: "orders-limited",
     }),
   );
@@ -192,7 +227,10 @@ test("a permission-limited user sees only allowed actions; a refusal is handled"
   expect(await orderStatus(request, pending.id)).toBe("pending");
 });
 
-test("a concurrent change gives a clean conflict message", async ({ page, request }) => {
+test("a concurrent change gives a clean conflict message", async ({
+  page,
+  request,
+}) => {
   const order = await placeOrder(request);
   await uiLoginAsAdmin(page);
   await page.goto(`/orders/${order.id}`);
@@ -214,7 +252,10 @@ test("a concurrent change gives a clean conflict message", async ({ page, reques
   await expect(conflict).toBeVisible();
 });
 
-test("reject: pending only, reason required, recorded as rejected", async ({ page, request }) => {
+test("reject: pending only, reason required, recorded as rejected", async ({
+  page,
+  request,
+}) => {
   const pending = await placeOrder(request);
   const confirmedOrder = await placeOrder(request);
   await advanceOrder(request, confirmedOrder.id, ["confirmed"]);
@@ -234,7 +275,9 @@ test("reject: pending only, reason required, recorded as rejected", async ({ pag
   await confirm(page, "Out of stock at the branch");
   await expect(status(page)).toHaveAttribute("data-status", "rejected");
   await expect(page.getByTestId("order-status").first()).toHaveText("مرفوض");
-  await expect(page.getByTestId("order-timeline")).toContainText("Out of stock at the branch");
+  await expect(page.getByTestId("order-timeline")).toContainText(
+    "Out of stock at the branch",
+  );
   await expect(page.getByTestId("order-no-actions")).toBeVisible();
   // Rejected — not cancelled — on the server too, and filterable in the list.
   expect(await orderStatus(request, pending.id)).toBe("rejected");

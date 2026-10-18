@@ -26,7 +26,8 @@
   },
   "footer": {
     "tagline": "An easier shopping experience … for everything you need",
-    "rights": "All rights reserved"
+    "rights": "All rights reserved",
+    "contact": "Contact us:"
   },
   "common": {
     "viewAll": "View all",
@@ -255,7 +256,22 @@
     "couponRemoveFailed": "Could not remove the coupon, please try again",
     "unavailableLine": "Out of stock — remove it to place your order",
     "unavailableQty": "More than is available — lower the quantity to place your order",
-    "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}"
+    "unavailableBanner": "{count, plural, one {One item in your basket is no longer available in the quantity you chose. Adjust or remove it to continue.} other {# items in your basket are no longer available in the quantities you chose. Adjust or remove them to continue.}}",
+    "deliveryByGovernorate": "By governorate",
+    "totalBeforeDelivery": "Total before delivery",
+    "tierDiscount": "Automatic discount {percent}%",
+    "tierDiscountPlain": "Automatic discount",
+    "tiers": {
+      "next": "Add {amount} more to get {percent}% off",
+      "top": "You're getting {percent}% off",
+      "current": "You're getting {percent}% off now",
+      "label": "Progress to the next discount"
+    },
+    "deliveryTo": "Deliver to",
+    "savedAddress": "Address",
+    "governorate": "Governorate",
+    "chooseGovernorate": "Choose the governorate to see the delivery fee and the total.",
+    "governorateFee": "{name} — {fee}"
   },
   "checkout": {
     "title": "Checkout",
@@ -271,7 +287,9 @@
     "namePlaceholder": "e.g. Ahmed Ali",
     "phone": "Phone number",
     "phonePlaceholder": "07XXXXXXXXX",
-    "city": "Governorate / city",
+    "governorate": "Governorate",
+    "governoratePlaceholder": "Select a governorate",
+    "city": "City",
     "cityPlaceholder": "e.g. Wasit",
     "area": "Area",
     "areaPlaceholder": "e.g. Al-Zahraa",
@@ -327,6 +345,17 @@
       "accept": "Accept new prices and order",
       "back": "Back to cart",
       "failed": "The order still could not be placed. Please check your cart."
+    },
+    "governorateUnserved": "We don't deliver to {name} yet. Choose another governorate.",
+    "governorateNotServedYet": "not delivered to yet",
+    "delivery": {
+      "missingGovernorate": "Choose this address's governorate so delivery can be priced.",
+      "unserved": "We don't deliver to {name} yet.",
+      "unservedUnknown": "We don't deliver to this address's governorate yet.",
+      "refusal": {
+        "ADDRESS_GOVERNORATE_REQUIRED": "This address has no governorate. Choose one, then place the order.",
+        "DELIVERY_ZONE_NOT_SERVED": "We no longer deliver to this address's governorate. Choose another address."
+      }
     }
   },
   "auth": {
@@ -510,7 +539,9 @@
     "makeDefaultField": "Use as my default address",
     "label": "Address name",
     "labelPlaceholder": "e.g. Home, Work",
-    "city": "Governorate / city",
+    "governorate": "Governorate",
+    "governoratePlaceholder": "Select a governorate",
+    "city": "City",
     "cityPlaceholder": "e.g. Wasit",
     "area": "Area",
     "areaPlaceholder": "e.g. Al-Zahraa",
@@ -540,7 +571,13 @@
     "phoneHint": "The number of whoever receives the order here — it may differ from your account number.",
     "errPhone": "Enter a valid phone number, for example 07701234567",
     "errInvalid": "The address could not be saved: check the phone number and the other fields.",
-    "errDefaultConflict": "You cannot unset the default address; make another one default instead."
+    "errDefaultConflict": "You cannot unset the default address; make another one default instead.",
+    "governorateNotServedYet": "not delivered to yet",
+    "unserved": "We don't deliver to {name} yet.",
+    "unservedUnknown": "We don't deliver to this address's governorate yet.",
+    "missingGovernorate": "Add this address's governorate — it sets the delivery fee:",
+    "saveGovernorate": "Save governorate",
+    "saveGovernorateFailed": "Could not save. Try again."
   },
   "wishlist": {
     "title": "Wishlist",
@@ -611,6 +648,9 @@
     "status_requested": "Under review",
     "status_approved": "Approved",
     "status_partially_approved": "Partly approved",
+    "status_received": "Received",
+    "status_inspected": "Inspected",
+    "status_refunded": "Refunded",
     "status_completed": "Completed",
     "status_rejected": "Rejected",
     "loadError": "Could not load your returns.",
@@ -621,7 +661,72 @@
     "lineReasonPlaceholder": "For example: arrived damaged",
     "reasonOverallHint": "Optional — a general note attached to the whole request.",
     "errNoLineReason": "Give a reason for each item you selected.",
-    "eligibleQty": "{count} still returnable"
+    "eligibleQty": "{count} still returnable",
+    "errQuantity": "Check the quantity of each item you selected.",
+    "weighedHint": "Up to {max} {unit}, with at most 3 decimals.",
+    "qty_invalid": "Enter a quantity, e.g. 0.5.",
+    "qty_precision": "Use at most 3 decimals.",
+    "qty_exceeds": "No more than {max} {unit} can be returned.",
+    "viewDetails": "View details",
+    "detailTitle": "Return details",
+    "notFound": "We couldn't find this return.",
+    "backToReturns": "Back to my returns",
+    "returnNumber": "Return",
+    "explain_requested": "We've received your request and will review it soon.",
+    "explain_approved": "Your return is approved. We'll be in touch to collect the items.",
+    "explain_partially_approved": "Part of your return is approved — see what was accepted below. We'll be in touch to collect those items.",
+    "explain_rejected": "Sorry — this return wasn't approved.",
+    "explain_received": "We've received the items and will check them.",
+    "explain_inspected": "We've checked the items. Your refund is on its way.",
+    "explain_refunded": "Your refund has been paid.",
+    "explain_completed": "Your return is complete.",
+    "rejectionReason": "Reason: {reason}",
+    "stage_requested": "Requested",
+    "stage_reviewed": "Reviewed",
+    "stage_received": "Items received",
+    "stage_inspected": "Items checked",
+    "stage_refunded": "Refunded",
+    "items": "Items",
+    "askedFor": "You asked to return",
+    "accepted": "accepted",
+    "refundDone": "Your refund",
+    "refundSoFar": "Refund",
+    "refundTotal": "Total refund",
+    "feeIncluded": "Including the delivery fee",
+    "offsetLabel": "Taken off the amount still unpaid on your order",
+    "offsetExplain": "Part of this order wasn't paid on delivery, so that part of the refund cancels what was still owed instead of being paid to you.",
+    "paidToYou": "Paid to you",
+    "toBePaid": "To be paid to you",
+    "paidInCash": "Paid in cash on {date}.",
+    "paidByDelivery": "Handed to you by our delivery team on {date}.",
+    "nothingToPay": "Nothing was left to pay: the whole refund cancelled what was still owed on the order.",
+    "refundAfterCheck": "The final amount is confirmed once we've received and checked the items.",
+    "refundBasis": "Refunds are based on what you actually paid for each item when you ordered, after its discounts.",
+    "pointsTitle": "Your points",
+    "pointsRemoved": "{count, plural, one {# point you earned on these items was} other {# points you earned on these items were}} taken back.",
+    "pointsWillBeRemoved": "{count, plural, one {# point you earned on these items will be} other {# points you earned on these items will be}} taken back when the refund is paid.",
+    "pointsRestored": "{count, plural, one {# point you used was} other {# points you used were}} given back to you.",
+    "pointsWillBeRestored": "{count, plural, one {# point you used will be} other {# points you used will be}} given back when the refund is paid.",
+    "pointsNoCash": "Points never reduce your cash refund.",
+    "timeline": "History",
+    "event_requested": "You requested the return",
+    "event_approved": "Approved",
+    "event_partially_approved": "Partly approved",
+    "event_rejected": "Not approved",
+    "event_received": "Items received",
+    "event_inspected": "Items checked",
+    "event_refunded": "Refund paid",
+    "reasonCode": "Reason",
+    "reasonCodePlaceholder": "Choose a reason",
+    "reasonCodes": {
+      "defect": "Faulty or damaged",
+      "wrong_item": "Not what I ordered",
+      "store_error": "The store made a mistake",
+      "change_of_mind": "Changed my mind",
+      "other": "Something else"
+    },
+    "errNoReasonCode": "Choose a reason for each item you selected.",
+    "feeHint": "If an item is faulty, not what you ordered, or the store made a mistake, the delivery fee may also be refunded under the store's policy. We confirm it when we review your request."
   },
   "reviews": {
     "title": "Reviews",
@@ -683,7 +788,7 @@
     "faq1Q": "How long does delivery take?",
     "faq1A": "One to three days within the city, depending on the area.",
     "faq2Q": "Can I return a product?",
-    "faq2A": "Yes - within 14 days of delivery and in its original condition, from the order page.",
+    "faq2A": "Yes — within {days} days of delivery, in its original condition, from the order page.",
     "faq3Q": "How do I earn points?",
     "faq3A": "Points are added automatically after each delivered order and can be redeemed later.",
     "settingsTitle": "Settings",
@@ -710,7 +815,9 @@
     "notifyType_promo": "Offers and promotions",
     "notifyType_quantity_reduction_proposed": "A smaller quantity to approve",
     "notifyType_cancellation_request_approved": "Cancellation request approved",
-    "notifyType_cancellation_request_denied": "Cancellation request declined"
+    "notifyType_cancellation_request_denied": "Cancellation request declined",
+    "faq2ANoWindow": "Yes — within the store's return period, in its original condition, from the order page. The return form shows whether your order is still eligible.",
+    "helpNoContact": "Our contact details will be published here soon. Meanwhile, see the Contact us page."
   },
   "workAccount": {
     "title": "Work account",
@@ -915,5 +1022,79 @@
     "noAssigned": "Nothing assigned to you right now",
     "noParty": "Your account isn't set up for deliveries",
     "noPartyBody": "Ask the store to register your phone as a delivery agent."
+  },
+  "comingSoon": {
+    "title": "Opening soon",
+    "body": "We're getting the store ready for you. Come back soon to shop everything you need in one place.",
+    "otherLanguage": "العربية",
+    "previewBanner": "Store preview — not open to customers yet.",
+    "exitPreview": "End preview"
+  },
+  "legal": {
+    "linksLabel": "Store policies",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "returns": "Returns & refunds",
+    "support": "Contact us",
+    "deleteAccount": "Delete account",
+    "updated": "Last updated: {date}",
+    "contents": "Contents"
+  },
+  "support": {
+    "title": "Contact us",
+    "intro": "The {store} team is here to help with orders, delivery and returns.",
+    "call": "Call us",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "hours": "Opening hours",
+    "address": "Address",
+    "privacy": "Privacy requests",
+    "orderHelp": "Have an order? Its status and your return requests are in your account.",
+    "myOrders": "My orders",
+    "noContactYet": "Our contact details will be published here soon."
+  },
+  "deleteAccount": {
+    "title": "Delete your account",
+    "intro": "You can delete your {store} account at any time. This page explains what is deleted and what we keep.",
+    "deletedTitle": "What is deleted",
+    "deleted": [
+      "Your name, phone number and email address.",
+      "Your saved delivery addresses.",
+      "Your devices' notification tokens, so no more notifications reach you.",
+      "Every sign-in session: you are signed out on all devices."
+    ],
+    "keptTitle": "What we keep",
+    "kept": [
+      "Order, return, payment and accounting records, with anything that identifies you removed, for as long as the law requires. Posted financial records cannot be erased."
+    ],
+    "beforeTitle": "Before you delete",
+    "before": "Your open orders and pending returns must be finished, and any unsettled amounts settled, before the account can be deleted.",
+    "afterNote": "Deletion is permanent and cannot be undone. You can create a new account with the same phone number later.",
+    "signedOutTitle": "Sign in to delete your account",
+    "signedOutBody": "To make sure the account is yours, sign in with your phone number and the code we send to it, then confirm the deletion.",
+    "signIn": "Sign in",
+    "confirmTitle": "Delete the account for <phone></phone>",
+    "confirmBody": "Your account will be deleted and you will be signed out on every device.",
+    "confirmCheck": "I understand that deletion is permanent.",
+    "confirm": "Delete my account",
+    "deleting": "Deleting…",
+    "blockedTitle": "Your account can't be deleted yet",
+    "blockedBody": "Finish the following, then try again:",
+    "reasons": {
+      "OPEN_ORDERS": "{count, plural, =0 {You have open orders} one {You have one open order} other {You have # open orders}}. Wait for delivery, or cancel them from My orders.",
+      "PENDING_RETURNS": "{count, plural, =0 {You have returns in progress} one {You have one return in progress} other {You have # returns in progress}}. Wait for them to be completed.",
+      "UNSETTLED_AMOUNTS": "There are amounts on your account that aren't settled yet (a refund not yet paid to you, or a collection not yet confirmed). Contact us to settle them.",
+      "other": "Something on your account still needs to be finished."
+    },
+    "myOrders": "My orders",
+    "myReturns": "My returns",
+    "failed": "We couldn't delete your account. Please try again.",
+    "doneTitle": "Your account has been deleted",
+    "doneBody": "Your personal data has been deleted and you have been signed out on every device. Thank you for shopping with us.",
+    "home": "Back to the home page",
+    "contact": "Contact us",
+    "noAccessLead": "Can't reach your number? Contact us:",
+    "or": "or",
+    "contactPage": "the Contact us page"
   }
 }

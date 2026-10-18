@@ -46,6 +46,116 @@ function availabilityMocks() {
 }
 
 describe('ProductsService', () => {
+  it('pages and filters the admin catalog in SQL, including SKU and barcode search', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([{ total: 10_000n }])
+      .mockResolvedValueOnce([{ id: 'product-page-id' }]);
+    const prisma = {
+      storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      $queryRaw: queryRaw,
+      $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
+        Promise.all(operations),
+      ),
+      product: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+    const result = await service.listAdmin({
+      q: 'SKU-9000',
+      status: ['hidden'],
+      availability: ['out_of_stock'],
+      has_image: false,
+      page: 4,
+      per_page: 25,
+      sort: 'sku_desc',
+    });
+    const sql = queryRaw.mock.calls
+      .map(([statement]) =>
+        (statement as { strings: string[] }).strings.join('?'),
+      )
+      .join('\n');
+    expect(sql).toContain('search_variant.sku ILIKE');
+    expect(sql).toContain('search_variant.barcode ILIKE');
+    expect(sql).toContain('NOT EXISTS (SELECT 1 FROM product_images');
+    expect(sql).toContain("COALESCE(pa.availability, 'out_of_stock')");
+    expect(sql).toContain('MIN(v.sku)');
+    expect(sql).toContain('DESC NULLS LAST');
+    expect(result).toMatchObject({ page: 4, per_page: 25, total: 10_000 });
+    expect(prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['product-page-id'] } } }),
+    );
+  });
+
+  it('applies a bulk change once and reports an unpublishable id separately', async () => {
+    const rows = [
+      {
+        id: 'ready',
+        status: 'hidden',
+        category_id: 'category',
+        brand_id: null,
+        price_approved_at: new Date(),
+        variants: [
+          {
+            pricing_mode: 'fixed',
+            price_approved_at: new Date(),
+            published_price: null,
+          },
+        ],
+      },
+      {
+        id: 'not-ready',
+        status: 'hidden',
+        category_id: 'category',
+        brand_id: null,
+        price_approved_at: null,
+        variants: [],
+      },
+    ];
+    const tx = {
+      product: {
+        findMany: jest.fn().mockResolvedValue(rows),
+        update: jest.fn(),
+      },
+    };
+    const operations = {
+      execute: jest.fn((input: { work(client: typeof tx): Promise<unknown> }) =>
+        input.work(tx),
+      ),
+    };
+    const audit = { record: jest.fn() };
+    const service = new ProductsService(
+      {} as never,
+      {} as never,
+      audit,
+      undefined,
+      undefined,
+      undefined,
+      operations as never,
+    );
+    const result = await service.bulk(
+      {
+        operation_id: 'bulk-operation-1',
+        ids: ['ready', 'not-ready'],
+        action: 'publish',
+      },
+      'actor',
+    );
+    expect(tx.product.update).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(result.results).toEqual([
+      { id: 'ready', status: 'updated' },
+      expect.objectContaining({
+        id: 'not-ready',
+        status: 'error',
+        code: 'PRODUCT_NOT_READY',
+      }),
+    ]);
+  });
+
   it('subtracts lot reservations from sellable stock', async () => {
     const prisma = {
       product: {

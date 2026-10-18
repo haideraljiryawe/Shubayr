@@ -18,7 +18,10 @@ jest.mock('@nestjs/jwt', () => ({
   },
 }));
 
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, createHmac } from 'node:crypto';
 import { AuthService } from './auth.service';
@@ -95,6 +98,36 @@ describe('AuthService', () => {
     };
     expect(createInput.data.phone).toBe('+9647700000000');
     expect(createInput.data.code_hash).not.toContain('000000');
+  });
+
+  it('does not persist or invalidate an OTP when delivery fails', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const create = jest.fn().mockResolvedValue({});
+    const transaction = jest.fn();
+    const prisma = {
+      otpCode: { updateMany, create },
+      $transaction: transaction,
+    };
+    const sms = {
+      sendOtp: jest.fn().mockRejectedValue(
+        new ServiceUnavailableException({
+          code: 'OTP_DELIVERY_UNAVAILABLE',
+        }),
+      ),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      sms as never,
+    );
+
+    await expect(
+      service.requestOtp({ phone: '+9647700000000' }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('consumes a valid OTP, creates a customer, and persists a refresh digest', async () => {
@@ -179,6 +212,7 @@ describe('AuthService', () => {
       refreshToken: {
         findUnique: jest.fn().mockResolvedValue({
           id,
+          session_id: id,
           user_id: user.id,
           token_hash: createHash('sha256').update(oldToken).digest('hex'),
           expires_at: new Date(Date.now() + 3_600_000),
@@ -203,9 +237,72 @@ describe('AuthService', () => {
     const rotated = await service.refresh({ refresh_token: oldToken });
     expect(typeof rotated.access_token).toBe('string');
     expect(typeof rotated.refresh_token).toBe('string');
+    expect(tx.refreshToken.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ session_id: id }) as object,
+      }),
+    );
     await expect(service.refresh({ refresh_token: oldToken })).rejects.toThrow(
       UnauthorizedException,
     );
+  });
+
+  it('logs out one refresh family and only its bound devices', async () => {
+    const tokenId = '22222222-2222-4222-8222-222222222222';
+    const sessionId = '33333333-3333-4333-8333-333333333333';
+    const token = await jwt.signAsync(
+      {
+        sub: user.id,
+        typ: 'refresh',
+        jti: tokenId,
+        sid: sessionId,
+        surface: 'app',
+        client: 'mobile',
+        ver: 1,
+      },
+      { secret: refreshSecret, expiresIn: 3600 },
+    );
+    const tx = {
+      refreshToken: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: tokenId,
+          user_id: user.id,
+          session_id: sessionId,
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      deviceToken: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const prisma = {
+      $transaction: jest.fn((operation: (client: typeof tx) => unknown) =>
+        operation(tx),
+      ),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      { sendOtp: jest.fn() } as never,
+    );
+
+    await service.logout({ refresh_token: token });
+
+    expect(tx.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ session_id: sessionId }) as Record<
+          string,
+          unknown
+        >,
+      }),
+    );
+    expect(tx.deviceToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        user_id: user.id,
+        session_id: sessionId,
+        is_active: true,
+      },
+      data: { is_active: false, deactivated_at: expect.any(Date) as Date },
+    });
   });
 
   it('rejects an incorrect OTP without creating a user', async () => {

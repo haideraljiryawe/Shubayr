@@ -25,6 +25,7 @@ async function signIn(page: Page) {
 }
 
 async function fillAddress(page: Page) {
+  await page.getByTestId("address-governorate").selectOption({ index: 1 });
   await page.getByTestId("address-name").fill("أحمد علي");
   await page.getByTestId("address-phone").fill("07701234567");
   await page.getByTestId("address-city").fill("واسط");
@@ -33,10 +34,32 @@ async function fillAddress(page: Page) {
   await page.getByTestId("address-details").fill("قرب مدرسة الأمل، دار رقم 7");
 }
 
+test("a governorate with no delivery zone is refused by name, before the order", async ({ page }) => {
+  await page.goto(PRODUCT);
+  await addToCart(page).click();
+  await page.goto("/checkout");
+  await fillAddress(page);
+  // The list says which governorates are not delivered to yet.
+  const basra = page.getByTestId("address-governorate").locator("option", { hasText: "البصرة" });
+  await expect(basra).toContainText("لا نوصل إليها بعد");
+  await page.getByTestId("address-governorate").selectOption({ label: await basra.innerText() });
+  await page.getByTestId("address-submit").click();
+  await expect(page.getByText("لا نوصل إلى البصرة بعد. اختر محافظة أخرى.")).toBeVisible();
+  // Still on the address step: nothing was ordered.
+  await expect(page.getByTestId("place-order")).toHaveCount(0);
+
+  // A served governorate goes through to review.
+  await page.getByTestId("address-governorate").selectOption({ index: 1 });
+  await page.getByTestId("address-submit").click();
+  await expect(page.getByTestId("place-order")).toBeEnabled();
+});
+
 test("an empty cart cannot be checked out", async ({ page }) => {
   await page.goto("/checkout");
   await expect(page.getByTestId("checkout-empty")).toBeVisible();
-  await expect(page.getByRole("link", { name: "العودة إلى السلة" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "العودة إلى السلة" }),
+  ).toBeVisible();
 });
 
 test("the address step refuses to advance while it is invalid", async ({
@@ -47,7 +70,9 @@ test("the address step refuses to advance while it is invalid", async ({
   await page.goto("/checkout");
 
   await page.getByTestId("address-submit").click();
-  await expect(page.getByText("يرجى تصحيح الحقول المميّزة أدناه.")).toBeVisible();
+  await expect(
+    page.getByText("يرجى تصحيح الحقول المميّزة أدناه."),
+  ).toBeVisible();
   // Still on the address step.
   await expect(page.getByTestId("place-order")).toHaveCount(0);
 
@@ -73,9 +98,12 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   await fillAddress(page);
   await page.getByTestId("address-submit").click();
 
-  // Review carries the items, the address and the same totals as the cart.
+  // Review carries the items, the address (with its governorate, which sets
+  // the delivery fee: Wasit's $5) and the full total.
   await expect(page.getByText("سماعات لاسلكية")).toBeVisible();
   await expect(page.getByText("واسط — حي الزهراء — شارع 14")).toBeVisible();
+  await expect(page.getByTestId("review-governorate")).toBeVisible();
+  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
   await expect(page.getByText("الدفع عند الاستلام").first()).toBeVisible();
   await expect(page.getByTestId("summary-total")).toHaveText("$94");
 
@@ -94,6 +122,7 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   ).toBeVisible();
   await expect(page.getByTestId("order-number")).toHaveText(/^SB-\d+$/);
   await expect(confirmation.getByText("الدفع عند الاستلام")).toBeVisible();
+  // The confirmation shows the order's own figures.
   await expect(page.getByTestId("summary-total")).toHaveText("$94");
 
   // The order emptied the cart.
@@ -107,20 +136,23 @@ test("review shows the order, then placing it confirms and clears the cart", asy
   await expect(page.getByTestId("cart-empty")).toBeVisible();
 });
 
-test("a coupon applied in the cart carries into the order", async ({ page }) => {
+test("a coupon applied in the cart carries into the order", async ({
+  page,
+}) => {
   await page.goto(PRODUCT);
   await addToCart(page).click();
   await page.goto("/cart");
   await page.getByTestId("coupon-input").fill("WELCOME5");
   await page.getByTestId("coupon-apply").click();
-  await expect(page.getByTestId("summary-total")).toHaveText("$89");
+  await expect(page.getByTestId("summary-total")).toHaveText("$84");
 
   await page.getByTestId("cart-checkout").click();
   await fillAddress(page);
   await page.getByTestId("address-submit").click();
 
-  // $89 + $5 delivery − $5 fixed coupon.
+  // $89 − $5 fixed coupon + $5 delivery to Wasit.
   await expect(page.getByTestId("summary-discount")).toHaveText("−$5");
+  await expect(page.getByTestId("summary-delivery")).toHaveText("$5");
   await expect(page.getByTestId("summary-total")).toHaveText("$89");
 
   await page.getByTestId("place-order").click();

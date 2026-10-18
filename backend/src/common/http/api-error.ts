@@ -12,6 +12,13 @@ export type ApiFieldError = {
   field: string;
   code: string;
   message: string;
+  governorate_id?: string;
+  governorate_code?: string;
+  governorate_name_ar?: string;
+  governorate_name_en?: string;
+  delivery_zone_id?: string;
+  delivery_zone_name_ar?: string;
+  delivery_zone_name_en?: string;
 };
 
 export type ApiError = {
@@ -46,8 +53,14 @@ export function codedError(
   return { status, code, message, errors };
 }
 
-export function conflict(code: string, message: string): ConflictException {
-  return new ConflictException(codedError(HttpStatus.CONFLICT, code, message));
+export function conflict(
+  code: string,
+  message: string,
+  errors: ApiFieldError[] = [],
+): ConflictException {
+  return new ConflictException(
+    codedError(HttpStatus.CONFLICT, code, message, errors),
+  );
 }
 
 export function forbidden(code: string, message: string): ForbiddenException {

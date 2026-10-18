@@ -1,0 +1,334 @@
+# =====================================================================
+# Shubayr — production stack (one server). docs/deploy/production.md
+#
+#   cp .env.production.example .env.production   # then fill it in
+#   deploy/scripts/bootstrap.sh                   # first run only
+#   deploy/scripts/deploy.sh v1.2.3               # every release
+#
+# Only Caddy publishes ports (80 and 443). PostgreSQL, Redis, Meilisearch
+# and the object storage live on an internal network with no route in or
+# out; the API, the worker, the two web servers and the backup job reach
+# them there. Dev tools (Mailpit, Adminer) are not part of this file.
+#
+# Always run it through the scripts, or as
+#   docker compose -f docker-compose.prod.yml --env-file .env.production …
+# =====================================================================
+name: ${COMPOSE_PROJECT_NAME:-shubayr}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-api-environment: &api-environment
+  APP_ENV: production
+  NODE_ENV: production
+  API_PORT: "8000"
+  WORKER_HEALTH_FILE: ${WORKER_HEALTH_FILE:-/tmp/shubayr-worker-ready}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-shubayr}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shubayr}?schema=public
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379
+  MEILI_HOST: http://search:7700
+  MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+  JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+  JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+  PUBLIC_API_URL: https://api.${SHUBAYR_DOMAIN:?set SHUBAYR_DOMAIN}/api/v1
+  CORS_ORIGINS: https://${SHUBAYR_DOMAIN},https://admin.${SHUBAYR_DOMAIN}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-${EDGE_SUBNET:-172.30.10.0/24}}
+  RATE_LIMIT_CATALOG_PER_MINUTE: ${RATE_LIMIT_CATALOG_PER_MINUTE:-600}
+  RATE_LIMIT_NORMAL_PER_MINUTE: ${RATE_LIMIT_NORMAL_PER_MINUTE:-120}
+  RATE_LIMIT_STRICT_PER_MINUTE: ${RATE_LIMIT_STRICT_PER_MINUTE:-30}
+  OTP_TTL_SECONDS: ${OTP_TTL_SECONDS:-300}
+  SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:?set SMS_GATEWAY_URL}
+  SMS_GATEWAY_TOKEN: ${SMS_GATEWAY_TOKEN:-}
+  SMS_GATEWAY_TIMEOUT_MS: ${SMS_GATEWAY_TIMEOUT_MS:-10000}
+  NOTIFICATION_PROVIDER: ${NOTIFICATION_PROVIDER:-disabled}
+  FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+  FCM_SERVICE_ACCOUNT_JSON_BASE64: ${FCM_SERVICE_ACCOUNT_JSON_BASE64:-}
+  PUSH_TEST_ACCOUNTS: ${PUSH_TEST_ACCOUNTS:-}
+  PUSH_TEST_OPERATORS: ${PUSH_TEST_OPERATORS:-}
+  S3_ENDPOINT: http://storage:8333
+  S3_REGION: us-east-1
+  S3_BUCKET: ${S3_BUCKET:-shubayr-media}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+  MEDIA_MAX_BYTES: ${MEDIA_MAX_BYTES:-8388608}
+  LOYALTY_POINTS_PER_CURRENCY_UNIT: ${LOYALTY_POINTS_PER_CURRENCY_UNIT:-1}
+  TZ: Asia/Baghdad
+
+x-api-image: &api-image
+  image: ${SHUBAYR_REGISTRY:-ghcr.io/haideraljiryawe}/shubayr-api:${SHUBAYR_TAG:?set SHUBAYR_TAG}
+  build:
+    context: ./backend
+    target: production
+
+services:
+  # ------------------------------------------------------------------ data
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shubayr}
+      POSTGRES_USER: ${POSTGRES_USER:-shubayr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      TZ: Asia/Baghdad
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    shm_size: 256mb
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [data]
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks: [data]
+    logging: *logging
+
+  search:
+    image: getmeili/meilisearch:v1.9
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - search_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:7700/health | grep -q available"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [data]
+    logging: *logging
+
+  # S3-compatible object storage for product pictures (SeaweedFS, single node).
+  storage:
+    image: chrislusf/seaweedfs:4.47
+    restart: unless-stopped
+    command: ["mini", "-dir=/data", "-master.telemetry=false"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-shubayr-media}
+    volumes:
+      - storage_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://127.0.0.1:8333/ 2>&1 | grep -q '403 Forbidden'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [data]
+    logging: *logging
+
+  # ------------------------------------------------------------------ one-off tools
+  # `docker compose run --rm migrate` — prisma migrate deploy, nothing else.
+  migrate:
+    image: ${SHUBAYR_REGISTRY:-ghcr.io/haideraljiryawe}/shubayr-api-migrate:${SHUBAYR_TAG:?set SHUBAYR_TAG}
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-shubayr}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shubayr}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [data]
+    profiles: ["tools"]
+    logging: *logging
+
+  # ------------------------------------------------------------------ application
+  api:
+    <<: *api-image
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      PROCESS_ROLE: api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    stop_grace_period: 30s
+    networks: [edge, data]
+    logging: *logging
+
+  # Background jobs only. The same image as the API, but no HTTP listener.
+  worker:
+    <<: *api-image
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      PROCESS_ROLE: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    stop_grace_period: 2m
+    healthcheck:
+      test: ["CMD-SHELL", "test -s $${WORKER_HEALTH_FILE:-/tmp/shubayr-worker-ready} && kill -0 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
+    networks: [edge, data]
+    logging: *logging
+
+  admin:
+    image: ${SHUBAYR_REGISTRY:-ghcr.io/haideraljiryawe}/shubayr-admin:${SHUBAYR_TAG:?set SHUBAYR_TAG}
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+      target: production
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:8000/api/v1
+      ADMIN_ORIGIN: https://admin.${SHUBAYR_DOMAIN}
+      ADMIN_COOKIE_SECURE: "true"
+      ADMIN_MODULES: ${ADMIN_MODULES:-catalog,stock,orders,settings,users}
+      TRUSTED_FRONT_PROXIES: ${TRUSTED_FRONT_PROXIES:-${EDGE_SUBNET:-172.30.10.0/24}}
+      TZ: Asia/Baghdad
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge]
+    logging: *logging
+
+  web:
+    image: ${SHUBAYR_REGISTRY:-ghcr.io/haideraljiryawe}/shubayr-web:${SHUBAYR_TAG:?set SHUBAYR_TAG}
+    build:
+      context: ./web
+      # Baked into the store's bundle: an image is built for one domain.
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${SHUBAYR_DOMAIN}/api/v1
+        NEXT_PUBLIC_SITE_URL: https://${SHUBAYR_DOMAIN}
+    restart: unless-stopped
+    environment:
+      STORE_PUBLIC: ${STORE_PUBLIC:-false}
+      STORE_PREVIEW_TOKEN: ${STORE_PREVIEW_TOKEN:-}
+      TRUSTED_FRONT_PROXIES: ${TRUSTED_FRONT_PROXIES:-${EDGE_SUBNET:-172.30.10.0/24}}
+      TZ: Asia/Baghdad
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge]
+    logging: *logging
+
+  # ------------------------------------------------------------------ edge
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SHUBAYR_DOMAIN: ${SHUBAYR_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      CADDY_TLS: ${CADDY_TLS:-}
+      EDGE_SUBNET: ${EDGE_SUBNET:-172.30.10.0/24}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - admin
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [edge]
+    logging: *logging
+
+  # ------------------------------------------------------------------ backups
+  # Daily pg_dump + picture sync to the off-server target (deploy/backup).
+  backup:
+    image: ${SHUBAYR_REGISTRY:-ghcr.io/haideraljiryawe}/shubayr-backup:${SHUBAYR_TAG:?set SHUBAYR_TAG}
+    build:
+      context: ./deploy/backup
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Baghdad
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-30 3 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_TARGET: ${BACKUP_TARGET:-offsite:shubayr-backups}
+      BACKUP_TARGET_WARN_GB: ${BACKUP_TARGET_WARN_GB:-8}
+      BACKUP_HEARTBEAT_URL: ${BACKUP_HEARTBEAT_URL:-}
+      BACKUP_HEARTBEAT_FAIL_SUFFIX: ${BACKUP_HEARTBEAT_FAIL_SUFFIX:-}
+      BACKUP_HEARTBEAT_ALLOW_HTTP: ${BACKUP_HEARTBEAT_ALLOW_HTTP:-false}
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-shubayr}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-shubayr}
+      S3_BUCKET: ${S3_BUCKET:-shubayr-media}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+      # The local picture store, as the rclone remote "media".
+      RCLONE_CONFIG_MEDIA_TYPE: s3
+      RCLONE_CONFIG_MEDIA_PROVIDER: SeaweedFS
+      RCLONE_CONFIG_MEDIA_ENDPOINT: http://storage:8333
+      RCLONE_CONFIG_MEDIA_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      RCLONE_CONFIG_MEDIA_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+    volumes:
+      - backup_local:/backups
+      # The off-server target ("offsite" remote), kept out of git: see docs.
+      - ${BACKUP_RCLONE_CONF:-./deploy/secrets/rclone.conf}:/config/rclone/rclone.conf:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    networks: [edge, data]
+    logging: *logging
+
+networks:
+  # The proxy, the apps and outbound traffic (SMS, push, backups).
+  edge:
+    ipam:
+      config:
+        - subnet: ${EDGE_SUBNET:-172.30.10.0/24}
+  # Databases and storage only: no published ports, no route out.
+  data:
+    internal: true
+
+volumes:
+  db_data:
+  redis_data:
+  search_data:
+  storage_data:
+  caddy_data:
+  caddy_config:
+  backup_local:

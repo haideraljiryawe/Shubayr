@@ -34,6 +34,7 @@ export default defineConfig({
           "**/product.spec.ts",
           "**/cart.spec.ts",
           "**/checkout.spec.ts",
+          "**/delivery-pricing.spec.ts",
           "**/account.spec.ts",
           "**/account-wishlist.spec.ts",
           "**/account-returns.spec.ts",
@@ -41,6 +42,9 @@ export default defineConfig({
           "**/order-lifecycle.spec.ts",
           "**/work-account.spec.ts",
           "**/forwarding-rules.spec.ts",
+          "**/legal.spec.ts",
+          "**/store-info-rules.spec.ts",
+          "**/account-deletion-rules.spec.ts",
           // Skips itself unless a real backend is reachable.
           "**/live-catalog.spec.ts",
           "**/live-checkout.spec.ts",

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
@@ -25,6 +26,7 @@ const check = (actual, expected, message) => {
 };
 const scalar = async (sql, values = []) =>
   (await db.query(sql, values)).rows[0]?.value;
+let baghdadGovernorateId;
 
 async function request(
   path,
@@ -64,6 +66,7 @@ async function customer(phone) {
     expected: 201,
     body: {
       label: 'Inventory lifecycle',
+      governorate_id: baghdadGovernorateId,
       city: 'Baghdad',
       area: 'Karrada',
       contact_phone: phone,
@@ -105,6 +108,8 @@ async function placeAndDeliver({
         version: current.version,
         ...(status === 'confirmed'
           ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
               below_cost_override_reason:
                 'Phase 5 lifecycle fixture below-cost approval',
             }
@@ -140,6 +145,14 @@ try {
     })
   ).access_token;
   agent = await appLogin('+9647700000005');
+  baghdadGovernorateId = (await request('/governorates')).find(
+    (entry) => entry.code === 'baghdad',
+  )?.id;
+  assert.ok(baghdadGovernorateId, 'Baghdad governorate must be seeded');
+  assertions += 1;
+  const today = await scalar(
+    "SELECT to_char((now() AT TIME ZONE 'Asia/Baghdad')::date, 'YYYY-MM-DD') AS value",
+  );
 
   const variants = (
     await db.query(`
@@ -298,34 +311,57 @@ try {
     method: 'POST',
     expected: 201,
     body: {
+      operation_id: randomUUID(),
       order_id: weightFlow.order.id,
       reason: 'Partial weight return',
       items: [
         {
           order_item_id: orderItemId,
           quantity: 0.25,
+          reason_code: 'change_of_mind',
           reason: 'Unused portion',
         },
       ],
     },
   });
-  await request(`/returns/${returned.id}/inspect`, {
+  const returnLocationId = await scalar(
+    'SELECT location_id::text AS value FROM stock_reservations WHERE order_item_id=$1',
+    [orderItemId],
+  );
+  await request(`/returns/${returned.id}/approve`, {
     token: admin,
     method: 'POST',
     body: {
+      operation_id: randomUUID(),
+      document_date: today,
       decision: 'approve',
       items: [
         {
           return_item_id: returned.items[0].id,
           approved_quantity: 0.25,
-          condition: 'sellable',
         },
       ],
     },
   });
-  await request(`/returns/${returned.id}/complete`, {
+  await request(`/returns/${returned.id}/receive`, {
     token: admin,
     method: 'POST',
+    body: { operation_id: randomUUID(), document_date: today },
+  });
+  await request(`/returns/${returned.id}/inspect`, {
+    token: admin,
+    method: 'POST',
+    body: {
+      operation_id: randomUUID(),
+      document_date: today,
+      items: [
+        {
+          return_item_id: returned.items[0].id,
+          condition: 'sellable',
+          location_id: returnLocationId,
+        },
+      ],
+    },
   });
   check(
     Number(
@@ -381,6 +417,8 @@ try {
         version: closedCurrent.version,
         ...(status === 'confirmed'
           ? {
+              customer_contacted: true,
+              customer_contact_note: 'Customer confirmed by phone',
               below_cost_override_reason:
                 'Phase 5 closed-period fixture below-cost approval',
             }

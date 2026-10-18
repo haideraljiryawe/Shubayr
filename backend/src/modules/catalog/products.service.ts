@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
@@ -9,7 +10,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { conflict } from '../../common/http/api-error';
 import { AuditService } from '../audit/audit.service';
 import { MediaService } from '../media/media.service';
-import { ProductQueryDto } from './dto/catalog-query.dto';
+import { AdminProductQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import {
   ProductMediaOperationDto,
@@ -21,6 +22,8 @@ import { CatalogSearchService } from './catalog-search.service';
 import { BelowCostService } from './below-cost.service';
 import { businessDate } from '../finance/business-date';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OperationService } from '../finance/operation.service';
+import { BulkProductDto } from './dto/bulk-product.dto';
 
 export type FixedPriceApprovalPayload = {
   product_id: string;
@@ -48,6 +51,7 @@ type ProductRow = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 type PreparedVariant = {
   id?: string;
   sku: string;
+  barcode: string | null;
   attributes?: Prisma.InputJsonValue;
   price_delta: number;
   base_unit: string;
@@ -73,14 +77,136 @@ export class ProductsService {
     private readonly search?: CatalogSearchService,
     private readonly belowCost?: BelowCostService,
     private readonly notifications?: NotificationsService,
+    @Optional() private readonly operations?: OperationService,
   ) {}
 
   listPublic(query: ProductQueryDto) {
     return this.list(query, false);
   }
 
-  listAdmin(query: ProductQueryDto) {
-    return this.list(query, true);
+  listAdmin(query: AdminProductQueryDto) {
+    return this.listAdminPaged(query);
+  }
+
+  async bulk(
+    input: BulkProductDto,
+    actorId: string,
+  ): Promise<{
+    operation_id: string;
+    results: Array<{
+      id: string;
+      status: 'updated' | 'error';
+      code?: string;
+      message?: string;
+    }>;
+  }> {
+    if (!this.operations) {
+      throw new Error('Operation service is unavailable');
+    }
+    const ids = [...new Set(input.ids)];
+    if (ids.length !== input.ids.length) {
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'PRODUCT_IDS_DUPLICATED',
+        message: 'Product ids must be unique',
+        errors: [],
+      });
+    }
+    if (input.action === 'set_category') {
+      await this.ensureCategory(input.category_id as string);
+    }
+    if (input.action === 'set_brand') {
+      await this.ensureBrand(input.brand_id);
+    }
+    return this.operations.execute({
+      userId: actorId,
+      operationId: input.operation_id,
+      endpoint: 'POST /admin/products/bulk',
+      payload: input,
+      work: async (tx) => {
+        const rows = await tx.product.findMany({
+          where: { id: { in: ids } },
+          include: { variants: true },
+        });
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        const results: Array<{
+          id: string;
+          status: 'updated' | 'error';
+          code?: string;
+          message?: string;
+        }> = [];
+        const now = new Date();
+        for (const id of ids) {
+          const product = byId.get(id);
+          if (!product) {
+            results.push({
+              id,
+              status: 'error',
+              code: 'PRODUCT_NOT_FOUND',
+              message: 'Product not found',
+            });
+            continue;
+          }
+          if (
+            input.action === 'publish' &&
+            (!product.variants.length ||
+              product.price_approved_at === null ||
+              product.variants.some(
+                (variant) =>
+                  variant.price_approved_at === null ||
+                  (variant.pricing_mode === 'linked' &&
+                    variant.published_price === null),
+              ))
+          ) {
+            results.push({
+              id,
+              status: 'error',
+              code: 'PRODUCT_NOT_READY',
+              message:
+                'A product and every SKU require an approved selling price before publishing',
+            });
+            continue;
+          }
+          const data: Prisma.ProductUpdateInput = {
+            search_sync_required: true,
+            updated_at: now,
+          };
+          if (input.action === 'publish') {
+            data.status = 'active';
+            data.published_at = now;
+          } else if (input.action === 'hide') {
+            data.status = 'hidden';
+            data.published_at = null;
+          } else if (input.action === 'set_category') {
+            data.category = { connect: { id: input.category_id } };
+          } else {
+            data.brand = input.brand_id
+              ? { connect: { id: input.brand_id } }
+              : { disconnect: true };
+          }
+          await tx.product.update({ where: { id }, data });
+          await this.audit.record(tx, {
+            actorId,
+            action: `catalog.product.bulk.${input.action}`,
+            entityType: 'product',
+            entityId: id,
+            before: {
+              status: product.status,
+              category_id: product.category_id,
+              brand_id: product.brand_id,
+            },
+            after: {
+              action: input.action,
+              category_id: input.category_id,
+              brand_id: input.brand_id,
+              operation_id: input.operation_id,
+            },
+          });
+          results.push({ id, status: 'updated' });
+        }
+        return { operation_id: input.operation_id, results };
+      },
+    });
   }
 
   async getPublic(id: string) {
@@ -637,6 +763,183 @@ export class ProductsService {
     };
   }
 
+  /**
+   * Admin catalog reads must stay bounded as the catalog grows. Select only
+   * the requested ids in SQL (including stock/image/SKU predicates), then
+   * hydrate that one page through the regular response presenter.
+   */
+  private async listAdminPaged(query: AdminProductQueryDto) {
+    if (
+      query.min_price !== undefined &&
+      query.max_price !== undefined &&
+      query.min_price > query.max_price
+    ) {
+      throw new UnprocessableEntityException(
+        'min_price must not exceed max_price',
+      );
+    }
+    const page = query.page ?? 1;
+    const per_page = query.per_page ?? 20;
+    const offset = (page - 1) * per_page;
+    const defaultThreshold = await this.defaultLowStockThreshold();
+    const today = businessDate();
+    const conditions: Prisma.Sql[] = [];
+    const q = query.q?.trim();
+    if (q) {
+      const pattern = `%${q}%`;
+      conditions.push(Prisma.sql`(
+        p.name_en ILIKE ${pattern}
+        OR p.name_ar ILIKE ${pattern}
+        OR p.description ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM product_variants search_variant
+          WHERE search_variant.product_id = p.id
+            AND (search_variant.sku ILIKE ${pattern}
+              OR search_variant.barcode ILIKE ${pattern})
+        )
+      )`);
+    }
+    if (query.category_id) {
+      conditions.push(Prisma.sql`p.category_id = ${query.category_id}::uuid`);
+    }
+    if (query.brand_id?.length) {
+      conditions.push(
+        Prisma.sql`p.brand_id IN (${Prisma.join(
+          query.brand_id.map((id) => Prisma.sql`${id}::uuid`),
+        )})`,
+      );
+    }
+    if (query.status?.length) {
+      conditions.push(
+        Prisma.sql`p.status IN (${Prisma.join(
+          query.status.map((status) => Prisma.sql`${status}`),
+        )})`,
+      );
+    }
+    if (query.min_price !== undefined) {
+      conditions.push(Prisma.sql`p.price >= ${query.min_price}`);
+    }
+    if (query.max_price !== undefined) {
+      conditions.push(Prisma.sql`p.price <= ${query.max_price}`);
+    }
+    if (query.has_image !== undefined) {
+      conditions.push(
+        query.has_image
+          ? Prisma.sql`EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`
+          : Prisma.sql`NOT EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`,
+      );
+    }
+    if (query.availability?.length) {
+      conditions.push(
+        Prisma.sql`COALESCE(pa.availability, 'out_of_stock') IN (${Prisma.join(
+          query.availability.map((state) => Prisma.sql`${state}`),
+        )})`,
+      );
+    }
+    if (query.on_sale === true) {
+      const now = new Date();
+      conditions.push(Prisma.sql`
+        p.discount_type IS NOT NULL
+        AND (p.discount_starts_at IS NULL OR p.discount_starts_at <= ${now})
+        AND (p.discount_ends_at IS NULL OR p.discount_ends_at >= ${now})
+      `);
+    }
+    const where = conditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.empty;
+    const stockCte = Prisma.sql`
+      WITH variant_availability AS (
+        SELECT
+          pv.product_id,
+          pv.id AS variant_id,
+          GREATEST(COALESCE(SUM(
+            CASE
+              WHEN wl.is_active = true
+                AND wl.is_sellable = true
+                AND w.is_active = true
+                AND (ib.expiry_date IS NULL OR ib.expiry_date >= ${today})
+              THEN bs.quantity - bs.reserved
+              ELSE 0
+            END
+          ), 0), 0) AS available_qty,
+          COALESCE(pv.low_stock_threshold, ${defaultThreshold}) AS threshold
+        FROM product_variants pv
+        LEFT JOIN inventory_batches ib ON ib.variant_id = pv.id
+        LEFT JOIN batch_stock bs ON bs.batch_id = ib.id
+        LEFT JOIN warehouse_locations wl ON wl.id = bs.location_id
+        LEFT JOIN warehouses w ON w.id = wl.warehouse_id
+        GROUP BY pv.product_id, pv.id, pv.low_stock_threshold
+      ), product_availability AS (
+        SELECT
+          product_id,
+          CASE
+            WHEN BOOL_OR(available_qty > threshold) THEN 'in_stock'
+            WHEN BOOL_OR(available_qty > 0) THEN 'low_stock'
+            ELSE 'out_of_stock'
+          END AS availability
+        FROM variant_availability
+        GROUP BY product_id
+      )
+    `;
+    const sort = query.sort ?? 'newest';
+    const orderBy =
+      sort === 'price_asc'
+        ? Prisma.sql`p.price ASC, p.id ASC`
+        : sort === 'price_desc'
+          ? Prisma.sql`p.price DESC, p.id DESC`
+          : sort === 'rating'
+            ? Prisma.sql`p.rating_avg DESC, p.id DESC`
+            : sort === 'name_asc'
+              ? Prisma.sql`p.name_en ASC, p.id ASC`
+              : sort === 'name_desc'
+                ? Prisma.sql`p.name_en DESC, p.id DESC`
+                : sort === 'sku_asc'
+                  ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) ASC NULLS LAST, p.id ASC`
+                  : sort === 'sku_desc'
+                    ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) DESC NULLS LAST, p.id DESC`
+                    : Prisma.sql`p.created_at DESC, p.id DESC`;
+    const [countRows, idRows] = await this.prisma.$transaction([
+      this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+        ${stockCte}
+        SELECT COUNT(*)::bigint AS total
+        FROM products p
+        LEFT JOIN product_availability pa ON pa.product_id = p.id
+        ${where}
+      `),
+      this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        ${stockCte}
+        SELECT p.id
+        FROM products p
+        LEFT JOIN product_availability pa ON pa.product_id = p.id
+        ${where}
+        ORDER BY ${orderBy}
+        LIMIT ${per_page} OFFSET ${offset}
+      `),
+    ]);
+    const ids = idRows.map(({ id }) => id);
+    const rows = ids.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: ids } },
+          include: productInclude,
+        })
+      : [];
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const now = new Date();
+    const data = await Promise.all(
+      ids.flatMap((id) => {
+        const row = byId.get(id);
+        return row ? [this.toResponse(row, now)] : [];
+      }),
+    );
+    return {
+      page,
+      per_page,
+      total: Number(countRows[0]?.total ?? 0),
+      data,
+      facets: { brands: [] },
+    };
+  }
+
   private async list(query: ProductQueryDto, includeHidden: boolean) {
     if (
       query.min_price !== undefined &&
@@ -700,6 +1003,28 @@ export class ProductsService {
       if (sort === 'price_desc')
         return right.effective_price - left.effective_price;
       if (sort === 'rating') return right.rating_avg - left.rating_avg;
+      if (sort === 'name_asc')
+        return (
+          left.name_en.localeCompare(right.name_en) ||
+          left.id.localeCompare(right.id)
+        );
+      if (sort === 'name_desc')
+        return (
+          right.name_en.localeCompare(left.name_en) ||
+          right.id.localeCompare(left.id)
+        );
+      if (sort === 'sku_asc')
+        return (
+          (left.variants[0]?.sku ?? '').localeCompare(
+            right.variants[0]?.sku ?? '',
+          ) || left.id.localeCompare(right.id)
+        );
+      if (sort === 'sku_desc')
+        return (
+          (right.variants[0]?.sku ?? '').localeCompare(
+            left.variants[0]?.sku ?? '',
+          ) || right.id.localeCompare(left.id)
+        );
       return right.created_at.getTime() - left.created_at.getTime();
     });
     const page = query.page ?? 1;
@@ -897,14 +1222,32 @@ export class ProductsService {
     if (new Set(skus).size !== skus.length) {
       throw conflict('VARIANT_SKUS_DUPLICATED', 'Variant SKUs must be unique');
     }
-    if (!skus.length) return;
+    const barcodes = variants
+      .map(({ barcode }) => barcode?.trim())
+      .filter((barcode): barcode is string => Boolean(barcode));
+    if (new Set(barcodes).size !== barcodes.length) {
+      throw conflict(
+        'VARIANT_BARCODES_DUPLICATED',
+        'Variant barcodes must be unique',
+      );
+    }
+    if (!skus.length && !barcodes.length) return;
     const match = await this.prisma.productVariant.findFirst({
       where: {
-        sku: { in: skus },
+        OR: [
+          ...(skus.length ? [{ sku: { in: skus } }] : []),
+          ...(barcodes.length ? [{ barcode: { in: barcodes } }] : []),
+        ],
         ...(productId ? { product_id: { not: productId } } : {}),
       },
-      select: { sku: true },
+      select: { sku: true, barcode: true },
     });
+    if (match?.barcode && barcodes.includes(match.barcode)) {
+      throw conflict(
+        'VARIANT_BARCODE_DUPLICATE',
+        `Variant barcode already exists: ${match.barcode}`,
+      );
+    }
     if (match)
       throw conflict(
         'VARIANT_SKU_DUPLICATE',
@@ -957,6 +1300,7 @@ export class ProductsService {
         result.push({
           id: variant.id,
           sku: variant.sku,
+          barcode: variant.barcode?.trim() || null,
           attributes: variant.attributes as Prisma.InputJsonValue | undefined,
           price_delta: override === null ? 0 : override - productPrice,
           base_unit: baseUnit,
@@ -1010,6 +1354,7 @@ export class ProductsService {
       result.push({
         id: variant.id,
         sku: variant.sku,
+        barcode: variant.barcode?.trim() || null,
         attributes: variant.attributes as Prisma.InputJsonValue | undefined,
         price_delta: 0,
         base_unit: baseUnit,

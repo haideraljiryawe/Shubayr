@@ -415,7 +415,7 @@ test("a big catalog: status and stock filters, bulk publish / hide / move / bran
   await page.getByTestId("bulk-category").selectOption(to.body.id);
   await page.getByTestId("bulk-category-apply").click();
   // Arabic counts two in the dual: «تم تعديل منتجين.»
-  await expect(page.getByTestId("bulk-outcome")).toHaveText("تم تعديل منتجين.");
+  await expect(page.getByTestId("bulk-outcome").locator("p").first()).toHaveText("تم تعديل منتجين.");
   await page.goto(`/catalog/products?q=${encodeURIComponent(run)}&category_id=${to.body.id}`);
   await hydrated(page, "products-table");
   await expect(rows).toHaveCount(2);

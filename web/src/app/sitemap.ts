@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import type { Product } from "@/lib/api";
 import { sitemapEntries } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
+import { storeIsPublic } from "@/lib/store-gate";
 import { getBrandsOnce, getCategoriesOnce, listProductsOnce } from "@/lib/server-data";
 
 /**
@@ -28,6 +29,8 @@ async function allProducts(): Promise<Product[]> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Before opening (STORE_PUBLIC=false) there is nothing to list.
+  if (!storeIsPublic()) return [];
   const [categories, brands, products] = await Promise.all([
     getCategoriesOnce().catch(() => []),
     getBrandsOnce().catch(() => []),

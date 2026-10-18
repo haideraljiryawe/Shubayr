@@ -177,8 +177,8 @@ async function readyOrder(label, goodsAmount, deliveryFee = 0) {
     );
     await db.query(
       `INSERT INTO order_items
-        (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,currency_code)
-       VALUES ($1,$2,$3,$4,'اختبار رحلة','C8 trip fixture',1,$5,$5,'IQD')`,
+        (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total,currency_code)
+       VALUES ($1,$2,$3,$4,'اختبار رحلة','C8 trip fixture',1,$5,$5,0,$5,'IQD')`,
       [itemId, orderId, stock.product_id, stock.variant_id, goodsAmount],
     );
     await db.query(

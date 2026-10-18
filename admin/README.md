@@ -46,6 +46,7 @@ Or with the whole stack: `docker compose --profile full up -d` (service
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:live` | Playwright against a real, seeded API (see below) |
 | `npm run gen:api` | Regenerate `src/types/api.d.ts` from `../api/openapi.yaml` |
+| `npm run docs:screenshots` | Re-take the owner guide pictures (`docs/owner-guide/images`) against a throwaway API (`ADMIN_DOCS_API`) |
 
 ## Stack
 
@@ -136,8 +137,8 @@ ADMIN_MODULES=catalog,stock,orders,settings,users            # the launch core
 ADMIN_MODULES=catalog,stock,orders,settings,users,finance    # + currencies (USD prices)
 ```
 
-Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `purchasing`,
-`finance`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
+Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `returns`,
+`purchasing`, `finance`, `expenses`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
 module that is off leaves the menu and the dashboard, and its routes show a
 "not enabled" page (`src/proxy.ts`); unknown keys are ignored, and a value
 naming no known module falls back to everything. It is presentation only —
@@ -158,6 +159,12 @@ core first: catalog, stock, orders, settings, users.
 | `/work-phones` | `users.manage` | Search, role/status filters, sort and pagination on the API; register a phone as delivery agent / order monitor with the person's name; change role; revoke |
 | `/orders` | `orders.view` | Server-side status filter, order-number search, date range and pagination (all in the URL) |
 | `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / **reject** (pending only, reason required) / start preparing / mark ready / hand over / cancel (reason required); assign a delivery agent from a server-searched picker |
+| `/returns` | `returns.view` (module `returns`, off at launch) | Customer returns queue: status, date range and order-number filters, server-side sort (date, number, refund) and pagination |
+| `/returns/[id]` | `returns.view` (+ each step's key) | Lines with net-paid shares, delivery-fee outcome, points effect, refund split (offset vs cash) and timeline; the next step only for its permission: approve quantities or reject (`returns.approve`, fee exception with `returns.refund_delivery_fee`), receive (`returns.receive`), inspect condition + location per line (`returns.inspect`), refund from a cash account or delivery custody (`returns.refund`) |
+| `/expenses` | `expenses.read` (module `expenses`, off at launch) | Expense documents: server-side paging and sort; filters for dates, category, status, cash account, payee, unpaid only and text; totals for the filtered range, overall and per category |
+| `/expenses/new` | `expenses.create` | A draft expense: business date (back-dating rules), category, amount and currency (central-rate preview with `fx_rates.view`), payee or supplier, description, reference, private receipt (image/PDF), paid now from a cash account or owed |
+| `/expenses/[id]` | `expenses.read` (+ each action's key) | Amounts in both currencies, receipt preview and download, payments and remaining balance, journal entries, corrections and history; post (`expenses.post`), pay in parts (`expenses.pay`, no overpayment), reverse with a reason (`expenses.reverse`). Strict separation of duties is explained to the creator. Every write sends an `Idempotency-Key` |
+| `/expenses/categories` | `expense_categories.manage` | Expense categories and their expense accounts: create (a new account, or reuse one), rename, deactivate or reactivate; never deleted |
 | `/audit` | `audit.view` | The audit log: actor, action, entity (type and id) and store-day date-range filters, server-side pagination, reason and before → after per record |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
 | `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |
@@ -168,7 +175,9 @@ core first: catalog, stock, orders, settings, users.
 | `/finance/ledger/entries/[id]` | `ledger.view` | One journal entry (8.1): lines, dates, a direct link to its source document, and to the entry it reverses or the entries that reverse it. Read-only |
 | `/catalog/categories` | `catalog.categories` | Two levels (department → subcategory). The Arabic name is enough: the English one defaults to it, the slug is made from the name (Arabic in Latin letters) and kept unique, under "advanced" with the display order |
 | `/catalog/brands` | `catalog.brands` | Search, create (Arabic name enough, slug generated; a taken one moves on to `-2`…), logo uploaded from the device, hide, delete unused |
-| `/catalog/products` | `catalog.products` (+ `prices.change` for bulk) | Thumbnails; search; category, brand, status and stock filters; server paging. Select a page of rows for bulk publish / hide / move to a subcategory / change brand (one PATCH each, with progress; refusals listed by name and kept selected). Duplicate per row |
+| `/catalog/products` | `catalog.products` (+ `prices.change` for bulk) | Thumbnails; search by name, SKU or barcode; category, brand, status, stock and picture filters; sort by newest, name, SKU (A→Z) or price — all in the database, paged there. Select a page, or every matching product up to 500, for one transactional, idempotent bulk show / hide / category / brand change with a per-product result list. Duplicate per row |
+| `/catalog/import` | `catalog.import` (+ `inventory.manage` and `cost.view` for Stock) | Download the bilingual Excel template; upload with progress; review every row as new / update / warning / error with cell references, filterable by result with counts; "create missing categories and brands" (hidden, two levels); background checks with progress for large files; apply valid rows once (one operation id per import, kept for the session); result summary with the opening-stock link; validation report (CSV); history with who, when and counts; Arabic help for every column and common error |
+| `/catalog/images` | `catalog.import` | Upload a ZIP of SKU-named pictures (SKU.jpg, SKU-2.jpg …) with upload progress; matched pictures by product with links, and unmatched files |
 | `/catalog/products/new` (`?from=<id>` duplicate, `?category=&brand=` preset) | `catalog.products`, `prices.change` | Pictures (multi-pick or drop, shrunk in the browser, progress, retry, drag or arrows to reorder, make main), variants with name/value attributes (a new row copies the last one's unit, threshold and attribute names), generated SKU codes, publish or hide, quick brand, "create and add another" |
 | `/catalog/products/[id]` | same | The editor, stock per SKU, Duplicate and Opening stock; after creating, next steps (opening stock, another product, duplicate) |
 | `/inventory/openings/new?product=<id>` | `inventory.manage` | Opening stock with one line per SKU of that product, the only sellable location preselected |
@@ -258,13 +267,6 @@ the build, then boots the API from the same commit on a disposable database
 and runs the live suite against it.
 
 ## Known API gaps (worked around here)
-
-- **`GET /admin/products` has no status or stock filter.** With one chosen,
-  the list reads the API's (name/category/brand-filtered) result through, 100
-  at a time up to 2,000 products, filters and pages it here, and says so when
-  the cap cut it short (`src/lib/product-list.ts`).
-- **Product search does not match SKU codes** (names and description only).
-- **No bulk product endpoint:** bulk actions send one PATCH per product.
 
 - There is no `GET /admin/staff/{id}` or `/admin/presets/{id}`; detail pages
   read the unqueried list (which still answers every row).

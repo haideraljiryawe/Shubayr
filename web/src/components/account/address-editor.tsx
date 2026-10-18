@@ -1,15 +1,24 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useId, useState, type FormEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { governorateName } from "@/lib/delivery";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { isE164, toE164, type Address, type AddressCreate } from "@/lib/api";
+import {
+  api,
+  isE164,
+  toE164,
+  type Address,
+  type AddressCreate,
+  type Governorate,
+} from "@/lib/api";
 
 /* ---------------------------------------------------------------------------
  * Create / edit one saved address.
@@ -21,6 +30,7 @@ import { isE164, toE164, type Address, type AddressCreate } from "@/lib/api";
  * ------------------------------------------------------------------------- */
 
 export interface AddressValues {
+  governorate_id: string;
   label: string;
   city: string;
   area: string;
@@ -32,6 +42,7 @@ export interface AddressValues {
 }
 
 export const EMPTY_ADDRESS: AddressValues = {
+  governorate_id: "",
   label: "",
   city: "",
   area: "",
@@ -43,6 +54,7 @@ export const EMPTY_ADDRESS: AddressValues = {
 
 export function valuesFromAddress(address: Address): AddressValues {
   return {
+    governorate_id: address.governorate_id ?? "",
     label: address.label ?? "",
     city: address.city ?? "",
     area: address.area ?? "",
@@ -65,6 +77,7 @@ export function valuesFromAddress(address: Address): AddressValues {
  */
 export function toAddressCreate(values: AddressValues): AddressCreate {
   return {
+    governorate_id: values.governorate_id,
     label: values.label.trim(),
     city: values.city.trim(),
     area: values.area.trim(),
@@ -99,9 +112,17 @@ export function addressPatchFor(
   return patch as Partial<AddressCreate>;
 }
 
-type FieldName = "label" | "city" | "area" | "street" | "phone";
+type FieldName =
+  "governorate_id" | "label" | "city" | "area" | "street" | "phone";
 
-const REQUIRED: FieldName[] = ["label", "city", "area", "street", "phone"];
+const REQUIRED: FieldName[] = [
+  "governorate_id",
+  "label",
+  "city",
+  "area",
+  "street",
+  "phone",
+];
 
 export function AddressEditor({
   title,
@@ -121,14 +142,24 @@ export function AddressEditor({
   error: string | null;
 }) {
   const t = useTranslations("addresses");
+  const locale = useLocale();
   const ids = useId();
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
+  const [governorates, setGovernorates] = useState<Governorate[]>([]);
+
+  useEffect(() => {
+    void api
+      .listGovernorates()
+      .then(setGovernorates)
+      .catch(() => setGovernorates([]));
+  }, []);
 
   const fieldId = (name: string) => `${ids}-${name}`;
 
   const set = (name: keyof AddressValues, value: string | boolean) => {
     onChange({ ...values, [name]: value });
-    if (name in errors) setErrors({ ...errors, [name as FieldName]: undefined });
+    if (name in errors)
+      setErrors({ ...errors, [name as FieldName]: undefined });
   };
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -161,7 +192,9 @@ export function AddressEditor({
         autoComplete={autoComplete}
         value={values[name]}
         invalid={Boolean(errors[name])}
-        aria-describedby={errors[name] ? fieldErrorId(fieldId(name)) : undefined}
+        aria-describedby={
+          errors[name] ? fieldErrorId(fieldId(name)) : undefined
+        }
         placeholder={t(`${name}Placeholder`)}
         data-testid={`address-${name}`}
         onChange={(event) => set(name, event.target.value)}
@@ -192,6 +225,27 @@ export function AddressEditor({
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("governorate")}
+            htmlFor={fieldId("governorate_id")}
+            error={errors.governorate_id}
+          >
+            <Select
+              id={fieldId("governorate_id")}
+              value={values.governorate_id}
+              invalid={Boolean(errors.governorate_id)}
+              placeholder={t("governoratePlaceholder")}
+              onChange={(event) => set("governorate_id", event.target.value)}
+              data-testid="address-governorate"
+            >
+              {governorates.map((governorate) => (
+                <option key={governorate.id} value={governorate.id}>
+                  {governorateName(governorate, locale)}
+                  {governorate.is_served ? "" : ` — ${t("governorateNotServedYet")}`}
+                </option>
+              ))}
+            </Select>
+          </Field>
           {text("label")}
           {text("city", "address-level1")}
           {text("area", "address-level2")}
@@ -253,7 +307,9 @@ export function AddressEditor({
             disabled={saving}
             data-testid="address-save"
             startIcon={
-              saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null
+              saving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null
             }
           >
             {saving ? t("saving") : t("save")}

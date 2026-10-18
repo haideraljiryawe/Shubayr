@@ -50,8 +50,9 @@ export const STATIC_SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string
   // An admin must never leak its URLs to other sites.
   { key: "Referrer-Policy", value: "same-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
-  // Clickjacking: CSP frame-ancestors 'none', and the legacy header too.
-  { key: "X-Frame-Options", value: "DENY" },
+  // Clickjacking: CSP frame-ancestors 'none' here. The legacy
+  // X-Frame-Options: DENY is set once, by the proxy in front
+  // (deploy/caddy/Caddyfile) — sending it from both doubled the header.
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   // An internal tool: nothing here belongs in a search index.
   { key: "X-Robots-Tag", value: "noindex, nofollow" },

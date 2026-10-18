@@ -149,6 +149,12 @@ describe('MeService account deletion', () => {
       refundLedgerEntry: { count: jest.fn().mockResolvedValue(blockers[2]) },
       deliveryCollection: { count: jest.fn().mockResolvedValue(blockers[3]) },
       address: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      notificationEvent: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      notificationLog: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       deviceToken: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       refreshToken: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       otpCode: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -174,6 +180,11 @@ describe('MeService account deletion', () => {
     ).rejects.toMatchObject({
       response: {
         code: 'ACCOUNT_DELETION_BLOCKED',
+        details: {
+          open_orders: 2,
+          pending_returns: 1,
+          unsettled_amounts: 2,
+        },
         errors: [
           expect.objectContaining({ code: 'OPEN_ORDERS' }),
           expect.objectContaining({ code: 'PENDING_RETURNS' }),
@@ -192,6 +203,19 @@ describe('MeService account deletion', () => {
     expect(tx.address.deleteMany).toHaveBeenCalledWith({
       where: { user_id: 'current-user' },
     });
+    expect(tx.notificationEvent.updateMany).toHaveBeenCalledWith({
+      where: { user_id: 'current-user', processed_at: null },
+      data: { processed_at: expect.any(Date) as Date },
+    });
+    expect(tx.notificationLog.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ user_id: 'current-user' }) as object,
+        data: expect.objectContaining({
+          status: 'skipped',
+          error_code: 'ACCOUNT_DELETED',
+        }) as object,
+      }),
+    );
     expect(tx.deviceToken.deleteMany).toHaveBeenCalledWith({
       where: { user_id: 'current-user' },
     });

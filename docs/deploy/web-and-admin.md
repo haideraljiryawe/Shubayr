@@ -7,7 +7,9 @@ Next.js apps:
 - **Web Admin** (`admin/`): the staff tool. Browsers talk only to the admin's
   own server (a "BFF"), which calls the API.
 
-The API (`backend/`) is deployed separately.
+The API (`backend/`) is deployed separately. To run everything together on one
+server — API, worker, both apps, databases, HTTPS proxy and backups — use the
+production kit: [production.md](production.md).
 
 ## How settings are read
 
@@ -34,7 +36,6 @@ All of these are build arguments (`docker build --build-arg NAME=value`).
 | `NEXT_PUBLIC_SITE_URL` | **Yes** | `https://shop.example.com` | The store's public address, without a trailing slash. Used for canonical URLs, Open Graph, `sitemap.xml` and `robots.txt`. When it starts with `https://`, the CSP also upgrades insecure requests. |
 | `NEXT_PUBLIC_LIVE_DOMAINS` | No (image default `all`) | `all` | Which parts of the store use the real API. Production must be `all`. |
 | `NEXT_PUBLIC_USE_MOCKS` | No (image default `false`) | `false` | Forces sample data everywhere. **Never `true` in production.** It exists for tests. |
-| `NEXT_PUBLIC_DELIVERY_FEE` | No (default `5`) | `5000` | Flat delivery fee shown in the cart, until the API's settings carry it. |
 | `IMAGES_ALLOW_LOCAL_IP` | No | `true` | **Tests only.** Lets a local production build optimize images from an API on `localhost`. Leave unset in production; it protects against SSRF. |
 
 Runtime variables (set with `docker run -e`):
@@ -44,6 +45,8 @@ Runtime variables (set with `docker run -e`):
 | `PORT` | `3000` | The port the server listens on. |
 | `HOSTNAME` | `0.0.0.0` | The interface the server listens on. |
 | `TRUSTED_FRONT_PROXIES` | *(empty)* | The store's own front proxies: comma-separated addresses, CIDRs, or the keywords `loopback`, `private` and `linklocal`. The store takes the shopper's address from them and passes it to the API (see [The production chain](#the-production-chain)). **Empty means no address is forwarded**, and every shopper shares the store server's rate-limit budget. A malformed entry makes pages fail with an error naming it, rather than silently trusting nothing. |
+| `STORE_PUBLIC` | *(open)* | `false` before opening day: every store page shows a branded Arabic/English "opening soon" page (`noindex`, `private, no-store`), `robots.txt` shuts crawlers out and the sitemap is empty. The API, the Web Admin and `/api/health` keep working. Unset (or anything but `false`/`0`/`no`/`off`) means open. Read at run time: switching it needs a restart, not a rebuild. |
+| `STORE_PREVIEW_TOKEN` | *(none)* | While `STORE_PUBLIC=false`, the owner's secret preview link is `https://shop.example.com/preview?t=<token>`: it sets an httpOnly cookie (the token's hash) for 30 days and shows the real store under a "preview" banner; `/preview?exit=1` ends it. At least 16 characters (e.g. `openssl rand -hex 24`); without it there is no preview. Change it to revoke every preview cookie. |
 | `STORE_CACHE_SHARED_SECONDS` | `60` | How long the store server keeps the store settings, categories and brands before reading them again. `0` turns it off. |
 | `STORE_CACHE_CATALOG_SECONDS` | `10` | The same for banners, product lists and a product page's data (product, availability, review count). `0` turns it off. |
 
@@ -212,8 +215,12 @@ page is sent `Cache-Control: no-store` (each also carries its own CSP nonce).
   [The production chain](#the-production-chain)).
 - **Don't strip the security headers** the apps set: Content-Security-Policy
   with a per-request nonce, `X-Content-Type-Options`, `Referrer-Policy`,
-  `Permissions-Policy`, `X-Frame-Options` and `Cross-Origin-Opener-Policy`.
-  The admin also sends `X-Robots-Tag: noindex`.
+  `Permissions-Policy`, `X-Frame-Options` (the store) and
+  `Cross-Origin-Opener-Policy`. The admin also sends `X-Robots-Tag: noindex`;
+  its `X-Frame-Options: DENY` comes from the proxy (`deploy/caddy/Caddyfile`
+  adds it for `admin.`), while the admin itself refuses framing through CSP
+  `frame-ancestors 'none'`. A proxy of your own must add that header for the
+  admin too.
 - **Don't cache HTML pages** at the proxy. Each page carries its own CSP nonce.
   Files under `/_next/static/` are content-hashed and safe to cache forever.
 - **Health checks:** `GET /api/health` answers `200 {"status":"ok"}` when the

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { MediaModule } from '../media/media.module';
 import {
@@ -13,9 +14,16 @@ import { ProductsService } from './products.service';
 import { BrandsService } from './brands.service';
 import { CatalogSearchService } from './catalog-search.service';
 import { BelowCostService } from './below-cost.service';
+import { OperationService } from '../finance/operation.service';
+import { CatalogSearchProcessor } from './catalog-search.processor';
+import { CatalogSearchScheduler } from './catalog-search.scheduler';
+import { runsBackgroundJobs } from '../../config/process-role';
+
+export const catalogSearchWorkerProviders = () =>
+  runsBackgroundJobs() ? [CatalogSearchProcessor, CatalogSearchScheduler] : [];
 
 @Module({
-  imports: [MediaModule],
+  imports: [MediaModule, BullModule.registerQueue({ name: 'catalog-search' })],
   controllers: [
     CatalogController,
     AdminCategoriesController,
@@ -27,7 +35,9 @@ import { BelowCostService } from './below-cost.service';
     ProductsService,
     BrandsService,
     CatalogSearchService,
+    ...catalogSearchWorkerProviders(),
     BelowCostService,
+    OperationService,
     {
       provide: APP_INTERCEPTOR,
       useClass: BilingualNameFallbackInterceptor,

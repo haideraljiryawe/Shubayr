@@ -9,6 +9,8 @@ const schema = Joi.object({
     .valid('development', 'test', 'production')
     .default('development'),
   API_PORT: Joi.number().port().default(8000),
+  PROCESS_ROLE: Joi.string().valid('api', 'worker', 'all').default('all'),
+  WORKER_HEALTH_FILE: Joi.string().default('/tmp/shubayr-worker-ready'),
   TRUSTED_PROXIES: Joi.string().allow('').default(''),
   RATE_LIMIT_CATALOG_PER_MINUTE: Joi.number().integer().min(1).default(600),
   RATE_LIMIT_NORMAL_PER_MINUTE: Joi.number().integer().min(1).default(120),
@@ -43,6 +45,9 @@ const schema = Joi.object({
       then: Joi.required(),
       otherwise: Joi.optional().allow(''),
     }),
+  PUSH_TEST_ACCOUNTS: Joi.string().allow('').default(''),
+  PUSH_TEST_OPERATORS: Joi.string().allow('').default(''),
+  PUSH_DEVICE_MAX_AGE_DAYS: Joi.number().integer().min(1).max(365).default(45),
   MEILI_HOST: Joi.string().uri().required(),
   MEILI_MASTER_KEY: Joi.string().min(8).required(),
   JWT_SECRET: Joi.string().min(32).required(),
@@ -53,18 +58,27 @@ const schema = Joi.object({
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)
     .default('000000'),
-  SMS_GATEWAY_URL: Joi.string()
-    .uri()
+  SMS_GATEWAY_URL: Joi.alternatives()
+    .try(Joi.string().uri(), Joi.string().valid('disabled'))
     .when('APP_ENV', {
       is: 'production',
       then: Joi.required(),
       otherwise: Joi.optional().allow(''),
     }),
-  SMS_GATEWAY_TOKEN: Joi.string().when('APP_ENV', {
-    is: 'production',
-    then: Joi.string().min(8).required(),
-    otherwise: Joi.optional().allow(''),
+  SMS_GATEWAY_TOKEN: Joi.string().when('SMS_GATEWAY_URL', {
+    is: 'disabled',
+    then: Joi.optional().allow(''),
+    otherwise: Joi.when('APP_ENV', {
+      is: 'production',
+      then: Joi.string().min(8).required(),
+      otherwise: Joi.optional().allow(''),
+    }),
   }),
+  SMS_GATEWAY_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(60_000)
+    .default(10_000),
   PUBLIC_API_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .default('http://localhost:8000/api/v1'),

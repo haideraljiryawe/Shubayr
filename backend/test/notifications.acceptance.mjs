@@ -203,6 +203,13 @@ try {
     body: { token: tokenValue, platform: 'web', locale: 'en' },
   });
   check(revived.is_active, true, 're-register reactivates');
+  const aTokenValue = `VERIFY-NOTIFICATION-A-${randomUUID()}`;
+  await request('/devices/token', {
+    token: a,
+    method: 'POST',
+    expected: 201,
+    body: { token: aTokenValue, platform: 'ios', locale: 'ar' },
+  });
 
   const defaults = await request('/me/notification-preferences', { token: b });
   const enabled = (prefs, type, channel) =>
@@ -307,8 +314,8 @@ try {
       );
       await db.query(
         `INSERT INTO order_items
-          (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total)
-         VALUES ($1,$2,'40000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','Notification fixture','Notification fixture',1,10,10)`,
+          (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total)
+         VALUES ($1,$2,'40000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','Notification fixture','Notification fixture',1,10,10,0,10)`,
         [orderItemId, orderId],
       );
       await db.query(

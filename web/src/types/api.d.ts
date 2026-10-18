@@ -45,6 +45,7 @@ export interface paths {
                 };
                 422: components["responses"]["Validation"];
                 429: components["responses"]["RateLimited"];
+                503: components["responses"]["ServiceUnavailable"];
             };
         };
         delete?: never;
@@ -160,7 +161,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Revoke one refresh token on its original surface */
+        /**
+         * Revoke one refresh-session family on its original surface
+         * @description Revokes the rotating refresh lineage and deactivates only device registrations bound to that session. Other sessions and devices for the account are unchanged.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -383,7 +387,15 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                /** @description Account deletion is blocked by open business records */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountDeletionBlockedError"];
+                    };
+                };
             };
         };
         options?: never;
@@ -525,6 +537,438 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/governorates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active Iraqi governorates
+         * @description Includes the 18 governorates and Halabja. is_served is true only when the governorate is attached to an active delivery zone; delivery_fee is that zone's current IQD fee, or null when unserved. Catalog-tier rate limits apply and responses are cacheable for 30 seconds.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active governorates */
+                200: {
+                    headers: {
+                        "Cache-Control"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Governorate"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discount-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active automatic discount tiers for storefront progress displays
+         * @description Public, catalog-tier read of active IQD thresholds and percentages plus the current coupon-stacking setting. Checkout remains authoritative. Responses are cacheable for 30 seconds and server cache entries are invalidated after owner edits.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active public discount-tier settings */
+                200: {
+                    headers: {
+                        "Cache-Control"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicDiscountTierSettings"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/governorates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all governorates and their zone assignment */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Governorates */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminGovernorate"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/governorates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit a governorate's localized names or active flag */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GovernoratePatch"];
+                };
+            };
+            responses: {
+                /** @description Updated governorate */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GovernorateRecord"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/delivery-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List delivery zones */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery zones */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * Create a delivery zone
+         * @description A 409 names every clashing governorate and the existing zone in errors[].
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryZoneCreate"];
+                };
+            };
+            responses: {
+                /** @description Created delivery zone */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/delivery-zones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a delivery zone and unassign its governorates */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a delivery zone and its governorates
+         * @description A 409 names every clashing governorate and the existing zone in errors[].
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeliveryZonePatch"];
+                };
+            };
+            responses: {
+                /** @description Updated delivery zone */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryZone"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/discount-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automatic order discount tiers */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Discount tiers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create an automatic order discount tier */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscountTierCreate"];
+                };
+            };
+            responses: {
+                /** @description Created discount tier */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/discount-tiers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an automatic order discount tier */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update an automatic order discount tier */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscountTierPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated discount tier */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscountTier"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
     "/addresses": {
         parameters: {
             query?: never;
@@ -589,6 +1033,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1009,11 +1454,16 @@ export interface paths {
         };
         /**
          * Get the authenticated caller's repriced cart
-         * @description Guest carts remain client-side. After login, clients atomically attach them through POST /cart/merge. Every response reprices from current server-time effective_price. Subtotal is the sum of effective-price line totals; discount is the coupon amount only, and delivery_fee is zero until a delivery-fee policy is configured at checkout.
+         * @description Guest carts remain client-side. After login, clients atomically attach them through POST /cart/merge. Every response reprices from current server-time effective_price. Supply governorate_id or an owned address_id to include the current zone delivery fee and full total. Without either selector, delivery_fee remains zero for backward compatibility. The checkout calculation remains authoritative and snapshots its own fee.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Price delivery for this active, served governorate. Mutually exclusive with address_id. */
+                    governorate_id?: string;
+                    /** @description Price delivery for this authenticated customer's saved address. Mutually exclusive with governorate_id. */
+                    address_id?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1030,6 +1480,9 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -1458,6 +1911,8 @@ export interface paths {
                         /** Format: uuid */
                         address_id: string;
                         coupon_code?: string | null;
+                        /** @description Points to redeem against goods after order discounts. One point is one IQD minor unit; points never pay delivery fees. */
+                        loyalty_points?: number;
                         /**
                          * @default cod
                          * @enum {string}
@@ -1662,6 +2117,14 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
+                        /** @description Must be true when status is confirmed. */
+                        customer_contacted?: boolean;
+                        /** @description Required when status is confirmed. */
+                        customer_contact_note?: string | null;
+                        /** @description Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. */
+                        adjusted_delivery_fee?: components["schemas"]["Money"];
+                        /** @description Required with adjusted_delivery_fee. */
+                        delivery_fee_adjustment_reason?: string | null;
                     };
                 };
             };
@@ -3349,7 +3812,7 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
-                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
                 };
                 header?: never;
                 path?: never;
@@ -3371,7 +3834,7 @@ export interface paths {
         put?: never;
         /**
          * Request a partial or full return of a delivered order
-         * @description Only the order owner can request a return. Pending quantities reserve eligibility. Expected refund uses immutable order-item unit prices.
+         * @description Only the order owner can request a return within the configured return window. Pending quantities reserve eligibility. Refund and points estimates use immutable per-line order allocations, never current catalog prices.
          */
         post: {
             parameters: {
@@ -3385,12 +3848,15 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         order_id: string;
+                        operation_id: string;
                         reason?: string;
                         items: {
                             /** Format: uuid */
                             order_item_id: string;
                             quantity: number;
                             reason: string;
+                            /** @enum {string} */
+                            reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
                         }[];
                     };
                 };
@@ -3430,7 +3896,15 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
-                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
+                    status?: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+                    customer_id?: string;
+                    customer_phone?: string;
+                    order_id?: string;
+                    order_number?: string;
+                    date_from?: string;
+                    date_to?: string;
+                    sort_by?: "date" | "number" | "refund";
+                    sort_direction?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;
@@ -3458,7 +3932,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/returns/{id}/inspect": {
+    "/returns/refund-cash-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active IQD accounts usable for a return refund, without balances */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Refund cash accounts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                        }[];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/staff": {
         parameters: {
             query?: never;
             header?: never;
@@ -3467,10 +3982,133 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Review requested return quantities and conditions
-         * @description Review each requested line or reject the whole request. Sellable approved units restock; opened and damaged units do not. Approved refund is a COD obligation.
-         */
+        /** Create a return request for a customer */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnRequest"] & {
+                        /** Format: uuid */
+                        customer_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Created return request */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/queue/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one return as staff */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Return detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one return owned by the authenticated customer */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Caller-owned return detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve quantities or reject a return request */
         post: {
             parameters: {
                 query?: never;
@@ -3482,21 +4120,11 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        decision: "approve" | "reject";
-                        items?: {
-                            /** Format: uuid */
-                            return_item_id: string;
-                            approved_quantity: number;
-                            /** @enum {string} */
-                            condition?: "sellable" | "opened" | "damaged";
-                        }[];
-                    };
+                    "application/json": components["schemas"]["ReturnApproval"];
                 };
             };
             responses: {
-                /** @description Inspected return */
+                /** @description Approved or rejected return */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3517,7 +4145,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/returns/{id}/complete": {
+    "/returns/{id}/delivery-fee-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview the delivery-fee return policy for proposed approved quantities */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            return_item_id: string;
+                            approved_quantity: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Delivery-fee policy preview */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            refund_delivery_fee: boolean;
+                            amount: components["schemas"]["Money"];
+                            /** @constant */
+                            currency: "IQD";
+                            /** @enum {string} */
+                            reason: "not_full_order_return" | "reason_not_eligible" | "full_order_store_fault" | "fee_already_refunded";
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive approved return goods */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnTransition"];
+                };
+            };
+            responses: {
+                /** @description Received return */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/inspect": {
         parameters: {
             query?: never;
             header?: never;
@@ -3527,8 +4260,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Complete a reviewed return
-         * @description Completes an approved, partially approved, or rejected return. The order becomes returned only when all ordered units have approved returns.
+         * Inspect received return goods and post their inventory disposition
+         * @description Sellable goods enter the chosen sellable location at original issue cost. Damaged or expired goods enter a non-sellable location and are written down. The stored paid share is posted between uncollected cash and refund payable.
          */
         post: {
             parameters: {
@@ -3539,9 +4272,72 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        note?: string;
+                        items: {
+                            /** Format: uuid */
+                            return_item_id: string;
+                            /** @enum {string} */
+                            condition: "sellable" | "opened" | "damaged" | "expired";
+                            /** Format: uuid */
+                            location_id: string;
+                        }[];
+                    } & components["schemas"]["FinancialDocumentInput"];
+                };
+            };
             responses: {
-                /** @description Completed return */
+                /** @description Inspected return with refund obligation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Return"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay an inspected return refund and apply its loyalty effects
+         * @description Pays only the refund-payable balance from an IQD cash account or documented delivery custody. Earned points are reversed, redeemed points are restored, and any earned-points deficit remains recoverable from future rewards rather than cash.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReturnRefund"];
+                };
+            };
+            responses: {
+                /** @description Refunded return */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4142,6 +4938,7 @@ export interface paths {
                         "application/json": components["schemas"]["DeviceToken"];
                     };
                 };
+                403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -4597,12 +5394,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sales & analytics summary */
+        /** Posted sales, discounts, returns and delivery-fee report */
         get: {
             parameters: {
                 query?: {
+                    /** @description Defaults to `to`, or the current Baghdad business date when both are omitted. */
                     from?: string;
+                    /** @description Defaults to `from`, or the current Baghdad business date when both are omitted. */
                     to?: string;
+                    group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+                    sort?: "group" | "gross_sales" | "net_sales" | "order_count";
+                    direction?: "asc" | "desc";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
                 };
                 header?: never;
                 path?: never;
@@ -4620,6 +5424,511 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/profitability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted product profitability at original issue cost */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    group_by?: "department" | "category" | "product" | "sku";
+                    sort?: "group" | "gross_sales" | "net_sales" | "order_count";
+                    direction?: "asc" | "desc";
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profitability report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfitabilityReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/profit-loss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted profit and loss with the immediately preceding comparison period */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Profit and loss */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProfitLossReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/trial-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Posted trial balance as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    direction?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Trial balance */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTrialBalance"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/balance-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Simple posted balance sheet as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Balance sheet */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BalanceSheetReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cash-account opening, source movements and closing balances from the posted ledger */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cash report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/delivery-custody": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Goods and cash held by each delivery party as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery custody report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryCustodyReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/liabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier, expense and refund liabilities plus operational unallocated receipts and loyalty exposure */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Liabilities report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiabilitiesReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/inventory-valuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Historical inventory quantity and moving-average value by SKU and warehouse */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    slow_days?: number;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Inventory valuation report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryValuationReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Permission-filtered fast owner/admin home-page summary */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dashboard summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerDashboard"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a CSV or XLSX report export */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReportExportInput"];
+                };
+            };
+            responses: {
+                /** @description Export queued */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportExportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+                503: components["responses"]["ServiceUnavailable"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Poll report export progress without report rows */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Export progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportExportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/exports/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a completed report export */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description CSV or XLSX file */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
             };
         };
         put?: never;
@@ -4637,7 +5946,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** White-label store settings (name, logo, colors, currency) */
+        /** Public store identity, contact, policy and catalog settings */
         get: {
             parameters: {
                 query?: never;
@@ -5898,6 +7207,14 @@ export interface paths {
                         version: number;
                         note?: string | null;
                         below_cost_override_reason?: string | null;
+                        /** @description Must be true when status is confirmed. */
+                        customer_contacted?: boolean;
+                        /** @description Required when status is confirmed. */
+                        customer_contact_note?: string | null;
+                        /** @description Optional replacement fee during confirmation; requires orders.adjust_delivery_fee. */
+                        adjusted_delivery_fee?: components["schemas"]["Money"];
+                        /** @description Required with adjusted_delivery_fee. */
+                        delivery_fee_adjustment_reason?: string | null;
                     };
                 };
             };
@@ -6410,6 +7727,370 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/catalog-imports/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the bilingual Excel catalog-import template */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Products+Variants, optional Stock, instructions and examples */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload and validate an Excel catalog import without changing catalog or stock
+         * @description Files with more than 500 rows validate as a background job. Poll the returned import resource for progress. At most 5,000 data rows are accepted.
+         */
+        post: {
+            parameters: {
+                query?: {
+                    create_missing?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Ready preview, or queued background validation resource */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List catalog import history */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Import history, newest first */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get preview rows and progress for one import
+         * @description Stock unit cost is omitted unless the caller has cost.view. While a commit is running, poll this resource for rows applied plus completed/total commit batches.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Import resource */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get lightweight progress for one catalog import
+         * @description Poll-friendly commit progress without preview rows or other workbook data.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Lightweight import progress */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportProgress"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}/error-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the complete validation report as CSV */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description UTF-8 CSV report with a BOM for correct Arabic display in Excel */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/csv": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-imports/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a resumable commit of all valid preview rows
+         * @description Product rows are committed by the background worker in batches of at most 250 and progress is exposed on the detail resource. The operation id and durable per-row checkpoints make double submission and worker restart safe. A failed batch leaves earlier batches applied and reports the failed row. Valid Stock rows create exactly one posted inventory-opening document only after all product rows succeed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        operation_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Queued/in-progress result, or the completed result on an idempotent replay */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImportCommitResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+                503: components["responses"]["ServiceUnavailable"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/catalog-images/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload and attach a ZIP of SKU-named product images
+         * @description Accepts SKU.jpg, SKU-2.jpg and later numbered images. Images are resized and compressed to WebP; unmatched files are returned in the report.
+         */
+        post: {
+            parameters: {
+                query: {
+                    operation_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Matched and unmatched image report */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogImageBulkResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["PostingConflict"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/products": {
         parameters: {
             query?: never;
@@ -6419,7 +8100,7 @@ export interface paths {
         };
         /**
          * List all products, including hidden and archived products
-         * @description Uses the public filters and server-time pricing without public visibility restrictions.
+         * @description Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory.
          */
         get: {
             parameters: {
@@ -6430,7 +8111,10 @@ export interface paths {
                     min_price?: number;
                     max_price?: number;
                     on_sale?: boolean;
-                    sort?: "newest" | "price_asc" | "price_desc" | "rating";
+                    status?: ("active" | "hidden" | "archived")[];
+                    availability?: ("in_stock" | "low_stock" | "out_of_stock")[];
+                    has_image?: boolean;
+                    sort?: "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "sku_asc" | "sku_desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -6482,6 +8166,52 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["PricingRateValidation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply one catalog change to up to 500 products
+         * @description Runs in one transaction. Reusing the operation id with the same payload returns the first result; a different payload returns 409.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProductBulkInput"];
+                };
+            };
+            responses: {
+                /** @description Per-product result list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductBulkResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
             };
         };
         delete?: never;
@@ -10474,6 +12204,541 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List expense categories and their expense GL accounts */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense categories */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /** Create an expense category and map it to an expense GL account */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryInput"];
+                };
+            };
+            responses: {
+                /** @description Created category */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an unused category; categories in use must be deactivated */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Unused category deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename, remap, activate or deactivate an expense category */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategoryPatch"];
+                };
+            };
+            responses: {
+                /** @description Updated category */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseCategory"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/expense-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload a private image or PDF receipt */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Uploaded private receipt */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseReceiptUpload"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                413: components["responses"]["PayloadTooLarge"];
+                415: components["responses"]["UnsupportedMediaType"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expense-receipts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a receipt linked to an expense */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Receipt bytes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": string;
+                        "image/png": string;
+                        "image/webp": string;
+                        "image/avif": string;
+                        "application/pdf": string;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List expense documents with database pagination and filters */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    from?: string;
+                    to?: string;
+                    category_id?: string;
+                    status?: "draft" | "posted" | "reversed";
+                    cash_account_id?: string;
+                    payee?: string;
+                    unpaid_only?: boolean;
+                    search?: string;
+                    sort?: "document_date" | "amount" | "created_at" | "payee" | "document_number";
+                    direction?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpensePage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a draft expense using the central rate effective at its document timestamp */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseCreateInput"];
+                };
+            };
+            responses: {
+                /** @description Draft expense */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ExchangeRateValidation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/totals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Totals for the filtered posted expense range, overall and per category */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                    category_id?: string;
+                    cash_account_id?: string;
+                    payee?: string;
+                    unpaid_only?: boolean;
+                    search?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Filtered totals */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpenseTotals"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an expense with journal, payments and corrections */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expense detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a draft expense to the immutable ledger */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpensePostInput"];
+                };
+            };
+            responses: {
+                /** @description Posted expense */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make a partial or final payment against an accrued expense */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpensePaymentInput"];
+                };
+            };
+            responses: {
+                /** @description Expense with the new payment */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct an expense by reversing every one of its immutable postings */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseReverseInput"];
+                };
+            };
+            responses: {
+                /** @description Reversed expense */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10496,6 +12761,19 @@ export interface components {
             errors: components["schemas"]["FieldError"][];
             /** @example 2026-11 */
             period: string;
+        };
+        AccountDeletionBlockedError: {
+            /** @enum {integer} */
+            status: 409;
+            /** @enum {string} */
+            code: "ACCOUNT_DELETION_BLOCKED";
+            message: string;
+            errors: components["schemas"]["FieldError"][];
+            details: {
+                open_orders: number;
+                pending_returns: number;
+                unsettled_amounts: number;
+            };
         };
         FieldError: {
             /** @example items.0.quantity */
@@ -10526,6 +12804,22 @@ export interface components {
             threshold_percent?: number;
             cost?: number;
             minimum_price?: number;
+            /**
+             * Format: uuid
+             * @description Governorate involved in a delivery-zone assignment conflict.
+             */
+            governorate_id?: string;
+            /** @description Stable governorate code involved in a delivery-zone assignment conflict. */
+            governorate_code?: string;
+            governorate_name_ar?: string;
+            governorate_name_en?: string;
+            /**
+             * Format: uuid
+             * @description Existing delivery zone holding the governorate.
+             */
+            delivery_zone_id?: string;
+            delivery_zone_name_ar?: string;
+            delivery_zone_name_en?: string;
         };
         /** @description Decimal money amount displayed at the associated currency precision (IQD 0, USD 2). */
         Money: number;
@@ -10593,11 +12887,115 @@ export interface components {
             /** Format: email */
             email?: string | null;
         };
+        GovernorateRecord: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            is_active: boolean;
+        };
+        Governorate: components["schemas"]["GovernorateRecord"] & {
+            is_served: boolean;
+            /** @description Current active-zone fee in IQD, or null when unserved. */
+            delivery_fee: components["schemas"]["Money"] | null;
+            /** @enum {string} */
+            currency: "IQD";
+        };
+        AdminGovernorate: components["schemas"]["GovernorateRecord"] & {
+            delivery_zone: components["schemas"]["DeliveryZoneSummary"] | null;
+        };
+        GovernoratePatch: {
+            name_ar?: string;
+            name_en?: string;
+            is_active?: boolean;
+        };
+        DeliveryZoneSummary: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+            fee_iqd: components["schemas"]["Money"];
+            is_active: boolean;
+        };
+        DeliveryZone: components["schemas"]["DeliveryZoneSummary"] & {
+            governorates: components["schemas"]["GovernorateRecord"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DeliveryZoneCreate: {
+            name_ar: string;
+            name_en: string;
+            fee_iqd: number;
+            /** @default true */
+            is_active: boolean;
+            governorate_ids: string[];
+        };
+        DeliveryZonePatch: {
+            name_ar?: string;
+            name_en?: string;
+            fee_iqd?: number;
+            is_active?: boolean;
+            governorate_ids?: string[];
+        };
+        DiscountTier: {
+            /** Format: uuid */
+            id: string;
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DiscountTierCreate: {
+            min_subtotal_iqd: number;
+            percent: number;
+            /** @default true */
+            is_active: boolean;
+        };
+        DiscountTierPatch: {
+            min_subtotal_iqd?: number;
+            percent?: number;
+            is_active?: boolean;
+        };
+        PublicDiscountTier: {
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+        };
+        PublicDiscountTierSettings: {
+            /** @enum {string} */
+            currency: "IQD";
+            coupon_stacking_enabled: boolean;
+            tiers: components["schemas"]["PublicDiscountTier"][];
+        };
+        AppliedDiscountTier: {
+            /**
+             * Format: uuid
+             * @description Null only when a historical tier was later deleted; snapshot values remain.
+             */
+            id: string | null;
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+        };
+        NextDiscountTier: {
+            min_subtotal: components["schemas"]["Money"];
+            percent: number;
+            amount_remaining: components["schemas"]["Money"];
+        };
         Address: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             user_id: string;
+            /**
+             * Format: uuid
+             * @description Null only on legacy addresses; checkout returns ADDRESS_GOVERNORATE_REQUIRED until selected.
+             */
+            governorate_id: string | null;
             /** @example Home */
             label?: string | null;
             city: string;
@@ -10615,6 +13013,8 @@ export interface components {
             created_at: string;
         };
         AddressCreate: {
+            /** Format: uuid */
+            governorate_id: string;
             /** @example Home */
             label?: string | null;
             city: string;
@@ -10632,6 +13032,8 @@ export interface components {
         };
         /** @description Omitted fields are unchanged; null clears only nullable fields. contact_phone and city cannot be null. */
         AddressPatch: {
+            /** Format: uuid */
+            governorate_id?: string;
             label?: string | null;
             city?: string;
             area?: string | null;
@@ -10780,6 +13182,8 @@ export interface components {
             name_en?: string;
             name_ar?: string;
             description?: string | null;
+            description_en?: string | null;
+            description_ar?: string | null;
             /** @description Regular selling price in whole IQD. */
             price?: components["schemas"]["Money"];
             currency?: string;
@@ -10947,6 +13351,7 @@ export interface components {
              */
             id?: string;
             sku: string;
+            barcode?: string | null;
             attributes?: {
                 [key: string]: unknown;
             };
@@ -10970,6 +13375,230 @@ export interface components {
             pricing_mode: "fixed" | "linked";
             reference_currency_code?: string | null;
             reference_price?: number | null;
+        };
+        CatalogImportIssue: {
+            /** @enum {string} */
+            severity: "error" | "warning";
+            code: string;
+            /** @example Products+Variants!H4 */
+            cell: string;
+            message: string;
+        };
+        CatalogImportProductRow: {
+            /** @constant */
+            sheet: "Products+Variants";
+            row: number;
+            category_level_1: string;
+            category_level_2: string;
+            brand: string | null;
+            product_name_ar: string;
+            product_name_en: string;
+            description_ar: string | null;
+            description_en: string | null;
+            sku: string;
+            attributes: {
+                [key: string]: string;
+            };
+            base_unit: string;
+            whole_units_only: boolean;
+            price_iqd: number | null;
+            reference_currency_code: string | null;
+            reference_price: number | null;
+            low_stock_threshold: number | null;
+            barcode: string | null;
+            /** @enum {string|null} */
+            status: "active" | "hidden" | "archived" | null;
+            image_urls: string[];
+        };
+        CatalogImportStockRow: {
+            /** @constant */
+            sheet: "Stock";
+            row: number;
+            sku: string;
+            location_code: string;
+            quantity: string;
+            /** @description Omitted unless the caller has cost.view. */
+            unit_cost_iqd?: string;
+            /** Format: date */
+            expiry: string | null;
+        };
+        CatalogImportPreviewRow: {
+            /** @enum {string} */
+            sheet: "Products+Variants" | "Stock";
+            row: number;
+            sku: string | null;
+            /** @enum {string} */
+            action: "create" | "update" | "error" | "warning";
+            /** @enum {string|null} */
+            apply_action: "create" | "update" | null;
+            issues: components["schemas"]["CatalogImportIssue"][];
+            /** @enum {string} */
+            commit_status: "pending" | "applied" | "failed" | "skipped";
+            commit_error: null | {
+                code: string;
+                message: string;
+            };
+            product?: components["schemas"]["CatalogImportProductRow"];
+            stock?: components["schemas"]["CatalogImportStockRow"];
+        };
+        CatalogImportPreview: {
+            rows: components["schemas"]["CatalogImportPreviewRow"][];
+            counts: {
+                total: number;
+                create: number;
+                update: number;
+                error: number;
+                warning: number;
+            };
+        };
+        CatalogImport: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            create_missing: boolean;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            progress: number;
+            row_count: number;
+            create_count: number;
+            update_count: number;
+            error_count: number;
+            warning_count: number;
+            applied_count: number;
+            /** @description Fully committed product batches plus the final Stock batch when applicable. */
+            commit_batches_done: number;
+            /** @description Product batches of at most 250 rows plus one final Stock batch when applicable. */
+            commit_batches_total: number;
+            commit_attempt: number;
+            preview: components["schemas"]["CatalogImportPreview"] | null;
+            /** @description Internal report availability marker; download through the error-report route. */
+            error_report_key: string | null;
+            operation_id: string | null;
+            /** Format: uuid */
+            opening_id: string | null;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            committed_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        CatalogImportPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["CatalogImportSummary"][];
+        };
+        CatalogImportProgress: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            batches_done: number;
+            batches_total: number;
+            rows_applied: number;
+            rows_failed: number;
+            last_error: {
+                code: string;
+                message: string;
+                /** @enum {string} */
+                sheet: "Products+Variants" | "Stock";
+                row_number: number;
+            } | null;
+        };
+        CatalogImportSummary: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            create_missing: boolean;
+            /** @enum {string} */
+            status: "queued" | "validating" | "ready" | "committing" | "completed" | "failed";
+            progress: number;
+            row_count: number;
+            create_count: number;
+            update_count: number;
+            error_count: number;
+            warning_count: number;
+            applied_count: number;
+            commit_attempt: number;
+            error_report_key: string | null;
+            operation_id: string | null;
+            /** Format: uuid */
+            opening_id: string | null;
+            /** Format: uuid */
+            created_by: string;
+            created_by_name: string;
+            /** Format: uuid */
+            committed_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        CatalogImportCommitResult: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "committing" | "completed";
+            operation_id: string;
+            created: number;
+            updated: number;
+            skipped_errors: number;
+            applied_rows: number;
+            total_rows: number;
+            commit_batches_done: number;
+            commit_batches_total: number;
+            /** Format: uuid */
+            opening_id: string | null;
+        };
+        CatalogImageBulkResult: {
+            operation_id: string;
+            matched: {
+                file: string;
+                sku: string;
+                /** Format: uuid */
+                product_id: string;
+                product_name_ar: string;
+                product_name_en: string;
+                /** Format: uri */
+                url: string;
+            }[];
+            unmatched: string[];
+        };
+        ProductBulkInput: {
+            operation_id: string;
+            ids: string[];
+            /** @enum {string} */
+            action: "publish" | "hide";
+        } | {
+            operation_id: string;
+            ids: string[];
+            /** @constant */
+            action: "set_category";
+            /** Format: uuid */
+            category_id: string;
+        } | {
+            operation_id: string;
+            ids: string[];
+            /** @constant */
+            action: "set_brand";
+            /** Format: uuid */
+            brand_id: string | null;
+        };
+        ProductBulkResult: {
+            operation_id: string;
+            results: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                status: "updated" | "error";
+                code?: string;
+                message?: string;
+            }[];
         };
         ProductImage: {
             /** Format: uuid */
@@ -11078,6 +13707,7 @@ export interface components {
             /** Format: uuid */
             product_id?: string;
             sku?: string;
+            barcode?: string | null;
             attributes?: {
                 [key: string]: unknown;
             } | null;
@@ -11173,8 +13803,15 @@ export interface components {
                 available_qty: number;
             }[];
             subtotal: components["schemas"]["Money"];
-            /** @description Valid coupon discount only; catalog markdown is already in unit_price. */
+            /** @description Applied coupon and/or automatic tier discount; catalog markdown is already in unit_price. */
             discount: components["schemas"]["Money"];
+            coupon_discount: components["schemas"]["Money"];
+            tier_discount: components["schemas"]["Money"];
+            /** @enum {string} */
+            discount_source: "none" | "coupon" | "tier" | "stacked";
+            applied_tier: components["schemas"]["AppliedDiscountTier"] | null;
+            next_tier: components["schemas"]["NextDiscountTier"] | null;
+            /** @description Current zone fee when governorate_id or address_id was supplied; otherwise zero. */
             delivery_fee: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
@@ -11230,6 +13867,16 @@ export interface components {
             unit_price?: components["schemas"]["Money"];
             price_version?: string;
             line_total?: components["schemas"]["Money"];
+            /** @description Whole-IQD largest-remainder share of the order discount. */
+            discount_share: components["schemas"]["Money"];
+            coupon_discount_share: components["schemas"]["Money"];
+            tier_discount_share: components["schemas"]["Money"];
+            loyalty_discount_share: components["schemas"]["Money"];
+            other_adjustment_share: components["schemas"]["Money"];
+            /** @description line_total minus automatic tier/coupon discount shares. */
+            net_line_total: components["schemas"]["Money"];
+            /** @description Immutable amount paid for this line after every stored allocation, including redeemed points. Return entitlements are sliced from this value. */
+            net_paid_total: components["schemas"]["Money"];
             currency?: string;
             /** @description True when the caller already has a product review for this order item. */
             readonly reviewed?: boolean;
@@ -11291,11 +13938,26 @@ export interface components {
             delivery_id?: string | null;
             subtotal?: components["schemas"]["Money"];
             delivery_fee?: components["schemas"]["Money"];
+            original_delivery_fee?: components["schemas"]["Money"];
+            adjusted_delivery_fee?: number | null;
             discount?: components["schemas"]["Money"];
+            coupon_discount?: components["schemas"]["Money"];
+            tier_discount?: components["schemas"]["Money"];
+            loyalty_points_redeemed?: number;
+            loyalty_redemption_amount?: components["schemas"]["Money"];
+            /** @enum {string} */
+            discount_source?: "none" | "coupon" | "tier" | "stacked";
+            applied_tier?: components["schemas"]["AppliedDiscountTier"] | null;
+            next_tier?: components["schemas"]["NextDiscountTier"] | null;
             total?: components["schemas"]["Money"];
             currency?: string;
             /** @description Immutable checkout snapshot. */
             delivery_contact_phone?: string;
+            delivery_governorate?: {
+                code: string;
+                name_ar: string | null;
+                name_en: string | null;
+            } | null;
             /** @description Immutable checkout snapshot. */
             delivery_address_label?: string | null;
             /** @description Immutable checkout snapshot. */
@@ -11352,6 +14014,17 @@ export interface components {
                 /** @enum {string} */
                 outcome?: "cancel" | "retry";
             }[];
+            returns?: {
+                /** Format: uuid */
+                id: string;
+                document_number: string;
+                /** @enum {string} */
+                status: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+                refund_amount: components["schemas"]["Money"];
+                points_effect: components["schemas"]["ReturnPointsEffect"];
+                /** Format: date-time */
+                created_at: string;
+            }[];
             items?: components["schemas"]["OrderItem"][];
         };
         Order: components["schemas"]["OrderBase"] & {
@@ -11381,7 +14054,26 @@ export interface components {
                 details?: string | null;
                 lat?: number | null;
                 lng?: number | null;
+                governorate?: {
+                    code: string;
+                    name_ar: string | null;
+                    name_en: string | null;
+                } | null;
             };
+            confirmation_contact?: {
+                /** @constant */
+                customer_contacted: true;
+                note: string | null;
+            } | null;
+            delivery_fee_adjustment?: {
+                original_fee: components["schemas"]["Money"];
+                adjusted_fee: components["schemas"]["Money"];
+                reason: string | null;
+                /** Format: uuid */
+                adjusted_by: string | null;
+                /** Format: date-time */
+                adjusted_at: string | null;
+            } | null;
             payments: {
                 /** Format: uuid */
                 id?: string;
@@ -11598,7 +14290,7 @@ export interface components {
             /** Format: uuid */
             return_id?: string | null;
             /** @enum {string} */
-            type?: "earn" | "redeem" | "adjust" | "expire";
+            type?: "earn" | "redeem" | "adjust" | "expire" | "return_reversal" | "return_restore";
             reason?: string;
             /** @description Positive for earn; negative for redeem; signed for adjust. */
             points?: number;
@@ -12306,56 +14998,207 @@ export interface components {
             completed_at?: string | null;
             items?: components["schemas"]["PickListItem"][];
         };
+        ReturnRequest: {
+            /** Format: uuid */
+            order_id: string;
+            operation_id: string;
+            reason?: string;
+            items: {
+                /** Format: uuid */
+                order_item_id: string;
+                quantity: number;
+                reason: string;
+                /** @enum {string} */
+                reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
+            }[];
+        };
+        ReturnTransition: components["schemas"]["FinancialDocumentInput"] & {
+            note?: string;
+        };
+        ReturnApproval: components["schemas"]["FinancialDocumentInput"] & {
+            /** @enum {string} */
+            decision: "approve" | "reject";
+            note?: string;
+            delivery_fee_refund?: components["schemas"]["Money"];
+            delivery_fee_refund_reason?: string;
+            items?: {
+                /** Format: uuid */
+                return_item_id: string;
+                approved_quantity: number;
+            }[];
+        };
+        ReturnRefund: components["schemas"]["FinancialDocumentInput"] & {
+            /** @enum {string} */
+            method: "cash_account" | "delivery_custody";
+            /** Format: uuid */
+            cash_account_id?: string;
+            /** Format: uuid */
+            collection_id?: string;
+            proof_reference?: string;
+        };
+        ReturnPointsEffect: {
+            earned_reversed: number;
+            redeemed_restored: number;
+            net: number;
+        };
         ReturnItem: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            order_item_id?: string;
-            quantity?: number;
-            approved_quantity?: number;
+            order_item_id: string;
+            /** Format: uuid */
+            variant_id: string;
+            product_name_ar: string;
+            product_name_en: string;
+            quantity: number;
+            approved_quantity: number;
             /** @description Order-time SKU base-unit snapshot. */
             base_unit: string;
             /** @description Order-time SKU fractional-quantity rule. */
             whole_units_only: boolean;
-            customer_reason?: string;
+            customer_reason: string;
+            /** @enum {string} */
+            reason_code: "change_of_mind" | "defect" | "store_error" | "wrong_item" | "other";
             /** @description Immutable order-line unit price. */
-            unit_price?: components["schemas"]["Money"];
-            currency?: string;
-            expected_refund?: components["schemas"]["Money"];
-            approved_refund?: components["schemas"]["Money"];
+            unit_price: components["schemas"]["Money"];
+            /** @description Discount share attributed to this requested return quantity. */
+            discount_share: components["schemas"]["Money"];
+            /** @description Exact net refund snapshot for the requested quantity. */
+            net_amount: components["schemas"]["Money"];
+            currency: string;
+            approved_refund: components["schemas"]["Money"];
+            earned_points_share: number;
+            redeemed_points_share: number;
+            original_issue_cost?: components["schemas"]["Money"] & unknown;
             /** @enum {string|null} */
-            condition?: "sellable" | "opened" | "damaged" | null;
-            restock?: boolean;
+            condition: "sellable" | "opened" | "damaged" | "expired" | null;
+            restock: boolean;
             /** Format: uuid */
-            batch_id?: string | null;
+            batch_id: string | null;
+            inspection_location: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                is_sellable: boolean;
+            } | null;
         };
         Return: {
             /** Format: uuid */
-            id?: string;
+            id: string;
+            document_number: string;
             /** Format: uuid */
-            order_id?: string;
+            order_id: string;
+            order_number: string;
             /** Format: uuid */
-            user_id?: string;
+            user_id: string;
+            /** @description Staff responses only; follows order-customer detail visibility. */
+            customer_name?: string | null;
+            /** @description Staff responses only; follows order-customer detail visibility. */
+            customer_phone?: string | null;
+            /** @description Staff responses only; enough custody context to choose the refund source without order or delivery permissions. */
+            delivery_collection?: {
+                /** Format: uuid */
+                id: string;
+                status: string;
+                currency: string;
+                collected_amount: number | null;
+                held_amount: number;
+                delivery_party: {
+                    /** Format: uuid */
+                    id: string;
+                    kind: string;
+                    name: string;
+                };
+            } | null;
             /** @enum {string} */
-            type?: "return" | "exchange";
-            /** @enum {string} */
-            status?: "requested" | "approved" | "partially_approved" | "rejected" | "completed";
-            reason?: string | null;
-            expected_refund?: components["schemas"]["Money"];
-            refund_amount?: components["schemas"]["Money"];
-            currency?: string;
+            source: "customer" | "staff";
             /** Format: uuid */
-            reviewed_by?: string | null;
+            created_by: string;
+            /** @enum {string} */
+            type: "return" | "exchange";
+            /** @enum {string} */
+            status: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
+            reason: string | null;
+            expected_refund: components["schemas"]["Money"];
+            refund_amount: components["schemas"]["Money"];
+            delivery_fee_refund: components["schemas"]["Money"];
+            uncollected_offset: components["schemas"]["Money"];
+            cash_refund_amount: components["schemas"]["Money"];
+            points_effect: components["schemas"]["ReturnPointsEffect"];
+            currency: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            reviewed_by: string | null;
             /** Format: date-time */
-            reviewed_at?: string | null;
+            reviewed_at: string | null;
             /** Format: date-time */
-            completed_at?: string | null;
+            completed_at: string | null;
             /** Format: date-time */
-            created_at?: string;
-            refund?: components["schemas"]["RefundLedgerEntry"] | null;
-            items?: components["schemas"]["ReturnItem"][];
+            created_at: string;
+            refund: components["schemas"]["RefundLedgerEntry"] | null;
+            items: components["schemas"]["ReturnItem"][];
+            events: components["schemas"]["ReturnEvent"][];
+            refund_payments: components["schemas"]["ReturnRefundPayment"][];
+            postings: components["schemas"]["ReturnPosting"][];
         };
-        /** @description COD refund obligation; no payment gateway reversal occurs. */
+        ReturnEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded";
+            operation_id: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            actor_id: string;
+            /** @description Staff see the actor display name; customers see only you or store. */
+            actor_display_name: string;
+            /** @description Staff-only role; always null on customer responses. */
+            actor_role: string | null;
+            note: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReturnRefundPayment: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            method: "cash_account" | "delivery_custody";
+            amount_iqd: components["schemas"]["Money"];
+            cash_account: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            } | null;
+            collection: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                party_id: string;
+            } | null;
+            proof_reference: string | null;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date: string;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReturnPosting: {
+            /** @enum {string} */
+            role: "restock_issue_cost" | "write_down" | "return_against_uncollected" | "delivery_fee_refund" | "refund_payment";
+            /** Format: uuid */
+            journal_entry_id: string;
+            journal_document_number: string;
+        };
+        /** @description Return refund obligation and its payment state. */
         RefundLedgerEntry: {
             /** Format: uuid */
             id?: string;
@@ -12938,6 +15781,8 @@ export interface components {
             receipt_allocated_amount_iqd?: number;
             /** @description Approved trip fare netted against this collection; present on staff collection-list responses. */
             fare_netted_amount_iqd?: number;
+            /** @description Return cash paid directly from this delivery collection; present on staff collection-list responses. */
+            return_refunded_amount_iqd?: number;
             /** @description Confirmed collected amount not yet allocated; present on staff collection-list responses. */
             unsettled_amount_iqd?: number | null;
             /** @description Active return/refund amount netted against the collection shortfall; present on staff collection-list responses. */
@@ -13433,29 +16278,433 @@ export interface components {
         UserPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["User"][];
         };
-        /** @description Aggregated sales & analytics for the selected date range. */
+        /** @description Posted sales and returns. Compatibility fields from the earlier optional summary shape remain present. */
         SalesReport: {
             /** Format: date */
-            from?: string | null;
+            from: string;
             /** Format: date */
-            to?: string | null;
-            orders_count?: number;
-            gross_sales?: number;
-            discounts?: number;
-            net_sales?: number;
-            by_day?: {
+            to: string;
+            /** @deprecated */
+            orders_count: number;
+            /** @deprecated */
+            gross_sales: number;
+            /** @deprecated */
+            discounts: number;
+            /** @deprecated */
+            net_sales: number;
+            /** @deprecated */
+            by_day: {
                 /** Format: date */
-                date?: string;
-                orders_count?: number;
-                net_sales?: number;
+                date: string;
+                orders_count: number;
+                net_sales: number;
             }[];
-            top_products?: {
+            /** @deprecated */
+            top_products: {
                 /** Format: uuid */
-                product_id?: string;
-                name?: string;
-                qty_sold?: number;
-                net_sales?: number;
+                product_id: string;
+                name: string;
+                qty_sold: number;
+                net_sales: number;
             }[];
+            /** @enum {string} */
+            group_by: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["SalesReportTotals"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["SalesReportRow"][];
+        };
+        ReportPagination: {
+            page: number;
+            per_page: number;
+            total: number;
+            pages: number;
+        };
+        SalesReportRow: {
+            key: string;
+            name_ar: string;
+            name_en: string;
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+        };
+        SalesReportTotals: {
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            original_delivery_fees: components["schemas"]["ExactDecimal"];
+            charged_delivery_fees: components["schemas"]["ExactDecimal"];
+            delivery_fee_adjustments: components["schemas"]["ExactDecimal"];
+            delivery_fee_refunds: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+            cancelled_count: number;
+            rejected_count: number;
+        };
+        ProfitabilityReportRow: {
+            key: string;
+            name_ar: string;
+            name_en: string;
+            gross_sales: components["schemas"]["ExactDecimal"];
+            tier_discounts: components["schemas"]["ExactDecimal"];
+            coupon_discounts: components["schemas"]["ExactDecimal"];
+            other_discounts: components["schemas"]["ExactDecimal"];
+            returns: components["schemas"]["ExactDecimal"];
+            net_sales: components["schemas"]["ExactDecimal"];
+            order_count: number;
+            average_order_value: components["schemas"]["ExactDecimal"];
+            cost_of_goods_sold: components["schemas"]["ExactDecimal"];
+            return_cost_reversals: components["schemas"]["ExactDecimal"];
+            gross_profit: components["schemas"]["ExactDecimal"];
+            margin_percent: components["schemas"]["ExactDecimal"] | null;
+            inventory_write_downs: components["schemas"]["ExactDecimal"];
+        };
+        ProfitabilityReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            group_by: "department" | "category" | "product" | "sku";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["ProfitabilityReportRow"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["ProfitabilityReportRow"][];
+        };
+        ProfitLossPeriod: {
+            sales_revenue: components["schemas"]["ExactDecimal"];
+            delivery_revenue: components["schemas"]["ExactDecimal"];
+            sales_returns: components["schemas"]["ExactDecimal"];
+            delivery_fee_refunds: components["schemas"]["ExactDecimal"];
+            net_revenue: components["schemas"]["ExactDecimal"];
+            cost_of_goods_sold: components["schemas"]["ExactDecimal"];
+            gross_profit: components["schemas"]["ExactDecimal"];
+            operating_expenses: components["schemas"]["ExactDecimal"];
+            inventory_write_downs: components["schemas"]["ExactDecimal"];
+            other_income: components["schemas"]["ExactDecimal"];
+            other_costs: components["schemas"]["ExactDecimal"];
+            net_profit: components["schemas"]["ExactDecimal"];
+            expenses: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name_ar: string;
+                name_en: string;
+                amount: components["schemas"]["ExactDecimal"];
+            }[];
+        };
+        ProfitLossReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: date */
+            previous_from: string;
+            /** Format: date */
+            previous_to: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            current: components["schemas"]["ProfitLossPeriod"];
+            previous: components["schemas"]["ProfitLossPeriod"];
+        };
+        TrialBalanceReportRow: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            type: string;
+            /** @enum {string} */
+            normal_side: "debit" | "credit";
+            debit: components["schemas"]["ExactDecimal"];
+            credit: components["schemas"]["ExactDecimal"];
+            balance: components["schemas"]["ExactDecimal"];
+        };
+        ReportTrialBalance: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            debit_total: components["schemas"]["ExactDecimal"];
+            credit_total: components["schemas"]["ExactDecimal"];
+            balanced: boolean;
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["TrialBalanceReportRow"][];
+        };
+        BalanceSheetReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                assets: components["schemas"]["ExactDecimal"];
+                liabilities: components["schemas"]["ExactDecimal"];
+                equity: components["schemas"]["ExactDecimal"];
+                current_earnings: components["schemas"]["ExactDecimal"];
+                liabilities_and_equity: components["schemas"]["ExactDecimal"];
+                balanced: boolean;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                name_ar: string;
+                name_en: string;
+                /** @enum {string} */
+                type: "asset" | "liability" | "equity";
+                balance: components["schemas"]["ExactDecimal"];
+            }[];
+        };
+        CashReportSource: {
+            inflows: components["schemas"]["ExactDecimal"];
+            outflows: components["schemas"]["ExactDecimal"];
+        };
+        CashReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                opening_balance: components["schemas"]["ExactDecimal"];
+                inflows: components["schemas"]["ExactDecimal"];
+                outflows: components["schemas"]["ExactDecimal"];
+                closing_balance: components["schemas"]["ExactDecimal"];
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                cash_account: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    kind: string;
+                    currency: string;
+                };
+                opening_balance: components["schemas"]["ExactDecimal"];
+                inflows: components["schemas"]["ExactDecimal"];
+                outflows: components["schemas"]["ExactDecimal"];
+                closing_balance: components["schemas"]["ExactDecimal"];
+                sources: {
+                    customer_receipts: components["schemas"]["CashReportSource"];
+                    supplier_payments: components["schemas"]["CashReportSource"];
+                    expense_payments: components["schemas"]["CashReportSource"];
+                    refunds: components["schemas"]["CashReportSource"];
+                    transfers: components["schemas"]["CashReportSource"];
+                    corrections: components["schemas"]["CashReportSource"];
+                    other: components["schemas"]["CashReportSource"];
+                };
+            }[];
+        };
+        DeliveryCustodyReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                goods_quantity: components["schemas"]["QuantityDecimal"];
+                /** @description Present with reports.inventory.read */
+                goods_value?: components["schemas"]["ExactDecimal"];
+                /** @description Present when goods value is visible. */
+                goods_ledger_balance?: components["schemas"]["ExactDecimal"];
+                /** @description Present when goods value is visible. */
+                goods_reconciled?: boolean;
+                cash_held: components["schemas"]["ExactDecimal"];
+                cash_ledger_balance: components["schemas"]["ExactDecimal"];
+                cash_reconciled: boolean;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                party: {
+                    /** Format: uuid */
+                    id: string;
+                    kind: string;
+                    name: string;
+                };
+                goods_quantity: components["schemas"]["QuantityDecimal"];
+                /** @description Permission-dependent cost field. */
+                goods_value?: components["schemas"]["ExactDecimal"];
+                cash_held: components["schemas"]["ExactDecimal"];
+                oldest_goods_age_days: number | null;
+                oldest_cash_age_days: number | null;
+            }[];
+        };
+        LiabilitiesReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                supplier_payables: components["schemas"]["ExactDecimal"];
+                supplier_ledger_balance: components["schemas"]["ExactDecimal"];
+                supplier_reconciled: boolean;
+                accrued_expenses: components["schemas"]["ExactDecimal"];
+                expense_ledger_balance: components["schemas"]["ExactDecimal"];
+                expenses_reconciled: boolean;
+                customer_refunds_owed: components["schemas"]["ExactDecimal"];
+                refund_ledger_balance: components["schemas"]["ExactDecimal"];
+                refunds_reconciled: boolean;
+                other_ledger_liabilities: components["schemas"]["ExactDecimal"];
+                liability_ledger_total: components["schemas"]["ExactDecimal"];
+                unallocated_customer_receipts: components["schemas"]["ExactDecimal"];
+                /** @constant */
+                unallocated_receipts_ledger_valued: false;
+                loyalty_accounts: number;
+                loyalty_points: string;
+                /** @description Loyalty points do not currently have a ledger valuation. */
+                loyalty_value_iqd: null;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** @enum {string} */
+                type: "supplier_payable" | "accrued_expense" | "customer_refund" | "unallocated_receipt";
+                /** Format: uuid */
+                entity_id: string;
+                name: string;
+                document_number: string | null;
+                /** Format: date */
+                due_date: string | null;
+                age_days: number | null;
+                /** @enum {string} */
+                ageing_bucket: "no_due_date" | "current" | "1_30" | "31_60" | "61_90" | "90_plus";
+                amount: components["schemas"]["ExactDecimal"];
+                ledger_backed: boolean;
+            }[];
+        };
+        InventoryValuationReport: {
+            /** Format: date */
+            as_of: string;
+            slow_days: number;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                quantity: components["schemas"]["QuantityDecimal"];
+                value: components["schemas"]["ExactDecimal"];
+                inventory_ledger_balance: components["schemas"]["ExactDecimal"];
+                reconciled: boolean;
+                out_of_stock_count: number;
+                low_stock_count: number;
+                slow_moving_count: number;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** Format: uuid */
+                variant_id: string;
+                sku: string;
+                product: components["schemas"]["NamedReportEntity"];
+                category: components["schemas"]["NamedReportEntity"];
+                department: components["schemas"]["NamedReportEntity"];
+                warehouse: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                };
+                quantity: components["schemas"]["QuantityDecimal"];
+                moving_average_cost: components["schemas"]["ExactDecimal"];
+                value: components["schemas"]["ExactDecimal"];
+                /** @enum {string} */
+                stock_state: "in" | "low" | "out";
+                /** Format: date */
+                last_sale_date: string | null;
+                slow_moving: boolean;
+            }[];
+        };
+        NamedReportEntity: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+        };
+        /** @description Sections are omitted unless the caller has their corresponding permission. The reports module presentation switch does not gate this API. */
+        OwnerDashboard: {
+            /** Format: date */
+            business_date: string;
+            /** @constant */
+            currency: "IQD";
+            sales?: {
+                today_net_sales: components["schemas"]["ExactDecimal"];
+                today_order_count: number;
+                month_to_date_net_sales: components["schemas"]["ExactDecimal"];
+                month_to_date_order_count: number;
+                /** @description Present only with reports.profit.read. */
+                month_to_date_gross_profit?: components["schemas"]["ExactDecimal"];
+            };
+            orders_by_status?: {
+                status: string;
+                count: number;
+            }[];
+            orders_waiting_confirmation_call?: number;
+            late_orders?: number;
+            low_stock_count?: number;
+            cash_on_hand?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                balance: components["schemas"]["ExactDecimal"];
+            }[];
+            payables_due_next_7_days?: components["schemas"]["ExactDecimal"];
+        };
+        ReportExportInput: {
+            /** @enum {string} */
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+            /**
+             * @description Defaults to en when omitted.
+             * @enum {string}
+             */
+            language?: "ar" | "en";
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            /** Format: date */
+            as_of?: string;
+            /** @enum {string} */
+            group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+            slow_days?: number;
+        };
+        ReportExportProgress: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
+            /** @enum {string} */
+            format: "csv" | "xlsx";
+            /** @enum {string} */
+            language: "ar" | "en";
+            /** @enum {string} */
+            status: "queued" | "processing" | "completed" | "failed";
+            rows_done: number;
+            rows_total: number;
+            last_error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            download_ready: boolean;
         };
         StoreSettings: {
             store_name?: string;
@@ -13466,8 +16715,26 @@ export interface components {
             default_low_stock_threshold?: string;
             /** @description Zero uses base-currency precision; otherwise linked prices round upward to this multiple. */
             sale_rounding_multiple?: string;
+            store_legal_name_ar?: string | null;
+            store_legal_name_en?: string | null;
+            store_address_ar?: string | null;
+            store_address_en?: string | null;
+            support_phone?: string | null;
+            support_whatsapp?: string | null;
+            /** Format: email */
+            support_email?: string | null;
+            /** Format: email */
+            privacy_email?: string | null;
+            support_hours_ar?: string | null;
+            support_hours_en?: string | null;
+            refund_days?: number | null;
+            /** Format: date */
+            policy_effective_date?: string | null;
+            /** @description Existing operational return-window setting; no duplicate policy key is introduced. */
+            return_window_days?: number | null;
         };
         ExactDecimal: string | number;
+        QuantityDecimal: string;
         Currency: {
             code: string;
             name_ar: string;
@@ -14216,6 +17483,276 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        ExpenseCategoryInput: {
+            name_ar: string;
+            name_en: string;
+            /**
+             * Format: uuid
+             * @description Optional existing enabled expense GL account; when omitted the server creates one.
+             */
+            ledger_account_id?: string;
+        };
+        ExpenseCategoryPatch: {
+            name_ar?: string;
+            name_en?: string;
+            /** Format: uuid */
+            ledger_account_id?: string;
+            is_active?: boolean;
+        };
+        ExpenseCategory: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_ar: string;
+            name_en: string;
+            /** Format: uuid */
+            ledger_account_id: string;
+            is_active: boolean;
+            is_system: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            ledger_account: components["schemas"]["LedgerAccount"];
+            expense_count?: number;
+        };
+        ExpenseCreateInput: {
+            /** Format: uuid */
+            category_id: string;
+            amount: string;
+            currency_code: string;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            /**
+             * Format: uuid
+             * @description Required for paid_now and forbidden for owed.
+             */
+            cash_account_id?: string;
+            /** Format: uuid */
+            supplier_id?: string;
+            payee?: string;
+            description: string;
+            reference_number?: string;
+            /** Format: uuid */
+            receipt_media_id?: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        ExpensePostInput: {
+            note?: string;
+        };
+        ExpensePaymentInput: {
+            /** Format: uuid */
+            cash_account_id: string;
+            amount: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+            reference_number?: string;
+            notes?: string;
+        };
+        ExpenseReverseInput: {
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        ExpenseActor: {
+            /** Format: uuid */
+            id: string;
+            name: string | null;
+            username: string | null;
+        };
+        ExpensePartyLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        ExpenseCategoryLink: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+        };
+        ExpenseCashAccountSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+        };
+        ExpenseCashAccountLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "cash" | "bank";
+            currency_code: string;
+        };
+        ExpenseReceiptUpload: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            public_url: string;
+            /** @enum {string} */
+            mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "application/pdf";
+            size_bytes: number;
+            checksum: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExpenseReceipt: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uri */
+            public_url: string;
+            /** Format: uri */
+            download_url: string;
+            /** @enum {string} */
+            mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "application/pdf";
+            size_bytes: number;
+        };
+        ExpensePayment: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            amount_currency: components["schemas"]["Money"];
+            currency_code: string;
+            exchange_rate: number;
+            amount_iqd: number;
+            cash_account: components["schemas"]["ExpenseCashAccountSummary"];
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            reference_number: string | null;
+            notes: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            journal_entry: components["schemas"]["JournalEntry"];
+        };
+        ExpenseCorrectionPosting: {
+            /** Format: uuid */
+            id: string;
+            role: string;
+            /** Format: uuid */
+            expense_payment_id: string | null;
+            /** Format: uuid */
+            original_journal_entry_id: string;
+            reversal_journal_entry: components["schemas"]["JournalEntry"];
+        };
+        ExpenseCorrection: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            reason: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            postings: components["schemas"]["ExpenseCorrectionPosting"][];
+        };
+        Expense: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "draft" | "posted" | "reversed";
+            category: components["schemas"]["ExpenseCategory"];
+            amount_currency: components["schemas"]["Money"];
+            currency_code: string;
+            exchange_rate: number | null;
+            amount_iqd: number | null;
+            paid_currency: number;
+            balance_currency: number;
+            balance_iqd: number | null;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            cash_account: components["schemas"]["ExpenseCashAccountLink"] | null;
+            supplier: components["schemas"]["ExpensePartyLink"] | null;
+            payee: string | null;
+            description: string;
+            reference_number: string | null;
+            receipt: components["schemas"]["ExpenseReceipt"] | null;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            posted_by: string | null;
+            /** Format: date-time */
+            posted_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            poster: components["schemas"]["ExpenseActor"] | null;
+            journal_entry: components["schemas"]["JournalEntry"] | null;
+            payments: components["schemas"]["ExpensePayment"][];
+            corrections: components["schemas"]["ExpenseCorrection"][];
+        };
+        ExpenseSummary: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "draft" | "posted" | "reversed";
+            category: components["schemas"]["ExpenseCategoryLink"];
+            amount_currency: number;
+            amount_iqd: number | null;
+            paid_currency: number;
+            balance_currency: number;
+            currency_code: string;
+            /** @enum {string} */
+            payment_mode: "paid_now" | "owed";
+            payee: string | null;
+            supplier: components["schemas"]["ExpensePartyLink"] | null;
+            cash_account: components["schemas"]["ExpenseCashAccountSummary"] | null;
+            description: string;
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExpensePage: {
+            items: components["schemas"]["ExpenseSummary"][];
+            pagination: {
+                page: number;
+                per_page: number;
+                total: number;
+                pages: number;
+            };
+        };
+        ExpenseTotals: {
+            total_iqd: number;
+            document_count: number;
+            per_category: {
+                category: components["schemas"]["ExpenseCategoryLink"];
+                total_iqd: number;
+                document_count: number;
+            }[];
+        };
         AdminFinancialSettings: {
             settings: {
                 /**
@@ -14223,6 +17760,22 @@ export interface components {
                  * @enum {string|null}
                  */
                 separation_of_duties_level: "standard" | "strict" | null;
+                store_legal_name_ar?: string | null;
+                store_legal_name_en?: string | null;
+                store_address_ar?: string | null;
+                store_address_en?: string | null;
+                support_phone?: string | null;
+                support_whatsapp?: string | null;
+                /** Format: email */
+                support_email?: string | null;
+                /** Format: email */
+                privacy_email?: string | null;
+                support_hours_ar?: string | null;
+                support_hours_en?: string | null;
+                refund_days?: string | null;
+                /** Format: date */
+                policy_effective_date?: string | null;
+                return_window_days?: string | null;
             } & {
                 [key: string]: string | null;
             };
@@ -14234,6 +17787,22 @@ export interface components {
             settings?: {
                 /** @enum {string|null} */
                 separation_of_duties_level?: "standard" | "strict" | null;
+                store_legal_name_ar?: string | null;
+                store_legal_name_en?: string | null;
+                store_address_ar?: string | null;
+                store_address_en?: string | null;
+                support_phone?: string | null;
+                support_whatsapp?: string | null;
+                /** Format: email */
+                support_email?: string | null;
+                /** Format: email */
+                privacy_email?: string | null;
+                support_hours_ar?: string | null;
+                support_hours_en?: string | null;
+                refund_days?: string | null;
+                /** Format: date */
+                policy_effective_date?: string | null;
+                return_window_days?: string | null;
             } & {
                 [key: string]: string | null;
             };
@@ -14360,8 +17929,35 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Uploaded workbook, archive, image, or row count exceeds the declared limit */
+        PayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Uploaded image bytes are not a supported image format */
+        UnsupportedMediaType: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Missing permission (`FORBIDDEN`) */
         Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Background worker queue is unavailable */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -14376,6 +17972,7 @@ export interface components {
         PerPage: number;
         Search: string;
         Reason: string;
+        IdempotencyKey: string;
     };
     requestBodies: never;
     headers: never;

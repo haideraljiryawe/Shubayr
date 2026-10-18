@@ -34,7 +34,9 @@ function storedSession(page: Page) {
   ) as Promise<{ access_token: string; refresh_token: string } | null>;
 }
 
-test("signing in with a one-time code lands on the account", async ({ page }) => {
+test("signing in with a one-time code lands on the account", async ({
+  page,
+}) => {
   await signIn(page);
 
   await expect(page).toHaveURL(/\/account$/);
@@ -60,7 +62,9 @@ test("a wrong code is rejected and the flow stays on the code step", async ({
   await page.getByTestId("auth-code").fill("000000");
   await page.getByTestId("auth-verify").click();
 
-  await expect(page.getByText("الرمز غير صحيح أو منتهي الصلاحية")).toBeVisible();
+  await expect(
+    page.getByText("الرمز غير صحيح أو منتهي الصلاحية"),
+  ).toBeVisible();
   await expect(page.getByTestId("auth-code")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
 
@@ -70,7 +74,9 @@ test("a wrong code is rejected and the flow stays on the code step", async ({
   await expect(page).toHaveURL(/\/account$/);
 });
 
-test("resending is held behind a cooldown that counts down", async ({ page }) => {
+test("resending is held behind a cooldown that counts down", async ({
+  page,
+}) => {
   await page.goto("/login");
   await page.getByTestId("auth-phone").fill(PHONE);
   await page.getByTestId("auth-send-otp").click();
@@ -92,7 +98,9 @@ test("resending is held behind a cooldown that counts down", async ({ page }) =>
   await expect(resend).toBeDisabled();
 });
 
-test("the account pages are closed to signed-out visitors", async ({ page }) => {
+test("the account pages are closed to signed-out visitors", async ({
+  page,
+}) => {
   await page.goto("/account/orders");
   await expect(page).toHaveURL(/\/login\?next=%2Faccount%2Forders/);
 
@@ -189,7 +197,9 @@ test("orders list and the tracking timeline render", async ({ page }) => {
   );
 });
 
-test("addresses can be added, edited, defaulted and deleted", async ({ page }) => {
+test("addresses can be added, edited, defaulted and deleted", async ({
+  page,
+}) => {
   await signIn(page);
   await page.getByTestId("account-link-addresses").click();
 
@@ -199,8 +209,11 @@ test("addresses can be added, edited, defaulted and deleted", async ({ page }) =
   // Create — and validation refuses an empty form first.
   await page.getByTestId("address-add").click();
   await page.getByTestId("address-save").click();
-  await expect(page.getByText("يرجى تصحيح الحقول المميّزة أدناه.")).toBeVisible();
+  await expect(
+    page.getByText("يرجى تصحيح الحقول المميّزة أدناه."),
+  ).toBeVisible();
 
+  await page.getByTestId("address-governorate").selectOption({ index: 1 });
   await page.getByTestId("address-label").fill("بيت الأهل");
   await page.getByTestId("address-city").fill("بابل");
   await page.getByTestId("address-area").fill("الحلة");
@@ -266,6 +279,7 @@ test("a signed-in shopper can still type a new address", async ({ page }) => {
   await expect(page.getByTestId("address-name")).toHaveValue("أحمد علي");
   await expect(page.getByTestId("address-phone")).toHaveValue(PHONE);
 
+  await page.getByTestId("address-governorate").selectOption({ index: 1 });
   await page.getByTestId("address-city").fill("النجف");
   await page.getByTestId("address-area").fill("حي السلام");
   await page.getByTestId("address-street").fill("شارع 9");
@@ -410,9 +424,7 @@ test("notification preferences toggle per type and channel", async ({
 
   // The switch input is sr-only; its enclosing label is the visible control,
   // which is what a pointer actually hits.
-  await page
-    .locator('label:has([data-testid="notify-promo-push"])')
-    .click();
+  await page.locator('label:has([data-testid="notify-promo-push"])').click();
   await expect(page.getByTestId("notify-promo-push")).toBeChecked();
 
   // Order-confirmation SMS is mandatory, so it is on and cannot be moved —
@@ -423,10 +435,12 @@ test("notification preferences toggle per type and channel", async ({
 
   // Every type is offered on both channels — the three API 11.1 customer
   // notifications included.
-  await expect(page.getByTestId("notification-prefs").locator("> li")).toHaveCount(
-    13,
-  );
-  await expect(page.getByTestId("notify-quantity_reduction_proposed-push")).toBeChecked();
+  await expect(
+    page.getByTestId("notification-prefs").locator("> li"),
+  ).toHaveCount(13);
+  await expect(
+    page.getByTestId("notify-quantity_reduction_proposed-push"),
+  ).toBeChecked();
 });
 
 test("payments states that cash on delivery is the only method", async ({

@@ -16,6 +16,12 @@ const product = {
 };
 
 describe('CartService', () => {
+  function pricing(deliveryFee = 0) {
+    return {
+      resolveDeliveryFee: jest.fn().mockResolvedValue(deliveryFee),
+    };
+  }
+
   function repeatSafeCartService() {
     let line:
       | {
@@ -78,7 +84,11 @@ describe('CartService', () => {
         variants: [{ variant_id: 'variant-1', available_qty: 20 }],
       }),
     };
-    const service = new CartService(prisma as never, products as never);
+    const service = new CartService(
+      prisma as never,
+      products as never,
+      pricing() as never,
+    );
     jest
       .spyOn(
         service as unknown as {
@@ -158,6 +168,7 @@ describe('CartService', () => {
   it('keeps the seen price while exposing the current price for explicit acceptance', async () => {
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      discountTier: { findMany: jest.fn().mockResolvedValue([]) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
         findUnique: jest.fn().mockResolvedValue({
@@ -184,9 +195,16 @@ describe('CartService', () => {
         variants: [{ variant_id: 'variant-1', available_qty: 4 }],
       }),
     };
-    const service = new CartService(prisma as never, products as never);
+    const deliveryPricing = pricing(6000);
+    const service = new CartService(
+      prisma as never,
+      products as never,
+      deliveryPricing as never,
+    );
 
-    expect(await service.get('user-1')).toEqual({
+    expect(
+      await service.get('user-1', { governorate_id: 'governorate-1' }),
+    ).toEqual({
       id: 'cart-1',
       coupon_code: null,
       currency: 'IQD',
@@ -209,8 +227,16 @@ describe('CartService', () => {
       ],
       subtotal: 20250,
       discount: 0,
-      delivery_fee: 0,
-      total: 20250,
+      coupon_discount: 0,
+      tier_discount: 0,
+      discount_source: 'none',
+      applied_tier: null,
+      next_tier: null,
+      delivery_fee: 6000,
+      total: 26250,
+    });
+    expect(deliveryPricing.resolveDeliveryFee).toHaveBeenCalledWith('user-1', {
+      governorate_id: 'governorate-1',
     });
     expect(prisma.cart.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { user_id: 'user-1' } }),
@@ -237,7 +263,11 @@ describe('CartService', () => {
         variants: [{ variant_id: 'variant-1', available_qty: 2 }],
       }),
     };
-    const service = new CartService(prisma as never, products as never);
+    const service = new CartService(
+      prisma as never,
+      products as never,
+      pricing() as never,
+    );
 
     await expect(
       service.add('user-1', {
@@ -253,7 +283,11 @@ describe('CartService', () => {
     const prisma = {
       cartItem: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
-    const service = new CartService(prisma as never, {} as never);
+    const service = new CartService(
+      prisma as never,
+      {} as never,
+      pricing() as never,
+    );
 
     await expect(service.remove('user-1', 'item-1')).rejects.toBeInstanceOf(
       NotFoundException,
@@ -277,6 +311,7 @@ describe('CartService', () => {
     let applied = false;
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      discountTier: { findMany: jest.fn().mockResolvedValue([]) },
       coupon: { findFirst: jest.fn().mockResolvedValue(coupon) },
       cart: {
         upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }),
@@ -312,7 +347,11 @@ describe('CartService', () => {
         variants: [{ variant_id: 'variant-1', available_qty: 4 }],
       }),
     };
-    const service = new CartService(prisma as never, products as never);
+    const service = new CartService(
+      prisma as never,
+      products as never,
+      pricing() as never,
+    );
     const original = await service.get('user-1');
     await service.applyCoupon('user-1', { code: 'SHUBAYR10' });
     const discounted = await service.get('user-1');

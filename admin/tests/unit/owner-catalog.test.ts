@@ -31,12 +31,13 @@ import {
   type ProductImage,
 } from "@/lib/product-images";
 import {
-  bulkPatch,
+  apiSort,
+  bulkBody,
+  bulkOutcome,
   bulkTargets,
-  localFilters,
-  matchesLocalFilters,
-  pageOf,
+  listFilters,
   primaryImage,
+  productQuery,
 } from "@/lib/product-list";
 
 /* ------------------------------------------------------------ modules */
@@ -56,6 +57,7 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "settings",
       "users",
     ]);
+    expect(parseModules("expenses")).toEqual(["expenses"]);
   });
 
   it("puts each route under its module, nested prefixes first", () => {
@@ -93,6 +95,8 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "products",
       "categories",
       "brands",
+      "catalogImport",
+      "catalogImages",
       "stock",
       "openings",
       "movements",
@@ -102,6 +106,8 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "writeDowns",
       "orders",
       "settings",
+      "deliveryZones",
+      "discountTiers",
       "staff",
       "presets",
       "workPhones",
@@ -273,31 +279,71 @@ const product = (patch: Partial<Product>): Product => ({
 });
 
 describe("product list filters and bulk actions", () => {
-  it("reads only known status and stock filters", () => {
-    expect(localFilters({ status: "active", stock: "low_stock" })).toEqual({ status: "active", stock: "low_stock" });
-    expect(localFilters({ status: "draft", stock: "plenty" })).toEqual({ status: null, stock: null });
+  it("reads only known status, stock and picture filters", () => {
+    expect(listFilters({ status: "active", stock: "low_stock", image: "with" })).toEqual({ status: "active", stock: "low_stock", image: "with" });
+    expect(listFilters({ status: "draft", stock: "plenty", image: "maybe" })).toEqual({ status: null, stock: null, image: null });
   });
 
-  it("matches status and stock", () => {
-    const filters = { status: "active" as const, stock: "in_stock" as const };
-    expect(matchesLocalFilters(product({ status: "active", availability: "in_stock" }), filters)).toBe(true);
-    expect(matchesLocalFilters(product({ status: "hidden", availability: "in_stock" }), filters)).toBe(false);
-    expect(matchesLocalFilters(product({ status: "active", availability: "low_stock" }), filters)).toBe(false);
-    expect(matchesLocalFilters(product({}), { status: null, stock: null })).toBe(true);
+  it("sends search, filters and sort to the API (it filters, sorts and pages in the database)", () => {
+    expect(
+      productQuery({
+        q: "SKU-1",
+        filters: { category_id: "c1", brand_id: "b1", status: "hidden", stock: "out_of_stock", image: "without" },
+        sort: "name",
+        dir: "desc",
+      }),
+    ).toEqual({
+      q: "SKU-1",
+      category_id: "c1",
+      brand_id: ["b1"],
+      status: ["hidden"],
+      availability: ["out_of_stock"],
+      has_image: false,
+      sort: "name_desc",
+    });
+    expect(productQuery({ q: "", filters: { status: "draft", image: "with" }, sort: "newest", dir: "desc" })).toEqual({
+      has_image: true,
+      sort: "newest",
+    });
   });
 
-  it("pages a filtered list and clamps past the end", () => {
-    const rows = Array.from({ length: 45 }, (_, i) => i);
-    expect(pageOf(rows, 2, 20)).toEqual({ rows: rows.slice(20, 40), page: 2 });
-    expect(pageOf(rows, 9, 20)).toEqual({ rows: rows.slice(40), page: 3 });
-    expect(pageOf([], 3, 20)).toEqual({ rows: [], page: 1 });
+  it("maps each sortable column to the API's sort", () => {
+    expect(apiSort("price", "asc")).toBe("price_asc");
+    expect(apiSort("price", "desc")).toBe("price_desc");
+    expect(apiSort("name", "asc")).toBe("name_asc");
+    expect(apiSort("name", "desc")).toBe("name_desc");
+    expect(apiSort("sku", "asc")).toBe("sku_asc");
+    expect(apiSort("sku", "desc")).toBe("sku_desc");
+    expect(apiSort("newest", "asc")).toBe("newest");
   });
 
-  it("turns each bulk action into one PATCH body", () => {
-    expect(bulkPatch({ kind: "publish" })).toEqual({ status: "active", published: true });
-    expect(bulkPatch({ kind: "hide" })).toEqual({ status: "hidden", published: false });
-    expect(bulkPatch({ kind: "category", categoryId: "c2" })).toEqual({ category_id: "c2" });
-    expect(bulkPatch({ kind: "brand", brandId: null })).toEqual({ brand_id: null });
+  it("builds one bulk request per action", () => {
+    expect(bulkBody({ kind: "publish" }, ["1", "2"])).toEqual({ ids: ["1", "2"], action: "publish" });
+    expect(bulkBody({ kind: "hide" }, ["1"])).toEqual({ ids: ["1"], action: "hide" });
+    expect(bulkBody({ kind: "category", categoryId: "c2" }, ["1"])).toEqual({ ids: ["1"], action: "set_category", category_id: "c2" });
+    expect(bulkBody({ kind: "brand", brandId: null }, ["1"])).toEqual({ ids: ["1"], action: "set_brand", brand_id: null });
+  });
+
+  it("reports the bulk result product by product, failures first", () => {
+    const outcome = bulkOutcome(
+      {
+        operation_id: "op",
+        results: [
+          { id: "1", status: "updated" },
+          { id: "2", status: "error", code: "PRODUCT_NOT_READY", message: "Needs an approved price" },
+          { id: "3", status: "error", code: "X" },
+        ],
+      },
+      (id) => `Product ${id}`,
+      "Unknown",
+    );
+    expect(outcome.done).toBe(1);
+    expect(outcome.failed).toBe(2);
+    expect(outcome.lines).toEqual([
+      { id: "2", name: "Product 2", ok: false, message: "Needs an approved price" },
+      { id: "3", name: "Product 3", ok: false, message: "X" },
+      { id: "1", name: "Product 1", ok: true, message: null },
+    ]);
   });
 
   it("skips products the action would not change", () => {

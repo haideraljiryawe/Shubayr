@@ -10,8 +10,8 @@ import type { NavKey } from "./nav";
  *
  *   ADMIN_MODULES=catalog,stock,orders,settings,users
  *
- * and delivery parties, trips, custody exceptions and cash receipts (each its
- * own module) stay out of the menu, off the dashboard, and their routes
+ * and customer returns, delivery parties, trips, custody exceptions and cash
+ * receipts (each its own module) stay out of the menu, off the dashboard, and their routes
  * answer with a "not enabled" page until they are switched on as add-ons.
  *
  * This is presentation only. Permissions still decide who sees what inside
@@ -24,8 +24,10 @@ export const MODULES = [
   "orders",
   "settings",
   "users",
+  "returns",
   "purchasing",
   "finance",
+  "expenses",
   "deliveryParties",
   "trips",
   "custody",
@@ -40,6 +42,8 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   products: "catalog",
   categories: "catalog",
   brands: "catalog",
+  catalogImport: "catalog",
+  catalogImages: "catalog",
   stock: "stock",
   movements: "stock",
   warehouses: "stock",
@@ -48,7 +52,10 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   counts: "stock",
   writeDowns: "stock",
   orders: "orders",
+  returns: "returns",
   settings: "settings",
+  deliveryZones: "settings",
+  discountTiers: "settings",
   staff: "users",
   presets: "users",
   workPhones: "users",
@@ -64,6 +71,8 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   trips: "trips",
   custodyExceptions: "custody",
   cashReceipts: "cashReceipts",
+  expenses: "expenses",
+  expenseCategories: "expenses",
   audit: "audit",
 };
 
@@ -82,6 +91,8 @@ const ROUTES: ReadonlyArray<[prefix: string, owner: ModuleKey]> = [
   ["/inventory", "stock"],
   ["/orders", "orders"],
   ["/retrievals", "orders"],
+  ["/returns", "returns"],
+  ["/expenses", "expenses"],
   ["/settings", "settings"],
   ["/staff", "users"],
   ["/presets", "users"],

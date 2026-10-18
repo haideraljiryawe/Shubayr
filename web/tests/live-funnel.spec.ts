@@ -1,4 +1,9 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 /**
  * The purchase funnel end to end, in a browser, against the real API.
@@ -68,10 +73,15 @@ async function emptyServerCart(request: APIRequestContext): Promise<void> {
 }
 
 /** The quantity of `productId` in this worker's customer's server cart. */
-async function serverQuantity(request: APIRequestContext, productId: string): Promise<number> {
+async function serverQuantity(
+  request: APIRequestContext,
+  productId: string,
+): Promise<number> {
   const access = await token(request);
   const cart = await (
-    await request.get(`${API}/cart`, { headers: { Authorization: `Bearer ${access}` } })
+    await request.get(`${API}/cart`, {
+      headers: { Authorization: `Bearer ${access}` },
+    })
   ).json();
   return (cart.items as Array<{ product_id: string; quantity: number }>)
     .filter((item) => item.product_id === productId)
@@ -79,7 +89,10 @@ async function serverQuantity(request: APIRequestContext, productId: string): Pr
 }
 
 /** Put one earbuds line in the guest basket, choosing the in-stock variant. */
-async function addEarbudsAsGuest(page: Page, productId = EARBUDS): Promise<void> {
+async function addEarbudsAsGuest(
+  page: Page,
+  productId = EARBUDS,
+): Promise<void> {
   await page.goto(`/product/${productId}`);
 
   // Stock is on the VARIANTS: the seed leaves the variantless SKU at zero, so
@@ -89,7 +102,9 @@ async function addEarbudsAsGuest(page: Page, productId = EARBUDS): Promise<void>
   const count = await swatches.count();
   for (let index = 0; index < count; index += 1) {
     await swatches.nth(index).click();
-    if (await page.locator('[data-testid="pdp-add-to-cart"]:visible').isEnabled()) {
+    if (
+      await page.locator('[data-testid="pdp-add-to-cart"]:visible').isEnabled()
+    ) {
       break;
     }
   }
@@ -162,7 +177,12 @@ test.describe("live purchase funnel", () => {
     const swatches = page.locator("fieldset button[aria-pressed]");
     for (let index = 0; index < (await swatches.count()); index += 1) {
       await swatches.nth(index).click();
-      if (await page.locator('[data-testid="pdp-add-to-cart"]:visible').isEnabled()) break;
+      if (
+        await page
+          .locator('[data-testid="pdp-add-to-cart"]:visible')
+          .isEnabled()
+      )
+        break;
     }
     const add = page.locator('[data-testid="pdp-add-to-cart"]:visible');
     await expect(add).toBeEnabled();
@@ -173,7 +193,10 @@ test.describe("live purchase funnel", () => {
     await expect.poll(() => serverQuantity(request, EARBUDS)).toBe(2);
   });
 
-  test("leaving right after sign-in never duplicates a guest line", async ({ page, request }) => {
+  test("leaving right after sign-in never duplicates a guest line", async ({
+    page,
+    request,
+  }) => {
     for (let round = 1; round <= 3; round += 1) {
       await emptyServerCart(request);
       await page.evaluate(() => window.localStorage.clear());
@@ -185,8 +208,15 @@ test.describe("live purchase funnel", () => {
       await page.goto("/cart");
       await page.goto("/categories");
       await page.goto("/cart");
-      await expect(page.getByTestId("cart-summary")).toHaveAttribute("data-server-priced", "true");
-      await expect.poll(() => serverQuantity(request, EARBUDS), { message: `round ${round}` }).toBe(1);
+      await expect(page.getByTestId("cart-summary")).toHaveAttribute(
+        "data-server-priced",
+        "true",
+      );
+      await expect
+        .poll(() => serverQuantity(request, EARBUDS), {
+          message: `round ${round}`,
+        })
+        .toBe(1);
       // Signed out again for the next round's guest basket.
       await page.context().clearCookies();
       await page.evaluate(() => {
@@ -206,6 +236,9 @@ test.describe("live purchase funnel", () => {
       "data-server-priced",
       "true",
     );
+    // The saved address's delivery fee is in the total once the server has
+    // priced it (API 16.2): read the total after that, not before.
+    await expect(page.getByTestId("summary-delivery")).not.toHaveText("حسب المحافظة");
 
     const total = page.getByTestId("summary-total");
     const before = (await total.textContent()) ?? "";
@@ -332,6 +365,7 @@ test.describe("live purchase funnel", () => {
     await page.getByTestId("address-add").click();
 
     const label = `Live ${Date.now().toString(36)}`;
+    await page.getByTestId("address-governorate").selectOption({ index: 1 });
     await page.getByTestId("address-label").fill(label);
     await page.getByTestId("address-city").fill("بغداد");
     await page.getByTestId("address-area").fill("الكرادة");
@@ -369,6 +403,7 @@ test.describe("live purchase funnel", () => {
     await expect(page.getByTestId("address-add")).toBeVisible();
     await page.getByTestId("address-add").click();
 
+    await page.getByTestId("address-governorate").selectOption({ index: 1 });
     await page.getByTestId("address-label").fill("Bad phone");
     await page.getByTestId("address-city").fill("بغداد");
     await page.getByTestId("address-area").fill("الكرادة");
@@ -461,28 +496,41 @@ test.describe("live purchase funnel", () => {
     // out for delivery, delivered.
     await placeOrder(request);
     const dispatched = await placeOrder(request);
-    await advanceOrder(request, dispatched.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await advanceOrder(request, dispatched.id, [
+      "confirmed",
+      "preparing",
+      "ready_for_dispatch",
+    ]);
     await assignToAgent(request, dispatched.delivery_id);
     await advanceOrder(request, dispatched.id, ["dispatched"]);
     const delivered = await placeOrder(request);
-    await advanceOrder(request, delivered.id, ["confirmed", "preparing", "ready_for_dispatch"]);
+    await advanceOrder(request, delivered.id, [
+      "confirmed",
+      "preparing",
+      "ready_for_dispatch",
+    ]);
     await assignToAgent(request, delivered.delivery_id);
     await advanceOrder(request, delivered.id, ["dispatched"]);
     const admin = await staffToken(request);
     const current = await (
-      await request.get(`${API}/admin/orders/${delivered.id}`, { headers: bearer(admin) })
+      await request.get(`${API}/admin/orders/${delivered.id}`, {
+        headers: bearer(admin),
+      })
     ).json();
-    const done = await request.patch(`${API}/admin/deliveries/${delivered.delivery_id}/status`, {
-      headers: bearer(admin),
-      data: {
-        status: "delivered",
-        order_version: current.version,
-        operation_id: `web-live-track-${delivered.delivery_id}`,
-        collection_confirmation: "confirmed",
-        collected_amount: String(delivered.total),
-        source: "web live test",
+    const done = await request.patch(
+      `${API}/admin/deliveries/${delivered.delivery_id}/status`,
+      {
+        headers: bearer(admin),
+        data: {
+          status: "delivered",
+          order_version: current.version,
+          operation_id: `web-live-track-${delivered.delivery_id}`,
+          collection_confirmation: "confirmed",
+          collected_amount: String(delivered.total),
+          source: "web live test",
+        },
       },
-    });
+    );
     expect(done.ok(), await done.text()).toBe(true);
 
     const access = await token(request);

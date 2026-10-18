@@ -22,6 +22,7 @@ export interface AuthenticatedRequestUser {
   permissions: string[];
   permissionVersion: number;
   sessionVersion: number;
+  sessionId?: string | null;
   mustChangePassword: boolean;
 }
 

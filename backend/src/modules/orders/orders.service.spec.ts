@@ -8,6 +8,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { OrdersService } from './orders.service';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
 
@@ -17,6 +18,7 @@ const fingerprint = createHash('sha256')
     JSON.stringify({
       address_id: input.address_id,
       coupon_code: null,
+      loyalty_points: 0,
       payment_method: 'cod',
       accepted_price_versions: [],
     }),
@@ -541,10 +543,17 @@ describe('OrdersService', () => {
     await service.updateStatus('staff-1', 'order-1', {
       status: 'confirmed',
       version: 1,
+      customer_contacted: true,
+      customer_contact_note: 'Confirmed by phone',
     });
     expect(tx.order.updateMany).toHaveBeenCalledWith({
       where: { id: 'order-1', status: 'pending', version: 1 },
-      data: { status: 'confirmed', version: { increment: 1 } },
+      data: {
+        status: 'confirmed',
+        version: { increment: 1 },
+        customer_contacted: true,
+        customer_contact_note: 'Confirmed by phone',
+      },
     });
     expect(tx.orderStatusEvent.create).toHaveBeenCalledWith({
       data: {
@@ -572,6 +581,8 @@ describe('OrdersService', () => {
           {
             variant_id: 'variant-1',
             unit_price: 1000,
+            quantity: 1,
+            net_line_total: { div: jest.fn().mockReturnValue(1000) },
             variant: { sku: 'SKU-1' },
           },
         ]),
@@ -612,6 +623,8 @@ describe('OrdersService', () => {
           status: 'confirmed',
           version: 1,
           below_cost_override_reason: 'Self approval attempt',
+          customer_contacted: true,
+          customer_contact_note: 'Confirmed by phone',
           below_cost_originator_id: 'different-user',
         } as never,
         ['sell_below_cost.approve'],
@@ -624,5 +637,109 @@ describe('OrdersService', () => {
       expect.any(Array),
       expect.objectContaining({ originatorId: 'staff-1' }),
     );
+  });
+
+  it('updates a reduced line and restores excess redeemed points atomically', async () => {
+    const update = jest.fn(({ data }: { data: Record<string, unknown> }) => {
+      if ('line_total' in data && !('net_line_total' in data)) {
+        throw new Error('order_items_net_values_check');
+      }
+      return Promise.resolve({});
+    });
+    const tx = {
+      orderItem: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'item-1',
+            line_total: new Prisma.Decimal(30000),
+          },
+        ]),
+        update,
+      },
+      order: { update: jest.fn().mockResolvedValue({}) },
+      loyaltyAccount: {
+        upsert: jest.fn().mockResolvedValue({ id: 'loyalty-account-1' }),
+      },
+      loyaltyLedger: {
+        create: jest.fn().mockResolvedValue({ id: 'loyalty-entry-1' }),
+      },
+    };
+    const inventory = {
+      reduceOrderItemReservations: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new OrdersService(
+      {} as never,
+      {} as never,
+      audit,
+      undefined,
+      inventory as never,
+    );
+
+    await (
+      service as unknown as {
+        applyLineQuantity(
+          tx: unknown,
+          order: {
+            id: string;
+            user_id: string;
+            discount: Prisma.Decimal;
+            loyalty_points_redeemed: number;
+            loyalty_redemption_amount: Prisma.Decimal;
+            delivery_fee: Prisma.Decimal;
+          },
+          item: { id: string; unit_price: Prisma.Decimal },
+          quantity: number,
+          actorId: string,
+        ): Promise<void>;
+      }
+    ).applyLineQuantity(
+      tx,
+      {
+        id: 'order-1',
+        user_id: 'customer-1',
+        discount: new Prisma.Decimal(3000),
+        loyalty_points_redeemed: 8000,
+        loyalty_redemption_amount: new Prisma.Decimal(8000),
+        delivery_fee: new Prisma.Decimal(5000),
+      },
+      { id: 'item-1', unit_price: new Prisma.Decimal(10000) },
+      1,
+      'customer-1',
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'item-1' },
+      data: {
+        quantity: 1,
+        line_total: 10000,
+        discount_share: 3000,
+        coupon_discount_share: 0,
+        tier_discount_share: 0,
+        loyalty_discount_share: 7000,
+        net_line_total: 7000,
+        net_paid_total: new Prisma.Decimal(0),
+      },
+    });
+    expect(tx.loyaltyLedger.create).toHaveBeenCalledWith({
+      data: {
+        account_id: 'loyalty-account-1',
+        order_id: 'order-1',
+        type: 'adjust',
+        reason: 'order_quantity_reduction_restore',
+        points: 1000,
+        created_by: 'customer-1',
+        note: 'Restored because an accepted shortage reduced payable goods',
+      },
+    });
+    expect(tx.order.update).toHaveBeenCalledWith({
+      where: { id: 'order-1' },
+      data: {
+        subtotal: new Prisma.Decimal(10000),
+        discount: new Prisma.Decimal(3000),
+        loyalty_points_redeemed: 7000,
+        loyalty_redemption_amount: new Prisma.Decimal(7000),
+        total: new Prisma.Decimal(5000),
+      },
+    });
   });
 });
