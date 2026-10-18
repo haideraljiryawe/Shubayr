@@ -21,6 +21,7 @@ import {
   ReceiveReturnDto,
   RefundReturnDto,
   RequestReturnDto,
+  ReturnFeePreviewDto,
   ReturnQueryDto,
   StaffCreateReturnDto,
 } from './dto/return.dto';
@@ -40,16 +41,23 @@ export class ReturnsController {
 
   @Get('queue')
   @AdminPolicy('returns.view')
-  queue(@Query() query: ReturnQueryDto) {
-    return this.returns.queue(query);
+  queue(@Req() request: UserRequest, @Query() query: ReturnQueryDto) {
+    return this.returns.queue(request.user, query);
+  }
+
+  @Get('refund-cash-accounts')
+  @AdminPolicy('returns.refund')
+  refundCashAccounts() {
+    return this.returns.refundCashAccounts();
   }
 
   @Get('queue/:id')
   @AdminPolicy('returns.view')
   getStaff(
+    @Req() request: UserRequest,
     @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
   ) {
-    return this.returns.getStaff(id);
+    return this.returns.getStaff(request.user, id);
   }
 
   @Post('staff')
@@ -92,6 +100,16 @@ export class ReturnsController {
       id,
       input,
     );
+  }
+
+  @Post(':id/delivery-fee-preview')
+  @HttpCode(200)
+  @AdminPolicy('returns.approve')
+  previewDeliveryFee(
+    @Param('id', new ParseUUIDPipe({ errorHttpStatusCode: 422 })) id: string,
+    @Body() input: ReturnFeePreviewDto,
+  ) {
+    return this.returns.previewDeliveryFee(id, input);
   }
 
   @Post(':id/receive')

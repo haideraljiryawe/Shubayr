@@ -600,8 +600,23 @@ jobs:
           set_value SMS_GATEWAY_TOKEN "$(hex 12)"
           set_value BACKUP_TARGET offsite:/offsite/shubayr-backups
           set_value BACKUP_RCLONE_CONF "$dir/rclone.conf"
+          set_value BACKUP_HEARTBEAT_URL http://host.docker.internal:18765/ping
+          set_value BACKUP_HEARTBEAT_FAIL_SUFFIX /fail
           echo "OFFSITE_TEST_DIR=$dir/offsite" >> "$env"
+          echo "BACKUP_HEARTBEAT_ALLOW_HTTP=true" >> "$env"
           printf '[offsite]\ntype = local\n' > "$dir/rclone.conf"
+          python3 -u - <<'PY' > "$dir/heartbeat.log" 2>&1 &
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          class Handler(BaseHTTPRequestHandler):
+              def do_POST(self):
+                  print(self.path, flush=True)
+                  self.send_response(204)
+                  self.end_headers()
+              def log_message(self, *args):
+                  pass
+          HTTPServer(('0.0.0.0', 18765), Handler).serve_forever()
+          PY
+          echo "HEARTBEAT_LOG=$dir/heartbeat.log" >> "$GITHUB_ENV"
           password="Owner-$(hex 8)-A1!"
           echo "::add-mask::$password"
           {
@@ -646,7 +661,16 @@ jobs:
           echo "http: $plain"
           echo "$plain" | grep -qE '^30[18] https://www\.shubayr\.localhost/$'
       - name: Backup, then restore it into a fresh stack and compare
-        run: deploy/scripts/test-restore.sh
+        run: |
+          deploy/scripts/test-restore.sh
+          grep -q '^/ping$' "$HEARTBEAT_LOG"
+          source deploy/scripts/lib.sh
+          output="$(dc exec -T \
+            -e BACKUP_HEARTBEAT_URL=http://127.0.0.1:1/unreachable \
+            -e BACKUP_HEARTBEAT_ALLOW_HTTP=true \
+            backup /usr/local/bin/heartbeat.sh success)"
+          echo "$output"
+          echo "$output" | grep -q 'backup heartbeat failed'
       - name: Only 80 and 443 are published
         run: |
           published="$(docker ps --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0:' || true)"

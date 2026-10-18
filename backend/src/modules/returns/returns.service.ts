@@ -34,6 +34,7 @@ import {
   ReceiveReturnDto,
   RefundReturnDto,
   RequestReturnDto,
+  ReturnFeePreviewDto,
   ReturnQueryDto,
   ReturnSortBy,
   StaffCreateReturnDto,
@@ -58,9 +59,38 @@ const returnInclude = {
     },
     orderBy: { id: 'asc' as const },
   },
-  order: { select: { id: true, order_number: true, total: true } },
+  user: { select: { name: true, phone: true } },
+  order: {
+    select: {
+      id: true,
+      order_number: true,
+      total: true,
+      delivery_collection: {
+        include: {
+          party: { select: { id: true, kind: true, name: true } },
+          cash_receipt_allocations: {
+            where: { batch: { voucher: { reversal: { is: null } } } },
+            select: { amount_iqd: true },
+          },
+          trip_settlement_allocations: { select: { amount_iqd: true } },
+          return_refund_payments: { select: { amount_iqd: true } },
+        },
+      },
+    },
+  },
   refund: true,
-  events: { orderBy: [{ created_at: 'asc' as const }, { id: 'asc' as const }] },
+  events: {
+    include: {
+      actor: {
+        select: {
+          name: true,
+          username: true,
+          role: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: [{ created_at: 'asc' as const }, { id: 'asc' as const }],
+  },
   refund_payments: {
     include: {
       cash_account: { select: { id: true, name: true } },
@@ -92,19 +122,23 @@ export class ReturnsService {
     return this.list({ user_id: userId }, query);
   }
 
-  queue(query: ReturnQueryDto) {
-    return this.list({}, query);
+  queue(actor: Actor, query: ReturnQueryDto) {
+    return this.list({}, query, actor);
   }
 
   getOwned(userId: string, id: string) {
     return this.get(id, { user_id: userId });
   }
 
-  getStaff(id: string) {
-    return this.get(id);
+  getStaff(actor: Actor, id: string) {
+    return this.get(id, {}, actor);
   }
 
-  private async list(scope: Prisma.ReturnWhereInput, query: ReturnQueryDto) {
+  private async list(
+    scope: Prisma.ReturnWhereInput,
+    query: ReturnQueryDto,
+    actor?: Actor,
+  ) {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
     const where: Prisma.ReturnWhereInput = {
@@ -112,6 +146,19 @@ export class ReturnsService {
       ...(query.status ? { status: query.status } : {}),
       ...(query.customer_id ? { user_id: query.customer_id } : {}),
       ...(query.order_id ? { order_id: query.order_id } : {}),
+      ...(query.customer_phone
+        ? { user: { phone: { contains: query.customer_phone } } }
+        : {}),
+      ...(query.order_number
+        ? {
+            order: {
+              order_number: {
+                contains: query.order_number,
+                mode: 'insensitive',
+              },
+            },
+          }
+        : {}),
       ...(query.date_from || query.date_to
         ? {
             document_date: {
@@ -151,8 +198,72 @@ export class ReturnsService {
       page,
       per_page: perPage,
       total,
-      data: rows.map((row) => this.present(row)),
+      data: rows.map((row) => this.present(row, actor)),
     };
+  }
+
+  refundCashAccounts() {
+    return this.prisma.cashAccount.findMany({
+      where: { is_active: true, currency_code: 'IQD' },
+      select: { id: true, name: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  async previewDeliveryFee(id: string, input: ReturnFeePreviewDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.return.findUnique({
+        where: { id },
+        include: { items: true, order: { include: { items: true } } },
+      });
+      if (!row) throw notFound('RETURN_NOT_FOUND', 'Return not found');
+      if (row.status !== 'requested') {
+        throw conflict(
+          'RETURN_INVALID_STATE',
+          'Only a requested return can preview approval policy',
+        );
+      }
+      const selected = new Map(
+        input.items.map((item) => [
+          item.return_item_id,
+          new Prisma.Decimal(item.approved_quantity),
+        ]),
+      );
+      if (
+        selected.size !== input.items.length ||
+        input.items.some(
+          (item) => !row.items.some((line) => line.id === item.return_item_id),
+        )
+      ) {
+        throw invalid(
+          'RETURN_APPROVAL_LINES_INVALID',
+          'Preview lines must be unique lines from this return',
+        );
+      }
+      for (const line of row.items) {
+        const quantity = selected.get(line.id) ?? new Prisma.Decimal(0);
+        this.requireQuantity(quantity, line.whole_units_only, true);
+        if (quantity.gt(line.quantity)) {
+          throw invalid(
+            'RETURN_APPROVAL_EXCEEDS_REQUEST',
+            'Approved quantity exceeds requested quantity',
+          );
+        }
+      }
+      const policy = await this.deliveryFeePolicy(
+        tx,
+        row.id,
+        row.order,
+        row.items,
+        selected,
+      );
+      return {
+        refund_delivery_fee: policy.amount.gt(0),
+        amount: Number(policy.amount),
+        currency: row.currency_code,
+        reason: policy.reason,
+      };
+    });
   }
 
   request(userId: string, role: string, input: RequestReturnDto) {
@@ -402,7 +513,11 @@ export class ReturnsService {
         return { id };
       },
     });
-    return this.get(result.id, { user_id: customerId });
+    return this.get(
+      result.id,
+      { user_id: customerId },
+      source === 'staff' ? actor : undefined,
+    );
   }
 
   async approve(actor: Actor, id: string, input: ApproveReturnDto) {
@@ -523,11 +638,19 @@ export class ReturnsService {
             'At least one line must be approved; reject the return otherwise',
           );
         }
-        const defaultFee = await this.defaultDeliveryFeeRefund(
+        const policy = await this.deliveryFeePolicy(
           tx,
           current.id,
           current.order,
+          current.items,
+          new Map(
+            [...decisions].map(([lineId, decision]) => [
+              lineId,
+              new Prisma.Decimal(decision.approved_quantity),
+            ]),
+          ),
         );
+        const defaultFee = policy.amount;
         const requestedFee =
           input.delivery_fee_refund === undefined
             ? defaultFee
@@ -604,7 +727,7 @@ export class ReturnsService {
         return { id };
       },
     });
-    return this.get(result.id);
+    return this.get(result.id, {}, actor);
   }
 
   async receive(actor: Actor, id: string, input: ReceiveReturnDto) {
@@ -643,7 +766,7 @@ export class ReturnsService {
         return { id };
       },
     });
-    return this.get(result.id);
+    return this.get(result.id, {}, actor);
   }
 
   async inspect(actor: Actor, id: string, input: InspectReturnDto) {
@@ -857,7 +980,7 @@ export class ReturnsService {
         return { id };
       },
     });
-    return this.get(result.id);
+    return this.get(result.id, {}, actor);
   }
 
   async refund(actor: Actor, id: string, input: RefundReturnDto) {
@@ -1120,16 +1243,20 @@ export class ReturnsService {
         return { id };
       },
     });
-    return this.get(result.id);
+    return this.get(result.id, {}, actor);
   }
 
-  private async get(id: string, scope: Prisma.ReturnWhereInput = {}) {
+  private async get(
+    id: string,
+    scope: Prisma.ReturnWhereInput = {},
+    actor?: Actor,
+  ) {
     const row = await this.prisma.return.findFirst({
       where: { id, ...scope },
       include: returnInclude,
     });
     if (!row) throw notFound('RETURN_NOT_FOUND', 'Return not found');
-    return this.present(row);
+    return this.present(row, actor);
   }
 
   private async lockReturn(tx: Tx, id: string) {
@@ -1149,7 +1276,7 @@ export class ReturnsService {
     return row;
   }
 
-  private async defaultDeliveryFeeRefund(
+  private async deliveryFeePolicy(
     tx: Tx,
     returnId: string,
     order: {
@@ -1157,21 +1284,23 @@ export class ReturnsService {
       delivery_fee: Prisma.Decimal;
       items: Array<{ id: string; quantity: Prisma.Decimal }>;
     },
+    currentItems: Array<{
+      id: string;
+      order_item_id: string;
+      reason_code: string;
+    }>,
+    selected: Map<string, Prisma.Decimal>,
   ) {
     const all = await tx.returnItem.findMany({
       where: {
         return: { order_id: order.id, status: { not: 'rejected' } },
-        OR: [
-          { return_id: { not: returnId }, approved_quantity: { gt: 0 } },
-          { return_id: returnId },
-        ],
+        return_id: { not: returnId },
+        approved_quantity: { gt: 0 },
       },
       select: {
         order_item_id: true,
-        quantity: true,
         approved_quantity: true,
         reason_code: true,
-        return_id: true,
       },
     });
     const totals = new Map<string, Prisma.Decimal>();
@@ -1188,10 +1317,45 @@ export class ReturnsService {
       if (!['defect', 'store_error', 'wrong_item'].includes(item.reason_code))
         eligibleCause = false;
     }
+    for (const item of currentItems) {
+      const quantity = selected.get(item.id) ?? new Prisma.Decimal(0);
+      if (!quantity.gt(0)) continue;
+      totals.set(
+        item.order_item_id,
+        (totals.get(item.order_item_id) ?? new Prisma.Decimal(0)).plus(
+          quantity,
+        ),
+      );
+      if (!['defect', 'store_error', 'wrong_item'].includes(item.reason_code))
+        eligibleCause = false;
+    }
     const full = order.items.every((item) =>
       (totals.get(item.id) ?? new Prisma.Decimal(0)).gte(item.quantity),
     );
-    return full && eligibleCause ? order.delivery_fee : new Prisma.Decimal(0);
+    if (!full) {
+      return { amount: new Prisma.Decimal(0), reason: 'not_full_order_return' };
+    }
+    if (!eligibleCause) {
+      return { amount: new Prisma.Decimal(0), reason: 'reason_not_eligible' };
+    }
+    const prior = await tx.return.aggregate({
+      where: {
+        order_id: order.id,
+        id: { not: returnId },
+        status: { not: 'rejected' },
+      },
+      _sum: { delivery_fee_refund: true },
+    });
+    const remaining = Prisma.Decimal.max(
+      0,
+      order.delivery_fee.minus(prior._sum.delivery_fee_refund ?? 0),
+    );
+    return {
+      amount: remaining,
+      reason: remaining.gt(0)
+        ? 'full_order_store_fault'
+        : 'fee_already_refunded',
+    };
   }
 
   private async assertTransitionActor(
@@ -1483,13 +1647,59 @@ export class ReturnsService {
     );
   }
 
-  private present(row: ReturnRow) {
+  private present(row: ReturnRow, actor?: Actor) {
+    const staff = Boolean(actor);
+    const canViewCost = actor?.permissions.includes('cost.view') ?? false;
+    const collection = row.order.delivery_collection;
+    const held = collection?.collected_amount
+      ? Prisma.Decimal.max(
+          0,
+          new Prisma.Decimal(collection.collected_amount)
+            .minus(
+              collection.cash_receipt_allocations.reduce(
+                (sum, item) => sum.plus(item.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
+            )
+            .minus(
+              collection.trip_settlement_allocations.reduce(
+                (sum, item) => sum.plus(item.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
+            )
+            .minus(
+              collection.return_refund_payments.reduce(
+                (sum, item) => sum.plus(item.amount_iqd),
+                new Prisma.Decimal(0),
+              ),
+            ),
+        )
+      : new Prisma.Decimal(0);
     return {
       id: row.id,
       document_number: row.document_number,
       order_id: row.order_id,
       order_number: row.order.order_number,
       user_id: row.user_id,
+      ...(staff
+        ? {
+            customer_name: row.user.name,
+            customer_phone: row.user.phone,
+            delivery_collection: collection
+              ? {
+                  id: collection.id,
+                  status: collection.status,
+                  currency: collection.currency_code,
+                  collected_amount:
+                    collection.collected_amount === null
+                      ? null
+                      : Number(collection.collected_amount),
+                  held_amount: Number(held),
+                  delivery_party: collection.party,
+                }
+              : null,
+          }
+        : {}),
       source: row.source,
       created_by: row.created_by,
       type: row.type,
@@ -1528,6 +1738,9 @@ export class ReturnsService {
         approved_refund: Number(item.approved_refund),
         earned_points_share: item.earned_points_share,
         redeemed_points_share: item.redeemed_points_share,
+        ...(canViewCost
+          ? { original_issue_cost: Number(item.issue_cost_value) }
+          : {}),
         base_unit: item.base_unit,
         whole_units_only: item.whole_units_only,
         currency: item.currency_code,
@@ -1556,6 +1769,12 @@ export class ReturnsService {
         document_date: businessDateText(event.document_date),
         accounting_date: businessDateText(event.accounting_date),
         actor_id: event.actor_id,
+        actor_display_name: staff
+          ? (event.actor.name ?? event.actor.username ?? 'Staff')
+          : event.actor_id === row.user_id
+            ? 'you'
+            : 'store',
+        actor_role: staff ? (event.actor.role?.name ?? 'staff') : null,
         note: event.note,
         created_at: event.created_at,
       })),

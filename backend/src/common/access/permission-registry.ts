@@ -144,6 +144,9 @@ export const PERMISSION_REGISTRY = {
     'View product costs and profitability reports',
   ],
   'reports.financial.read': ['reports', 'View financial statements'],
+  'reports.cash.read': ['reports', 'View cash and delivery custody reports'],
+  'reports.liabilities.read': ['reports', 'View liability reports'],
+  'reports.inventory.read': ['reports', 'View inventory valuation reports'],
   'period.close': ['accounting', 'Close accounting periods'],
 } as const;
 
@@ -251,6 +254,9 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'expense_categories.manage': ['expenses.read', 'ledger.view'],
   'reports.profit.read': ['reports.sales.read'],
   'reports.financial.read': ['ledger.view'],
+  'reports.cash.read': ['ledger.view', 'cash_accounts.view'],
+  'reports.liabilities.read': ['ledger.view'],
+  'reports.inventory.read': ['ledger.view', 'inventory.view', 'cost.view'],
   'period.reopen': ['ledger.view'],
   'period.close': ['ledger.view'],
 };
@@ -340,6 +346,7 @@ export const SEEDED_PRESET_GRANTS = {
     'fx_rates.view',
   ],
   accountant: [
+    'cost.view',
     'expenses.read',
     'expenses.create',
     'suppliers.view',
@@ -369,5 +376,8 @@ export const SEEDED_PRESET_GRANTS = {
     'reports.sales.read',
     'reports.profit.read',
     'reports.financial.read',
+    'reports.cash.read',
+    'reports.liabilities.read',
+    'reports.inventory.read',
   ],
 } as const satisfies Record<string, readonly PermissionKey[]>;

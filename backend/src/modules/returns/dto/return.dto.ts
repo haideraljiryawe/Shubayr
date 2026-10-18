@@ -99,6 +99,14 @@ export class ApproveReturnLineDto {
   approved_quantity!: number;
 }
 
+export class ReturnFeePreviewDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ApproveReturnLineDto)
+  items!: ApproveReturnLineDto[];
+}
+
 export class ApproveReturnDto extends FinancialDocumentDto {
   @IsIn(['approve', 'reject'])
   decision!: 'approve' | 'reject';
@@ -198,8 +206,24 @@ export class ReturnQueryDto {
   customer_id?: string;
 
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(32)
+  customer_phone?: string;
+
+  @IsOptional()
   @IsUUID('4')
   order_id?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(40)
+  order_number?: string;
 
   @IsOptional()
   @IsDateString({ strict: true })
