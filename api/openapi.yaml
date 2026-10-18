@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.2.0
+  version: 17.3.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -60,6 +60,7 @@ tags:
   - name: Finance
   - name: Delivery Pricing
   - name: Expenses
+  - name: Reports
 
 security:
   - bearerAuth: []
@@ -2732,12 +2733,19 @@ paths:
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
   /admin/reports/sales:
     get:
-      tags: [Admin]
-      summary: Sales & analytics summary
-      x-permission: reports.view
+      tags: [Reports]
+      summary: Posted sales, discounts, returns and delivery-fee report
+      x-surface: admin
+      x-permission: reports.sales.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
       parameters:
-        - { name: from, in: query, schema: { type: string, format: date } }
-        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: from, in: query, schema: { type: string, format: date }, description: Defaults to `to`, or the current Baghdad business date when both are omitted. }
+        - { name: to, in: query, schema: { type: string, format: date }, description: Defaults to `from`, or the current Baghdad business date when both are omitted. }
+        - { name: group_by, in: query, schema: { type: string, enum: [day, week, month, department, category, brand, product, sku], default: day } }
+        - { name: sort, in: query, schema: { type: string, enum: [group, gross_sales, net_sales, order_count], default: group } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
           description: Sales report
@@ -2745,6 +2753,112 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SalesReport" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/profitability:
+    get:
+      tags: [Reports]
+      summary: Posted product profitability at original issue cost
+      x-surface: admin
+      x-permission: reports.profit.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: group_by, in: query, schema: { type: string, enum: [department, category, product, sku], default: product } }
+        - { name: sort, in: query, schema: { type: string, enum: [group, gross_sales, net_sales, order_count], default: group } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Profitability report, content: { application/json: { schema: { $ref: "#/components/schemas/ProfitabilityReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/profit-loss:
+    get:
+      tags: [Reports]
+      summary: Posted profit and loss with the immediately preceding comparison period
+      x-surface: admin
+      x-permission: reports.financial.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Profit and loss, content: { application/json: { schema: { $ref: "#/components/schemas/ProfitLossReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/trial-balance:
+    get:
+      tags: [Reports]
+      summary: Posted trial balance as of a Baghdad business date
+      x-surface: admin
+      x-permission: reports.financial.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
+      parameters:
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+      responses:
+        "200": { description: Trial balance, content: { application/json: { schema: { $ref: "#/components/schemas/ReportTrialBalance" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/balance-sheet:
+    get:
+      tags: [Reports]
+      summary: Simple posted balance sheet as of a Baghdad business date
+      x-surface: admin
+      x-permission: reports.financial.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
+      parameters:
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Balance sheet, content: { application/json: { schema: { $ref: "#/components/schemas/BalanceSheetReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/exports:
+    post:
+      tags: [Reports]
+      summary: Queue a CSV or XLSX report export
+      x-surface: admin
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      x-error-codes: [REPORT_EXPORT_PARAMETERS_INVALID, REPORT_EXPORT_QUEUE_UNAVAILABLE]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportInput" } } } }
+      responses:
+        "202": { description: Export queued, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportProgress" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /admin/reports/exports/{id}/progress:
+    get:
+      tags: [Reports]
+      summary: Poll report export progress without report rows
+      x-surface: admin
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Export progress, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportProgress" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/reports/exports/{id}/download:
+    get:
+      tags: [Reports]
+      summary: Download a completed report export
+      x-surface: admin
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      x-error-codes: [REPORT_EXPORT_NOT_READY]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: CSV or XLSX file
+          content:
+            text/csv: { schema: { type: string, format: binary } }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
   /settings:
     get:
       tags: [Admin]
@@ -10025,31 +10139,269 @@ components:
 
     SalesReport:
       type: object
-      description: Aggregated sales & analytics for the selected date range.
+      additionalProperties: false
+      description: Posted sales and returns. Compatibility fields from the earlier optional summary shape remain present.
+      required: [from, to, orders_count, gross_sales, discounts, net_sales, by_day, top_products, group_by, currency, touches_open_period, totals, pagination, data]
       properties:
-        from: { type: [string, "null"], format: date }
-        to: { type: [string, "null"], format: date }
-        orders_count: { type: integer }
-        gross_sales: { type: number }
-        discounts: { type: number }
-        net_sales: { type: number }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        orders_count: { type: integer, minimum: 0, deprecated: true }
+        gross_sales: { type: number, deprecated: true }
+        discounts: { type: number, deprecated: true }
+        net_sales: { type: number, deprecated: true }
         by_day:
           type: array
+          deprecated: true
           items:
             type: object
+            additionalProperties: false
+            required: [date, orders_count, net_sales]
             properties:
               date: { type: string, format: date }
               orders_count: { type: integer }
               net_sales: { type: number }
         top_products:
           type: array
+          deprecated: true
           items:
             type: object
+            additionalProperties: false
+            required: [product_id, name, qty_sold, net_sales]
             properties:
               product_id: { type: string, format: uuid }
               name: { type: string }
               qty_sold: { type: integer }
               net_sales: { type: number }
+        group_by: { type: string, enum: [day, week, month, department, category, brand, product, sku] }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals: { $ref: "#/components/schemas/SalesReportTotals" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data: { type: array, items: { $ref: "#/components/schemas/SalesReportRow" } }
+
+    ReportPagination:
+      type: object
+      additionalProperties: false
+      required: [page, per_page, total, pages]
+      properties:
+        page: { type: integer, minimum: 1 }
+        per_page: { type: integer, minimum: 1, maximum: 500 }
+        total: { type: integer, minimum: 0 }
+        pages: { type: integer, minimum: 0 }
+
+    SalesReportRow:
+      type: object
+      additionalProperties: false
+      required: [key, name_ar, name_en, gross_sales, tier_discounts, coupon_discounts, other_discounts, returns, net_sales, order_count, average_order_value]
+      properties:
+        key: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        gross_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        tier_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        coupon_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        other_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        returns: { $ref: "#/components/schemas/ExactDecimal" }
+        net_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        order_count: { type: integer, minimum: 0 }
+        average_order_value: { $ref: "#/components/schemas/ExactDecimal" }
+
+    SalesReportTotals:
+      type: object
+      additionalProperties: false
+      required: [gross_sales, tier_discounts, coupon_discounts, other_discounts, returns, net_sales, original_delivery_fees, charged_delivery_fees, delivery_fee_adjustments, delivery_fee_refunds, order_count, average_order_value, cancelled_count, rejected_count]
+      properties:
+        gross_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        tier_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        coupon_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        other_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        returns: { $ref: "#/components/schemas/ExactDecimal" }
+        net_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        original_delivery_fees: { $ref: "#/components/schemas/ExactDecimal" }
+        charged_delivery_fees: { $ref: "#/components/schemas/ExactDecimal" }
+        delivery_fee_adjustments: { $ref: "#/components/schemas/ExactDecimal" }
+        delivery_fee_refunds: { $ref: "#/components/schemas/ExactDecimal" }
+        order_count: { type: integer, minimum: 0 }
+        average_order_value: { $ref: "#/components/schemas/ExactDecimal" }
+        cancelled_count: { type: integer, minimum: 0 }
+        rejected_count: { type: integer, minimum: 0 }
+
+    ProfitabilityReportRow:
+      type: object
+      additionalProperties: false
+      required: [key, name_ar, name_en, gross_sales, tier_discounts, coupon_discounts, other_discounts, returns, net_sales, order_count, average_order_value, cost_of_goods_sold, return_cost_reversals, gross_profit, margin_percent, inventory_write_downs]
+      properties:
+        key: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        gross_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        tier_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        coupon_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        other_discounts: { $ref: "#/components/schemas/ExactDecimal" }
+        returns: { $ref: "#/components/schemas/ExactDecimal" }
+        net_sales: { $ref: "#/components/schemas/ExactDecimal" }
+        order_count: { type: integer, minimum: 0 }
+        average_order_value: { $ref: "#/components/schemas/ExactDecimal" }
+        cost_of_goods_sold: { $ref: "#/components/schemas/ExactDecimal" }
+        return_cost_reversals: { $ref: "#/components/schemas/ExactDecimal" }
+        gross_profit: { $ref: "#/components/schemas/ExactDecimal" }
+        margin_percent:
+          oneOf:
+            - { $ref: "#/components/schemas/ExactDecimal" }
+            - { type: "null" }
+        inventory_write_downs: { $ref: "#/components/schemas/ExactDecimal" }
+
+    ProfitabilityReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, group_by, currency, touches_open_period, totals, pagination, data]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        group_by: { type: string, enum: [department, category, product, sku] }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals: { $ref: "#/components/schemas/ProfitabilityReportRow" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data: { type: array, items: { $ref: "#/components/schemas/ProfitabilityReportRow" } }
+
+    ProfitLossPeriod:
+      type: object
+      additionalProperties: false
+      required: [sales_revenue, delivery_revenue, sales_returns, delivery_fee_refunds, net_revenue, cost_of_goods_sold, gross_profit, operating_expenses, inventory_write_downs, other_income, other_costs, net_profit, expenses]
+      properties:
+        sales_revenue: { $ref: "#/components/schemas/ExactDecimal" }
+        delivery_revenue: { $ref: "#/components/schemas/ExactDecimal" }
+        sales_returns: { $ref: "#/components/schemas/ExactDecimal" }
+        delivery_fee_refunds: { $ref: "#/components/schemas/ExactDecimal" }
+        net_revenue: { $ref: "#/components/schemas/ExactDecimal" }
+        cost_of_goods_sold: { $ref: "#/components/schemas/ExactDecimal" }
+        gross_profit: { $ref: "#/components/schemas/ExactDecimal" }
+        operating_expenses: { $ref: "#/components/schemas/ExactDecimal" }
+        inventory_write_downs: { $ref: "#/components/schemas/ExactDecimal" }
+        other_income: { $ref: "#/components/schemas/ExactDecimal" }
+        other_costs: { $ref: "#/components/schemas/ExactDecimal" }
+        net_profit: { $ref: "#/components/schemas/ExactDecimal" }
+        expenses:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, code, name_ar, name_en, amount]
+            properties:
+              id: { type: string, format: uuid }
+              code: { type: string }
+              name_ar: { type: string }
+              name_en: { type: string }
+              amount: { $ref: "#/components/schemas/ExactDecimal" }
+
+    ProfitLossReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, previous_from, previous_to, currency, touches_open_period, current, previous]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        previous_from: { type: string, format: date }
+        previous_to: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        current: { $ref: "#/components/schemas/ProfitLossPeriod" }
+        previous: { $ref: "#/components/schemas/ProfitLossPeriod" }
+
+    TrialBalanceReportRow:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_ar, name_en, type, normal_side, debit, credit, balance]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        type: { type: string }
+        normal_side: { type: string, enum: [debit, credit] }
+        debit: { $ref: "#/components/schemas/ExactDecimal" }
+        credit: { $ref: "#/components/schemas/ExactDecimal" }
+        balance: { $ref: "#/components/schemas/ExactDecimal" }
+
+    ReportTrialBalance:
+      type: object
+      additionalProperties: false
+      required: [as_of, currency, touches_open_period, debit_total, credit_total, balanced, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        debit_total: { $ref: "#/components/schemas/ExactDecimal" }
+        credit_total: { $ref: "#/components/schemas/ExactDecimal" }
+        balanced: { type: boolean }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data: { type: array, items: { $ref: "#/components/schemas/TrialBalanceReportRow" } }
+
+    BalanceSheetReport:
+      type: object
+      additionalProperties: false
+      required: [as_of, currency, touches_open_period, totals, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [assets, liabilities, equity, current_earnings, liabilities_and_equity, balanced]
+          properties:
+            assets: { $ref: "#/components/schemas/ExactDecimal" }
+            liabilities: { $ref: "#/components/schemas/ExactDecimal" }
+            equity: { $ref: "#/components/schemas/ExactDecimal" }
+            current_earnings: { $ref: "#/components/schemas/ExactDecimal" }
+            liabilities_and_equity: { $ref: "#/components/schemas/ExactDecimal" }
+            balanced: { type: boolean }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, code, name_ar, name_en, type, balance]
+            properties:
+              id: { type: string, format: uuid }
+              code: { type: string }
+              name_ar: { type: string }
+              name_en: { type: string }
+              type: { type: string, enum: [asset, liability, equity] }
+              balance: { $ref: "#/components/schemas/ExactDecimal" }
+
+    ReportExportInput:
+      type: object
+      additionalProperties: false
+      required: [report_type, format]
+      properties:
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet] }
+        format: { type: string, enum: [csv, xlsx] }
+        language: { type: string, enum: [ar, en], description: Defaults to en when omitted. }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        as_of: { type: string, format: date }
+        group_by: { type: string, enum: [day, week, month, department, category, brand, product, sku] }
+
+    ReportExportProgress:
+      type: object
+      additionalProperties: false
+      required: [id, report_type, format, language, status, rows_done, rows_total, last_error, created_at, started_at, completed_at, download_ready]
+      properties:
+        id: { type: string, format: uuid }
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet] }
+        format: { type: string, enum: [csv, xlsx] }
+        language: { type: string, enum: [ar, en] }
+        status: { type: string, enum: [queued, processing, completed, failed] }
+        rows_done: { type: integer, minimum: 0 }
+        rows_total: { type: integer, minimum: 0 }
+        last_error: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        download_ready: { type: boolean }
 
     StoreSettings:
       type: object

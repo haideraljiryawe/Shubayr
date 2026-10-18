@@ -138,6 +138,12 @@ export const PERMISSION_REGISTRY = {
     'Manage automatic order discount tiers',
   ],
   'reports.view': ['reports', 'View reports'],
+  'reports.sales.read': ['reports', 'View sales reports'],
+  'reports.profit.read': [
+    'reports',
+    'View product costs and profitability reports',
+  ],
+  'reports.financial.read': ['reports', 'View financial statements'],
   'period.close': ['accounting', 'Close accounting periods'],
 } as const;
 
@@ -243,6 +249,8 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'expenses.pay': ['expenses.read', 'cash_accounts.view'],
   'expenses.reverse': ['expenses.read', 'ledger.view'],
   'expense_categories.manage': ['expenses.read', 'ledger.view'],
+  'reports.profit.read': ['reports.sales.read'],
+  'reports.financial.read': ['ledger.view'],
   'period.reopen': ['ledger.view'],
   'period.close': ['ledger.view'],
 };
@@ -280,7 +288,6 @@ export const SEEDED_PRESET_GRANTS = {
     'retrieval.view',
     'retrieval.open',
     'retrieval.receive',
-    'reports.view',
     'loyalty.adjust',
   ],
   catalog_editor: [
@@ -359,6 +366,8 @@ export const SEEDED_PRESET_GRANTS = {
     'period.close',
     'period.reopen',
     'backdate.approve',
-    'reports.view',
+    'reports.sales.read',
+    'reports.profit.read',
+    'reports.financial.read',
   ],
 } as const satisfies Record<string, readonly PermissionKey[]>;

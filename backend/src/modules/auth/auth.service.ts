@@ -2,7 +2,6 @@ import {
   Injectable,
   HttpException,
   HttpStatus,
-  Logger,
   Optional,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -65,8 +64,6 @@ type RefreshPayload = {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -101,7 +98,6 @@ export class AuthService {
       }),
     ]);
     if (development) {
-      this.logger.warn(`Development OTP for ${phone}: ${code}`);
       return { otp_sent: true, dev_otp: code };
     }
     return { otp_sent: true };

@@ -1,5 +1,24 @@
 # Changelog
 
+## 17.3.0 - 2026-10-18
+
+### Added
+
+- Scoped, ledger-reconciled sales, profitability, profit-and-loss, trial
+  balance and balance-sheet reports with Baghdad business-date parameters,
+  open-period markers and database pagination.
+- Background CSV/XLSX exports with progress polling, UTF-8 BOM CSV output and
+  Arabic or English headings.
+- Structured OTP delivery failures, a configurable gateway timeout and an
+  explicit production `SMS_GATEWAY_URL=disabled` mode.
+
+### Changed
+
+- An OTP record is persisted only after confirmed gateway delivery. Failed
+  sends do not create a usable code or consume a verification attempt.
+- The API contract is version 17.3.0. The change is additive and non-breaking;
+  the existing sales-summary fields remain as deprecated compatibility aliases.
+
 ## 17.2.0 - 2026-10-17
 
 ### Added

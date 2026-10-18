@@ -159,6 +159,7 @@ An OTP is persisted only after the gateway confirms delivery. A disabled,
 timed-out, unreachable, or non-2xx gateway creates no OTP record, consumes no
 OTP verification attempt, and leaves any previously delivered unexpired code
 unchanged. The HTTP endpoint remains abuse-throttled even when delivery fails.
+Gateway tokens and OTP values are never written to application logs.
 
 **The off-server backup target.** Create `deploy/secrets/rclone.conf`
 (git-ignored, `chmod 600`) with a remote named `offsite`, and point
@@ -423,7 +424,8 @@ Before opening day, check each item on the running server.
 - [ ] `STORE_PUBLIC=false` until opening: `https://<domain>` shows the "opening soon" page, `robots.txt` disallows everything.
 - [ ] The store details in `web/src/config/store-info.ts` are real (legal name, address, contacts, hours, return rules) and the owner approved the policy drafts ([../launch/legal-pages.md](../launch/legal-pages.md)); `https://<domain>/privacy`, `/terms`, `/support` and `/account/delete` open even while closed ([../launch/store-urls.md](../launch/store-urls.md)).
 - [ ] `STORE_PREVIEW_TOKEN` was generated with `openssl rand -hex 24`; `https://<domain>/preview?t=<token>` shows the real store to the owner.
-- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users` — the launch menu.
+- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users` — the launch menu;
+  `expenses` and `reports` remain off until their Web Admin screens are ready.
 - [ ] Opening day: set `STORE_PUBLIC=true` (or remove it), `dc up -d web`, and check the home page and `robots.txt`.
 
 **Customer sign-in and notifications**

@@ -18,6 +18,17 @@ function config(values: Record<string, unknown>) {
 
 describe('SmsGatewayService', () => {
   const originalFetch = global.fetch;
+  const failures: Array<[string, () => Promise<Response>]> = [
+    [
+      'non-2xx response',
+      () => Promise.resolve(new Response('', { status: 500 })),
+    ],
+    ['network error', () => Promise.reject(new TypeError('network'))],
+    [
+      'timeout',
+      () => Promise.reject(new DOMException('timed out', 'TimeoutError')),
+    ],
+  ];
 
   afterEach(() => {
     global.fetch = originalFetch;
@@ -38,30 +49,26 @@ describe('SmsGatewayService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['non-2xx response', () => Promise.resolve({ ok: false })],
-    ['network error', async () => Promise.reject(new TypeError('network'))],
-    [
-      'timeout',
-      async () => Promise.reject(new DOMException('timed out', 'TimeoutError')),
-    ],
-  ])('maps a %s to OTP_DELIVERY_UNAVAILABLE', async (_name, result) => {
-    const fetchMock = jest.fn(result);
-    global.fetch = fetchMock;
-    const service = new SmsGatewayService(
-      config({
-        APP_ENV: 'production',
-        SMS_GATEWAY_URL: 'https://sms.example.test/send',
-        SMS_GATEWAY_TOKEN: 'secret-token',
-        SMS_GATEWAY_TIMEOUT_MS: 7_500,
-      }) as never,
-    );
+  it.each(failures)(
+    'maps a %s to OTP_DELIVERY_UNAVAILABLE',
+    async (_name, result) => {
+      const fetchMock = jest.fn(result);
+      global.fetch = fetchMock;
+      const service = new SmsGatewayService(
+        config({
+          APP_ENV: 'production',
+          SMS_GATEWAY_URL: 'https://sms.example.test/send',
+          SMS_GATEWAY_TOKEN: 'secret-token',
+          SMS_GATEWAY_TIMEOUT_MS: 7_500,
+        }) as never,
+      );
 
-    await expect(service.sendOtp(phone, code)).rejects.toMatchObject({
-      response: { code: 'OTP_DELIVERY_UNAVAILABLE' },
-      status: 503,
-    });
-  });
+      await expect(service.sendOtp(phone, code)).rejects.toMatchObject({
+        response: { code: 'OTP_DELIVERY_UNAVAILABLE' },
+        status: 503,
+      });
+    },
+  );
 
   it('sends successfully with a configured abort signal', async () => {
     const fetchMock = jest.fn().mockResolvedValue({ ok: true });

@@ -459,6 +459,7 @@ model User {
   posted_expenses                      Expense[]                       @relation("ExpensePoster")
   created_expense_payments             ExpensePayment[]                @relation("ExpensePaymentCreator")
   created_expense_corrections          ExpenseCorrection[]             @relation("ExpenseCorrectionCreator")
+  report_exports                       ReportExport[]                   @relation("ReportExportCreator")
 
   @@map("users")
 }
@@ -1761,6 +1762,7 @@ model DeliveryCollection {
 
   @@index([status, delivered_at(sort: Desc), id], map: "idx_delivery_collections_status_time")
   @@index([party_id, status, delivered_at], map: "idx_delivery_collections_party_status_time")
+  @@index([accounting_date, order_id], map: "idx_delivery_collections_report_range")
   @@map("delivery_collections")
 }
 
@@ -2096,6 +2098,7 @@ model CustodyHolding {
   @@unique([order_item_id, batch_id, custody_party_id], map: "custody_holdings_order_item_batch_party_key")
   @@index([custody_party_id, status], map: "idx_custody_holdings_party_status")
   @@index([order_id, status], map: "idx_custody_holdings_order_status")
+  @@index([order_item_id, status], map: "idx_custody_holdings_report_cost")
   @@map("custody_holdings")
 }
 
@@ -2235,6 +2238,7 @@ model InventoryWriteDown {
   lines            InventoryWriteDownLine[]
 
   @@index([document_date, id], map: "idx_inventory_write_downs_date")
+  @@index([accounting_date, id], map: "idx_inventory_write_downs_report_range")
   @@map("inventory_write_downs")
 }
 
@@ -2417,6 +2421,7 @@ model Return {
   refund_payments          ReturnRefundPayment[]
 
   @@index([order_id], map: "idx_returns_order")
+  @@index([accounting_date, status, order_id], map: "idx_returns_report_range")
   @@map("returns")
 }
 
@@ -2450,6 +2455,7 @@ model ReturnItem {
   movements                 StockMovement[]
 
   @@unique([return_id, order_item_id], map: "return_items_return_id_order_item_id_key")
+  @@index([order_item_id, return_id], map: "idx_return_items_report_order_item")
   @@map("return_items")
 }
 
@@ -2733,4 +2739,28 @@ model ExpenseCorrectionPosting {
 
   @@unique([correction_id, role], map: "expense_correction_postings_role_key")
   @@map("expense_correction_postings")
+}
+
+model ReportExport {
+  id           String    @id(map: "report_exports_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  report_type  String    @db.VarChar(32)
+  format       String    @db.VarChar(8)
+  language     String    @default("en") @db.VarChar(2)
+  parameters   Json      @db.JsonB
+  status       String    @default("queued") @db.VarChar(16)
+  rows_total   Int       @default(0)
+  rows_done    Int       @default(0)
+  object_key   String?   @db.VarChar(500)
+  file_name    String?   @db.VarChar(255)
+  content_type String?   @db.VarChar(120)
+  last_error   String?   @db.VarChar(500)
+  created_by   String    @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  started_at   DateTime? @db.Timestamptz(6)
+  completed_at DateTime? @db.Timestamptz(6)
+  creator      User      @relation("ReportExportCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "report_exports_created_by_fkey")
+
+  @@index([created_by, created_at(sort: Desc), id(sort: Desc)], map: "idx_report_exports_creator")
+  @@index([status, created_at], map: "idx_report_exports_status")
+  @@map("report_exports")
 }
