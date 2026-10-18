@@ -80,6 +80,8 @@ describe("visibleNav", () => {
         "roles.manage",
         "orders.view",
         "returns.view",
+        "expenses.read",
+        "expense_categories.manage",
         "catalog.products",
         "catalog.categories",
         "catalog.brands",

@@ -9,32 +9,12 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useStoreInfo } from "@/components/providers/theme-provider";
 import { Link } from "@/i18n/navigation";
-import {
-  ACCOUNT_DELETION_BLOCKED,
-  ACCOUNT_DELETION_REASONS,
-  ApiError,
-  api,
-  type AccountDeletionReason,
-} from "@/lib/api";
+import { deletionRefusals, type DeletionRefusal } from "@/lib/account-deletion";
+import { ACCOUNT_DELETION_BLOCKED, ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { telLink } from "@/lib/store-info";
 
-interface Refusal {
-  reason: AccountDeletionReason | "other";
-  /** How many orders/returns, read from the API's message ("2 open order(s) remain"). */
-  count: number;
-}
-
-/** The 409's field errors, one per reason; unknown codes still say something. */
-function refusalsOf(error: ApiError): Refusal[] {
-  const refusals = error.errors.map((entry) => ({
-    reason: (ACCOUNT_DELETION_REASONS as readonly string[]).includes(entry.code)
-      ? (entry.code as AccountDeletionReason)
-      : ("other" as const),
-    count: Number(/^\s*(\d+)/.exec(entry.message ?? "")?.[1] ?? 0),
-  }));
-  return refusals.length ? refusals : [{ reason: "other", count: 0 }];
-}
+type Refusal = DeletionRefusal;
 
 /**
  * The account deletion flow on /account/delete (DELETE /me/account).
@@ -65,7 +45,8 @@ export function DeleteAccount() {
       logout();
     } catch (error) {
       if (error instanceof ApiError && error.status === 409 && error.code === ACCOUNT_DELETION_BLOCKED) {
-        setRefusals(refusalsOf(error));
+        // The counts come from the refusal's `details` (contract 17.2).
+        setRefusals(deletionRefusals(error));
       } else {
         setFailed(true);
       }

@@ -33,6 +33,8 @@ export type NavKey =
   | "currencies"
   | "cashAccounts"
   | "cashReceipts"
+  | "expenses"
+  | "expenseCategories"
   | "custodyExceptions"
   | "periods"
   | "ledger"
@@ -101,6 +103,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "custodyExceptions", href: "/finance/custody-exceptions", requires: ["custody_exceptions.view"] },
   // Cash handed in by delivery parties (API 13.2).
   { key: "cashReceipts", href: "/finance/cash-receipts", requires: ["deliveries.manage"] },
+  // Expenses (API 17.1): documents and their categories — its own module,
+  // off at launch. Categories are managed with expense_categories.manage.
+  { key: "expenses", href: "/expenses", requires: ["expenses.read"] },
+  { key: "expenseCategories", href: "/expenses/categories", requires: ["expense_categories.manage"] },
   { key: "audit", href: "/audit", requires: ["audit.view"] },
 ];
 

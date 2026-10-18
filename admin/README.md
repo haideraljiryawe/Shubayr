@@ -138,7 +138,7 @@ ADMIN_MODULES=catalog,stock,orders,settings,users,finance    # + currencies (USD
 ```
 
 Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `returns`,
-`purchasing`, `finance`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
+`purchasing`, `finance`, `expenses`, `deliveryParties`, `trips`, `custody`, `cashReceipts`, `audit`. A
 module that is off leaves the menu and the dashboard, and its routes show a
 "not enabled" page (`src/proxy.ts`); unknown keys are ignored, and a value
 naming no known module falls back to everything. It is presentation only —
@@ -161,6 +161,10 @@ core first: catalog, stock, orders, settings, users.
 | `/orders/[id]` | `orders.view` (+ each action's key) | Lines, customer, address, delivery, timeline; accept / **reject** (pending only, reason required) / start preparing / mark ready / hand over / cancel (reason required); assign a delivery agent from a server-searched picker |
 | `/returns` | `returns.view` (module `returns`, off at launch) | Customer returns queue: status, date range and order-number filters, server-side sort (date, number, refund) and pagination |
 | `/returns/[id]` | `returns.view` (+ each step's key) | Lines with net-paid shares, delivery-fee outcome, points effect, refund split (offset vs cash) and timeline; the next step only for its permission: approve quantities or reject (`returns.approve`, fee exception with `returns.refund_delivery_fee`), receive (`returns.receive`), inspect condition + location per line (`returns.inspect`), refund from a cash account or delivery custody (`returns.refund`) |
+| `/expenses` | `expenses.read` (module `expenses`, off at launch) | Expense documents: server-side paging and sort; filters for dates, category, status, cash account, payee, unpaid only and text; totals for the filtered range, overall and per category |
+| `/expenses/new` | `expenses.create` | A draft expense: business date (back-dating rules), category, amount and currency (central-rate preview with `fx_rates.view`), payee or supplier, description, reference, private receipt (image/PDF), paid now from a cash account or owed |
+| `/expenses/[id]` | `expenses.read` (+ each action's key) | Amounts in both currencies, receipt preview and download, payments and remaining balance, journal entries, corrections and history; post (`expenses.post`), pay in parts (`expenses.pay`, no overpayment), reverse with a reason (`expenses.reverse`). Strict separation of duties is explained to the creator. Every write sends an `Idempotency-Key` |
+| `/expenses/categories` | `expense_categories.manage` | Expense categories and their expense accounts: create (a new account, or reuse one), rename, deactivate or reactivate; never deleted |
 | `/audit` | `audit.view` | The audit log: actor, action, entity (type and id) and store-day date-range filters, server-side pagination, reason and before → after per record |
 | `/notifications` (+ header bell) | session | The staff member's inbox: live unread count, dropdown, all/unread, mark one / mark all |
 | `/settings` | `settings.manage` | Store data, delivery fee, timezone, business hours, closed days, acceptance alert, auto-cancel (off by default, own timeout and warning), low-stock threshold, back-dating window, markup alert %, sale-price rounding multiple (8.0), unusual-change thresholds; change history old → new (with `audit.view`) |

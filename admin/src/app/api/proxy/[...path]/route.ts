@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   crossOriginRejected,
   forward,
+  idempotencyHeader,
   isSameOrigin,
   respond,
 } from "@/lib/session/bff";
@@ -40,6 +41,9 @@ async function handle(
     method: request.method,
     path: `${apiPath}${request.nextUrl.search}`,
     body: body === "" ? undefined : body,
+    // A write's Idempotency-Key (the expense routes require one) goes
+    // through as the browser sent it; nothing else from the browser does.
+    headers: idempotencyHeader(request),
   });
   return respond(result);
 }
