@@ -9,6 +9,19 @@
 # Any failure stops the run with a non-zero exit and leaves last-success untouched.
 set -euo pipefail
 
+backup_finished=false
+heartbeat_on_exit() {
+  status=$?
+  trap - EXIT
+  if [ "$backup_finished" = true ] && [ "$status" -eq 0 ]; then
+    /usr/local/bin/heartbeat.sh success
+  else
+    /usr/local/bin/heartbeat.sh failure
+  fi
+  exit "$status"
+}
+trap heartbeat_on_exit EXIT
+
 label="${1:-manual}"
 label="${label//[^a-zA-Z0-9._-]/-}"
 : "${BACKUP_TARGET:?BACKUP_TARGET is not set}"
@@ -59,3 +72,4 @@ done < <(rclone lsf "${BACKUP_TARGET}/media/deleted" --dirs-only 2>/dev/null || 
 date +%s > /backups/last-success
 echo "${name}" > /backups/last-dump
 log "done: ${name}"
+backup_finished=true

@@ -51,6 +51,20 @@ export class AsOfReportQueryDto extends PageQueryDto {
   @Matches(DATE) as_of!: string;
 }
 
+export class PeriodReportQueryDto extends PageQueryDto {
+  @Matches(DATE) from!: string;
+  @Matches(DATE) to!: string;
+}
+
+export class InventoryValuationQueryDto extends AsOfReportQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  slow_days = 90;
+}
+
 export class CreateReportExportDto {
   @IsIn([
     'sales',
@@ -58,13 +72,21 @@ export class CreateReportExportDto {
     'profit_loss',
     'trial_balance',
     'balance_sheet',
+    'cash',
+    'delivery_custody',
+    'liabilities',
+    'inventory_valuation',
   ])
   report_type!:
     | 'sales'
     | 'profitability'
     | 'profit_loss'
     | 'trial_balance'
-    | 'balance_sheet';
+    | 'balance_sheet'
+    | 'cash'
+    | 'delivery_custody'
+    | 'liabilities'
+    | 'inventory_valuation';
 
   @IsIn(['csv', 'xlsx']) format!: 'csv' | 'xlsx';
   @IsOptional() @IsIn(['ar', 'en']) language?: 'ar' | 'en';
@@ -74,6 +96,13 @@ export class CreateReportExportDto {
   @IsOptional()
   @IsIn(SALES_GROUPS)
   group_by?: (typeof SALES_GROUPS)[number];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  slow_days?: number;
 }
 
 export type SalesGroup = NonNullable<SalesReportQueryDto['group_by']>;

@@ -355,6 +355,17 @@ default), the run logs a clear `WARNING:` line but still succeeds and does not
 change the health rule. Increase storage or adjust retention after reviewing
 the target; do not silence the warning without checking growth.
 
+For independent monitoring, set `BACKUP_HEARTBEAT_URL` to the secret HTTPS
+ping URL from Healthchecks.io, Better Stack or a similar service. A ping is
+sent only after the database dump, media sync, retention and target-size
+record all succeed. Set the monitor to expect one ping per day with a two-hour
+grace period. Heartbeat timeouts and provider failures are logged only as
+`backup heartbeat sent` or `backup heartbeat failed`; they never fail an
+otherwise valid backup and the secret URL is never logged. Providers with a
+failure endpoint can set `BACKUP_HEARTBEAT_FAIL_SUFFIX=/fail` (the
+Healthchecks.io convention); without a suffix, a failed backup does not send a
+potentially misleading success ping.
+
 Its health check turns unhealthy when the last successful backup is older
 than 26 hours: `docker compose -f docker-compose.prod.yml --env-file
 .env.production ps backup` (watch it, or wire it to your monitoring).

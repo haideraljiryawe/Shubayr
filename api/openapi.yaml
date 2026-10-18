@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.3.0
+  version: 17.4.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1956,7 +1956,9 @@ paths:
             in: query,
             schema: { type: string, format: uuid },
           }
+        - { name: customer_phone, in: query, schema: { type: string, maxLength: 32 } }
         - { name: order_id, in: query, schema: { type: string, format: uuid } }
+        - { name: order_number, in: query, schema: { type: string, maxLength: 40 } }
         - { name: date_from, in: query, schema: { type: string, format: date } }
         - { name: date_to, in: query, schema: { type: string, format: date } }
         - {
@@ -1976,6 +1978,27 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ReturnPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /returns/refund-cash-accounts:
+    get:
+      tags: [Returns]
+      summary: List active IQD accounts usable for a return refund, without balances
+      x-permission: returns.refund
+      responses:
+        "200":
+          description: Refund cash accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [id, name]
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
 
   /returns/staff:
@@ -2086,6 +2109,51 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+
+  /returns/{id}/delivery-fee-preview:
+    post:
+      tags: [Returns]
+      summary: Preview the delivery-fee return policy for proposed approved quantities
+      x-permission: returns.approve
+      x-error-codes: [RETURN_INVALID_STATE, RETURN_APPROVAL_LINES_INVALID, RETURN_APPROVAL_EXCEEDS_REQUEST, SKU_WHOLE_UNITS_ONLY]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [return_item_id, approved_quantity]
+                    properties:
+                      return_item_id: { type: string, format: uuid }
+                      approved_quantity: { type: number, multipleOf: 0.001, minimum: 0 }
+      responses:
+        "200":
+          description: Delivery-fee policy preview
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [refund_delivery_fee, amount, currency, reason]
+                properties:
+                  refund_delivery_fee: { type: boolean }
+                  amount: { $ref: "#/components/schemas/Money" }
+                  currency: { type: string, const: IQD }
+                  reason: { type: string, enum: [not_full_order_return, reason_not_eligible, full_order_store_fault, fee_already_refunded] }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
 
   /returns/{id}/receive:
@@ -2818,12 +2886,80 @@ paths:
         "200": { description: Balance sheet, content: { application/json: { schema: { $ref: "#/components/schemas/BalanceSheetReport" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/cash:
+    get:
+      tags: [Reports]
+      summary: Cash-account opening, source movements and closing balances from the posted ledger
+      x-surface: admin
+      x-permission: reports.cash.read
+      x-error-codes: [REPORT_PARAMETERS_INVALID]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Cash report, content: { application/json: { schema: { $ref: "#/components/schemas/CashReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/delivery-custody:
+    get:
+      tags: [Reports]
+      summary: Goods and cash held by each delivery party as of a Baghdad business date
+      x-surface: admin
+      x-permission: reports.cash.read
+      parameters:
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Delivery custody report, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryCustodyReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/liabilities:
+    get:
+      tags: [Reports]
+      summary: Supplier, expense and refund liabilities plus operational unallocated receipts and loyalty exposure
+      x-surface: admin
+      x-permission: reports.liabilities.read
+      parameters:
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Liabilities report, content: { application/json: { schema: { $ref: "#/components/schemas/LiabilitiesReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/inventory-valuation:
+    get:
+      tags: [Reports]
+      summary: Historical inventory quantity and moving-average value by SKU and warehouse
+      x-surface: admin
+      x-permissions: [reports.inventory.read, cost.view]
+      parameters:
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { name: slow_days, in: query, schema: { type: integer, minimum: 1, maximum: 3650, default: 90 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Inventory valuation report, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryValuationReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/dashboard:
+    get:
+      tags: [Reports]
+      summary: Permission-filtered fast owner/admin home-page summary
+      x-surface: admin
+      x-any-permissions: [orders.view, reports.sales.read, reports.profit.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
+      responses:
+        "200": { description: Dashboard summary, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerDashboard" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /admin/reports/exports:
     post:
       tags: [Reports]
       summary: Queue a CSV or XLSX report export
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
       x-error-codes: [REPORT_EXPORT_PARAMETERS_INVALID, REPORT_EXPORT_QUEUE_UNAVAILABLE]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportInput" } } } }
       responses:
@@ -2836,7 +2972,7 @@ paths:
       tags: [Reports]
       summary: Poll report export progress without report rows
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Export progress, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportProgress" } } } }
@@ -2847,7 +2983,7 @@ paths:
       tags: [Reports]
       summary: Download a completed report export
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
       x-error-codes: [REPORT_EXPORT_NOT_READY]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
@@ -8543,6 +8679,10 @@ components:
         approved_refund: { $ref: "#/components/schemas/Money" }
         earned_points_share: { type: integer, minimum: 0 }
         redeemed_points_share: { type: integer, minimum: 0 }
+        original_issue_cost:
+          allOf:
+            - { $ref: "#/components/schemas/Money" }
+            - { description: Present only on staff responses when the caller has cost.view. }
         condition:
           {
             type: [string, "null"],
@@ -8601,6 +8741,33 @@ components:
         order_id: { type: string, format: uuid }
         order_number: { type: string }
         user_id: { type: string, format: uuid }
+        customer_name:
+          type: [string, "null"]
+          description: Staff responses only; follows order-customer detail visibility.
+        customer_phone:
+          type: [string, "null"]
+          description: Staff responses only; follows order-customer detail visibility.
+        delivery_collection:
+          description: Staff responses only; enough custody context to choose the refund source without order or delivery permissions.
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, status, currency, collected_amount, held_amount, delivery_party]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string }
+                currency: { type: string, pattern: "^[A-Z]{3}$" }
+                collected_amount: { type: [number, "null"], minimum: 0 }
+                held_amount: { type: number, minimum: 0 }
+                delivery_party:
+                  type: object
+                  additionalProperties: false
+                  required: [id, kind, name]
+                  properties:
+                    id: { type: string, format: uuid }
+                    kind: { type: string }
+                    name: { type: string }
+            - { type: "null" }
         source: { type: string, enum: [customer, staff] }
         created_by: { type: string, format: uuid }
         type: { type: string, enum: [return, exchange] }
@@ -8661,6 +8828,8 @@ components:
           document_date,
           accounting_date,
           actor_id,
+          actor_display_name,
+          actor_role,
           note,
           created_at,
         ]
@@ -8684,6 +8853,12 @@ components:
         document_date: { type: string, format: date }
         accounting_date: { type: string, format: date }
         actor_id: { type: string, format: uuid }
+        actor_display_name:
+          type: string
+          description: Staff see the actor display name; customers see only you or store.
+        actor_role:
+          type: [string, "null"]
+          description: Staff-only role; always null on customer responses.
         note: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
 
@@ -10372,18 +10547,267 @@ components:
               type: { type: string, enum: [asset, liability, equity] }
               balance: { $ref: "#/components/schemas/ExactDecimal" }
 
+    CashReportSource:
+      type: object
+      additionalProperties: false
+      required: [inflows, outflows]
+      properties:
+        inflows: { $ref: "#/components/schemas/ExactDecimal" }
+        outflows: { $ref: "#/components/schemas/ExactDecimal" }
+
+    CashReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, currency, touches_open_period, totals, pagination, data]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [opening_balance, inflows, outflows, closing_balance]
+          properties:
+            opening_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            inflows: { $ref: "#/components/schemas/ExactDecimal" }
+            outflows: { $ref: "#/components/schemas/ExactDecimal" }
+            closing_balance: { $ref: "#/components/schemas/ExactDecimal" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [cash_account, opening_balance, inflows, outflows, closing_balance, sources]
+            properties:
+              cash_account:
+                type: object
+                additionalProperties: false
+                required: [id, name, kind, currency]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  kind: { type: string }
+                  currency: { type: string, pattern: "^[A-Z]{3}$" }
+              opening_balance: { $ref: "#/components/schemas/ExactDecimal" }
+              inflows: { $ref: "#/components/schemas/ExactDecimal" }
+              outflows: { $ref: "#/components/schemas/ExactDecimal" }
+              closing_balance: { $ref: "#/components/schemas/ExactDecimal" }
+              sources:
+                type: object
+                additionalProperties: false
+                required: [customer_receipts, supplier_payments, expense_payments, refunds, transfers, corrections, other]
+                properties:
+                  customer_receipts: { $ref: "#/components/schemas/CashReportSource" }
+                  supplier_payments: { $ref: "#/components/schemas/CashReportSource" }
+                  expense_payments: { $ref: "#/components/schemas/CashReportSource" }
+                  refunds: { $ref: "#/components/schemas/CashReportSource" }
+                  transfers: { $ref: "#/components/schemas/CashReportSource" }
+                  corrections: { $ref: "#/components/schemas/CashReportSource" }
+                  other: { $ref: "#/components/schemas/CashReportSource" }
+
+    DeliveryCustodyReport:
+      type: object
+      additionalProperties: false
+      required: [as_of, currency, touches_open_period, totals, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [goods_quantity, cash_held, cash_ledger_balance, cash_reconciled]
+          properties:
+            goods_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+            goods_value: { $ref: "#/components/schemas/ExactDecimal", description: Present with reports.inventory.read, reports.profit.read or cost.view. }
+            goods_ledger_balance: { $ref: "#/components/schemas/ExactDecimal", description: Present when goods value is visible. }
+            goods_reconciled: { type: boolean, description: Present when goods value is visible. }
+            cash_held: { $ref: "#/components/schemas/ExactDecimal" }
+            cash_ledger_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            cash_reconciled: { type: boolean }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [party, goods_quantity, cash_held, oldest_goods_age_days, oldest_cash_age_days]
+            properties:
+              party:
+                type: object
+                additionalProperties: false
+                required: [id, kind, name]
+                properties:
+                  id: { type: string, format: uuid }
+                  kind: { type: string }
+                  name: { type: string }
+              goods_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+              goods_value: { $ref: "#/components/schemas/ExactDecimal", description: Permission-dependent cost field. }
+              cash_held: { $ref: "#/components/schemas/ExactDecimal" }
+              oldest_goods_age_days: { type: [integer, "null"], minimum: 0 }
+              oldest_cash_age_days: { type: [integer, "null"], minimum: 0 }
+
+    LiabilitiesReport:
+      type: object
+      additionalProperties: false
+      required: [as_of, currency, touches_open_period, totals, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [supplier_payables, supplier_ledger_balance, supplier_reconciled, accrued_expenses, expense_ledger_balance, expenses_reconciled, customer_refunds_owed, refund_ledger_balance, refunds_reconciled, other_ledger_liabilities, liability_ledger_total, unallocated_customer_receipts, unallocated_receipts_ledger_valued, loyalty_accounts, loyalty_points, loyalty_value_iqd]
+          properties:
+            supplier_payables: { $ref: "#/components/schemas/ExactDecimal" }
+            supplier_ledger_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            supplier_reconciled: { type: boolean }
+            accrued_expenses: { $ref: "#/components/schemas/ExactDecimal" }
+            expense_ledger_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            expenses_reconciled: { type: boolean }
+            customer_refunds_owed: { $ref: "#/components/schemas/ExactDecimal" }
+            refund_ledger_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            refunds_reconciled: { type: boolean }
+            other_ledger_liabilities: { $ref: "#/components/schemas/ExactDecimal" }
+            liability_ledger_total: { $ref: "#/components/schemas/ExactDecimal" }
+            unallocated_customer_receipts: { $ref: "#/components/schemas/ExactDecimal" }
+            unallocated_receipts_ledger_valued: { type: boolean, const: false }
+            loyalty_accounts: { type: integer, minimum: 0 }
+            loyalty_points: { type: string, pattern: "^-?\\d+$" }
+            loyalty_value_iqd: { type: "null", description: Loyalty points do not currently have a ledger valuation. }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, entity_id, name, document_number, due_date, age_days, ageing_bucket, amount, ledger_backed]
+            properties:
+              type: { type: string, enum: [supplier_payable, accrued_expense, customer_refund, unallocated_receipt] }
+              entity_id: { type: string, format: uuid }
+              name: { type: string }
+              document_number: { type: [string, "null"] }
+              due_date: { type: [string, "null"], format: date }
+              age_days: { type: [integer, "null"], minimum: 0 }
+              ageing_bucket: { type: string, enum: [no_due_date, current, 1_30, 31_60, 61_90, 90_plus] }
+              amount: { $ref: "#/components/schemas/ExactDecimal" }
+              ledger_backed: { type: boolean }
+
+    InventoryValuationReport:
+      type: object
+      additionalProperties: false
+      required: [as_of, slow_days, currency, touches_open_period, totals, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        slow_days: { type: integer, minimum: 1, maximum: 3650 }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [quantity, value, inventory_ledger_balance, reconciled, out_of_stock_count, low_stock_count, slow_moving_count]
+          properties:
+            quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+            value: { $ref: "#/components/schemas/ExactDecimal" }
+            inventory_ledger_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            reconciled: { type: boolean }
+            out_of_stock_count: { type: integer, minimum: 0 }
+            low_stock_count: { type: integer, minimum: 0 }
+            slow_moving_count: { type: integer, minimum: 0 }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [variant_id, sku, product, category, department, warehouse, quantity, moving_average_cost, value, stock_state, last_sale_date, slow_moving]
+            properties:
+              variant_id: { type: string, format: uuid }
+              sku: { type: string }
+              product: { $ref: "#/components/schemas/NamedReportEntity" }
+              category: { $ref: "#/components/schemas/NamedReportEntity" }
+              department: { $ref: "#/components/schemas/NamedReportEntity" }
+              warehouse:
+                type: object
+                additionalProperties: false
+                required: [id, name]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+              quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+              moving_average_cost: { $ref: "#/components/schemas/ExactDecimal" }
+              value: { $ref: "#/components/schemas/ExactDecimal" }
+              stock_state: { type: string, enum: [in, low, out] }
+              last_sale_date: { type: [string, "null"], format: date }
+              slow_moving: { type: boolean }
+
+    NamedReportEntity:
+      type: object
+      additionalProperties: false
+      required: [id, name_ar, name_en]
+      properties:
+        id: { type: string, format: uuid }
+        name_ar: { type: string }
+        name_en: { type: string }
+
+    OwnerDashboard:
+      type: object
+      additionalProperties: false
+      required: [business_date, currency]
+      description: Sections are omitted unless the caller has their corresponding permission. The reports module presentation switch does not gate this API.
+      properties:
+        business_date: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        sales:
+          type: object
+          additionalProperties: false
+          required: [today_net_sales, today_order_count, month_to_date_net_sales, month_to_date_order_count]
+          properties:
+            today_net_sales: { $ref: "#/components/schemas/ExactDecimal" }
+            today_order_count: { type: integer, minimum: 0 }
+            month_to_date_net_sales: { $ref: "#/components/schemas/ExactDecimal" }
+            month_to_date_order_count: { type: integer, minimum: 0 }
+            month_to_date_gross_profit: { $ref: "#/components/schemas/ExactDecimal", description: Present only with reports.profit.read. }
+        orders_by_status:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [status, count]
+            properties:
+              status: { type: string }
+              count: { type: integer, minimum: 0 }
+        orders_waiting_confirmation_call: { type: integer, minimum: 0 }
+        late_orders: { type: integer, minimum: 0 }
+        low_stock_count: { type: integer, minimum: 0 }
+        cash_on_hand:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, balance]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              balance: { $ref: "#/components/schemas/ExactDecimal" }
+        payables_due_next_7_days: { $ref: "#/components/schemas/ExactDecimal" }
+
     ReportExportInput:
       type: object
       additionalProperties: false
       required: [report_type, format]
       properties:
-        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet] }
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation] }
         format: { type: string, enum: [csv, xlsx] }
         language: { type: string, enum: [ar, en], description: Defaults to en when omitted. }
         from: { type: string, format: date }
         to: { type: string, format: date }
         as_of: { type: string, format: date }
         group_by: { type: string, enum: [day, week, month, department, category, brand, product, sku] }
+        slow_days: { type: integer, minimum: 1, maximum: 3650 }
 
     ReportExportProgress:
       type: object
@@ -10391,7 +10815,7 @@ components:
       required: [id, report_type, format, language, status, rows_done, rows_total, last_error, created_at, started_at, completed_at, download_ready]
       properties:
         id: { type: string, format: uuid }
-        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet] }
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation] }
         format: { type: string, enum: [csv, xlsx] }
         language: { type: string, enum: [ar, en] }
         status: { type: string, enum: [queued, processing, completed, failed] }
@@ -10431,6 +10855,10 @@ components:
       oneOf:
         - { type: string, pattern: '^-?\d+(?:\.\d+)?$' }
         - { type: number }
+
+    QuantityDecimal:
+      type: string
+      pattern: '^-?\d+(?:\.\d{1,3})?$'
 
     Currency:
       type: object

@@ -1,5 +1,24 @@
 # Changelog
 
+## 17.4.0 - 2026-10-18
+
+### Added
+
+- Permission-aware return queue customer, custody, issue-cost and actor details,
+  refund-account discovery, and a read-only delivery-fee policy preview.
+- Posted-ledger cash, delivery-custody, liabilities and inventory-valuation
+  reports plus a permission-filtered owner dashboard.
+- CSV/XLSX background exports for every phase-12 part-2 report.
+- Optional best-effort backup success and failure heartbeats without secret URL
+  logging or changes to backup health semantics.
+
+### Changed
+
+- Return queues can filter directly by customer phone and order number without
+  requiring order-read permission.
+- The API contract is version 17.4.0. All changes are additive and
+  non-breaking; no customer/mobile response shape changed.
+
 ## 17.3.0 - 2026-10-18
 
 ### Added
