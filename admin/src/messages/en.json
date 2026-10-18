@@ -43,7 +43,8 @@
     "catalogImages": "Bulk images",
     "returns": "Returns",
     "expenses": "Expenses",
-    "expenseCategories": "Expense categories"
+    "expenseCategories": "Expense categories",
+    "banners": "Home banners"
   },
   "auth": {
     "signIn": "Sign in",
@@ -195,7 +196,8 @@
       "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
       "returns": "Review customer returns: approve, receive, inspect and refund.",
       "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
-      "expenseCategories": "The kinds of expense and the ledger account each one posts to."
+      "expenseCategories": "The kinds of expense and the ledger account each one posts to.",
+      "banners": "The banners at the top of the store's home page: picture, schedule, order and link."
     },
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
@@ -1596,7 +1598,13 @@
       "target": "Subcategory the products move to",
       "brandVisible": "Brand visible to customers",
       "nameEnOptional": "English name (optional)",
-      "nameEnHint": "Left empty, the Arabic name is used."
+      "nameEnHint": "Left empty, the Arabic name is used.",
+      "descriptionAr": "Arabic description (optional)",
+      "descriptionEn": "English description (optional)",
+      "descriptionFallback": "Shown under the name on the category card. Leave a language empty and the store shows the other language's description in its place; empty in both, the card shows no description line.",
+      "descriptionMaybeCopy": "Both languages read the same here — the API fills an empty translation from the other language, so one of them may not be stored. It is only saved if you change it.",
+      "image": "Category image",
+      "imageNeedsPermission": "Adding or changing the picture needs permission to upload catalog pictures (catalog.products)."
     },
     "errors": {
       "nameAr": "Enter the Arabic name.",
@@ -1621,7 +1629,13 @@
       "targetHint": "A subcategory only — products never sit in a department.",
       "chooseTarget": "Choose the subcategory"
     },
-    "advanced": "Advanced (link and order)"
+    "advanced": "Advanced (link and order)",
+    "preview": {
+      "title": "Preview",
+      "arabic": "Main-category card, Arabic (narrowest phone)",
+      "english": "Main-category card, English (narrowest phone)",
+      "tile": "Subcategory tile"
+    }
   },
   "brands": {
     "title": "Brands",
@@ -4120,6 +4134,151 @@
       "EXPENSE_SELF_APPROVAL_FORBIDDEN": "Separation of duties: the person who created an expense can't post, pay or reverse it. Someone else must.",
       "EXPENSE_OVERPAYMENT": "That is more than is still owed on this expense.",
       "PERIOD_CLOSED": "The accounting period for this date is closed."
+    }
+  },
+  "editorial": {
+    "suggestion": "Suggested: about {min}–{max} words, up to {chars} characters.",
+    "mayBeShortened": "This text may be shortened with … on smaller screens"
+  },
+  "imageEditor": {
+    "frame": "Crop: drag the picture to place it",
+    "dragHelp": "Drag the picture (or use the arrow keys) to place it, and zoom to frame it. The square is exactly what will be saved.",
+    "dragHelpSafe": "Drag the picture (or use the arrow keys) and zoom to frame it. The frame is exactly what will be saved; keep text and logos inside the dashed safe area — phones cut more of the edges.",
+    "zoom": "Zoom",
+    "centre": "Centre",
+    "lowResolution": "This crop is small for a sharp result — pictures look best at {width} pixels wide or more. Zoom out or choose a larger picture.",
+    "useCrop": "Use this crop",
+    "cancelCrop": "Cancel",
+    "choose": "Choose a picture",
+    "replace": "Replace image",
+    "keepSaved": "Keep the saved picture",
+    "discard": "Discard",
+    "remove": "Remove image",
+    "undoRemove": "Keep the image",
+    "removeNote": "The image will be removed when you save. The category stays, and the picture itself is not deleted.",
+    "pending": "New picture ready ({width} × {height}); it is uploaded when you save.",
+    "uploading": "Uploading the picture… {percent}%",
+    "uploadFailed": "The picture couldn't be uploaded, so nothing was changed and the saved picture is still in place. Check the connection and save again.",
+    "categoryGuidance": "Square picture, {width} × {height} pixels recommended. JPEG, PNG, WebP or AVIF, up to {mb} MB. Keep the subject in the middle: the app shows it in a circle, a rounded square and a card. PNG and WebP keep a transparent background.",
+    "bannerGuidance": "2:1 picture, {width} × {height} pixels recommended. JPEG, PNG, WebP or AVIF, up to {mb} MB. The same picture is used on phones and computers, never stretched.",
+    "failed": {
+      "type": "That file type can't be used. Choose a JPEG, PNG, WebP or AVIF picture.",
+      "tooLarge": "The picture is larger than 8 MB. Choose a smaller one.",
+      "decode": "This browser couldn't open that picture. Try another file or format.",
+      "encode": "The crop couldn't be prepared in this browser. Try again or use another picture."
+    }
+  },
+  "banners": {
+    "title": "Home banners",
+    "description": "The banners at the top of the home page in the app and the web store: picture, text, link, schedule and order.",
+    "new": "New banner",
+    "filter": {
+      "label": "Status",
+      "all": "All ({count})"
+    },
+    "statuses": {
+      "active": "Active",
+      "scheduled": "Scheduled",
+      "expired": "Expired",
+      "disabled": "Disabled"
+    },
+    "timeZoneNote": "Times are Baghdad time. A disabled banner is never shown, whatever its dates; an expired one stays here to edit and reuse.",
+    "empty": "No banners yet. Without banners the home page simply has no banner section.",
+    "emptyFilter": "No banners with this status.",
+    "position": "Place {number} of {total} (order {order})",
+    "schedule": {
+      "permanent": "Permanent",
+      "scheduled": "From {from} to {to} (Baghdad)",
+      "startOnly": "From {from} (Baghdad), no end date",
+      "endOnly": "Until {to} (Baghdad), no start date"
+    },
+    "linkTo": "Opens",
+    "buttonLabel": "button “{label}”",
+    "noAction": "No action: not clickable",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "edit": "Edit",
+    "disable": "Disable",
+    "enable": "Enable",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "actionFailed": "That didn't go through. The list has been refreshed; please try again.",
+    "moved": "“{title}” moved.",
+    "disabled": "“{title}” is disabled; its dates are kept.",
+    "enabled": "“{title}” is enabled.",
+    "duplicated": "A disabled copy of “{title}” was added at the end.",
+    "created": "Banner “{title}” created.",
+    "saved": "Banner “{title}” saved.",
+    "deleteTitle": "Delete “{title}” for good?",
+    "deleteBody": "Deleting removes the banner and its settings permanently; it can't be undone. To stop showing it but keep it for later, disable it instead.",
+    "deleteConfirm": "Delete permanently",
+    "deleted": "Banner “{title}” deleted.",
+    "disableInstead": "Disable instead",
+    "modes": {
+      "permanent": "Permanent",
+      "scheduled": "Scheduled",
+      "startOnly": "Only a start date (as saved)",
+      "endOnly": "Only an end date (as saved)"
+    },
+    "preview": {
+      "phone": "Phone (app)",
+      "desktop": "Computer (web store)",
+      "actionButton": "Customers tap the button to open the link.",
+      "actionWhole": "Customers tap the banner to open the link (no button label set).",
+      "actionNone": "No link: the banner is shown without any button and isn't clickable."
+    },
+    "form": {
+      "newTitle": "New banner",
+      "editTitle": "Edit “{title}”",
+      "create": "Create banner",
+      "save": "Save",
+      "title": "Title",
+      "subtitle": "Subtitle (optional)",
+      "oneLanguage": "The banner's text is stored once and shown as written in both languages (up to {max} characters for the title). Separate Arabic and English text come with the next update.",
+      "image": "Banner picture",
+      "onClick": "On click",
+      "actionsLater": "Today a banner can open a web address. Opening a product, a category or the offers page comes with the next update.",
+      "link": "Link (optional)",
+      "linkHint": "A full address starting with https://. Leave it empty for a banner that isn't clickable.",
+      "cta": "Button label (optional)",
+      "ctaHint": "Shown only with a link, up to {max} characters.",
+      "display": "Display",
+      "enabled": "Show on the home page",
+      "enabledHint": "Switching it off hides the banner but keeps its dates and everything else.",
+      "scheduleMode": "Schedule",
+      "permanentHint": "Shown whenever it is enabled, with no dates.",
+      "partialNote": "This banner was saved with only one date. It is kept exactly like that unless you choose Permanent or Scheduled.",
+      "starts": "Starts",
+      "ends": "Ends",
+      "baghdad": "Baghdad time",
+      "dropsStart": "Saving removes the saved start date ({at}, Baghdad).",
+      "dropsEnd": "Saving removes the saved end date ({at}, Baghdad).",
+      "outcome": "With these settings, right now it would be:",
+      "noChanges": "Nothing has changed."
+    },
+    "errors": {
+      "title": {
+        "required": "Enter a title.",
+        "tooLong": "The title can be at most 200 characters."
+      },
+      "ctaText": {
+        "tooLong": "The button label can be at most 120 characters."
+      },
+      "linkUrl": {
+        "invalid": "Enter a full web address starting with http:// or https://."
+      },
+      "starts": {
+        "required": "Enter the start date and time.",
+        "invalid": "That start date isn't valid."
+      },
+      "ends": {
+        "required": "Enter the end date and time.",
+        "invalid": "That end date isn't valid.",
+        "notAfterStart": "The end must be after the start."
+      },
+      "image": {
+        "required": "Choose a picture for the banner."
+      }
     }
   }
 }

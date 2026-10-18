@@ -648,12 +648,21 @@ export interface Banner {
   title_en: string;
   subtitle_ar: string;
   subtitle_en: string;
-  cta_ar: string;
-  cta_en: string;
-  href: string;
+  /** The button label; none, no button. */
+  cta_ar: string | null;
+  cta_en: string | null;
+  /** Where the banner leads; none, it is not clickable at all. */
+  href: string | null;
   /** Optional artwork; the banner falls back to the brand gradient without it. */
   image_url: string | null;
 }
+
+/** A 1600 × 800 artwork as an inline SVG: a circle and a square, so any stretch shows. */
+const MOCK_BANNER_ART =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800"><rect width="1600" height="800" fill="#f3efe4"/><circle cx="800" cy="400" r="300" fill="#2f6b3f"/><rect x="200" y="300" width="200" height="200" fill="#c8a24a"/></svg>',
+  );
 
 export const mockBanners: Banner[] = [
   {
@@ -673,10 +682,12 @@ export const mockBanners: Banner[] = [
     title_en: "Just arrived",
     subtitle_ar: "أحدث الإلكترونيات",
     subtitle_en: "The latest electronics",
-    cta_ar: "اكتشف الجديد",
-    cta_en: "Discover new",
+    // A link without a button label: the whole card opens it. The artwork is
+    // inline (2:1, like the Web Admin crop), so tests need no network.
+    cta_ar: null,
+    cta_en: null,
     href: "/category/electronics?sort=newest",
-    image_url: null,
+    image_url: MOCK_BANNER_ART,
   },
   {
     id: "b3",
@@ -684,9 +695,10 @@ export const mockBanners: Banner[] = [
     title_en: "Everything for your home",
     subtitle_ar: "توصيل مجاني للطلبات فوق $50",
     subtitle_en: "Free delivery over $50",
-    cta_ar: "تسوق المنزل",
-    cta_en: "Shop home",
-    href: "/category/home-kitchen",
+    // No link: an informational banner, shown without any button or link.
+    cta_ar: null,
+    cta_en: null,
+    href: null,
     image_url: null,
   },
 ];
