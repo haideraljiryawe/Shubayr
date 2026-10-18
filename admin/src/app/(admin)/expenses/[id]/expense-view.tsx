@@ -175,7 +175,8 @@ export function ExpenseView({
 
       {actions.post.shown ? <PostPanel expense={expense} state={actions.post} onDone={() => done("post")} /> : null}
       {actions.pay.shown ? (
-        <PayPanel expense={expense} state={actions.pay} precision={precision} cashAccounts={cashAccounts} today={today} windowDays={windowDays} canBackdate={canBackdate} onDone={() => done("pay")} />
+        // Keyed on the balance: after a payment the panel starts again from what is still owed.
+        <PayPanel key={expense.balance_currency} expense={expense} state={actions.pay} precision={precision} cashAccounts={cashAccounts} today={today} windowDays={windowDays} canBackdate={canBackdate} onDone={() => done("pay")} />
       ) : null}
       {actions.reverse.shown ? (
         <ReversePanel expense={expense} state={actions.reverse} today={today} windowDays={windowDays} canBackdate={canBackdate} onDone={() => done("reverse")} />
