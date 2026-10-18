@@ -183,7 +183,10 @@ export function mockAccountDeletionRefusal(): MockDeletionRefusal {
     return refusal(counts, legacy);
   }
   const open = listMockOrders().filter(
-    (order) => !["rejected", "cancelled", "delivered", "returned"].includes(order.status ?? ""),
+    (order) =>
+      !["rejected", "cancelled", "delivered", "returned"].includes(
+        order.status ?? "",
+      ),
   ).length;
   const pending = returns.filter((item) =>
     ["requested", "approved", "partially_approved"].includes(item.status),
@@ -425,9 +428,15 @@ let orders: Order[] = [
   ),
   // A weighed line too (2.5 kg of rice), so a return in kilograms is
   // exercisable; 0.5 kg of it is already refunded (ret-2).
-  buildOrder("SB-1028", "delivered", 30, [orderItem("p7", 1), orderItem("p36", 2.5)], {
-    collected: "full",
-  }),
+  buildOrder(
+    "SB-1028",
+    "delivered",
+    30,
+    [orderItem("p7", 1), orderItem("p36", 2.5)],
+    {
+      collected: "full",
+    },
+  ),
   buildOrder("SB-1031", "cancelled", 21, [orderItem("p14", 1)], {
     address_id: "addr-2",
   }),
@@ -771,11 +780,66 @@ let returns: Return[] = [
     ],
     refund: null,
     events: [
-      { id: "ret-2-e1", type: "requested", operation_id: "op-r2-1", document_date: "2026-08-09", accounting_date: "2026-08-09", actor_id: mockUser.id, note: null, created_at: isoAgo(23) },
-      { id: "ret-2-e2", type: "approved", operation_id: "op-r2-2", document_date: "2026-08-10", accounting_date: "2026-08-10", actor_id: "staff-1", note: null, created_at: isoAgo(22) },
-      { id: "ret-2-e3", type: "received", operation_id: "op-r2-3", document_date: "2026-08-11", accounting_date: "2026-08-11", actor_id: "staff-2", note: null, created_at: isoAgo(21, 6) },
-      { id: "ret-2-e4", type: "inspected", operation_id: "op-r2-4", document_date: "2026-08-11", accounting_date: "2026-08-11", actor_id: "staff-1", note: null, created_at: isoAgo(21) },
-      { id: "ret-2-e5", type: "refunded", operation_id: "op-r2-5", document_date: "2026-08-12", accounting_date: "2026-08-12", actor_id: "staff-2", note: null, created_at: isoAgo(20) },
+      {
+        id: "ret-2-e1",
+        type: "requested",
+        operation_id: "op-r2-1",
+        document_date: "2026-08-09",
+        accounting_date: "2026-08-09",
+        actor_id: mockUser.id,
+        actor_display_name: "you",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(23),
+      },
+      {
+        id: "ret-2-e2",
+        type: "approved",
+        operation_id: "op-r2-2",
+        document_date: "2026-08-10",
+        accounting_date: "2026-08-10",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(22),
+      },
+      {
+        id: "ret-2-e3",
+        type: "received",
+        operation_id: "op-r2-3",
+        document_date: "2026-08-11",
+        accounting_date: "2026-08-11",
+        actor_id: "staff-2",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(21, 6),
+      },
+      {
+        id: "ret-2-e4",
+        type: "inspected",
+        operation_id: "op-r2-4",
+        document_date: "2026-08-11",
+        accounting_date: "2026-08-11",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(21),
+      },
+      {
+        id: "ret-2-e5",
+        type: "refunded",
+        operation_id: "op-r2-5",
+        document_date: "2026-08-12",
+        accounting_date: "2026-08-12",
+        actor_id: "staff-2",
+        actor_display_name: "store",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(20),
+      },
     ],
     refund_payments: [
       {
@@ -846,8 +910,30 @@ let returns: Return[] = [
     ],
     refund: null,
     events: [
-      { id: "ret-3-e1", type: "requested", operation_id: "op-r3-1", document_date: "2026-08-27", accounting_date: "2026-08-27", actor_id: mockUser.id, note: null, created_at: isoAgo(5) },
-      { id: "ret-3-e2", type: "rejected", operation_id: "op-r3-2", document_date: "2026-08-28", accounting_date: "2026-08-28", actor_id: "staff-1", note: "المنتج مستعمل", created_at: isoAgo(4) },
+      {
+        id: "ret-3-e1",
+        type: "requested",
+        operation_id: "op-r3-1",
+        document_date: "2026-08-27",
+        accounting_date: "2026-08-27",
+        actor_id: mockUser.id,
+        actor_display_name: "you",
+        actor_role: null,
+        note: null,
+        created_at: isoAgo(5),
+      },
+      {
+        id: "ret-3-e2",
+        type: "rejected",
+        operation_id: "op-r3-2",
+        document_date: "2026-08-28",
+        accounting_date: "2026-08-28",
+        actor_id: "staff-1",
+        actor_display_name: "store",
+        actor_role: null,
+        note: "المنتج مستعمل",
+        created_at: isoAgo(4),
+      },
     ],
     refund_payments: [],
     postings: [],

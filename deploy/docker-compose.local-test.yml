@@ -43,6 +43,8 @@ services:
     command: ["sh", "-c", "until [ -s /ca/root.crt ]; do sleep 1; done; exec node server.js"]
 
   backup:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${OFFSITE_TEST_DIR:?set OFFSITE_TEST_DIR}:/offsite
 

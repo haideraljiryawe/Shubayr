@@ -7,6 +7,7 @@ import { ReportExportScheduler } from './report-export.scheduler';
 import { ReportExportService } from './report-export.service';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
+import { ReportsPart2Service } from './reports-part2.service';
 
 export const reportWorkerProviders = () =>
   runsBackgroundJobs() ? [ReportExportProcessor, ReportExportScheduler] : [];
@@ -14,6 +15,11 @@ export const reportWorkerProviders = () =>
 @Module({
   imports: [BullModule.registerQueue({ name: 'report-exports' }), MediaModule],
   controllers: [ReportsController],
-  providers: [ReportsService, ReportExportService, ...reportWorkerProviders()],
+  providers: [
+    ReportsService,
+    ReportsPart2Service,
+    ReportExportService,
+    ...reportWorkerProviders(),
+  ],
 })
 export class ReportsModule {}

@@ -1182,6 +1182,7 @@ model SupplierAccountEntry {
 
   @@unique([source_type, source_id], map: "supplier_account_entries_source_key")
   @@index([supplier_id, currency_code, document_date, id], map: "idx_supplier_account_statement")
+  @@index([accounting_date, supplier_id], map: "idx_supplier_entries_report_asof")
   @@map("supplier_account_entries")
 }
 
@@ -1495,6 +1496,7 @@ model StockMovement {
   @@index([return_item_id], map: "idx_movements_return_item")
   @@index([source_type, source_id], map: "idx_movements_source")
   @@index([created_at, id], map: "idx_movements_posted")
+  @@index([custody_party_id, created_at], map: "idx_stock_movements_custody_report_asof")
   @@map("stock_movements")
 }
 
@@ -1790,6 +1792,7 @@ model CashReceiptVoucher {
 
   @@index([party_id, document_date(sort: Desc), id], map: "idx_cash_receipt_vouchers_party_date")
   @@index([cash_account_id, document_date(sort: Desc), id], map: "idx_cash_receipt_vouchers_account_date")
+  @@index([accounting_date, party_id], map: "idx_cash_receipts_report_asof")
   @@map("cash_receipt_vouchers")
 }
 
@@ -2509,6 +2512,7 @@ model ReturnRefundPayment {
   journal_entry    JournalEntry        @relation(fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "return_refund_payments_journal_entry_id_fkey")
 
   @@index([return_id, created_at, id], map: "idx_return_refund_payments_return")
+  @@index([accounting_date, collection_id], map: "idx_return_refund_payments_report_asof")
   @@map("return_refund_payments")
 }
 
@@ -2597,6 +2601,7 @@ model LoyaltyLedger {
 
   @@index([account_id], map: "idx_loyalty_ledger_account")
   @@index([return_id], map: "idx_loyalty_ledger_return")
+  @@index([created_at, account_id], map: "idx_loyalty_ledger_report_asof")
   @@map("loyalty_ledger")
 }
 
@@ -2705,6 +2710,7 @@ model ExpensePayment {
   corrections       ExpenseCorrectionPosting[]
 
   @@index([expense_id, created_at, id], map: "idx_expense_payments_expense")
+  @@index([accounting_date, expense_id], map: "idx_expense_payments_report_asof")
   @@map("expense_payments")
 }
 

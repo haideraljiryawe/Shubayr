@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { ObjectStorageService } from '../media/object-storage.service';
 import type { CreateReportExportDto } from './reports.dto';
 import { ReportsService } from './reports.service';
+import { ReportsPart2Service } from './reports-part2.service';
 
 type Actor = { id: string; permissions: string[] };
 type ExportType = CreateReportExportDto['report_type'];
@@ -24,6 +25,10 @@ const permissions: Record<ExportType, string> = {
   profit_loss: 'reports.financial.read',
   trial_balance: 'reports.financial.read',
   balance_sheet: 'reports.financial.read',
+  cash: 'reports.cash.read',
+  delivery_custody: 'reports.cash.read',
+  liabilities: 'reports.liabilities.read',
+  inventory_valuation: 'reports.inventory.read',
 };
 
 const labels: Record<string, { en: string; ar: string }> = {
@@ -58,6 +63,47 @@ const labels: Record<string, { en: string; ar: string }> = {
   line: { en: 'Line', ar: 'البند' },
   current: { en: 'Current period (IQD)', ar: 'الفترة الحالية (د.ع)' },
   previous: { en: 'Previous period (IQD)', ar: 'الفترة السابقة (د.ع)' },
+  cash_account: { en: 'Cash account', ar: 'حساب النقد' },
+  opening_balance: { en: 'Opening balance', ar: 'الرصيد الافتتاحي' },
+  inflows: { en: 'Inflows', ar: 'التدفقات الداخلة' },
+  outflows: { en: 'Outflows', ar: 'التدفقات الخارجة' },
+  closing_balance: { en: 'Closing balance', ar: 'الرصيد الختامي' },
+  sources: { en: 'Sources', ar: 'المصادر' },
+  party: { en: 'Delivery party', ar: 'جهة التوصيل' },
+  goods_quantity: { en: 'Goods quantity', ar: 'كمية البضاعة' },
+  goods_value: { en: 'Goods value', ar: 'قيمة البضاعة' },
+  cash_held: { en: 'Cash held', ar: 'النقد المحتفظ به' },
+  oldest_goods_age_days: {
+    en: 'Oldest goods age (days)',
+    ar: 'عمر أقدم بضاعة (أيام)',
+  },
+  oldest_cash_age_days: {
+    en: 'Oldest cash age (days)',
+    ar: 'عمر أقدم نقد (أيام)',
+  },
+  entity_id: { en: 'Entity ID', ar: 'معرف الجهة' },
+  name: { en: 'Name', ar: 'الاسم' },
+  document_number: { en: 'Document number', ar: 'رقم المستند' },
+  due_date: { en: 'Due date', ar: 'تاريخ الاستحقاق' },
+  age_days: { en: 'Age (days)', ar: 'العمر (أيام)' },
+  ageing_bucket: { en: 'Ageing bucket', ar: 'فئة التقادم' },
+  amount: { en: 'Amount', ar: 'المبلغ' },
+  ledger_backed: { en: 'Ledger backed', ar: 'مدعوم بدفتر الأستاذ' },
+  variant_id: { en: 'Variant ID', ar: 'معرف الصنف' },
+  sku: { en: 'SKU', ar: 'رمز الصنف' },
+  product: { en: 'Product', ar: 'المنتج' },
+  category: { en: 'Category', ar: 'الفئة' },
+  department: { en: 'Department', ar: 'القسم' },
+  warehouse: { en: 'Warehouse', ar: 'المخزن' },
+  quantity: { en: 'Quantity', ar: 'الكمية' },
+  moving_average_cost: {
+    en: 'Moving-average cost',
+    ar: 'كلفة المتوسط المتحرك',
+  },
+  value: { en: 'Value', ar: 'القيمة' },
+  stock_state: { en: 'Stock state', ar: 'حالة المخزون' },
+  last_sale_date: { en: 'Last sale date', ar: 'تاريخ آخر بيع' },
+  slow_moving: { en: 'Slow moving', ar: 'بطيء الحركة' },
 };
 
 @Injectable()
@@ -65,6 +111,7 @@ export class ReportExportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reports: ReportsService,
+    private readonly reportsPart2: ReportsPart2Service,
     private readonly storage: ObjectStorageService,
     private readonly audit: AuditService,
     @InjectQueue('report-exports') private readonly queue: Queue,
@@ -185,7 +232,7 @@ export class ReportExportService {
       const parameters = claimed.parameters as unknown as CreateReportExportDto;
       const actor: Actor = {
         id: claimed.created_by,
-        permissions: Object.values(permissions),
+        permissions: [...Object.values(permissions), 'cost.view'],
       };
       const rows = await this.rows(actor, parameters, async (done, total) => {
         await this.prisma.reportExport.update({
@@ -295,17 +342,51 @@ export class ReportExportService {
                 },
                 false,
               )
-            : input.report_type === 'trial_balance'
-              ? await this.reports.trialBalance(actor, {
-                  as_of: input.as_of!,
-                  page,
-                  per_page: perPage,
-                })
-              : await this.reports.balanceSheet(actor, {
-                  as_of: input.as_of!,
-                  page,
-                  per_page: perPage,
-                });
+            : input.report_type === 'cash'
+              ? await this.reportsPart2.cash(
+                  actor,
+                  {
+                    from: input.from!,
+                    to: input.to!,
+                    page,
+                    per_page: perPage,
+                  },
+                  false,
+                )
+              : input.report_type === 'delivery_custody'
+                ? await this.reportsPart2.deliveryCustody(
+                    actor,
+                    { as_of: input.as_of!, page, per_page: perPage },
+                    false,
+                  )
+                : input.report_type === 'liabilities'
+                  ? await this.reportsPart2.liabilities(
+                      actor,
+                      { as_of: input.as_of!, page, per_page: perPage },
+                      false,
+                    )
+                  : input.report_type === 'inventory_valuation'
+                    ? await this.reportsPart2.inventoryValuation(
+                        actor,
+                        {
+                          as_of: input.as_of!,
+                          slow_days: input.slow_days ?? 90,
+                          page,
+                          per_page: perPage,
+                        },
+                        false,
+                      )
+                    : input.report_type === 'trial_balance'
+                      ? await this.reports.trialBalance(actor, {
+                          as_of: input.as_of!,
+                          page,
+                          per_page: perPage,
+                        })
+                      : await this.reports.balanceSheet(actor, {
+                          as_of: input.as_of!,
+                          page,
+                          per_page: perPage,
+                        });
       total = report.pagination.total;
       rows.push(...(report.data as Array<Record<string, unknown>>));
       await progress(rows.length, total);
@@ -364,7 +445,7 @@ export class ReportExportService {
   }
 
   private validateDates(input: CreateReportExportDto) {
-    const period = ['sales', 'profitability', 'profit_loss'].includes(
+    const period = ['sales', 'profitability', 'profit_loss', 'cash'].includes(
       input.report_type,
     );
     if (period && (!input.from || !input.to)) {
@@ -404,6 +485,17 @@ export class ReportExportService {
         status: 403,
         code: 'PERMISSION_DENIED',
         message: `Missing permission: ${permission}`,
+        errors: [],
+      });
+    }
+    if (
+      type === 'inventory_valuation' &&
+      !actor.permissions.includes('cost.view')
+    ) {
+      throw new ForbiddenException({
+        status: 403,
+        code: 'PERMISSION_DENIED',
+        message: 'Missing permission: cost.view',
         errors: [],
       });
     }
