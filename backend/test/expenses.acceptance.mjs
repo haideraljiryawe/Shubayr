@@ -219,6 +219,16 @@ await request('/admin/exchange-rates', {
     reason: 'C12 acceptance rate',
   },
 });
+const formSupplier = await request('/admin/suppliers', {
+  token: admin,
+  method: 'POST',
+  expected: 201,
+  body: {
+    name: 'C14c scoped expense supplier',
+    default_currency: 'IQD',
+    payment_terms_days: 0,
+  },
+});
 
 for (const path of [
   '/admin/expenses',
@@ -244,6 +254,11 @@ check(
   'create-scoped options include active expense categories',
 );
 check(
+  creatorOptions.suppliers.find((item) => item.id === formSupplier.id),
+  { id: formSupplier.id, name: formSupplier.name },
+  'create-scoped supplier picker exposes only id and name',
+);
+check(
   creatorOptions.rate_preview.rate,
   '1',
   'create-scoped options include the current IQD central-rate preview',
@@ -266,7 +281,9 @@ const createOnlyDraft = await request('/admin/expenses', {
     cash_account_id: creatorOptions.cash_accounts.find(
       (item) => item.id === till.id,
     ).id,
-    payee: 'Scoped creator payee',
+    supplier_id: creatorOptions.suppliers.find(
+      (item) => item.id === formSupplier.id,
+    ).id,
     description: 'Created without broad picker permissions',
     document_date: today,
   },
