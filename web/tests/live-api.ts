@@ -162,8 +162,11 @@ export async function tokenFor(
 
   const token = (await verified.json()).access_token as string;
   tokens.set(phone, token);
-  // A new customer has no address yet; checkout and orders need one.
-  if (phone === CUSTOMER.e164) await customerAddress(request);
+  // A new customer has no address yet; checkout and orders need one. Not
+  // when customerAddress is what asked for this token (signIn as a worker's
+  // first step): it is creating the address already, and waiting on it from
+  // here would wait on ourselves.
+  if (phone === CUSTOMER.e164 && !addressId) await customerAddress(request);
   return token;
 }
 

@@ -125,25 +125,48 @@ export function signInMockPhone(phoneE164: string, phone: string): User {
  * Test hook for DELETE /me/account (the account deletion page). Hermetic
  * tests set this sessionStorage key before the page loads:
  *
- *   "none"                         the deletion succeeds
- *   "OPEN_ORDERS,PENDING_RETURNS"  refused for those reasons
+ *   "none"                          the deletion succeeds
+ *   "OPEN_ORDERS,PENDING_RETURNS:2"  refused for those reasons (count 1 unless given)
+ *   "legacy:OPEN_ORDERS:2"          the same, as an API before 17.2 answered:
+ *                                   counts only inside the English messages
  *
- * Unset, the refusal follows the fixtures: open orders and pending returns.
+ * Like the API since 17.2, the refusal carries the counts in `details`, and
+ * its messages here say no number at all — so a page that still parsed them
+ * would show none. Unset, the refusal follows the fixtures.
  */
 export const MOCK_ACCOUNT_DELETION_KEY = "shubayr.mock.account-deletion";
 
-const DELETION_REFUSALS: Record<string, FieldError> = {
-  OPEN_ORDERS: { field: "open_orders", code: "OPEN_ORDERS", message: "1 open order(s) remain" },
-  PENDING_RETURNS: { field: "pending_returns", code: "PENDING_RETURNS", message: "1 pending return(s) remain" },
-  UNSETTLED_AMOUNTS: {
-    field: "unsettled_amounts",
-    code: "UNSETTLED_AMOUNTS",
-    message: "1 unsettled financial record(s) remain",
-  },
-};
+const DELETION_FIELDS = {
+  OPEN_ORDERS: ["open_orders", "open order(s) remain"],
+  PENDING_RETURNS: ["pending_returns", "pending return(s) remain"],
+  UNSETTLED_AMOUNTS: ["unsettled_amounts", "unsettled financial record(s) remain"],
+} as const;
 
-/** Why the mock refuses to delete the account; empty when it may go ahead. */
-export function mockAccountDeletionRefusals(): FieldError[] {
+type DeletionCode = keyof typeof DELETION_FIELDS;
+
+export interface MockDeletionRefusal {
+  errors: FieldError[];
+  /** The contract's counts; null for the "legacy" shape. */
+  details: { open_orders: number; pending_returns: number; unsettled_amounts: number } | null;
+}
+
+function refusal(counts: Partial<Record<DeletionCode, number>>, legacy: boolean): MockDeletionRefusal {
+  const errors: FieldError[] = [];
+  for (const [code, count] of Object.entries(counts) as Array<[DeletionCode, number]>) {
+    if (!count) continue;
+    const [field, words] = DELETION_FIELDS[code];
+    errors.push({ field, code, message: legacy ? `${count} ${words}` : words });
+  }
+  return {
+    errors,
+    details: legacy
+      ? null
+      : { open_orders: counts.OPEN_ORDERS ?? 0, pending_returns: counts.PENDING_RETURNS ?? 0, unsettled_amounts: counts.UNSETTLED_AMOUNTS ?? 0 },
+  };
+}
+
+/** Why the mock refuses to delete the account; no errors when it may go ahead. */
+export function mockAccountDeletionRefusal(): MockDeletionRefusal {
   let override: string | null = null;
   try {
     override = window.sessionStorage.getItem(MOCK_ACCOUNT_DELETION_KEY);
@@ -151,21 +174,21 @@ export function mockAccountDeletionRefusals(): FieldError[] {
     override = null;
   }
   if (override !== null) {
-    return override
-      .split(",")
-      .map((code) => DELETION_REFUSALS[code.trim()])
-      .filter((refusal): refusal is FieldError => Boolean(refusal));
+    const legacy = override.startsWith("legacy:");
+    const counts: Partial<Record<DeletionCode, number>> = {};
+    for (const part of override.replace(/^legacy:/, "").split(",")) {
+      const [code, count] = part.trim().split(":");
+      if (code in DELETION_FIELDS) counts[code as DeletionCode] = count ? Number(count) : 1;
+    }
+    return refusal(counts, legacy);
   }
-  const refusals: FieldError[] = [];
   const open = listMockOrders().filter(
     (order) => !["rejected", "cancelled", "delivered", "returned"].includes(order.status ?? ""),
   ).length;
-  if (open) refusals.push({ ...DELETION_REFUSALS.OPEN_ORDERS, message: `${open} open order(s) remain` });
   const pending = returns.filter((item) =>
     ["requested", "approved", "partially_approved"].includes(item.status),
   ).length;
-  if (pending) refusals.push({ ...DELETION_REFUSALS.PENDING_RETURNS, message: `${pending} pending return(s) remain` });
-  return refusals;
+  return refusal({ OPEN_ORDERS: open, PENDING_RETURNS: pending }, false);
 }
 
 /* ------------------------------------------------------------------ addresses */

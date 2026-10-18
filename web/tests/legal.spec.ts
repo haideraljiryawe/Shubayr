@@ -196,3 +196,24 @@ test("account deletion refused for several reasons lists each, with the counts",
   await expect(page.getByTestId("delete-reason-OPEN_ORDERS")).toContainText(/You have (one|\d+) open order/);
   await expect(page.getByTestId("delete-reason-PENDING_RETURNS")).toContainText(/return/);
 });
+
+test("the refusal counts come from the API's structured details, not its English message", async ({ page }) => {
+  // The mock's messages carry no number at all; only `details` has the counts.
+  await signInHere(page, "OPEN_ORDERS:3,PENDING_RETURNS:2,UNSETTLED_AMOUNTS:1");
+  await page.getByTestId("delete-understood").check();
+  await page.getByTestId("delete-submit").click();
+  const blocked = page.getByTestId("delete-blocked");
+  await expect(blocked.getByTestId("delete-reason-OPEN_ORDERS")).toContainText("لديك 3 طلبات مفتوحة");
+  await expect(blocked.getByTestId("delete-reason-PENDING_RETURNS")).toContainText("لديك طلبا إرجاع قيد المعالجة");
+  await expect(blocked.getByTestId("delete-reason-UNSETTLED_AMOUNTS")).toBeVisible();
+  await expect(blocked.locator("li")).toHaveCount(3);
+});
+
+test("without details (an older API), the counts are still read from the messages", async ({ page }) => {
+  await signInHere(page, "legacy:OPEN_ORDERS:2");
+  await page.getByTestId("delete-understood").check();
+  await page.getByTestId("delete-submit").click();
+  const blocked = page.getByTestId("delete-blocked");
+  await expect(blocked.getByTestId("delete-reason-OPEN_ORDERS")).toContainText("لديك طلبان مفتوحان");
+  await expect(blocked.locator("li")).toHaveCount(1);
+});

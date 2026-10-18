@@ -35,7 +35,7 @@ import {
   createMockDeliveryRating,
   listMockReviewedOrderItems,
   listMockMyReviews,
-  mockAccountDeletionRefusals,
+  mockAccountDeletionRefusal,
 } from "./mock-account";
 import {
   getMockCustody,
@@ -195,6 +195,12 @@ export class ApiError extends Error {
      */
     readonly code?: string,
     readonly errors: FieldError[] = [],
+    /**
+     * Structured facts some refusals carry next to the envelope, e.g. the
+     * account-deletion counts (contract 17.2, `AccountDeletionBlockedError`).
+     * Unknown shape here: each caller reads it through its own guard.
+     */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -208,9 +214,8 @@ export const WORK_ACCOUNT_SHOPPING_FORBIDDEN =
 /** DELETE /me/account refused: open orders, pending returns or unsettled amounts. */
 export const ACCOUNT_DELETION_BLOCKED = "ACCOUNT_DELETION_BLOCKED";
 
-/** The refusal reasons the API names in the 409's field errors. */
-export const ACCOUNT_DELETION_REASONS = ["OPEN_ORDERS", "PENDING_RETURNS", "UNSETTLED_AMOUNTS"] as const;
-export type AccountDeletionReason = (typeof ACCOUNT_DELETION_REASONS)[number];
+/** The refusal reasons and counts of a 409 ACCOUNT_DELETION_BLOCKED (src/lib/account-deletion.ts). */
+export { ACCOUNT_DELETION_REASONS, type AccountDeletionReason } from "./account-deletion";
 
 export function isWorkAccountForbidden(error: unknown): boolean {
   return (
@@ -243,6 +248,7 @@ async function toApiError(
       : `${method} ${path} failed with ${response.status}`,
     typeof body?.code === "string" ? body.code : undefined,
     Array.isArray(body?.errors) ? body.errors : [],
+    (body as { details?: unknown } | null)?.details,
   );
   if (isWorkAccountForbidden(error)) tokenProvider?.onWorkAccountForbidden?.();
   return error;
@@ -862,13 +868,14 @@ export const api = {
       if (!isLive("profile")) {
         await mockLatency();
         requireMockAuth();
-        const refusals = mockAccountDeletionRefusals();
-        if (refusals.length) {
+        const refusal = mockAccountDeletionRefusal();
+        if (refusal.errors.length) {
           throw new ApiError(
             409,
             "Resolve open orders, pending returns, and unsettled amounts before deleting the account",
             ACCOUNT_DELETION_BLOCKED,
-            refusals,
+            refusal.errors,
+            refusal.details ?? undefined,
           );
         }
         return;

@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { API, awaitQuota, bearer, customerToken, requireLiveApi, signIn, staffToken } from "./live-api";
+import { API, awaitQuota, bearer, requireLiveApi, signIn, staffToken } from "./live-api";
 
 /**
  * The store's legal, contact and policy details come from the API (GET
@@ -92,10 +92,8 @@ test("the store's pages show the owner's store info from the API, and hide what 
 
   // The footer and the account's help use the same source.
   await expect(page.getByTestId("site-footer").getByTestId("footer-phone")).toHaveText(PHONE);
-  // Take the worker customer's token first: signIn's customerAddress and
-  // tokenFor await each other when signIn is the customer's first use in a
-  // worker (tests/live-api.ts), which no other spec happens to hit.
-  await customerToken(request);
+  // Signing in is this worker customer's first use here: the shared helper
+  // handles that itself (tests/live-api.ts).
   await signIn(page, "/account/help");
   const channels = page.getByTestId("help-channels");
   await expect(channels.locator(`a[href="tel:${PHONE}"]`)).toBeVisible();
