@@ -3898,7 +3898,9 @@ export interface paths {
                     per_page?: components["parameters"]["PerPage"];
                     status?: "requested" | "approved" | "partially_approved" | "rejected" | "received" | "inspected" | "refunded" | "completed";
                     customer_id?: string;
+                    customer_phone?: string;
                     order_id?: string;
+                    order_number?: string;
                     date_from?: string;
                     date_to?: string;
                     sort_by?: "date" | "number" | "refund";
@@ -3917,6 +3919,47 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["ReturnPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/refund-cash-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active IQD accounts usable for a return refund, without balances */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Refund cash accounts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                        }[];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4093,6 +4136,65 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["PostingConflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/returns/{id}/delivery-fee-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview the delivery-fee return policy for proposed approved quantities */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            return_item_id: string;
+                            approved_quantity: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Delivery-fee policy preview */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            refund_delivery_fee: boolean;
+                            amount: components["schemas"]["Money"];
+                            /** @constant */
+                            currency: "IQD";
+                            /** @enum {string} */
+                            reason: "not_full_order_return" | "reason_not_eligible" | "full_order_store_fault" | "fee_already_refunded";
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -5495,6 +5597,213 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cash-account opening, source movements and closing balances from the posted ledger */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cash report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/delivery-custody": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Goods and cash held by each delivery party as of a Baghdad business date */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Delivery custody report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryCustodyReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/liabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier, expense and refund liabilities plus operational unallocated receipts and loyalty exposure */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Liabilities report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiabilitiesReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/inventory-valuation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Historical inventory quantity and moving-average value by SKU and warehouse */
+        get: {
+            parameters: {
+                query: {
+                    as_of: string;
+                    slow_days?: number;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Inventory valuation report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryValuationReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Permission-filtered fast owner/admin home-page summary */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dashboard summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerDashboard"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -14760,6 +15069,7 @@ export interface components {
             approved_refund: components["schemas"]["Money"];
             earned_points_share: number;
             redeemed_points_share: number;
+            original_issue_cost?: components["schemas"]["Money"] & unknown;
             /** @enum {string|null} */
             condition: "sellable" | "opened" | "damaged" | "expired" | null;
             restock: boolean;
@@ -14781,6 +15091,25 @@ export interface components {
             order_number: string;
             /** Format: uuid */
             user_id: string;
+            /** @description Staff responses only; follows order-customer detail visibility. */
+            customer_name?: string | null;
+            /** @description Staff responses only; follows order-customer detail visibility. */
+            customer_phone?: string | null;
+            /** @description Staff responses only; enough custody context to choose the refund source without order or delivery permissions. */
+            delivery_collection?: {
+                /** Format: uuid */
+                id: string;
+                status: string;
+                currency: string;
+                collected_amount: number | null;
+                held_amount: number;
+                delivery_party: {
+                    /** Format: uuid */
+                    id: string;
+                    kind: string;
+                    name: string;
+                };
+            } | null;
             /** @enum {string} */
             source: "customer" | "staff";
             /** Format: uuid */
@@ -14827,6 +15156,10 @@ export interface components {
             accounting_date: string;
             /** Format: uuid */
             actor_id: string;
+            /** @description Staff see the actor display name; customers see only you or store. */
+            actor_display_name: string;
+            /** @description Staff-only role; always null on customer responses. */
+            actor_role: string | null;
             note: string | null;
             /** Format: date-time */
             created_at: string;
@@ -16138,9 +16471,202 @@ export interface components {
                 balance: components["schemas"]["ExactDecimal"];
             }[];
         };
+        CashReportSource: {
+            inflows: components["schemas"]["ExactDecimal"];
+            outflows: components["schemas"]["ExactDecimal"];
+        };
+        CashReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                opening_balance: components["schemas"]["ExactDecimal"];
+                inflows: components["schemas"]["ExactDecimal"];
+                outflows: components["schemas"]["ExactDecimal"];
+                closing_balance: components["schemas"]["ExactDecimal"];
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                cash_account: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    kind: string;
+                    currency: string;
+                };
+                opening_balance: components["schemas"]["ExactDecimal"];
+                inflows: components["schemas"]["ExactDecimal"];
+                outflows: components["schemas"]["ExactDecimal"];
+                closing_balance: components["schemas"]["ExactDecimal"];
+                sources: {
+                    customer_receipts: components["schemas"]["CashReportSource"];
+                    supplier_payments: components["schemas"]["CashReportSource"];
+                    expense_payments: components["schemas"]["CashReportSource"];
+                    refunds: components["schemas"]["CashReportSource"];
+                    transfers: components["schemas"]["CashReportSource"];
+                    corrections: components["schemas"]["CashReportSource"];
+                    other: components["schemas"]["CashReportSource"];
+                };
+            }[];
+        };
+        DeliveryCustodyReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                goods_quantity: components["schemas"]["QuantityDecimal"];
+                /** @description Present with reports.inventory.read */
+                goods_value?: components["schemas"]["ExactDecimal"];
+                /** @description Present when goods value is visible. */
+                goods_ledger_balance?: components["schemas"]["ExactDecimal"];
+                /** @description Present when goods value is visible. */
+                goods_reconciled?: boolean;
+                cash_held: components["schemas"]["ExactDecimal"];
+                cash_ledger_balance: components["schemas"]["ExactDecimal"];
+                cash_reconciled: boolean;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                party: {
+                    /** Format: uuid */
+                    id: string;
+                    kind: string;
+                    name: string;
+                };
+                goods_quantity: components["schemas"]["QuantityDecimal"];
+                /** @description Permission-dependent cost field. */
+                goods_value?: components["schemas"]["ExactDecimal"];
+                cash_held: components["schemas"]["ExactDecimal"];
+                oldest_goods_age_days: number | null;
+                oldest_cash_age_days: number | null;
+            }[];
+        };
+        LiabilitiesReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                supplier_payables: components["schemas"]["ExactDecimal"];
+                supplier_ledger_balance: components["schemas"]["ExactDecimal"];
+                supplier_reconciled: boolean;
+                accrued_expenses: components["schemas"]["ExactDecimal"];
+                expense_ledger_balance: components["schemas"]["ExactDecimal"];
+                expenses_reconciled: boolean;
+                customer_refunds_owed: components["schemas"]["ExactDecimal"];
+                refund_ledger_balance: components["schemas"]["ExactDecimal"];
+                refunds_reconciled: boolean;
+                other_ledger_liabilities: components["schemas"]["ExactDecimal"];
+                liability_ledger_total: components["schemas"]["ExactDecimal"];
+                unallocated_customer_receipts: components["schemas"]["ExactDecimal"];
+                /** @constant */
+                unallocated_receipts_ledger_valued: false;
+                loyalty_accounts: number;
+                loyalty_points: string;
+                /** @description Loyalty points do not currently have a ledger valuation. */
+                loyalty_value_iqd: null;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** @enum {string} */
+                type: "supplier_payable" | "accrued_expense" | "customer_refund" | "unallocated_receipt";
+                /** Format: uuid */
+                entity_id: string;
+                name: string;
+                document_number: string | null;
+                /** Format: date */
+                due_date: string | null;
+                age_days: number | null;
+                /** @enum {string} */
+                ageing_bucket: "no_due_date" | "current" | "1_30" | "31_60" | "61_90" | "90_plus";
+                amount: components["schemas"]["ExactDecimal"];
+                ledger_backed: boolean;
+            }[];
+        };
+        InventoryValuationReport: {
+            /** Format: date */
+            as_of: string;
+            slow_days: number;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: {
+                quantity: components["schemas"]["QuantityDecimal"];
+                value: components["schemas"]["ExactDecimal"];
+                inventory_ledger_balance: components["schemas"]["ExactDecimal"];
+                reconciled: boolean;
+                out_of_stock_count: number;
+                low_stock_count: number;
+                slow_moving_count: number;
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** Format: uuid */
+                variant_id: string;
+                sku: string;
+                product: components["schemas"]["NamedReportEntity"];
+                category: components["schemas"]["NamedReportEntity"];
+                department: components["schemas"]["NamedReportEntity"];
+                warehouse: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                };
+                quantity: components["schemas"]["QuantityDecimal"];
+                moving_average_cost: components["schemas"]["ExactDecimal"];
+                value: components["schemas"]["ExactDecimal"];
+                /** @enum {string} */
+                stock_state: "in" | "low" | "out";
+                /** Format: date */
+                last_sale_date: string | null;
+                slow_moving: boolean;
+            }[];
+        };
+        NamedReportEntity: {
+            /** Format: uuid */
+            id: string;
+            name_ar: string;
+            name_en: string;
+        };
+        /** @description Sections are omitted unless the caller has their corresponding permission. The reports module presentation switch does not gate this API. */
+        OwnerDashboard: {
+            /** Format: date */
+            business_date: string;
+            /** @constant */
+            currency: "IQD";
+            sales?: {
+                today_net_sales: components["schemas"]["ExactDecimal"];
+                today_order_count: number;
+                month_to_date_net_sales: components["schemas"]["ExactDecimal"];
+                month_to_date_order_count: number;
+                /** @description Present only with reports.profit.read. */
+                month_to_date_gross_profit?: components["schemas"]["ExactDecimal"];
+            };
+            orders_by_status?: {
+                status: string;
+                count: number;
+            }[];
+            orders_waiting_confirmation_call?: number;
+            late_orders?: number;
+            low_stock_count?: number;
+            cash_on_hand?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                balance: components["schemas"]["ExactDecimal"];
+            }[];
+            payables_due_next_7_days?: components["schemas"]["ExactDecimal"];
+        };
         ReportExportInput: {
             /** @enum {string} */
-            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet";
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
             /** @enum {string} */
             format: "csv" | "xlsx";
             /**
@@ -16156,12 +16682,13 @@ export interface components {
             as_of?: string;
             /** @enum {string} */
             group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+            slow_days?: number;
         };
         ReportExportProgress: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet";
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
             /** @enum {string} */
             format: "csv" | "xlsx";
             /** @enum {string} */
@@ -16207,6 +16734,7 @@ export interface components {
             return_window_days?: number | null;
         };
         ExactDecimal: string | number;
+        QuantityDecimal: string;
         Currency: {
             code: string;
             name_ar: string;

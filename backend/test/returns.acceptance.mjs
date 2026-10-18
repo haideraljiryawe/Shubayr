@@ -70,6 +70,18 @@ async function adminLogin() {
     })
   ).access_token;
 }
+async function operationsLogin() {
+  return (
+    await request('/admin/auth/login', {
+      method: 'POST',
+      body: {
+        username: 'operations',
+        password: 'Shubayr-Dev-Staff!2026',
+      },
+      expected: 201,
+    })
+  ).access_token;
+}
 async function scalar(sql, values = []) {
   const result = await db.query(sql, values);
   return result.rows[0]?.value;
@@ -105,6 +117,7 @@ async function seedDeliveredOrder({
   redeemedPoints = 0,
 }) {
   const orderId = randomUUID();
+  const orderNumber = `C11-${orderId.slice(0, 8)}`;
   const itemId = randomUUID();
   const deliveryId = randomUUID();
   const total = Number(netPaid) + Number(deliveryFee);
@@ -125,7 +138,7 @@ async function seedDeliveredOrder({
       [
         orderId,
         customerId,
-        `C11-${orderId.slice(0, 8)}`,
+        orderNumber,
         lineTotal,
         deliveryFee,
         Number(tierShare) + Number(couponShare) + Number(loyaltyShare),
@@ -253,7 +266,13 @@ async function seedDeliveredOrder({
     await db.query('ROLLBACK');
     throw error;
   }
-  return { orderId, itemId, deliveryId, issueCost: Number(issueCost) };
+  return {
+    orderId,
+    orderNumber,
+    itemId,
+    deliveryId,
+    issueCost: Number(issueCost),
+  };
 }
 
 function financial(operationId, extra = {}) {
@@ -318,6 +337,7 @@ try {
   const customer = await login('+9647700000006');
   const other = await login('+9647700099977');
   const admin = await adminLogin();
+  const operations = await operationsLogin();
   const customerId = await scalar(
     "SELECT id AS value FROM users WHERE phone='+9647700000006'",
   );
@@ -533,6 +553,119 @@ try {
     { token: admin },
   );
   check(queue.total, 1, 'staff filters returns by state and order');
+  check(queue.data[0].customer_phone, '+9647700000006', 'queue shows phone');
+  ok(queue.data[0].customer_name, 'queue shows customer display name');
+  const phoneQueue = await request(
+    `/returns/queue?customer_phone=${encodeURIComponent('+9647700000006')}`,
+    { token: operations },
+  );
+  check(
+    phoneQueue.data.some((row) => row.id === first.id),
+    true,
+    'returns queue filters by customer phone',
+  );
+  const orderQueue = await request(
+    `/returns/queue?order_number=${encodeURIComponent(piece.orderNumber)}`,
+    { token: operations },
+  );
+  check(
+    orderQueue.data.some((row) => row.id === first.id),
+    true,
+    'returns queue filters by order number without orders permission',
+  );
+  const adminReturn = await request(`/returns/queue/${first.id}`, {
+    token: admin,
+  });
+  check(
+    'original_issue_cost' in adminReturn.items[0],
+    true,
+    'cost viewers see the original issue cost',
+  );
+  const operationsReturn = await request(`/returns/queue/${first.id}`, {
+    token: operations,
+  });
+  check(
+    'original_issue_cost' in operationsReturn.items[0],
+    false,
+    'staff without cost.view cannot see original issue cost',
+  );
+  check(
+    operationsReturn.events.every(
+      (event) => event.actor_display_name && event.actor_role,
+    ),
+    true,
+    'staff timeline entries name the actor and role',
+  );
+  check(
+    operationsReturn.events.some((event) => 'phone' in event),
+    false,
+    'staff timeline never exposes actor phones',
+  );
+  const customerReturn = await request(`/returns/${first.id}`, {
+    token: customer,
+  });
+  check(
+    customerReturn.events.every(
+      (event) =>
+        ['you', 'store'].includes(event.actor_display_name) &&
+        event.actor_role === null,
+    ),
+    true,
+    'customer timeline identifies only you or store',
+  );
+  const refundAccounts = await request('/returns/refund-cash-accounts', {
+    token: operations,
+  });
+  check(
+    refundAccounts.some((account) => account.id === cashAccountId),
+    true,
+    'returns.refund lists eligible cash accounts without cash_accounts.view',
+  );
+  check(
+    refundAccounts.some((account) => 'balance' in account),
+    false,
+    'refund cash account choices never include balances',
+  );
+
+  const feeOrder = await seedDeliveredOrder({
+    customerId,
+    adminId,
+    partyId,
+    quantity: 1,
+    wholeUnitsOnly: true,
+    baseUnit: 'piece',
+    lineTotal: 1000,
+    netPaid: 1000,
+    deliveryFee: 5000,
+  });
+  const feeReturn = await openReturn(customer, feeOrder, 1, 'defect');
+  const feePreview = await request(
+    `/returns/${feeReturn.id}/delivery-fee-preview`,
+    {
+      token: operations,
+      method: 'POST',
+      body: {
+        items: [
+          {
+            return_item_id: feeReturn.items[0].id,
+            approved_quantity: 1,
+          },
+        ],
+      },
+    },
+  );
+  check(
+    feePreview.refund_delivery_fee,
+    true,
+    'full store-fault return refunds fee',
+  );
+  check(feePreview.amount, 5000, 'fee preview uses the charged delivery fee');
+  const feeApproved = await approve(admin, feeReturn, 1);
+  check(
+    feeApproved.delivery_fee_refund,
+    feePreview.amount,
+    'approval applies exactly the previewed delivery-fee policy outcome',
+  );
 
   const weightVariantId = randomUUID();
   const weightBatchId = randomUUID();

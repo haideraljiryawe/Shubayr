@@ -1,5 +1,14 @@
 -- C14b report read paths: all indexes are additive and support as-of/range
 -- aggregation without changing posted financial or inventory records.
+ALTER TABLE "report_exports"
+  DROP CONSTRAINT "report_exports_type_check",
+  ADD CONSTRAINT "report_exports_type_check" CHECK (
+    "report_type" IN (
+      'sales','profitability','profit_loss','trial_balance','balance_sheet',
+      'cash','delivery_custody','liabilities','inventory_valuation'
+    )
+  );
+
 CREATE INDEX IF NOT EXISTS "idx_supplier_entries_report_asof"
   ON "supplier_account_entries" ("accounting_date", "supplier_id");
 

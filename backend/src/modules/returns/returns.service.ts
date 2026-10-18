@@ -1683,7 +1683,7 @@ export class ReturnsService {
       user_id: row.user_id,
       ...(staff
         ? {
-            customer_name: row.user.name,
+            customer_name: row.user.name ?? 'Customer',
             customer_phone: row.user.phone,
             delivery_collection: collection
               ? {

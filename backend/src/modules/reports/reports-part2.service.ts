@@ -87,8 +87,8 @@ export class ReportsPart2Service {
             ELSE 'other'
           END AS source
         FROM cash_accounts ca
-        JOIN journal_lines jl ON jl.account_id = ca.ledger_account_id
-        JOIN journal_entries je ON je.id = jl.entry_id
+        LEFT JOIN journal_lines jl ON jl.account_id = ca.ledger_account_id
+        LEFT JOIN journal_entries je ON je.id = jl.entry_id
       )
       SELECT id, name, kind, currency_code,
         COALESCE(SUM(debit_base-credit_base) FILTER (WHERE accounting_date < ${range.from}),0) AS opening,
@@ -769,8 +769,14 @@ export class ReportsPart2Service {
     const rows = await this.prisma.$queryRaw<Array<{ touches: boolean }>>(
       Prisma.sql`
         SELECT EXISTS (
-          SELECT 1 FROM generate_series(date_trunc('month',${from}::date),date_trunc('month',${to}::date),interval '1 month') month
-          LEFT JOIN accounting_periods period ON period.month=month::date
+          SELECT 1
+          FROM generate_series(
+            date_trunc('month',${from}::date),
+            date_trunc('month',${to}::date),
+            interval '1 month'
+          ) AS months(month_start)
+          LEFT JOIN accounting_periods period
+            ON period.month=months.month_start::date
           WHERE COALESCE(period.status,'open')<>'closed'
         ) touches
       `,
