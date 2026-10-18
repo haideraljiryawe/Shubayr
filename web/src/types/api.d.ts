@@ -5296,9 +5296,9 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Defaults to `to` */
+                    /** @description Defaults to `to`, or the current Baghdad business date when both are omitted. */
                     from?: string;
-                    /** @description Defaults to `from` */
+                    /** @description Defaults to `from`, or the current Baghdad business date when both are omitted. */
                     to?: string;
                     group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
                     sort?: "group" | "gross_sales" | "net_sales" | "order_count";

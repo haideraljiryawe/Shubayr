@@ -2739,8 +2739,8 @@ paths:
       x-permission: reports.sales.read
       x-error-codes: [REPORT_PARAMETERS_INVALID]
       parameters:
-        - { name: from, in: query, schema: { type: string, format: date }, description: Defaults to `to`, or the current Baghdad business date when both are omitted. }
-        - { name: to, in: query, schema: { type: string, format: date }, description: Defaults to `from`, or the current Baghdad business date when both are omitted. }
+        - { name: from, in: query, schema: { type: string, format: date }, description: "Defaults to `to`, or the current Baghdad business date when both are omitted." }
+        - { name: to, in: query, schema: { type: string, format: date }, description: "Defaults to `from`, or the current Baghdad business date when both are omitted." }
         - { name: group_by, in: query, schema: { type: string, enum: [day, week, month, department, category, brand, product, sku], default: day } }
         - { name: sort, in: query, schema: { type: string, enum: [group, gross_sales, net_sales, order_count], default: group } }
         - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
