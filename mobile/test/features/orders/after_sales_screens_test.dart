@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -43,6 +44,10 @@ class _Repository implements AfterSalesRepository {
   Future<ReturnPage> fetchReturns({int page = 1, int perPage = 100}) async =>
       ReturnPage(page: page, perPage: perPage, total: 0, data: []);
   @override
+  Future<ReturnRequest> fetchReturn(String id) async =>
+      (await fetchReturns()).data.firstWhere((entry) => entry.id == id);
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,
@@ -67,6 +72,7 @@ class _Repository implements AfterSalesRepository {
 
   @override
   Future<ReturnRequest> requestReturn({
+    required String operationId,
     required String orderId,
     required List<ReturnRequestItem> items,
     String? reason,
@@ -96,6 +102,7 @@ Widget _host(
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
+    pendingRequestStoreProvider.overrideWithValue(PendingRequestStore.memory()),
     brandProvider.overrideWithValue(const Brand.bundled()),
     notificationSyncProvider.overrideWith((ref) {}),
     unreadCountProvider.overrideWith((ref) async => 0),
@@ -209,6 +216,7 @@ void main() {
           }
           await tester.pumpAndSettle();
           await tester.ensureVisible(find.byType(TextField).last);
+          if (!review) await _selectReturnReasons(tester);
           await tester.enterText(find.byType(TextField).last, 'A comment');
           final action = find.widgetWithText(
             ElevatedButton,
@@ -471,9 +479,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Increase return quantity').first);
     await tester.pump();
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _selectReturnReasons(tester);
     await tester.enterText(find.byType(TextField), 'Damaged');
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(find.text('Request reference: return-1'), findsOneWidget);
@@ -573,9 +590,18 @@ void main() {
     await tester.enterText(find.byType(TextFormField), '0.125');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _selectReturnReasons(tester);
     await tester.enterText(find.byType(TextField), 'Damaged');
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(repository.lines.single.quantity, 0.125);
@@ -623,9 +649,18 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Purchase name — XL'), findsOneWidget);
-      await tester.ensureVisible(find.text('Submit return request'));
+      await tester.scrollUntilVisible(
+        find.text('Submit return request'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await _selectReturnReasons(tester);
       await tester.enterText(find.byType(TextField), 'Damaged');
-      await tester.ensureVisible(find.text('Submit return request'));
+      await tester.scrollUntilVisible(
+        find.text('Submit return request'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Submit return request'));
       await tester.pumpAndSettle();
       expect(repository.lines.single.quantity, 1);
@@ -698,9 +733,18 @@ void main() {
         expect(find.text(saved ? 'Purchase name' : 'p1'), findsOneWidget);
         await tester.tap(find.byTooltip('Increase return quantity'));
         await tester.pump();
-        await tester.ensureVisible(find.text('Submit return request'));
+        await tester.scrollUntilVisible(
+          find.text('Submit return request'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await _selectReturnReasons(tester);
         await tester.enterText(find.byType(TextField), 'Damaged');
-        await tester.ensureVisible(find.text('Submit return request'));
+        await tester.scrollUntilVisible(
+          find.text('Submit return request'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Submit return request'));
         await tester.pumpAndSettle();
         expect(repository.lines.single.orderItemId, 'i1');
@@ -808,7 +852,11 @@ void main() {
       _host(const ReturnOrderScreen(orderId: 'o1'), repository),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(
       tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
       isNull,
@@ -842,9 +890,18 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Decrease return quantity').first);
     await tester.pump();
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _selectReturnReasons(tester);
     await tester.enterText(find.byType(TextField), 'Damaged');
-    await tester.ensureVisible(find.text('Submit return request'));
+    await tester.scrollUntilVisible(
+      find.text('Submit return request'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Submit return request'));
     await tester.pumpAndSettle();
     expect(repository.lines.single.orderItemId, 'i1');
@@ -905,4 +962,25 @@ void main() {
       );
     }
   }
+}
+
+Future<void> _selectReturnReasons(WidgetTester tester) async {
+  final fields = find.byType(DropdownButtonFormField<String>);
+  final count = fields.evaluate().length;
+  for (var i = 0; i < count; i++) {
+    await Scrollable.ensureVisible(
+      tester.element(fields.at(i)),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(fields.at(i));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Defective item').last);
+    await tester.pumpAndSettle();
+  }
+  await tester.scrollUntilVisible(
+    find.text('Submit return request'),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
 }

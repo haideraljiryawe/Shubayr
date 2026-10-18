@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,6 +111,125 @@ class _RenderWorkBox extends RenderProxyBox {
 }
 
 void main() {
+  for (final language in ['ar', 'en']) {
+    testWidgets('server images stay square inside Home circles $language', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1920, 1200);
+      addTearDown(tester.view.reset);
+      var taps = 0;
+      for (final width in [
+        320.0,
+        599.0,
+        600.0,
+        899.0,
+        900.0,
+        1199.0,
+        1200.0,
+        1535.0,
+        1536.0,
+        1920.0,
+      ]) {
+        for (final scale in [1.0, 2.0]) {
+          await tester.pumpWidget(
+            _app(
+              language: language,
+              width: width,
+              scale: scale,
+              categories: [
+                Category.fromJson({
+                  'id': 'photo',
+                  'name_ar': 'المنزل',
+                  'name_en': 'Home',
+                  'image_url': 'https://example.test/category.png',
+                  'icon_key': 'electronics_devices',
+                }),
+              ],
+              onSelected: (_) => taps++,
+            ),
+          );
+          await tester.pumpAndSettle();
+          final artwork = find.byKey(
+            const ValueKey('home-category-image-photo'),
+          );
+          final image = tester.widget<CachedNetworkImage>(
+            find.descendant(
+              of: artwork,
+              matching: find.byType(CachedNetworkImage),
+            ),
+          );
+          expect(image.imageUrl, 'https://example.test/category.png');
+          expect(image.fit, BoxFit.cover);
+          final rect = tester.getRect(artwork);
+          final circle = tester.getRect(
+            find.byWidgetPredicate(
+              (w) =>
+                  w is Container &&
+                  w.decoration is BoxDecoration &&
+                  (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          expect(rect.width, closeTo(rect.height, .01));
+          expect(rect.center.dx, closeTo(circle.center.dx, .01));
+          expect(rect.center.dy, closeTo(circle.center.dy, .01));
+          // All four square corners fit within the circular background.
+          expect(
+            (rect.topLeft - circle.center).distance,
+            lessThanOrEqualTo(circle.width / 2 + .01),
+          );
+          expect(find.byIcon(Icons.devices), findsNothing);
+          await tester.tap(find.text(language == 'ar' ? 'المنزل' : 'Home'));
+          expect(tester.takeException(), isNull);
+        }
+      }
+      expect(taps, 20);
+    });
+  }
+
+  testWidgets(
+    'Home replaces and clears artwork without reviving old category icons',
+    (tester) async {
+      for (final url in [
+        'https://example.test/first.png',
+        'https://example.test/replaced.webp',
+        null,
+        '',
+        '  ',
+      ]) {
+        await tester.pumpWidget(
+          _app(
+            categories: [
+              Category.fromJson({
+                'id': 'photo',
+                'name_en': 'Home',
+                'name_ar': 'المنزل',
+                'image_url': url,
+                'icon_key': 'electronics_devices',
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        final artwork = find.byKey(const ValueKey('home-category-image-photo'));
+        final images = find.descendant(
+          of: artwork,
+          matching: find.byType(CachedNetworkImage),
+        );
+        if (url == null || url.trim().isEmpty) {
+          expect(images, findsNothing);
+        } else {
+          expect(tester.widget<CachedNetworkImage>(images).imageUrl, url);
+        }
+        // Test HTTP fails deliberately; the name/tap area remain available.
+        expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.devices), findsNothing);
+        expect(find.text('Home'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
   for (final language in ['ar', 'en']) {
     for (final accessible in [false, true]) {
       testWidgets(
@@ -573,7 +693,7 @@ void main() {
   );
 
   testWidgets(
-    'a large catalog builds a bounded visible set without image widgets',
+    'a large catalog builds only a bounded visible set of cached images',
     (tester) async {
       final categories = [
         for (var i = 0; i < 1000; i++)
@@ -595,8 +715,11 @@ void main() {
           lessThanOrEqualTo(6),
         );
         expect(
-          find.descendant(of: _ring, matching: find.byType(Image)),
-          findsNothing,
+          find
+              .descendant(of: _ring, matching: find.byType(CachedNetworkImage))
+              .evaluate()
+              .length,
+          inInclusiveRange(1, 6),
         );
       }
       await tester.pumpWidget(const SizedBox());
@@ -837,7 +960,8 @@ void main() {
         for (final icon in tester.widgetList<Icon>(
           find.descendant(of: _ring, matching: find.byType(Icon)),
         )) {
-          expect(icon.size, closeTo(38.4, .001));
+          expect(icon.icon, Icons.image_outlined);
+          expect(icon.size, 32);
         }
         expect(tester.takeException(), isNull);
       }

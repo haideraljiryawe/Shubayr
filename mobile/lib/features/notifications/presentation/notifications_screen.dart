@@ -1,3 +1,5 @@
+import '../../../core/widgets/app_button.dart';
+import '../../../core/storage/session_credentials.dart';
 import 'notification_destination.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,8 +28,9 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   String? _opening;
+  bool _markingAll = false;
   Future<void> _open(InboxNotification item) async {
-    if (_opening != null) return;
+    if (_opening != null || _markingAll) return;
     setState(() => _opening = item.id);
     final session = ref.read(sessionControllerProvider).value;
     try {
@@ -51,6 +54,28 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  Future<void> _markAllRead() async {
+    if (_markingAll || _opening != null) return;
+    final identity = ref.read(notificationIdentityProvider);
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
+    setState(() => _markingAll = true);
+    try {
+      await ref.read(inboxProvider.notifier).markAllRead();
+    } catch (error, stack) {
+      if (mounted &&
+          credentials.owns(owner) &&
+          identity == ref.read(notificationIdentityProvider)) {
+        showAppSnackBarMessage(
+          context,
+          message: actionFailure(error, stack).localizedMessage(context.l10n),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _markingAll = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -62,96 +87,132 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final controller = ref.read(inboxProvider.notifier);
     return Scaffold(
       appBar: AppBar(title: Text(l.notificationsTitle)),
-      body: ResponsiveContent.page(
-        child: AsyncValueView(
-          value: value,
-          loading: ResponsiveCardList(
-            minItemWidth: AppLayout.orderMinWidth,
-            itemCount: 4,
-            itemBuilder: (_, _) => const _NotificationSkeleton(),
+      body: Column(
+        children: [
+          ResponsiveContent.page(
+            child: Padding(
+              padding: AppLayout.pageInsets(context),
+              child: AppButton(
+                key: const ValueKey('notifications-read-all'),
+                label: l.notificationsMarkAllRead,
+                icon: Icons.done_all,
+                variant: AppButtonVariant.secondary,
+                isLoading: _markingAll,
+                onPressed:
+                    _opening == null &&
+                        !_markingAll &&
+                        value.hasValue &&
+                        !value.isLoading &&
+                        !value.hasError &&
+                        value.value!.page.total > 0
+                    ? _markAllRead
+                    : null,
+              ),
+            ),
           ),
-          onRetry: controller.refresh,
-          builder: (context, data) => RefreshIndicator(
-            onRefresh: controller.refresh,
-            child: data.items.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      AppEmptyView(title: l.notificationsEmpty, message: ''),
-                    ],
-                  )
-                : ResponsiveCardList(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppLayout.pageInsets(context),
-                    minItemWidth: AppLayout.orderMinWidth,
-                    itemCount: data.items.length,
-                    itemKeyBuilder: (i) => data.items[i].id,
-                    itemBuilder: (context, index) {
-                      final item = data.items[index];
-                      return AppCard(
-                        onTap: _opening == null ? () => _open(item) : null,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: ResponsiveContent.page(
+              child: AsyncValueView(
+                value: value,
+                loading: ResponsiveCardList(
+                  minItemWidth: AppLayout.orderMinWidth,
+                  itemCount: 4,
+                  itemBuilder: (_, _) => const _NotificationSkeleton(),
+                ),
+                onRetry: controller.refresh,
+                builder: (context, data) => RefreshIndicator(
+                  onRefresh: controller.refresh,
+                  child: data.items.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  item.readAt == null
-                                      ? Icons.mark_email_unread_outlined
-                                      : Icons.drafts_outlined,
-                                  color: item.readAt == null
-                                      ? context.colors.notificationUnread
-                                      : context.colors.notificationRead,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    language == 'ar'
-                                        ? item.titleAr
-                                        : item.titleEn,
-                                    style: context.text.titleSmall,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(language == 'ar' ? item.bodyAr : item.bodyEn),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              DateFormat('yyyy/MM/dd HH:mm', 'en').format(
-                                item.createdAt.toUtc().add(
-                                  const Duration(hours: 3),
-                                ),
-                              ),
+                            AppEmptyView(
+                              title: l.notificationsEmpty,
+                              message: '',
                             ),
                           ],
+                        )
+                      : ResponsiveCardList(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: AppLayout.pageInsets(context),
+                          minItemWidth: AppLayout.orderMinWidth,
+                          itemCount: data.items.length,
+                          itemKeyBuilder: (i) => data.items[i].id,
+                          itemBuilder: (context, index) {
+                            final item = data.items[index];
+                            return AppCard(
+                              onTap: _opening == null && !_markingAll
+                                  ? () => _open(item)
+                                  : null,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        item.readAt == null
+                                            ? Icons.mark_email_unread_outlined
+                                            : Icons.drafts_outlined,
+                                        color: item.readAt == null
+                                            ? context.colors.notificationUnread
+                                            : context.colors.notificationRead,
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          language == 'ar'
+                                              ? item.titleAr
+                                              : item.titleEn,
+                                          style: context.text.titleSmall,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Text(
+                                    language == 'ar'
+                                        ? item.bodyAr
+                                        : item.bodyEn,
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Text(
+                                    DateFormat('yyyy/MM/dd HH:mm', 'en').format(
+                                      item.createdAt.toUtc().add(
+                                        const Duration(hours: 3),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          footer: Column(
+                            children: [
+                              if (data.syncError != null)
+                                AppErrorView(
+                                  error: data.syncError,
+                                  onRetry: controller.sync,
+                                ),
+                              if (data.appendError != null)
+                                AppErrorView(
+                                  error: data.appendError,
+                                  onRetry: controller.loadMore,
+                                )
+                              else if (data.loadingMore)
+                                const _NotificationSkeleton()
+                              else if (data.page.hasMore)
+                                TextButton(
+                                  onPressed: controller.loadMore,
+                                  child: Text(l.actionLoadMore),
+                                ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    footer: Column(
-                      children: [
-                        if (data.syncError != null)
-                          AppErrorView(
-                            error: data.syncError,
-                            onRetry: controller.sync,
-                          ),
-                        if (data.appendError != null)
-                          AppErrorView(
-                            error: data.appendError,
-                            onRetry: controller.loadMore,
-                          )
-                        else if (data.loadingMore)
-                          const _NotificationSkeleton()
-                        else if (data.page.hasMore)
-                          TextButton(
-                            onPressed: controller.loadMore,
-                            child: Text(l.actionLoadMore),
-                          ),
-                      ],
-                    ),
-                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

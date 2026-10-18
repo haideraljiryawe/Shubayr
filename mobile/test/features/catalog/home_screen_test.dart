@@ -641,8 +641,9 @@ void main() {
           final icon = tester.widget<Icon>(
             find.descendant(of: first, matching: find.byType(Icon)),
           );
-          expect(icon.color, tester.element(first).colors.primary);
-          expect(icon.size, closeTo(38.4, .01));
+          expect(icon.icon, Icons.image_outlined);
+          expect(icon.color, tester.element(first).colors.textMuted);
+          expect(icon.size, AppLayout.categoryIconSize);
           await tester.tap(first);
           await tester.pumpAndSettle();
           expect(find.byType(SubcategoriesScreen), findsNothing);

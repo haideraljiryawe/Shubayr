@@ -65,7 +65,22 @@ void main() {
         'logo_url',
         'primary_color',
         'currency',
+        'store_legal_name_ar',
+        'store_legal_name_en',
+        'store_address_ar',
+        'store_address_en',
+        'support_phone',
+        'support_whatsapp',
+        'support_email',
+        'privacy_email',
+        'support_hours_ar',
+        'support_hours_en',
+        'policy_effective_date',
+        'refund_days',
+        'return_window_days',
       });
+      expect(settings.supportPhone, isNull);
+      expect(settings.supportEmail, isNull);
     });
 
     test('remote parses the documented StoreSettings payload', () async {

@@ -14,8 +14,7 @@ import '../../../../core/widgets/state_views.dart';
 import '../../data/category.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/product_list_controller.dart';
-import '../widgets/category_icon.dart';
-import '../widgets/catalog_image_view.dart';
+import '../widgets/category_image.dart';
 import 'product_list_screen.dart';
 
 class SubcategoriesScreen extends ConsumerWidget {
@@ -125,17 +124,6 @@ class _SubcategoryGrid extends StatelessWidget {
             ],
           );
         }
-        final fallback = Center(
-          child: Icon(
-            categoryIconFor(
-              null,
-              categoryId: category.id,
-              iconKey: category.iconKey,
-            ),
-            size: AppLayout.categoryIconSize,
-            color: context.colors.primary,
-          ),
-        );
         return Material(
           key: ValueKey('cat-sub-${category.id}'),
           type: MaterialType.transparency,
@@ -159,13 +147,7 @@ class _SubcategoryGrid extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: AppRadii.mdAll,
-                      child: ExcludeSemantics(
-                        child: CatalogImageView(
-                          image: category.image,
-                          placeholder: fallback,
-                          loading: fallback,
-                        ),
-                      ),
+                      child: CategoryImage(category: category),
                     ),
                   ),
                 ),

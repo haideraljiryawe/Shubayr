@@ -1,5 +1,4 @@
-import '../../../../core/widgets/app_text_selection_toolbar.dart';
-import '../../../../core/utils/numeric_input_formatters.dart';
+import '../../../../core/widgets/international_phone_field.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +10,6 @@ import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
-import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/user_avatar.dart';
 import '../providers/auth_providers.dart';
@@ -29,6 +27,7 @@ class SignInScreen extends ConsumerStatefulWidget {
 class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  String _canonicalPhone = '';
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -58,7 +57,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final credentials = ref.read(sessionCredentialsProvider);
     final owner = credentials.revision;
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final phone = Validators.normalizePhone(_phoneController.text);
+    _formKey.currentState!.save();
+    final phone = _canonicalPhone;
 
     setState(() {
       _isSubmitting = true;
@@ -130,21 +130,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      TextFormField(
-                        contextMenuBuilder: appTextSelectionToolbar,
+                      InternationalPhoneField(
                         controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: const [PhoneInputFormatter()],
-                        textDirection: TextDirection.ltr,
-                        autofillHints: const [AutofillHints.telephoneNumber],
-                        decoration: InputDecoration(
-                          labelText: l10n.authPhoneLabel,
-                          hintText: l10n.authPhoneHint,
-                          prefixIcon: const Icon(Icons.phone_outlined),
-                        ),
-                        validator: (value) => Validators.isPhone(value ?? '')
-                            ? null
-                            : l10n.authPhoneInvalid,
+                        label: l10n.authPhoneLabel,
+                        enabled: !_isSubmitting,
+                        onSaved: (phone) => _canonicalPhone = phone,
                         onFieldSubmitted: (_) => _submit(),
                       ),
                       if (_errorMessage != null) ...[

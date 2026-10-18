@@ -44,6 +44,13 @@ AppFailure mapDioException(DioException e) {
             ? (e.response!.data as Map)['code'] as String
             : null,
         errors: _fieldsFromBody(e.response?.data),
+        details:
+            e.response?.data is Map &&
+                (e.response!.data as Map)['details'] is Map<String, dynamic>
+            ? Map.unmodifiable(
+                (e.response!.data as Map)['details'] as Map<String, dynamic>,
+              )
+            : const {},
       );
   }
 }

@@ -40,8 +40,10 @@ class Category {
   @JsonKey(name: 'description_ar')
   final String? shortDescriptionAr;
   @JsonKey(includeFromJson: false, includeToJson: false)
-  CatalogImage? get image =>
-      imageUrl == null ? null : UrlCatalogImage(imageUrl!);
+  CatalogImage? get image {
+    final url = imageUrl?.trim();
+    return url == null || url.isEmpty ? null : UrlCatalogImage(url);
+  }
 
   String? localizedDescription(String language) => language == 'ar'
       ? (shortDescriptionAr ?? shortDescriptionEn)

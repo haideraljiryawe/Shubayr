@@ -13,6 +13,19 @@ class StoreSettings {
     this.logoUrl,
     this.primaryColor,
     this.currency,
+    this.storeLegalNameAr,
+    this.storeLegalNameEn,
+    this.storeAddressAr,
+    this.storeAddressEn,
+    this.supportPhone,
+    this.supportWhatsapp,
+    this.supportEmail,
+    this.privacyEmail,
+    this.supportHoursAr,
+    this.supportHoursEn,
+    this.policyEffectiveDate,
+    this.refundDays,
+    this.returnWindowDays,
   });
 
   factory StoreSettings.fromJson(Map<String, dynamic> json) =>
@@ -26,6 +39,18 @@ class StoreSettings {
 
   /// ISO-4217 code, e.g. `IQD`.
   final String? currency;
+  final String? storeLegalNameAr;
+  final String? storeLegalNameEn;
+  final String? storeAddressAr;
+  final String? storeAddressEn;
+  final String? supportPhone;
+  final String? supportWhatsapp;
+  final String? supportEmail;
+  final String? privacyEmail;
+  final String? supportHoursAr;
+  final String? supportHoursEn;
+  final String? policyEffectiveDate;
+  final int? refundDays, returnWindowDays;
 
   Map<String, dynamic> toJson() => _$StoreSettingsToJson(this);
 }

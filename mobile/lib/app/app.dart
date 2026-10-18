@@ -1,3 +1,4 @@
+import 'package:country_picker/country_picker.dart';
 import 'push_notification_bridge.dart';
 import 'session_verification_gate.dart';
 import '../core/config/store_identity.dart';
@@ -49,7 +50,10 @@ class ShubayrApp extends ConsumerWidget {
       themeAnimationCurve: AppMotion.standard,
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: const [
+        CountryLocalizations.delegate,
+        ...AppLocalizations.localizationsDelegates,
+      ],
       routerConfig: router,
       builder: (context, child) {
         // Consume horizontal device insets once, before page padding. SafeArea

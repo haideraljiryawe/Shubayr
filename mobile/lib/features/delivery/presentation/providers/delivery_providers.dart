@@ -9,6 +9,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/delivery.dart';
+import '../../data/delivery_detail.dart';
 import '../../data/delivery_repository_mock.dart';
 import '../../data/delivery_repository_remote.dart';
 import '../../domain/delivery_repository.dart';
@@ -364,3 +365,17 @@ final deliveriesProvider =
     AsyncNotifierProvider<DeliveriesController, DeliveryListState>(
       DeliveriesController.new,
     );
+
+/// No eager list-card requests or long-lived contact cache.
+final deliveryDetailProvider = FutureProvider.autoDispose
+    .family<DeliveryDetail, String>((ref, id) async {
+      final owner = ref.watch(_agentProvider);
+      if (!owner.allowed) throw const AppFailure.unauthorized();
+      final detail = await ref
+          .watch(deliveryRepositoryProvider)
+          .fetchDetail(id);
+      if (!ref.mounted || ref.read(_agentProvider) != owner) {
+        throw const AppFailure.unauthorized();
+      }
+      return detail;
+    });

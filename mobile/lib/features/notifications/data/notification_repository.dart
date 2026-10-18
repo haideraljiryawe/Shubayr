@@ -82,4 +82,12 @@ class NotificationRepository {
       '/me/notifications/${Uri.encodeComponent(id)}/read',
     );
   });
+
+  Future<void> readAll() => decodeResponse(() async {
+    final result = await api.patch<Map<String, dynamic>>(
+      '/me/notifications/read-all',
+    );
+    if ((result['updated'] as int) < 0) throw const FormatException();
+    DateTime.parse(result['read_at'] as String);
+  });
 }

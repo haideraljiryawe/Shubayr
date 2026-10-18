@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shubayr/app/app.dart';
+import 'package:shubayr/app/startup_display_controller.dart';
 import 'package:shubayr/app/router/app_router.dart';
 import 'package:shubayr/app/router/app_routes.dart';
 import 'package:shubayr/core/storage/prefs_store.dart';
@@ -83,6 +84,16 @@ void main() {
     // Bounded pumps rather than pumpAndSettle: splash/loading spinners animate
     // continuously, so pumpAndSettle never converges in this flow.
     await tester.pump(const Duration(seconds: 1));
+    // Localized country names resolve before the routed app mounts. Wait for
+    // the real splash readiness condition instead of assuming its first frame.
+    for (
+      var frame = 0;
+      frame < 30 && !container.read(startupDisplayReadyProvider);
+      frame++
+    ) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(container.read(startupDisplayReadyProvider), isTrue);
 
     // Fire sign-in and pump so the mock's delay timer runs under the fake
     // clock, then await the finished future.

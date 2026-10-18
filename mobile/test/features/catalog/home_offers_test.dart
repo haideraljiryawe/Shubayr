@@ -131,7 +131,7 @@ void main() {
   for (final locale in ['ar', 'en']) {
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
       testWidgets(
-        'Home manual offers and filled shortcuts navigate to all offers $locale $mode',
+        'Home offers and category image placeholders preserve navigation $locale $mode',
         (tester) async {
           tester.view.devicePixelRatio = 1;
           tester.view.physicalSize = const Size(390, 1100);
@@ -156,20 +156,19 @@ void main() {
             _horizontalIn(shortcuts),
           );
           expect(shortcutScroll.position.maxScrollExtent, greaterThan(0));
-          for (final (id, glyph) in [
-            ('cat-electronics', Icons.devices),
-            ('cat-grocery', Icons.shopping_basket),
-            ('cat-clothing', Icons.checkroom),
-            // The fixture now uses the explicit home_furniture semantic key.
-            ('cat-home', Icons.weekend),
-            ('cat-beauty', Icons.spa),
-            ('cat-sports', Icons.fitness_center),
+          for (final id in [
+            'cat-electronics',
+            'cat-grocery',
+            'cat-clothing',
+            'cat-home',
+            'cat-beauty',
+            'cat-sports',
           ]) {
             final shortcut = find.byKey(ValueKey('home-category-$id'));
             final icon = tester.widget<Icon>(
               find.descendant(of: shortcut, matching: find.byType(Icon)),
             );
-            expect(icon.icon, glyph);
+            expect(icon.icon, Icons.image_outlined);
             final circle = tester.widget<Container>(
               find.descendant(of: shortcut, matching: find.byType(Container)),
             );

@@ -1,3 +1,4 @@
+import '../../features/orders/presentation/screens/return_detail_screen.dart';
 import '../../core/layout/app_layout.dart';
 import '../../features/monitoring/presentation/monitor_orders_screen.dart';
 import '../../features/monitoring/presentation/monitor_detail_screen.dart';
@@ -29,6 +30,7 @@ import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/catalog/presentation/screens/product_list_screen.dart';
 import '../../features/catalog/presentation/providers/product_list_controller.dart';
 import '../../features/delivery/presentation/screens/delivery_home_screen.dart';
+import '../../features/delivery/presentation/screens/delivery_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/settings/presentation/screens/account_screen.dart';
 import '../../features/settings/presentation/screens/profile_screen.dart';
@@ -345,6 +347,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // A single order's details + tracking — full-screen over the shell,
       // reached from the orders tab (matches the product-detail pattern).
       GoRoute(
+        path: AppRoutes.returnDetails,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) =>
+            ReturnDetailScreen(returnId: state.pathParameters['returnId']!),
+      ),
+      GoRoute(
         path: AppRoutes.orderDetail,
         name: AppRoutes.orderDetailName,
         parentNavigatorKey: _rootNavigatorKey,
@@ -366,6 +374,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ReturnOrderScreen(orderId: state.pathParameters['id']!),
       ),
 
+      GoRoute(
+        path: AppRoutes.deliveryDetail,
+        builder: (context, state) => DeliveryDetailScreen(
+          deliveryId: state.pathParameters['id']!,
+          fromList: state.extra == true,
+        ),
+      ),
       GoRoute(
         path: AppRoutes.delivery,
         name: AppRoutes.deliveryName,

@@ -1,3 +1,5 @@
+import 'package:shubayr/features/settings/data/store_settings.dart';
+import 'package:shubayr/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shubayr/core/error/failure.dart';
@@ -5,6 +7,24 @@ import 'package:shubayr/features/settings/presentation/providers/support_provide
 import 'package:shubayr/features/settings/presentation/providers/privacy_policy_provider.dart';
 
 void main() {
+  test('published store contact overrides the bundled destination', () async {
+    Uri? opened;
+    final container = ProviderContainer(
+      overrides: [
+        storeSettingsProvider.overrideWith(_PublishedSettings.new),
+        supportDestinationProvider.overrideWithValue(
+          'https://shubayr.com/help',
+        ),
+        externalLinkLauncherProvider.overrideWithValue((uri) async {
+          opened = uri;
+          return true;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(openSupportProvider)();
+    expect(opened.toString(), 'tel:+9647700000000');
+  });
   test('missing, development and unsafe destinations never launch', () async {
     for (final value in [
       '',
@@ -20,6 +40,7 @@ void main() {
       var launches = 0;
       final c = ProviderContainer(
         overrides: [
+          storeSettingsProvider.overrideWith(_EmptySettings.new),
           supportDestinationProvider.overrideWithValue(value),
           externalLinkLauncherProvider.overrideWithValue((uri) async {
             launches++;
@@ -54,6 +75,7 @@ void main() {
         var succeeds = true;
         final c = ProviderContainer(
           overrides: [
+            storeSettingsProvider.overrideWith(_EmptySettings.new),
             supportDestinationProvider.overrideWithValue(value),
             externalLinkLauncherProvider.overrideWithValue((uri) async {
               opened = uri;
@@ -78,4 +100,14 @@ void main() {
       }
     },
   );
+}
+
+class _EmptySettings extends StoreSettingsController {
+  @override
+  StoreSettings? build() => null;
+}
+
+class _PublishedSettings extends StoreSettingsController {
+  @override
+  StoreSettings? build() => const StoreSettings(supportPhone: '+9647700000000');
 }

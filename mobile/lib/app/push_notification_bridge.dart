@@ -1,3 +1,5 @@
+import '../features/orders/presentation/providers/order_providers.dart';
+import '../features/orders/presentation/providers/after_sales_providers.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,6 +94,12 @@ class _PushNotificationBridgeState
     if (ref.read(pushOwnerProvider) != value.owner) return;
     ref.invalidate(unreadCountProvider);
     ref.invalidate(inboxProvider);
+    if (ref.read(ordersIdentityProvider) != null) {
+      ref.invalidate(orderProvider);
+      ref.invalidate(ordersProvider);
+      ref.invalidate(returnDetailProvider);
+      ref.invalidate(returnEligibilityProvider);
+    }
     if (value.event == PushEvent.opened) {
       _pendingOpen = value.owner;
       _openWhenReady();

@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { checkLocalDevelopmentApi } from './debug_environment.mjs';
 import { syncLocalAdminPermissions } from './local_admin_access.mjs';
 
-// Reviewed main revision with governorates, delivery zones and API 16.2 types.
-const revision = 'fd6a3bc8ddcb612dd6f672538aaaf992f3ab4f6b';
+// Reviewed main revision with API 17.4 types; keep device/local stack settings unchanged.
+const revision = '17161ea59bff46b84535d985e36b685608795b81';
 const repository = fileURLToPath(new URL('../../', import.meta.url));
 const cache = join(homedir(), '.config/shubayr/web-admin');
 const distribution = join(cache, revision);
@@ -64,7 +64,7 @@ try {
       const archive = execFileSync('git', ['archive', '--format=tar', revision, 'admin', 'api/openapi.yaml', 'web/src/app/tokens.css', 'web/src/fonts', 'web/src/lib/forwarding.ts'], { cwd: repository, maxBuffer: 32 * 1024 * 1024 });
       const staging = await mkdtemp(join(cache, '.prepare-'));
       execFileSync('tar', ['-xf', '-', '-C', staging], { input: archive });
-      await writeFile(join(staging, 'SOURCE.json'), JSON.stringify({ revision, apiContract: '16.2.0', source: 'Shubayr origin/main' }, null, 2) + '\n');
+      await writeFile(join(staging, 'SOURCE.json'), JSON.stringify({ revision, apiContract: '17.4.0', source: 'Shubayr origin/main' }, null, 2) + '\n');
       await rename(staging, distribution);
     }
     const source = JSON.parse(await readFile(join(distribution, 'SOURCE.json'), 'utf8'));

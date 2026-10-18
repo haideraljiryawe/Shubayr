@@ -1,10 +1,11 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'delivery_detail.dart';
 import '../../../core/error/failure.dart';
 
 part 'delivery.g.dart';
 
 /// The delivery contract contains references, not customer/order details.
-@JsonSerializable()
+@JsonSerializable(explicitToJson: true)
 class Delivery {
   const Delivery({
     required this.id,
@@ -20,7 +21,10 @@ class Delivery {
     this.currency,
     this.dispatchedAt,
     this.deliveredAt,
+    this.collection,
   });
+
+  final DeliveryCollection? collection;
 
   final String id;
   @JsonKey(name: 'order_id')

@@ -8,7 +8,7 @@ import 'package:shubayr/features/auth/presentation/providers/auth_providers.dart
 class AddressTestSession extends SessionController {
   @override
   Future<Session> build() async => const Session.signedIn(
-    User(id: 'customer', role: 'customer', phone: '07700000000'),
+    User(id: 'customer', role: 'customer', phone: '+9647700000000'),
   );
   void setSession(Session next) => state = AsyncData(next);
 }

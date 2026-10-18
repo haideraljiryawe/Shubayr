@@ -44,6 +44,10 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
   }
 
   @override
+  Future<ReturnRequest> fetchReturn(String id) async =>
+      (await fetchReturns()).data.firstWhere((entry) => entry.id == id);
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,
@@ -95,6 +99,7 @@ class AfterSalesRepositoryMock implements AfterSalesRepository {
 
   @override
   Future<ReturnRequest> requestReturn({
+    required String operationId,
     required String orderId,
     required List<ReturnRequestItem> items,
     String? reason,

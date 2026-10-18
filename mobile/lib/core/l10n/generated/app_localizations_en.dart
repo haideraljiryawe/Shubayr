@@ -1151,426 +1151,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mainCategoriesTitle => 'Main Categories';
 
   @override
-  String get categoryGroupElectronics => 'Electronics';
-
-  @override
-  String get categoryIconElectronicsDevices => 'Devices';
-
-  @override
-  String get categoryIconElectronicsCable => 'Cables';
-
-  @override
-  String get categoryIconElectronicsRouter => 'Routers';
-
-  @override
-  String get categoryIconElectronicsTv => 'Televisions';
-
-  @override
-  String get categoryIconElectronicsPower => 'Electrical supplies';
-
-  @override
-  String get categoryIconElectronicsBattery => 'Batteries';
-
-  @override
-  String get categoryGroupPhones => 'Phones';
-
-  @override
-  String get categoryIconMobilePhone => 'Phones';
-
-  @override
-  String get categoryIconMobileTablet => 'Tablets';
-
-  @override
-  String get categoryIconMobileCharging => 'Chargers';
-
-  @override
-  String get categoryIconMobileWatch => 'Smart watches';
-
-  @override
-  String get categoryGroupComputers => 'Computers';
-
-  @override
-  String get categoryIconComputerLaptop => 'Laptops';
-
-  @override
-  String get categoryIconComputerDesktop => 'Desktop computers';
-
-  @override
-  String get categoryIconComputerKeyboard => 'Keyboards';
-
-  @override
-  String get categoryIconComputerMouse => 'Mice';
-
-  @override
-  String get categoryIconComputerPrinter => 'Printers';
-
-  @override
-  String get categoryIconComputerStorage => 'Storage';
-
-  @override
-  String get categoryGroupAudio => 'Audio';
-
-  @override
-  String get categoryIconAudioHeadphones => 'Headphones';
-
-  @override
-  String get categoryIconAudioEarbuds => 'Earbuds';
-
-  @override
-  String get categoryIconAudioSpeaker => 'Speakers';
-
-  @override
-  String get categoryIconAudioMic => 'Microphones';
-
-  @override
-  String get categoryIconAudioRadio => 'Radios';
-
-  @override
-  String get categoryGroupCameras => 'Cameras';
-
-  @override
-  String get categoryIconCameraPhoto => 'Cameras';
-
-  @override
-  String get categoryIconCameraVideo => 'Video cameras';
-
-  @override
-  String get categoryIconCameraLens => 'Lenses';
-
-  @override
-  String get categoryIconCameraSecurity => 'Security cameras';
-
-  @override
-  String get categoryGroupGaming => 'Gaming';
-
-  @override
-  String get categoryIconGamingConsole => 'Game consoles';
-
-  @override
-  String get categoryIconGamingController => 'Controllers';
-
-  @override
-  String get categoryGroupFashion => 'Fashion';
-
-  @override
-  String get categoryIconFashionClothing => 'Clothing';
-
-  @override
-  String get categoryIconFashionMen => 'Menswear';
-
-  @override
-  String get categoryIconFashionWomen => 'Womenswear';
-
-  @override
-  String get categoryIconFashionShoes => 'Footwear';
-
-  @override
-  String get categoryIconFashionUniform => 'Workwear';
-
-  @override
-  String get categoryIconFashionLaundry => 'Clothing care';
-
-  @override
-  String get categoryGroupAccessories => 'Bags & accessories';
-
-  @override
-  String get categoryIconAccessoriesWatch => 'Watches';
-
-  @override
-  String get categoryIconAccessoriesBag => 'Bags';
-
-  @override
-  String get categoryIconAccessoriesBackpack => 'Backpacks';
-
-  @override
-  String get categoryIconAccessoriesLuggage => 'Luggage';
-
-  @override
-  String get categoryIconAccessoriesJewelry => 'Jewelry';
-
-  @override
-  String get categoryIconAccessoriesUmbrella => 'Umbrellas';
-
-  @override
-  String get categoryGroupHome => 'Home & furniture';
-
-  @override
-  String get categoryIconHomeFurniture => 'Furniture';
-
-  @override
-  String get categoryIconHomeChair => 'Chairs';
-
-  @override
-  String get categoryIconHomeBed => 'Beds';
-
-  @override
-  String get categoryIconHomeTable => 'Tables';
-
-  @override
-  String get categoryIconHomeLighting => 'Lighting';
-
-  @override
-  String get categoryIconHomeBath => 'Bathroom';
-
-  @override
-  String get categoryIconHomeCurtains => 'Curtains';
-
-  @override
-  String get categoryIconHomeBedding => 'Bedding';
-
-  @override
-  String get categoryGroupKitchen => 'Kitchen';
-
-  @override
-  String get categoryIconKitchenAppliances => 'Appliances';
-
-  @override
-  String get categoryIconKitchenCooking => 'Cookware';
-
-  @override
-  String get categoryIconKitchenTableware => 'Tableware';
-
-  @override
-  String get categoryIconKitchenBlender => 'Blenders';
-
-  @override
-  String get categoryIconKitchenMicrowave => 'Microwaves';
-
-  @override
-  String get categoryIconKitchenKettle => 'Coffee makers';
-
-  @override
-  String get categoryGroupCleaning => 'Cleaning';
-
-  @override
-  String get categoryIconCleaningSupplies => 'Cleaning supplies';
-
-  @override
-  String get categoryIconCleaningSoap => 'Soap';
-
-  @override
-  String get categoryIconCleaningBins => 'Waste bins';
-
-  @override
-  String get categoryIconCleaningWater => 'Water care';
-
-  @override
-  String get categoryGroupFood => 'Grocery & food';
-
-  @override
-  String get categoryIconGroceryFood => 'Groceries';
-
-  @override
-  String get categoryIconFoodRice => 'Rice & grains';
-
-  @override
-  String get categoryIconFoodBakery => 'Bakery';
-
-  @override
-  String get categoryIconFoodFruit => 'Fruit';
-
-  @override
-  String get categoryIconFoodVegetables => 'Vegetables';
-
-  @override
-  String get categoryIconFoodMeat => 'Meat';
-
-  @override
-  String get categoryIconFoodSeafood => 'Seafood';
-
-  @override
-  String get categoryIconFoodPizza => 'Pizza';
-
-  @override
-  String get categoryIconFoodIcecream => 'Ice cream';
-
-  @override
-  String get categoryIconFoodCake => 'Cakes';
-
-  @override
-  String get categoryIconFoodEggs => 'Eggs';
-
-  @override
-  String get categoryIconFoodSnacks => 'Snacks';
-
-  @override
-  String get categoryGroupDrinks => 'Drinks';
-
-  @override
-  String get categoryIconDrinksCoffee => 'Coffee';
-
-  @override
-  String get categoryIconDrinksTea => 'Tea';
-
-  @override
-  String get categoryIconDrinksJuice => 'Juices';
-
-  @override
-  String get categoryIconDrinksWater => 'Water';
-
-  @override
-  String get categoryGroupBeauty => 'Health & beauty';
-
-  @override
-  String get categoryIconBeautySpa => 'Beauty care';
-
-  @override
-  String get categoryIconBeautySkin => 'Skin care';
-
-  @override
-  String get categoryIconBeautyHair => 'Hair care';
-
-  @override
-  String get categoryIconBeautyCosmetics => 'Cosmetics';
-
-  @override
-  String get categoryIconBeautyHealth => 'Health supplies';
-
-  @override
-  String get categoryIconBeautyHygiene => 'Personal hygiene';
-
-  @override
-  String get categoryIconBeautyMedical => 'First aid';
-
-  @override
-  String get categoryGroupSport => 'Sports & fitness';
-
-  @override
-  String get categoryIconSportFitness => 'Fitness';
-
-  @override
-  String get categoryIconSportCycling => 'Cycling';
-
-  @override
-  String get categoryIconSportFootball => 'Football';
-
-  @override
-  String get categoryIconSportBasketball => 'Basketball';
-
-  @override
-  String get categoryIconSportTennis => 'Tennis';
-
-  @override
-  String get categoryIconSportSwimming => 'Swimming';
-
-  @override
-  String get categoryIconSportCamping => 'Camping';
-
-  @override
-  String get categoryIconSportFishing => 'Fishing';
-
-  @override
-  String get categoryGroupKids => 'Babies & toys';
-
-  @override
-  String get categoryIconKidsBaby => 'Baby care';
-
-  @override
-  String get categoryIconKidsStroller => 'Strollers';
-
-  @override
-  String get categoryIconKidsToys => 'Toys';
-
-  @override
-  String get categoryIconKidsPuzzle => 'Puzzles';
-
-  @override
-  String get categoryIconKidsScooter => 'Skates & scooters';
-
-  @override
-  String get categoryGroupAuto => 'Auto supplies';
-
-  @override
-  String get categoryIconAutoCar => 'Car supplies';
-
-  @override
-  String get categoryIconAutoMotorcycle => 'Motorcycles';
-
-  @override
-  String get categoryIconAutoTires => 'Tires';
-
-  @override
-  String get categoryIconAutoFuel => 'Fuel & oils';
-
-  @override
-  String get categoryIconAutoTools => 'Car tools';
-
-  @override
-  String get categoryGroupBooks => 'Books & stationery';
-
-  @override
-  String get categoryIconBooksReading => 'Books';
-
-  @override
-  String get categoryIconBooksNotebooks => 'Notebooks';
-
-  @override
-  String get categoryIconBooksPens => 'Pens';
-
-  @override
-  String get categoryIconBooksArt => 'Art supplies';
-
-  @override
-  String get categoryIconBooksSchool => 'School supplies';
-
-  @override
-  String get categoryGroupGarden => 'Pets, garden & tools';
-
-  @override
-  String get categoryIconPetsSupplies => 'Pet supplies';
-
-  @override
-  String get categoryIconGardenTrees => 'Garden plants';
-
-  @override
-  String get categoryIconGardenFlowers => 'Flowers';
-
-  @override
-  String get categoryIconGardenTools => 'Hand tools';
-
-  @override
-  String get categoryIconGardenBuilding => 'Building supplies';
-
-  @override
-  String get categoryIconGardenSolar => 'Solar supplies';
-
-  @override
-  String get categoryIconGardenWatering => 'Garden care';
-
-  @override
-  String get categoryGroupGifts => 'Gifts & general';
-
-  @override
-  String get categoryIconGiftsPresent => 'Gifts';
-
-  @override
-  String get categoryIconBeautyFragrance => 'Fragrances';
-
-  @override
-  String get categoryIconGiftsParty => 'Party supplies';
-
-  @override
-  String get categoryIconGeneralCrafts => 'Craft supplies';
-
-  @override
-  String get categoryIconGeneralMusic => 'Musical instruments';
-
-  @override
-  String get categoryIconGeneralCategory => 'General products';
-
-  @override
-  String get categoryChooseIcon => 'Choose icon';
-
-  @override
-  String get categorySearchIcons => 'Search icons';
-
-  @override
-  String get categoryAllGroups => 'All groups';
-
-  @override
-  String get categoryNoIcons => 'No matching icons';
-
-  @override
   String get categoryDescriptionEn => 'Short description (English)';
 
   @override
@@ -1743,7 +1323,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addressInternationalPhoneHint =>
-      'Use an international number starting with + and country code; no country code is added automatically.';
+      'Choose a country and enter a local number, or enter the full international number with +.';
 
   @override
   String get mediaUploadHint =>
@@ -1833,7 +1413,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deliveryInvalidAmount =>
-      'Enter an amount from zero up to the amount due (at most 6 decimal places).';
+      'Enter a valid recorded amount up to the order total (at most 6 decimal places).';
 
   @override
   String get pendingDeliveryRetry =>
@@ -2097,4 +1677,341 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorDeliveryLocationSelector =>
       'Could not determine the delivery location. Select your delivery address again.';
+
+  @override
+  String get returnDetailsTitle => 'Return details';
+
+  @override
+  String get returnHistoryTitle => 'Returns';
+
+  @override
+  String get returnReasonCode => 'Reason category';
+
+  @override
+  String get returnChangeMind => 'Changed my mind';
+
+  @override
+  String get returnDefect => 'Defective item';
+
+  @override
+  String get returnStoreError => 'Store error';
+
+  @override
+  String get returnWrongItem => 'Wrong item';
+
+  @override
+  String get returnOther => 'Other';
+
+  @override
+  String get returnRequested => 'Requested';
+
+  @override
+  String get returnApproved => 'Approved';
+
+  @override
+  String get returnPartiallyApproved => 'Partially approved';
+
+  @override
+  String get returnRejected => 'Rejected';
+
+  @override
+  String get returnReceived => 'Received by store';
+
+  @override
+  String get returnInspected => 'Inspected';
+
+  @override
+  String get returnRefunded => 'Refunded';
+
+  @override
+  String get returnCompleted => 'Completed';
+
+  @override
+  String get returnExpectedRefund => 'Estimated goods refund';
+
+  @override
+  String get returnApprovedRefund => 'Approved refund';
+
+  @override
+  String get returnDeliveryRefund => 'Delivery fee refund';
+
+  @override
+  String get returnUncollectedOffset => 'Reduction of unpaid amount';
+
+  @override
+  String get returnCashRefund => 'Cash refund';
+
+  @override
+  String get returnPointsNote =>
+      'Points adjustments affect your loyalty balance, not an extra deduction from your cash refund.';
+
+  @override
+  String get returnEarnedReversed => 'Earned points reversed';
+
+  @override
+  String get returnRedeemedRestored => 'Redeemed points restored';
+
+  @override
+  String get returnNetPoints => 'Net points adjustment';
+
+  @override
+  String get returnRequestedQuantity => 'Requested quantity';
+
+  @override
+  String get returnApprovedQuantity => 'Approved quantity';
+
+  @override
+  String get returnTimeline => 'Status history';
+
+  @override
+  String get returnPayments => 'Refund payments';
+
+  @override
+  String get returnCashAccount => 'Store cash payment';
+
+  @override
+  String get returnDeliveryCustody => 'Delivery collection refund';
+
+  @override
+  String get returnPendingNotice =>
+      'The result of your previous request is not yet confirmed. Retry that same request before starting another.';
+
+  @override
+  String get returnRetryPending => 'Recover previous request';
+
+  @override
+  String get returnWindowExpired =>
+      'The return period for this order has ended.';
+
+  @override
+  String get returnQuantityChanged =>
+      'The available return quantity has changed. Refresh the order and try again.';
+
+  @override
+  String get returnQuantityInvalid =>
+      'Check the return quantities and unit precision.';
+
+  @override
+  String get returnNotDelivered =>
+      'Returns are available only for delivered orders.';
+
+  @override
+  String get otpDeliveryUnavailable =>
+      'We could not send the verification code. Please try again later.';
+
+  @override
+  String get pricingCouponDiscount => 'Coupon discount';
+
+  @override
+  String get pricingTierDiscount => 'Automatic discount';
+
+  @override
+  String get pricingLoyaltyDiscount => 'Points used';
+
+  @override
+  String get pricingOriginalDelivery => 'Original delivery fee';
+
+  @override
+  String get pricingAdjustedDelivery => 'Adjusted delivery fee';
+
+  @override
+  String get pricingNetPaid => 'Net paid for this line';
+
+  @override
+  String get pricingDeliveryGovernorate => 'Delivery governorate';
+
+  @override
+  String get pricingEstimate =>
+      'Estimated total — final pricing is confirmed at checkout.';
+
+  @override
+  String get pricingSelectGovernorate =>
+      'Choose a governorate to estimate delivery';
+
+  @override
+  String get pricingUnserved =>
+      'Delivery is not available to this governorate.';
+
+  @override
+  String get pricingStacking => 'Coupons can combine with automatic discounts.';
+
+  @override
+  String get pricingBestDiscount =>
+      'The larger of the coupon and automatic discount applies.';
+
+  @override
+  String get pricingDeliveryUnknown =>
+      'Delivery fee is not included until a location is selected.';
+
+  @override
+  String get storeInfoTitle => 'Store information';
+
+  @override
+  String get storeAddress => 'Store address';
+
+  @override
+  String get storeSupportHours => 'Support hours';
+
+  @override
+  String get storeSupportPhone => 'Call support';
+
+  @override
+  String get storeSupportWhatsapp => 'WhatsApp support';
+
+  @override
+  String get storeSupportEmail => 'Support email';
+
+  @override
+  String get storePrivacyEmail => 'Privacy contact';
+
+  @override
+  String get storePolicyDate => 'Policy effective date';
+
+  @override
+  String get loyaltyInsufficient =>
+      'Your points balance is insufficient. Refresh and try again.';
+
+  @override
+  String get loyaltyExceedsGoods =>
+      'Points cannot exceed the remaining goods value or pay delivery fees.';
+
+  @override
+  String pricingNextTier(String amount, String percent) {
+    return 'Add $amount to reach a $percent% automatic discount.';
+  }
+
+  @override
+  String storeReturnWindow(String days) {
+    return 'Return window: $days days';
+  }
+
+  @override
+  String storeRefundDays(String days) {
+    return 'Refund processing: $days days';
+  }
+
+  @override
+  String accountDeletionCounts(
+    String orders,
+    String returns,
+    String unsettled,
+  ) {
+    return 'Open orders: $orders; pending returns: $returns; unsettled amounts: $unsettled.';
+  }
+
+  @override
+  String get shoppingInformation => 'Delivery and automatic discounts';
+
+  @override
+  String pricingTierThreshold(String amount, String percent) {
+    return '$percent% off goods subtotals of $amount or more.';
+  }
+
+  @override
+  String get deliveryViewDetails => 'View details';
+
+  @override
+  String get deliveryDetailsTitle => 'Delivery details';
+
+  @override
+  String get deliveryOrderTotal => 'Order total';
+
+  @override
+  String get deliveryTotalNotBalance =>
+      'Order value, not a confirmed remaining collection balance.';
+
+  @override
+  String get deliveryCollectionUnknown => 'Collection information unavailable';
+
+  @override
+  String get deliveryCollectionFull => 'Store collection confirmed in full';
+
+  @override
+  String get deliveryCollectionShort =>
+      'Store collection confirmed with a shortfall';
+
+  @override
+  String get deliveryRecordedCollection => 'Recorded store collection';
+
+  @override
+  String get deliveryRecordedShortfall => 'Recorded collection shortfall';
+
+  @override
+  String get deliveryCollectionRecordNote =>
+      'This record is not an instruction to collect additional money.';
+
+  @override
+  String get deliveryRecipientTitle => 'Recipient and delivery address';
+
+  @override
+  String get deliveryContactHidden =>
+      'Contact details are hidden after completion or while access is being checked.';
+
+  @override
+  String get deliveryNameUnavailable => 'Recipient name unavailable';
+
+  @override
+  String get deliveryPhoneUnavailable => 'Delivery phone unavailable';
+
+  @override
+  String get deliveryAddressUnavailable => 'Delivery address unavailable';
+
+  @override
+  String get deliveryCopyReference => 'Copy order reference';
+
+  @override
+  String get deliveryCopyAddress => 'Copy address';
+
+  @override
+  String get deliveryCallRecipient => 'Call recipient';
+
+  @override
+  String get deliveryOpenMap => 'Open map';
+
+  @override
+  String get deliveryCopied => 'Copied';
+
+  @override
+  String get deliveryActionFailed =>
+      'Could not complete this action. Please try again.';
+
+  @override
+  String get deliveryInvoiceTitle => 'Order value and collection';
+
+  @override
+  String get deliveryInvoiceBreakdownUnavailable =>
+      'Discount breakdown and payment method are not available in these delivery details.';
+
+  @override
+  String get deliveryLineTotal => 'Line total';
+
+  @override
+  String get deliveryHistoryTitle => 'Delivery history';
+
+  @override
+  String get deliveryDetailUnavailable => 'Delivery no longer available';
+
+  @override
+  String get deliveryDetailUnavailableHint =>
+      'It may have been reassigned. Return to the delivery list and refresh.';
+
+  @override
+  String get deliveryPeriodClosed =>
+      'The accounting period is closed. Contact the store before updating this delivery.';
+
+  @override
+  String get deliveryFareMismatch =>
+      'The trip fare needs review by the store before delivery can be confirmed.';
+
+  @override
+  String get phoneCountryCode => 'Country code';
+
+  @override
+  String get phoneCountrySearch => 'Search country or calling code';
+
+  @override
+  String get authCodeSentTo => 'We sent a verification code to';
+
+  @override
+  String get notificationsMarkAllRead => 'Mark all as read';
 }

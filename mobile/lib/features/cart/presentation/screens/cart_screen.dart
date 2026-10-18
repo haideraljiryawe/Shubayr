@@ -1,3 +1,4 @@
+import '../widgets/discount_details.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -99,6 +100,18 @@ class CartScreen extends ConsumerWidget {
                       ),
                     ),
                   SliverToBoxAdapter(
+                    child: Padding(
+                      padding: AppLayout.pageInsets(context),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DiscountDetails(cart: c),
+                          Text(l10n.pricingDeliveryUnknown),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: MediaQuery.removePadding(
                       context: context,
                       removeBottom: true,
@@ -118,13 +131,21 @@ class CartScreen extends ConsumerWidget {
                 Expanded(
                   child: ListView.separated(
                     padding: AppLayout.pageInsets(context),
-                    itemCount: c.items.length,
+                    itemCount: c.items.length + 1,
                     separatorBuilder: (_, _) =>
                         const Divider(height: AppSpacing.xl),
-                    itemBuilder: (_, i) => _CartLine(
-                      key: ValueKey((c.id, c.items[i].id)),
-                      item: c.items[i],
-                    ),
+                    itemBuilder: (_, i) => i == c.items.length
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              DiscountDetails(cart: c),
+                              Text(l10n.pricingDeliveryUnknown),
+                            ],
+                          )
+                        : _CartLine(
+                            key: ValueKey((c.id, c.items[i].id)),
+                            item: c.items[i],
+                          ),
                   ),
                 ),
                 if (c.items.any((item) => item.priceChanged))

@@ -20,7 +20,15 @@ import 'notifications_test.dart' show notification;
 class _Inbox extends NotificationRepository {
   _Inbox() : super(ApiClient(Dio()));
   final reads = <String>[];
-  int fetches = 0;
+  int fetches = 0, bulkReads = 0;
+  @override
+  Future<void> readAll() async {
+    bulkReads++;
+    reads
+      ..clear()
+      ..addAll(['1', '2']);
+  }
+
   @override
   Future<InboxPage> fetch({int page = 1}) async {
     fetches++;
@@ -119,6 +127,16 @@ void main() {
         expect(tester.getRect(read.first), iconBounds);
         expect(tester.getRect(find.byType(AppCard).first), cardBounds);
         expect(tester.state(find.byType(NotificationsScreen)), same(screen));
+        repo.reads.clear();
+        container.invalidate(inboxProvider);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.mark_email_unread_outlined), findsNWidgets(2));
+        await tester.tap(find.byKey(const ValueKey('notifications-read-all')));
+        await tester.pumpAndSettle();
+        expect(repo.bulkReads, 1);
+        expect(find.byIcon(Icons.mark_email_unread_outlined), findsNothing);
+        expect(find.byIcon(Icons.drafts_outlined), findsNWidgets(2));
+        expect(await container.read(unreadCountProvider.future), 0);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       });

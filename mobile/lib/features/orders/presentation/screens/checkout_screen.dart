@@ -1,3 +1,4 @@
+import '../../../cart/presentation/widgets/discount_details.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
@@ -456,12 +457,18 @@ class _CheckoutScreenState extends ConsumerState<_CheckoutForm> {
                       ref.invalidate(checkoutPricingProvider(address));
                     }
                   },
-                  builder: (context, cart) => _Summary(
-                    subtotal: cart.subtotal,
-                    discount: cart.discount,
-                    deliveryFee: cart.deliveryFee,
-                    total: cart.total,
-                    money: _money,
+                  builder: (context, cart) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Summary(
+                        subtotal: cart.subtotal,
+                        discount: cart.discount,
+                        deliveryFee: cart.deliveryFee,
+                        total: cart.total,
+                        money: _money,
+                      ),
+                      DiscountDetails(cart: cart),
+                    ],
                   ),
                 ),
               ],

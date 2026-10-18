@@ -1138,426 +1138,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get mainCategoriesTitle => 'الأقسام الرئيسية';
 
   @override
-  String get categoryGroupElectronics => 'إلكترونيات';
-
-  @override
-  String get categoryIconElectronicsDevices => 'أجهزة';
-
-  @override
-  String get categoryIconElectronicsCable => 'كابلات';
-
-  @override
-  String get categoryIconElectronicsRouter => 'موجهات';
-
-  @override
-  String get categoryIconElectronicsTv => 'تلفزيونات';
-
-  @override
-  String get categoryIconElectronicsPower => 'كهربائيات';
-
-  @override
-  String get categoryIconElectronicsBattery => 'بطاريات';
-
-  @override
-  String get categoryGroupPhones => 'هواتف';
-
-  @override
-  String get categoryIconMobilePhone => 'هواتف';
-
-  @override
-  String get categoryIconMobileTablet => 'أجهزة لوحية';
-
-  @override
-  String get categoryIconMobileCharging => 'شواحن';
-
-  @override
-  String get categoryIconMobileWatch => 'ساعات ذكية';
-
-  @override
-  String get categoryGroupComputers => 'حواسيب';
-
-  @override
-  String get categoryIconComputerLaptop => 'حواسيب محمولة';
-
-  @override
-  String get categoryIconComputerDesktop => 'حواسيب مكتبية';
-
-  @override
-  String get categoryIconComputerKeyboard => 'لوحات مفاتيح';
-
-  @override
-  String get categoryIconComputerMouse => 'فأرات';
-
-  @override
-  String get categoryIconComputerPrinter => 'طابعات';
-
-  @override
-  String get categoryIconComputerStorage => 'وحدات تخزين';
-
-  @override
-  String get categoryGroupAudio => 'صوتيات';
-
-  @override
-  String get categoryIconAudioHeadphones => 'سماعات رأس';
-
-  @override
-  String get categoryIconAudioEarbuds => 'سماعات أذن';
-
-  @override
-  String get categoryIconAudioSpeaker => 'مكبرات صوت';
-
-  @override
-  String get categoryIconAudioMic => 'ميكروفونات';
-
-  @override
-  String get categoryIconAudioRadio => 'راديو';
-
-  @override
-  String get categoryGroupCameras => 'كاميرات';
-
-  @override
-  String get categoryIconCameraPhoto => 'كاميرات';
-
-  @override
-  String get categoryIconCameraVideo => 'كاميرات فيديو';
-
-  @override
-  String get categoryIconCameraLens => 'عدسات';
-
-  @override
-  String get categoryIconCameraSecurity => 'كاميرات مراقبة';
-
-  @override
-  String get categoryGroupGaming => 'ألعاب إلكترونية';
-
-  @override
-  String get categoryIconGamingConsole => 'أجهزة ألعاب';
-
-  @override
-  String get categoryIconGamingController => 'أذرع تحكم';
-
-  @override
-  String get categoryGroupFashion => 'أزياء';
-
-  @override
-  String get categoryIconFashionClothing => 'ملابس';
-
-  @override
-  String get categoryIconFashionMen => 'ملابس رجالية';
-
-  @override
-  String get categoryIconFashionWomen => 'ملابس نسائية';
-
-  @override
-  String get categoryIconFashionShoes => 'أحذية';
-
-  @override
-  String get categoryIconFashionUniform => 'ملابس عمل';
-
-  @override
-  String get categoryIconFashionLaundry => 'عناية بالملابس';
-
-  @override
-  String get categoryGroupAccessories => 'حقائب وإكسسوارات';
-
-  @override
-  String get categoryIconAccessoriesWatch => 'ساعات';
-
-  @override
-  String get categoryIconAccessoriesBag => 'حقائب';
-
-  @override
-  String get categoryIconAccessoriesBackpack => 'حقائب ظهر';
-
-  @override
-  String get categoryIconAccessoriesLuggage => 'حقائب سفر';
-
-  @override
-  String get categoryIconAccessoriesJewelry => 'مجوهرات';
-
-  @override
-  String get categoryIconAccessoriesUmbrella => 'مظلات';
-
-  @override
-  String get categoryGroupHome => 'منزل وأثاث';
-
-  @override
-  String get categoryIconHomeFurniture => 'أثاث';
-
-  @override
-  String get categoryIconHomeChair => 'كراسي';
-
-  @override
-  String get categoryIconHomeBed => 'أسرّة';
-
-  @override
-  String get categoryIconHomeTable => 'طاولات';
-
-  @override
-  String get categoryIconHomeLighting => 'إضاءة';
-
-  @override
-  String get categoryIconHomeBath => 'حمام';
-
-  @override
-  String get categoryIconHomeCurtains => 'ستائر';
-
-  @override
-  String get categoryIconHomeBedding => 'مفروشات';
-
-  @override
-  String get categoryGroupKitchen => 'مطبخ';
-
-  @override
-  String get categoryIconKitchenAppliances => 'أجهزة مطبخ';
-
-  @override
-  String get categoryIconKitchenCooking => 'أواني طبخ';
-
-  @override
-  String get categoryIconKitchenTableware => 'أدوات مائدة';
-
-  @override
-  String get categoryIconKitchenBlender => 'خلاطات';
-
-  @override
-  String get categoryIconKitchenMicrowave => 'مايكروويف';
-
-  @override
-  String get categoryIconKitchenKettle => 'ماكينات قهوة';
-
-  @override
-  String get categoryGroupCleaning => 'تنظيف';
-
-  @override
-  String get categoryIconCleaningSupplies => 'أدوات تنظيف';
-
-  @override
-  String get categoryIconCleaningSoap => 'صابون';
-
-  @override
-  String get categoryIconCleaningBins => 'سلال نفايات';
-
-  @override
-  String get categoryIconCleaningWater => 'معالجة المياه';
-
-  @override
-  String get categoryGroupFood => 'بقالة وأطعمة';
-
-  @override
-  String get categoryIconGroceryFood => 'بقالة';
-
-  @override
-  String get categoryIconFoodRice => 'أرز وحبوب';
-
-  @override
-  String get categoryIconFoodBakery => 'مخبوزات';
-
-  @override
-  String get categoryIconFoodFruit => 'فواكه';
-
-  @override
-  String get categoryIconFoodVegetables => 'خضروات';
-
-  @override
-  String get categoryIconFoodMeat => 'لحوم';
-
-  @override
-  String get categoryIconFoodSeafood => 'أسماك';
-
-  @override
-  String get categoryIconFoodPizza => 'بيتزا';
-
-  @override
-  String get categoryIconFoodIcecream => 'مثلجات';
-
-  @override
-  String get categoryIconFoodCake => 'كيك';
-
-  @override
-  String get categoryIconFoodEggs => 'بيض';
-
-  @override
-  String get categoryIconFoodSnacks => 'وجبات خفيفة';
-
-  @override
-  String get categoryGroupDrinks => 'مشروبات';
-
-  @override
-  String get categoryIconDrinksCoffee => 'قهوة';
-
-  @override
-  String get categoryIconDrinksTea => 'شاي';
-
-  @override
-  String get categoryIconDrinksJuice => 'عصائر';
-
-  @override
-  String get categoryIconDrinksWater => 'مياه';
-
-  @override
-  String get categoryGroupBeauty => 'صحة وجمال';
-
-  @override
-  String get categoryIconBeautySpa => 'عناية وجمال';
-
-  @override
-  String get categoryIconBeautySkin => 'عناية بالبشرة';
-
-  @override
-  String get categoryIconBeautyHair => 'عناية بالشعر';
-
-  @override
-  String get categoryIconBeautyCosmetics => 'مستحضرات تجميل';
-
-  @override
-  String get categoryIconBeautyHealth => 'مستلزمات صحية';
-
-  @override
-  String get categoryIconBeautyHygiene => 'نظافة شخصية';
-
-  @override
-  String get categoryIconBeautyMedical => 'إسعافات أولية';
-
-  @override
-  String get categoryGroupSport => 'رياضة ولياقة';
-
-  @override
-  String get categoryIconSportFitness => 'لياقة';
-
-  @override
-  String get categoryIconSportCycling => 'دراجات';
-
-  @override
-  String get categoryIconSportFootball => 'كرة قدم';
-
-  @override
-  String get categoryIconSportBasketball => 'كرة سلة';
-
-  @override
-  String get categoryIconSportTennis => 'تنس';
-
-  @override
-  String get categoryIconSportSwimming => 'سباحة';
-
-  @override
-  String get categoryIconSportCamping => 'تخييم';
-
-  @override
-  String get categoryIconSportFishing => 'صيد أسماك';
-
-  @override
-  String get categoryGroupKids => 'أطفال وألعاب';
-
-  @override
-  String get categoryIconKidsBaby => 'عناية بالطفل';
-
-  @override
-  String get categoryIconKidsStroller => 'عربات أطفال';
-
-  @override
-  String get categoryIconKidsToys => 'ألعاب أطفال';
-
-  @override
-  String get categoryIconKidsPuzzle => 'ألعاب تركيب';
-
-  @override
-  String get categoryIconKidsScooter => 'تزلج وسكوتر';
-
-  @override
-  String get categoryGroupAuto => 'سيارات وملحقاتها';
-
-  @override
-  String get categoryIconAutoCar => 'مستلزمات سيارات';
-
-  @override
-  String get categoryIconAutoMotorcycle => 'دراجات نارية';
-
-  @override
-  String get categoryIconAutoTires => 'إطارات';
-
-  @override
-  String get categoryIconAutoFuel => 'وقود وزيوت';
-
-  @override
-  String get categoryIconAutoTools => 'أدوات سيارات';
-
-  @override
-  String get categoryGroupBooks => 'كتب وقرطاسية';
-
-  @override
-  String get categoryIconBooksReading => 'كتب';
-
-  @override
-  String get categoryIconBooksNotebooks => 'دفاتر';
-
-  @override
-  String get categoryIconBooksPens => 'أقلام';
-
-  @override
-  String get categoryIconBooksArt => 'لوازم فنية';
-
-  @override
-  String get categoryIconBooksSchool => 'لوازم مدرسية';
-
-  @override
-  String get categoryGroupGarden => 'حيوانات وحدائق وأدوات';
-
-  @override
-  String get categoryIconPetsSupplies => 'مستلزمات حيوانات';
-
-  @override
-  String get categoryIconGardenTrees => 'نباتات حدائق';
-
-  @override
-  String get categoryIconGardenFlowers => 'زهور';
-
-  @override
-  String get categoryIconGardenTools => 'أدوات يدوية';
-
-  @override
-  String get categoryIconGardenBuilding => 'مواد بناء';
-
-  @override
-  String get categoryIconGardenSolar => 'طاقة شمسية';
-
-  @override
-  String get categoryIconGardenWatering => 'عناية بالحديقة';
-
-  @override
-  String get categoryGroupGifts => 'هدايا ومنتجات عامة';
-
-  @override
-  String get categoryIconGiftsPresent => 'هدايا';
-
-  @override
-  String get categoryIconBeautyFragrance => 'عطور';
-
-  @override
-  String get categoryIconGiftsParty => 'لوازم حفلات';
-
-  @override
-  String get categoryIconGeneralCrafts => 'أشغال يدوية';
-
-  @override
-  String get categoryIconGeneralMusic => 'آلات موسيقية';
-
-  @override
-  String get categoryIconGeneralCategory => 'منتجات عامة';
-
-  @override
-  String get categoryChooseIcon => 'اختيار أيقونة';
-
-  @override
-  String get categorySearchIcons => 'البحث عن أيقونة';
-
-  @override
-  String get categoryAllGroups => 'كل المجموعات';
-
-  @override
-  String get categoryNoIcons => 'لا توجد أيقونات مطابقة';
-
-  @override
   String get categoryDescriptionEn => 'وصف قصير بالإنجليزية';
 
   @override
@@ -1729,7 +1309,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get addressInternationalPhoneHint =>
-      'أدخل رقمًا دوليًا يبدأ بـ + ورمز البلد؛ لا يُضاف رمز البلد تلقائيًا.';
+      'اختر الدولة وأدخل الرقم المحلي، أو أدخل الرقم الدولي الكامل مع +.';
 
   @override
   String get mediaUploadHint =>
@@ -1818,7 +1398,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get deliveryInvalidAmount =>
-      'أدخل مبلغاً من صفر إلى المبلغ المستحق (بحد أقصى 6 منازل عشرية).';
+      'أدخل مبلغاً مسجلاً صحيحاً لا يتجاوز إجمالي الطلب (حتى 6 منازل عشرية).';
 
   @override
   String get pendingDeliveryRetry =>
@@ -2078,4 +1658,334 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorDeliveryLocationSelector =>
       'تعذر تحديد موقع التوصيل. اختر عنوان التوصيل مجددًا.';
+
+  @override
+  String get returnDetailsTitle => 'تفاصيل الإرجاع';
+
+  @override
+  String get returnHistoryTitle => 'طلبات الإرجاع';
+
+  @override
+  String get returnReasonCode => 'تصنيف السبب';
+
+  @override
+  String get returnChangeMind => 'تغيير الرأي';
+
+  @override
+  String get returnDefect => 'مادة معيبة';
+
+  @override
+  String get returnStoreError => 'خطأ من المتجر';
+
+  @override
+  String get returnWrongItem => 'مادة غير مطلوبة';
+
+  @override
+  String get returnOther => 'سبب آخر';
+
+  @override
+  String get returnRequested => 'تم الطلب';
+
+  @override
+  String get returnApproved => 'تمت الموافقة';
+
+  @override
+  String get returnPartiallyApproved => 'موافقة جزئية';
+
+  @override
+  String get returnRejected => 'مرفوض';
+
+  @override
+  String get returnReceived => 'تم الاستلام في المتجر';
+
+  @override
+  String get returnInspected => 'تم الفحص';
+
+  @override
+  String get returnRefunded => 'تم رد المبلغ';
+
+  @override
+  String get returnCompleted => 'مكتمل';
+
+  @override
+  String get returnExpectedRefund => 'مبلغ إرجاع المواد المتوقع';
+
+  @override
+  String get returnApprovedRefund => 'مبلغ الإرجاع المعتمد';
+
+  @override
+  String get returnDeliveryRefund => 'رسوم التوصيل المستردة';
+
+  @override
+  String get returnUncollectedOffset => 'تخفيض المبلغ غير المدفوع';
+
+  @override
+  String get returnCashRefund => 'المبلغ النقدي المسترد';
+
+  @override
+  String get returnPointsNote =>
+      'تعديل النقاط يؤثر على رصيد الولاء، ولا يمثل خصماً إضافياً من مبلغك النقدي المسترد.';
+
+  @override
+  String get returnEarnedReversed => 'نقاط مكتسبة تم عكسها';
+
+  @override
+  String get returnRedeemedRestored => 'نقاط مستخدمة تم استعادتها';
+
+  @override
+  String get returnNetPoints => 'صافي تعديل النقاط';
+
+  @override
+  String get returnRequestedQuantity => 'الكمية المطلوبة';
+
+  @override
+  String get returnApprovedQuantity => 'الكمية المعتمدة';
+
+  @override
+  String get returnTimeline => 'سجل الحالة';
+
+  @override
+  String get returnPayments => 'دفعات الاسترداد';
+
+  @override
+  String get returnCashAccount => 'دفعة نقدية من المتجر';
+
+  @override
+  String get returnDeliveryCustody => 'استرداد من تحصيل التوصيل';
+
+  @override
+  String get returnPendingNotice =>
+      'لم تتأكد نتيجة طلبك السابق بعد. أعد محاولة الطلب نفسه قبل إنشاء طلب آخر.';
+
+  @override
+  String get returnRetryPending => 'استعادة نتيجة الطلب السابق';
+
+  @override
+  String get returnWindowExpired => 'انتهت مهلة إرجاع هذا الطلب.';
+
+  @override
+  String get returnQuantityChanged =>
+      'تغيرت الكمية المتاحة للإرجاع. حدّث الطلب ثم حاول مجدداً.';
+
+  @override
+  String get returnQuantityInvalid => 'تحقق من كميات الإرجاع ودقة وحداتها.';
+
+  @override
+  String get returnNotDelivered => 'الإرجاع متاح للطلبات المسلّمة فقط.';
+
+  @override
+  String get otpDeliveryUnavailable =>
+      'تعذر إرسال رمز التحقق. يرجى المحاولة لاحقاً.';
+
+  @override
+  String get pricingCouponDiscount => 'خصم الكوبون';
+
+  @override
+  String get pricingTierDiscount => 'الخصم التلقائي';
+
+  @override
+  String get pricingLoyaltyDiscount => 'النقاط المستخدمة';
+
+  @override
+  String get pricingOriginalDelivery => 'رسوم التوصيل الأصلية';
+
+  @override
+  String get pricingAdjustedDelivery => 'رسوم التوصيل المعدّلة';
+
+  @override
+  String get pricingNetPaid => 'صافي المدفوع لهذه المادة';
+
+  @override
+  String get pricingDeliveryGovernorate => 'محافظة التوصيل';
+
+  @override
+  String get pricingEstimate =>
+      'إجمالي تقديري — يُؤكد السعر النهائي عند إتمام الطلب.';
+
+  @override
+  String get pricingSelectGovernorate => 'اختر المحافظة لتقدير رسوم التوصيل';
+
+  @override
+  String get pricingUnserved => 'التوصيل غير متاح لهذه المحافظة.';
+
+  @override
+  String get pricingStacking => 'يمكن جمع الكوبونات مع الخصومات التلقائية.';
+
+  @override
+  String get pricingBestDiscount =>
+      'يُطبق الخصم الأكبر بين الكوبون والخصم التلقائي.';
+
+  @override
+  String get pricingDeliveryUnknown =>
+      'رسوم التوصيل غير مشمولة قبل اختيار موقع التوصيل.';
+
+  @override
+  String get storeInfoTitle => 'معلومات المتجر';
+
+  @override
+  String get storeAddress => 'عنوان المتجر';
+
+  @override
+  String get storeSupportHours => 'ساعات الدعم';
+
+  @override
+  String get storeSupportPhone => 'الاتصال بالدعم';
+
+  @override
+  String get storeSupportWhatsapp => 'الدعم عبر واتساب';
+
+  @override
+  String get storeSupportEmail => 'بريد الدعم';
+
+  @override
+  String get storePrivacyEmail => 'التواصل بشأن الخصوصية';
+
+  @override
+  String get storePolicyDate => 'تاريخ سريان السياسة';
+
+  @override
+  String get loyaltyInsufficient =>
+      'رصيد نقاطك غير كافٍ. حدّث البيانات ثم حاول مجدداً.';
+
+  @override
+  String get loyaltyExceedsGoods =>
+      'لا يمكن أن تتجاوز النقاط قيمة المواد المتبقية أو أن تغطي رسوم التوصيل.';
+
+  @override
+  String pricingNextTier(String amount, String percent) {
+    return 'أضف مواد بقيمة $amount للحصول على خصم تلقائي $percent%.';
+  }
+
+  @override
+  String storeReturnWindow(String days) {
+    return 'مهلة الإرجاع: $days يوم';
+  }
+
+  @override
+  String storeRefundDays(String days) {
+    return 'مدة معالجة الاسترداد: $days يوم';
+  }
+
+  @override
+  String accountDeletionCounts(
+    String orders,
+    String returns,
+    String unsettled,
+  ) {
+    return 'طلبات مفتوحة: $orders؛ إرجاعات معلقة: $returns؛ مبالغ غير مسوّاة: $unsettled.';
+  }
+
+  @override
+  String get shoppingInformation => 'التوصيل والخصومات التلقائية';
+
+  @override
+  String pricingTierThreshold(String amount, String percent) {
+    return 'خصم $percent% عند بلوغ مجموع المواد $amount أو أكثر.';
+  }
+
+  @override
+  String get deliveryViewDetails => 'عرض التفاصيل';
+
+  @override
+  String get deliveryDetailsTitle => 'تفاصيل التوصيل';
+
+  @override
+  String get deliveryOrderTotal => 'إجمالي الطلب';
+
+  @override
+  String get deliveryTotalNotBalance =>
+      'قيمة الطلب وليست مبلغاً مؤكداً متبقياً للتحصيل.';
+
+  @override
+  String get deliveryCollectionUnknown => 'معلومات التحصيل غير متوفرة';
+
+  @override
+  String get deliveryCollectionFull => 'تحصيل المتجر مؤكد بالكامل';
+
+  @override
+  String get deliveryCollectionShort => 'تحصيل المتجر مؤكد مع عجز';
+
+  @override
+  String get deliveryRecordedCollection => 'التحصيل المسجل للمتجر';
+
+  @override
+  String get deliveryRecordedShortfall => 'عجز التحصيل المسجل';
+
+  @override
+  String get deliveryCollectionRecordNote =>
+      'هذا السجل لا يعني طلب تحصيل مبلغ إضافي.';
+
+  @override
+  String get deliveryRecipientTitle => 'المستلم وعنوان التوصيل';
+
+  @override
+  String get deliveryContactHidden =>
+      'تُحجب بيانات التواصل بعد اكتمال التوصيل أو أثناء التحقق من صلاحية الوصول.';
+
+  @override
+  String get deliveryNameUnavailable => 'اسم المستلم غير متوفر';
+
+  @override
+  String get deliveryPhoneUnavailable => 'رقم هاتف التوصيل غير متوفر';
+
+  @override
+  String get deliveryAddressUnavailable => 'عنوان التوصيل غير متوفر';
+
+  @override
+  String get deliveryCopyReference => 'نسخ رقم الطلب';
+
+  @override
+  String get deliveryCopyAddress => 'نسخ العنوان';
+
+  @override
+  String get deliveryCallRecipient => 'الاتصال بالمستلم';
+
+  @override
+  String get deliveryOpenMap => 'فتح الخريطة';
+
+  @override
+  String get deliveryCopied => 'تم النسخ';
+
+  @override
+  String get deliveryActionFailed => 'تعذر تنفيذ الإجراء. حاول مرة أخرى.';
+
+  @override
+  String get deliveryInvoiceTitle => 'قيمة الطلب والتحصيل';
+
+  @override
+  String get deliveryInvoiceBreakdownUnavailable =>
+      'تفاصيل الخصومات وطريقة الدفع غير متوفرة ضمن بيانات التوصيل الحالية.';
+
+  @override
+  String get deliveryLineTotal => 'إجمالي الصنف';
+
+  @override
+  String get deliveryHistoryTitle => 'سجل التوصيل';
+
+  @override
+  String get deliveryDetailUnavailable => 'التوصيل لم يعد متاحاً';
+
+  @override
+  String get deliveryDetailUnavailableHint =>
+      'قد يكون قد أُسند إلى مندوب آخر. ارجع إلى قائمة التوصيل وحدّثها.';
+
+  @override
+  String get deliveryPeriodClosed =>
+      'الفترة المحاسبية مغلقة. تواصل مع المتجر قبل تحديث التوصيل.';
+
+  @override
+  String get deliveryFareMismatch =>
+      'تحتاج أجرة الرحلة إلى مراجعة المتجر قبل تأكيد التسليم.';
+
+  @override
+  String get phoneCountryCode => 'مفتاح الدولة';
+
+  @override
+  String get phoneCountrySearch => 'ابحث عن الدولة أو مفتاح الاتصال';
+
+  @override
+  String get authCodeSentTo => 'أرسلنا رمز التحقق إلى';
+
+  @override
+  String get notificationsMarkAllRead => 'تعليم الكل كمقروء';
 }

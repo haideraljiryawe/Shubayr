@@ -11,7 +11,7 @@ import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_radii.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../data/category.dart';
-import 'category_icon.dart';
+import 'category_image.dart';
 
 /// A time-driven, lazily built ring. Native scrolling and InkWell own gestures.
 class HomeCategoryCarousel extends StatefulWidget {
@@ -421,14 +421,18 @@ class _CategoryShortcut extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: context.colors.categoryShortcutBackground,
               ),
-              child: Icon(
-                categoryShortcutIconFor(
-                  null,
-                  categoryId: category.id,
-                  iconKey: category.iconKey,
+              child: Center(
+                // Inscribe the square inside the existing circle so its
+                // corners stay visible instead of being cropped by an oval.
+                child: SizedBox.square(
+                  dimension: AppLayout.categoryIconTarget / math.sqrt2,
+                  child: ClipRect(
+                    child: CategoryImage(
+                      key: ValueKey('home-category-image-${category.id}'),
+                      category: category,
+                    ),
+                  ),
                 ),
-                size: AppLayout.categoryIconSize * 1.2,
-                color: context.colors.primary,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),

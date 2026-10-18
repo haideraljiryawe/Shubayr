@@ -1,3 +1,5 @@
+import '../../../../core/utils/international_phone.dart';
+import 'store_information.dart';
 import '../../../notifications/presentation/push_permission_tile.dart';
 import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/session_credentials.dart';
@@ -21,7 +23,6 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/user_avatar.dart';
-import '../../../../core/utils/validators.dart';
 import '../../../auth/domain/session.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -100,6 +101,7 @@ class AccountView extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.lg),
                   _SectionLabel(l10n.accountSupport),
                   const _SupportCard(),
+                  const StoreInformation(),
                   if (kDebugMode) ...[
                     const SizedBox(height: AppSpacing.lg),
                     AppCard(
@@ -198,7 +200,7 @@ class _ProfileCard extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           user.phone?.trim().isNotEmpty == true
-              ? Validators.foldDigits(user.phone!)
+              ? InternationalPhone.display(user.phone!)
               : l10n.accountNoPhone,
           textDirection: TextDirection.ltr,
           textAlign: TextAlign.center,

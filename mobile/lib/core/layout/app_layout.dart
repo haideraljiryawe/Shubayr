@@ -291,7 +291,7 @@ class ResponsiveFields extends StatelessWidget {
           (constraints.maxWidth - (columns - 1) * AppSpacing.md) / columns;
       return Wrap(
         spacing: AppSpacing.md,
-        runSpacing: AppSpacing.md,
+        runSpacing: AppSpacing.formFieldGap,
         children: [
           for (var i = 0; i < children.length; i++)
             SizedBox(

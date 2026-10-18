@@ -1,3 +1,4 @@
+import '../../../core/utils/international_phone.dart';
 import '../../../core/utils/quantity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,14 +62,16 @@ class MonitorDetailScreen extends ConsumerWidget {
                           if (item.customerName != null)
                             Text(item.customerName!),
                           Text(
-                            item.customerPhone,
+                            InternationalPhone.display(item.customerPhone),
                             textDirection: TextDirection.ltr,
                           ),
                           if (item.shipping['contact_phone'] != null &&
                               item.shipping['contact_phone'] !=
                                   item.customerPhone)
                             Text(
-                              item.shipping['contact_phone'] as String,
+                              InternationalPhone.display(
+                                item.shipping['contact_phone'] as String,
+                              ),
                               textDirection: TextDirection.ltr,
                             ),
                           const SizedBox(height: AppSpacing.sm),
