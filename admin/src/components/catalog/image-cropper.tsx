@@ -89,7 +89,8 @@ export function ImageCropper({
         aria-label={t("frame")}
         aria-describedby={testId ? `${testId}-help` : undefined}
         className="relative w-full cursor-grab touch-none select-none overflow-hidden rounded-md border border-border outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
-        style={{ aspectRatio: String(target.aspect), ...CHECKER }}
+        // A square needs no more than a comfortable 22rem; a wide banner takes the row.
+        style={{ aspectRatio: String(target.aspect), maxWidth: target.aspect <= 1 ? "22rem" : undefined, ...CHECKER }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={() => (drag.current = null)}
