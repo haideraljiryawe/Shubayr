@@ -1,11 +1,12 @@
 # Shubayr production reverse proxy (docker-compose.prod.yml).
 #
 #   https://{$SHUBAYR_DOMAIN}         the web store
+#   https://www.{$SHUBAYR_DOMAIN}     301 to the store (same path and query)
 #   https://admin.{$SHUBAYR_DOMAIN}   the Web Admin (noindex)
 #   https://api.{$SHUBAYR_DOMAIN}     the API
 #
 # Caddy gets and renews Let's Encrypt certificates itself (ports 80 and 443
-# must reach this server, and the three DNS names must point at it), and
+# must reach this server, and the four DNS names must point at it), and
 # redirects every http:// request to https://. For a local test stack set
 # CADDY_TLS="tls internal" to use Caddy's own certificate authority instead.
 #
@@ -44,6 +45,13 @@
 		health_uri /api/health
 		health_interval 30s
 	}
+}
+
+# One address for the store: www sends visitors (and search engines) to the
+# bare domain permanently, keeping the path and query.
+www.{$SHUBAYR_DOMAIN} {
+	import common
+	redir https://{$SHUBAYR_DOMAIN}{uri} permanent
 }
 
 admin.{$SHUBAYR_DOMAIN} {

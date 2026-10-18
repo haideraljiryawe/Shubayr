@@ -103,15 +103,18 @@ server's public address; TTL 300 during launch.
 | Name | Type | Value | Serves |
 |---|---|---|---|
 | `shop.example.com` (= `SHUBAYR_DOMAIN`) | A | server IPv4 | the store |
+| `www.shop.example.com` | A | server IPv4 | a permanent (301) redirect to `https://shop.example.com`, same path and query |
 | `admin.shop.example.com` | A | server IPv4 | the Web Admin |
 | `api.shop.example.com` | A | server IPv4 | the API (apps, store, pictures) |
-| the same three | AAAA | server IPv6 | only if the server has IPv6 |
+| the same four | AAAA | server IPv6 | only if the server has IPv6 |
 | `shop.example.com` | CAA (optional) | `0 issue "letsencrypt.org"` | restricts who may issue certificates |
 
 Check with `dig +short admin.shop.example.com` from your own machine before
-continuing. If the store should also answer on `www.`, add that record and a
-`www.{$SHUBAYR_DOMAIN} { redir https://{$SHUBAYR_DOMAIN}{uri} permanent }`
-block to the Caddyfile.
+continuing. The `www.` record is needed because the Caddyfile serves
+`www.{$SHUBAYR_DOMAIN}` (it gets its own certificate) and redirects it
+permanently to `https://{$SHUBAYR_DOMAIN}{uri}`, so the store has one address.
+Without the record, Caddy logs a failed certificate request for `www.` and the
+other three names still work.
 
 ## 3. Prepare the server
 
@@ -128,10 +131,15 @@ sudo ufw allow 443/udp
 sudo ufw enable
 
 # The kit, at the release you are deploying
-git clone https://github.com/haideraljiryawe/Shubayr.git /opt/shubayr
-cd /opt/shubayr
+git clone https://github.com/haideraljiryawe/Shubayr.git /srv/shubayr
+cd /srv/shubayr
 git checkout v1.0.0
 ```
+
+The checkout can live in any directory owned by the account that runs the
+scripts (which must be in the `docker` group); this guide uses `/srv/shubayr`.
+The scripts work from wherever they are, and Docker Compose names the stack
+after the directory, so keep the same path for every later deploy.
 
 Docker's published ports bypass `ufw`; that is fine here because only Caddy
 publishes any (80 and 443). PostgreSQL, Redis, Meilisearch and the object
@@ -176,6 +184,22 @@ secret_access_key = …
 ```
 
 with `BACKUP_TARGET=offsite:shubayr-backups` (the bucket).
+
+`BACKUP_RCLONE_CONF` may also be an **absolute path outside the checkout**,
+which keeps the backup credentials away from the deploy account entirely:
+
+```bash
+# as root, once
+install -d -m 711 -o root -g root /etc/shubayr
+install -m 600 -o root -g root rclone.conf /etc/shubayr/rclone.conf
+# in .env.production
+BACKUP_RCLONE_CONF=/etc/shubayr/rclone.conf
+```
+
+The scripts only check that the file exists (`test -f`, which the `711`
+directory allows) and never read it; the `backup` container runs as root and
+reads it through a read-only bind mount. `deploy/scripts/test-restore.sh` uses
+the same file.
 
 For Cloudflare R2, use its S3 endpoint and keep the credentials in the
 git-ignored rclone file:
@@ -272,7 +296,7 @@ run `docker login ghcr.io` on the server once with a token that has
 **Deploy it.**
 
 ```bash
-cd /opt/shubayr && git fetch --tags && git checkout v1.0.1   # the scripts and compose file of that release
+cd /srv/shubayr && git fetch --tags && git checkout v1.0.1   # the scripts and compose file of that release
 deploy/scripts/deploy.sh v1.0.1
 ```
 
@@ -406,7 +430,8 @@ on a server.
 Before opening day, check each item on the running server.
 
 **Domains and TLS**
-- [ ] The three DNS records resolve to the server (`dig +short`).
+- [ ] The four DNS records (`<domain>`, `www`, `admin`, `api`) resolve to the server (`dig +short`).
+- [ ] `https://www.<domain>/any/path?x=1` answers `301` with `Location: https://<domain>/any/path?x=1`.
 - [ ] `https://<domain>`, `https://admin.<domain>`, `https://api.<domain>/api/v1/health` open with a valid certificate; `http://` redirects to `https://`.
 - [ ] `CADDY_TLS` is empty (real certificates), `ACME_EMAIL` is a monitored mailbox.
 
@@ -442,7 +467,7 @@ Before opening day, check each item on the running server.
 - [ ] Products are visible in the preview with pictures, prices and stock.
 
 **Backups**
-- [ ] `deploy/secrets/rclone.conf` points at a location on another provider/server; `BACKUP_TARGET` is set.
+- [ ] The rclone file named by `BACKUP_RCLONE_CONF` (`deploy/secrets/rclone.conf`, or an absolute path such as `/etc/shubayr/rclone.conf`) points at a location on another provider/server; `BACKUP_TARGET` is set.
 - [ ] `deploy/scripts/backup-now.sh go-live` succeeded and `--list` shows the dump on the target.
 - [ ] `deploy/scripts/test-restore.sh` printed `RESTORE TEST PASSED`.
 - [ ] Someone watches the `backup` health status (unhealthy after 26 hours without a backup).
