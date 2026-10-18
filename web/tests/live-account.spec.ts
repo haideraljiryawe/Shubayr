@@ -179,6 +179,10 @@ test.describe("live account extras", () => {
     await page.getByTestId("return-submit").click();
     await expect(page.getByTestId("return-error")).toBeVisible();
 
+    // A reason from the API's list (since A7), then the note it also requires.
+    await page
+      .getByTestId(`return-line-code-${order.orderItemId}`)
+      .selectOption("defect");
     await page
       .getByTestId(`return-line-reason-${order.orderItemId}`)
       .fill("Arrived damaged");
@@ -202,6 +206,7 @@ test.describe("live account extras", () => {
     );
     expect(mine).toBeTruthy();
     expect(mine.items[0].customer_reason).toBe("Arrived damaged");
+    expect(mine.items[0].reason_code).toBe("defect");
     expect(mine.items[0].quantity).toBe(1);
     await expect(page.getByTestId(`return-refund-${mine.id}`)).toBeVisible();
 
