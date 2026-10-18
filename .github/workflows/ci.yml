@@ -632,6 +632,19 @@ jobs:
           npx playwright install --with-deps chromium
           preview="$(sed -n 's/^STORE_PREVIEW_TOKEN=//p' "$SHUBAYR_ENV_FILE")"
           node ../deploy/test/smoke.cjs "$PWD/node_modules/playwright" shubayr.localhost owner "$OWNER_PASSWORD" "Owner-Changed-$(openssl rand -hex 6)-B2!" "$preview" "$RUNNER_TEMP/d3/shots"
+      - name: www redirects permanently to the bare domain (path and query kept)
+        run: |
+          set -o pipefail
+          resolve=(--resolve www.shubayr.localhost:443:127.0.0.1 --resolve www.shubayr.localhost:80:127.0.0.1)
+          headers="$(curl -sk -o /dev/null -D - "${resolve[@]}" 'https://www.shubayr.localhost/privacy?x=1' | tr -d '\r')"
+          echo "$headers" | head -n 8
+          echo "$headers" | head -n 1 | grep -qE '^HTTP/[0-9.]+ 301'
+          echo "$headers" | grep -qix 'location: https://shubayr.localhost/privacy?x=1'
+          echo "$headers" | grep -qi '^strict-transport-security: max-age=63072000'
+          # Plain http goes to https first, like every other name.
+          plain="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "${resolve[@]}" 'http://www.shubayr.localhost/')"
+          echo "http: $plain"
+          echo "$plain" | grep -qE '^30[18] https://www\.shubayr\.localhost/$'
       - name: Backup, then restore it into a fresh stack and compare
         run: deploy/scripts/test-restore.sh
       - name: Only 80 and 443 are published
