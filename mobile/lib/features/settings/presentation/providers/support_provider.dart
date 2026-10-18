@@ -1,3 +1,4 @@
+import 'settings_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
@@ -14,7 +15,8 @@ Uri? supportUri(String value) {
   if (uri == null) return null;
   if (uri.scheme == 'https') return privacyPolicyUri(value);
   if (uri.hasQuery || uri.hasFragment || uri.hasAuthority) return null;
-  if (uri.scheme == 'tel' && RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(uri.path)) {
+  if (uri.scheme == 'tel' &&
+      RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(uri.path)) {
     return uri;
   }
   if (uri.scheme == 'mailto' &&
@@ -28,7 +30,12 @@ Uri? supportUri(String value) {
 }
 
 final openSupportProvider = Provider<Future<void> Function()>((ref) {
-  final value = ref.watch(supportDestinationProvider);
+  final settings = ref.watch(storeSettingsProvider);
+  final value = settings?.supportPhone != null
+      ? 'tel:${settings!.supportPhone}'
+      : settings?.supportEmail != null
+      ? 'mailto:${settings!.supportEmail}'
+      : ref.watch(supportDestinationProvider);
   final launch = ref.watch(externalLinkLauncherProvider);
   return () async {
     final uri = supportUri(value);

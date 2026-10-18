@@ -26,7 +26,7 @@ class QueuedCarts extends Carts {
   }
 
   @override
-  Future<Cart> fetchCart() {
+  Future<Cart> fetchCart({String? addressId}) {
     events.add('cart:read');
     return super.fetchCart();
   }

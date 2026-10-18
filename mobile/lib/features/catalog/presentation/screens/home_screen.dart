@@ -1,3 +1,4 @@
+import '../../../cart/presentation/widgets/shopping_information.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../../core/widgets/brand_mark.dart';
 import '../../../../core/config/store_identity.dart';
@@ -134,6 +135,7 @@ class HomeScreen extends ConsumerWidget {
                 return HomeOffersList(products: page.data);
               },
             ),
+            const ShoppingInformation(),
           ],
         ),
       ),

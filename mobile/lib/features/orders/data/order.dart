@@ -1,3 +1,4 @@
+import '../../cart/data/cart.dart';
 import 'package:json_annotation/json_annotation.dart';
 import '../../../core/error/failure.dart';
 import 'order_tracking.dart';
@@ -39,6 +40,17 @@ class Order {
     this.timeline,
     this.priceChangeInfo,
     this.collection,
+    this.originalDeliveryFee,
+    this.adjustedDeliveryFee,
+    this.couponDiscount,
+    this.tierDiscount,
+    this.loyaltyRedemptionAmount,
+    this.loyaltyPointsRedeemed,
+    this.discountSource,
+    this.appliedTier,
+    this.nextTier,
+    this.deliveryGovernorate,
+    this.returns = const [],
   });
 
   final String id;
@@ -57,6 +69,27 @@ class Order {
   @JsonKey(name: 'delivery_fee')
   final num deliveryFee;
   final num discount;
+  @JsonKey(name: 'original_delivery_fee')
+  final num? originalDeliveryFee;
+  @JsonKey(name: 'adjusted_delivery_fee')
+  final num? adjustedDeliveryFee;
+  @JsonKey(name: 'coupon_discount')
+  final num? couponDiscount;
+  @JsonKey(name: 'tier_discount')
+  final num? tierDiscount;
+  @JsonKey(name: 'loyalty_redemption_amount')
+  final num? loyaltyRedemptionAmount;
+  @JsonKey(name: 'loyalty_points_redeemed')
+  final int? loyaltyPointsRedeemed;
+  @JsonKey(name: 'discount_source')
+  final String? discountSource;
+  @JsonKey(name: 'applied_tier')
+  final DiscountTier? appliedTier;
+  @JsonKey(name: 'next_tier')
+  final DiscountTier? nextTier;
+  @JsonKey(name: 'delivery_governorate')
+  final OrderGovernorate? deliveryGovernorate;
+  final List<OrderReturnSummary> returns;
   final num total;
   @JsonKey(includeIfNull: false)
   final String? currency;
@@ -102,6 +135,13 @@ class OrderItem {
     this.lineTotal = 0,
     this.reviewed,
     this.currency,
+    this.discountShare,
+    this.couponDiscountShare,
+    this.tierDiscountShare,
+    this.loyaltyDiscountShare,
+    this.otherAdjustmentShare,
+    this.netLineTotal,
+    this.netPaidTotal,
   }) : imageSnapshotProvided = imageSnapshotProvided ?? (imageUrl != null);
 
   final String id;
@@ -143,6 +183,20 @@ class OrderItem {
   final num unitPrice;
   @JsonKey(name: 'line_total')
   final num lineTotal;
+  @JsonKey(name: 'discount_share')
+  final num? discountShare;
+  @JsonKey(name: 'coupon_discount_share')
+  final num? couponDiscountShare;
+  @JsonKey(name: 'tier_discount_share')
+  final num? tierDiscountShare;
+  @JsonKey(name: 'loyalty_discount_share')
+  final num? loyaltyDiscountShare;
+  @JsonKey(name: 'other_adjustment_share')
+  final num? otherAdjustmentShare;
+  @JsonKey(name: 'net_line_total')
+  final num? netLineTotal;
+  @JsonKey(name: 'net_paid_total')
+  final num? netPaidTotal;
 
   /// Null means the optional contract field was absent, not proof of no review.
   @JsonKey(includeIfNull: false)
@@ -161,6 +215,13 @@ class OrderItem {
       wholeUnitsOnly: item.wholeUnitsOnly,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
+      discountShare: item.discountShare,
+      couponDiscountShare: item.couponDiscountShare,
+      tierDiscountShare: item.tierDiscountShare,
+      loyaltyDiscountShare: item.loyaltyDiscountShare,
+      otherAdjustmentShare: item.otherAdjustmentShare,
+      netLineTotal: item.netLineTotal,
+      netPaidTotal: item.netPaidTotal,
       reviewed: item.reviewed,
       currency: item.currency,
       productNameAr: item.productNameAr,
@@ -340,4 +401,29 @@ class OrderCollectionResult {
   factory OrderCollectionResult.fromJson(Map<String, dynamic> json) =>
       _$OrderCollectionResultFromJson(json);
   Map<String, dynamic> toJson() => _$OrderCollectionResultToJson(this);
+}
+
+@JsonSerializable(fieldRename: FieldRename.snake)
+class OrderReturnSummary {
+  const OrderReturnSummary({
+    required this.id,
+    required this.documentNumber,
+    required this.status,
+    required this.refundAmount,
+  });
+  final String id, documentNumber, status;
+  final num refundAmount;
+  factory OrderReturnSummary.fromJson(Map<String, dynamic> json) =>
+      _$OrderReturnSummaryFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderReturnSummaryToJson(this);
+}
+
+@JsonSerializable(fieldRename: FieldRename.snake)
+class OrderGovernorate {
+  const OrderGovernorate({required this.code, this.nameAr, this.nameEn});
+  final String code;
+  final String? nameAr, nameEn;
+  factory OrderGovernorate.fromJson(Map<String, dynamic> json) =>
+      _$OrderGovernorateFromJson(json);
+  Map<String, dynamic> toJson() => _$OrderGovernorateToJson(this);
 }

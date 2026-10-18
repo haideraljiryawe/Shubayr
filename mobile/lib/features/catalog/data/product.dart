@@ -14,6 +14,7 @@ class ProductVariant {
   const ProductVariant({
     required this.id,
     this.sku = '',
+    this.barcode,
     this.attributes = const {},
     this.priceDelta = 0,
     this.effectivePrice = 0,
@@ -29,6 +30,7 @@ class ProductVariant {
 
   final String id;
   final String sku;
+  final String? barcode;
   final Map<String, dynamic> attributes;
   @JsonKey(name: 'price_delta')
   final num priceDelta;
@@ -73,6 +75,8 @@ class Product {
     required this.nameEn,
     required this.nameAr,
     this.description = '',
+    this.descriptionAr,
+    this.descriptionEn,
     this.price = 0,
     this.currency,
     this.discountType,
@@ -101,6 +105,20 @@ class Product {
   @JsonKey(name: 'name_ar')
   final String nameAr;
   final String description;
+  @JsonKey(name: 'description_ar')
+  final String? descriptionAr;
+  @JsonKey(name: 'description_en')
+  final String? descriptionEn;
+  String localizedDescription(String language) {
+    for (final text
+        in language == 'ar'
+            ? [descriptionAr, descriptionEn, description]
+            : [descriptionEn, descriptionAr, description]) {
+      if (text != null && text.trim().isNotEmpty) return text;
+    }
+    return '';
+  }
+
   final num price;
   @JsonKey(includeIfNull: false)
   final String? currency;
@@ -173,6 +191,8 @@ class Product {
     nameEn: nameEn,
     nameAr: nameAr,
     description: description,
+    descriptionAr: descriptionAr,
+    descriptionEn: descriptionEn,
     price: price,
     currency: currency,
     discountType: discountType,

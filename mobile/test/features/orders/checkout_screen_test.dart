@@ -37,7 +37,7 @@ class _FixedCart extends CartRepositoryMock {
   _FixedCart(this._cart);
   final Cart _cart;
   @override
-  Future<Cart> fetchCart() async => _cart;
+  Future<Cart> fetchCart({String? addressId}) async => _cart;
 }
 
 class _FixedAddresses extends AddressesController {
@@ -128,7 +128,7 @@ class _CouponCart extends CartRepositoryMock {
   Completer<void>? repriceGate;
   final actions = <String>[];
   @override
-  Future<Cart> fetchCart() async => cart;
+  Future<Cart> fetchCart({String? addressId}) async => cart;
   @override
   Future<Cart> applyCoupon(String code) async {
     actions.add('apply:$code');
@@ -197,7 +197,13 @@ Widget _host({
       sessionControllerProvider.overrideWith(TestSession.new),
       addressesControllerProvider.overrideWith(
         () => _FixedAddresses(const [
-          Address(id: 'a1', label: 'Home', city: 'Baghdad', isDefault: true),
+          Address(
+            id: 'a1',
+            label: 'Home',
+            city: 'Baghdad',
+            governorateId: 'test-baghdad',
+            isDefault: true,
+          ),
         ]),
       ),
     ],
@@ -491,12 +497,7 @@ void main() {
     await tester.pumpWidget(_host(addresses: repo, repository: orders));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(
-      tester
-          .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
-          .onPressed,
-      isNull,
-    );
+    expect(find.text('Place order'), findsNothing);
     expect(find.text('Address 0'), findsNothing);
     last.complete(
       addressPage((page: 2, perPage: 100), total: 105, defaultIndex: 104),
@@ -520,12 +521,7 @@ void main() {
       await tester.pumpWidget(_host(addresses: repo, repository: orders));
       await tester.pumpAndSettle();
       expect(find.text('Retry'), findsOneWidget);
-      expect(
-        tester
-            .widget<AppButton>(find.widgetWithText(AppButton, 'Place order'))
-            .onPressed,
-        isNull,
-      );
+      expect(find.text('Place order'), findsNothing);
       repo.onFetch = (r) async => addressPage(r, total: 105, defaultIndex: 0);
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();

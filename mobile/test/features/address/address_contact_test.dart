@@ -1,9 +1,10 @@
+import '../../helpers/governorates.dart';
 import 'dart:async';
 import 'package:shubayr/core/layout/app_layout.dart';
 import 'package:shubayr/core/widgets/app_button.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:shubayr/core/utils/international_phone.dart';
 import 'package:shubayr/features/auth/data/user.dart';
 import 'package:shubayr/features/auth/domain/session.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,7 @@ import 'support/address_fakes.dart';
 Future<ProviderContainer> _start(RecordingAddresses repo) async {
   final container = ProviderContainer(
     overrides: [
+      testGovernoratesOverride,
       dataSourceProvider.overrideWithValue(DataSource.mock),
       notificationSyncProvider.overrideWith((ref) {}),
       unreadCountProvider.overrideWith((ref) async => 0),
@@ -88,7 +90,11 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _open(WidgetTester tester) => _tap(tester, find.text('Open form'));
+Future<void> _open(WidgetTester tester) async {
+  await _tap(tester, find.text('Open form'));
+  await selectTestGovernorate(tester);
+}
+
 Future<void> _save(WidgetTester tester) async {
   FocusManager.instance.primaryFocus?.unfocus();
   await tester.pumpAndSettle();
@@ -115,7 +121,7 @@ void main() {
                   ? const Address(
                       id: 'addr-0',
                       city: 'Baghdad',
-                      contactPhone: '07700000000',
+                      contactPhone: '+9647700000000',
                     )
                   : null,
             ),
@@ -174,7 +180,7 @@ void main() {
             const Address(
               id: 'addr-0',
               city: 'Baghdad',
-              contactPhone: '07700000000',
+              contactPhone: '+9647700000000',
             ),
           );
           await tester.pumpAndSettle();
@@ -187,7 +193,7 @@ void main() {
 
   for (final locale in ['ar', 'en']) {
     for (final dark in [false, true]) {
-      for (final phone in ['07700000000', '+123456789012345', '']) {
+      for (final phone in ['+9647700000000', '+123456789012345', '']) {
         testWidgets(
           'primary phone is readable without clipping $locale dark=$dark phone=$phone',
           (tester) async {
@@ -219,45 +225,29 @@ void main() {
                 await _open(tester);
                 await tester.ensureVisible(primary);
                 await tester.pumpAndSettle();
-                final tile = tester.widget<RadioListTile<bool>>(primary);
-                final title = find.byWidget(tile.title!);
-                final subtitle = find.byWidget(tile.subtitle!);
-                RenderParagraph paragraph(Finder finder) =>
-                    tester.renderObject<RenderParagraph>(
-                      find.descendant(
-                        of: finder,
-                        matching: find.byType(RichText),
-                      ),
-                    );
-                final number = paragraph(subtitle);
-                final heading = paragraph(title);
-                expect(number.text.style!.fontSize, 14);
-                expect(number.text.style!.fontFamily, 'Zain');
-                expect(number.text.style!.fontWeight, FontWeight.w400);
-                expect(heading.text.style!.fontSize, 14);
-                expect(heading.text.style!.fontWeight, FontWeight.w700);
-                expect(number.textScaler.scale(14), 14 * scale);
-                expect(
-                  number.textDirection,
-                  phone.isNotEmpty || locale == 'en'
-                      ? TextDirection.ltr
-                      : TextDirection.rtl,
-                );
-                expect(number.didExceedMaxLines, isFalse);
-                expect(heading.didExceedMaxLines, isFalse);
-                expect(
-                  tester.getRect(subtitle).top,
-                  greaterThanOrEqualTo(tester.getRect(title).bottom),
-                );
-                final tileBounds = tester.getRect(primary).inflate(0.01);
-                expect(
-                  tileBounds.contains(tester.getRect(subtitle).topLeft),
-                  isTrue,
-                );
-                expect(
-                  tileBounds.contains(tester.getRect(subtitle).bottomRight),
-                  isTrue,
-                );
+                if (phone.isNotEmpty) {
+                  await _tap(tester, primary);
+                  final field = find.descendant(
+                    of: find.byKey(const ValueKey('address-primary-phone')),
+                    matching: find.byType(Text),
+                  );
+                  await tester.ensureVisible(field);
+                  await tester.pumpAndSettle();
+                  final input = tester.widget<Text>(field);
+                  expect(input.data, InternationalPhone.display(phone));
+                  expect(input.textDirection, TextDirection.ltr);
+                  expect(input.maxLines, isNull);
+                  final l10n = AppLocalizations.of(tester.element(primary));
+                  final titleBounds = tester.getRect(
+                    find.text(l10n.addressUsePrimaryPhone),
+                  );
+                  expect(
+                    tester.getRect(field).top - titleBounds.bottom,
+                    greaterThanOrEqualTo(AppSpacing.radioSubtitleGap - .01),
+                  );
+
+                  expect(tester.getRect(field).width, lessThan(width));
+                }
                 expect(tester.takeException(), isNull);
                 await tester.pumpWidget(const SizedBox.shrink());
               }
@@ -310,7 +300,7 @@ void main() {
                       ? const Address(
                           id: 'addr-0',
                           city: 'Baghdad',
-                          contactPhone: '07812345678',
+                          contactPhone: '+9647812345678',
                         )
                       : null,
                 ),
@@ -324,7 +314,7 @@ void main() {
               // Adding an optional field grows the form after its first layout.
               await _tap(tester, other);
               await tester.ensureVisible(otherField);
-              await tester.enterText(otherField, '07812345678');
+              await tester.enterText(otherField, '+9647812345678');
               await tester.pumpAndSettle();
               final scroll = tester
                   .state<ScrollableState>(find.byType(Scrollable).first)
@@ -438,7 +428,10 @@ void main() {
               .groupValue,
           isTrue,
         );
-        expect(find.text('07700000000'), findsOneWidget);
+        expect(
+          find.text(InternationalPhone.display('+9647700000000')),
+          findsOneWidget,
+        );
         expect(otherField, findsNothing);
         await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
         await _tap(tester, other);
@@ -453,7 +446,7 @@ void main() {
         await tester.enterText(otherField, '(+٩٦٤) ٧٨١,٢٣٤-٥٦٧٨');
         expect(
           tester.widget<TextFormField>(otherField).controller!.text,
-          '+9647812345678',
+          '7812345678',
         );
         if (!useOther) {
           await _tap(tester, primary);
@@ -462,7 +455,7 @@ void main() {
         await _save(tester);
         expect(
           repo.created.single.contactPhone,
-          useOther ? '+9647812345678' : '07700000000',
+          useOther ? '+9647812345678' : '+9647700000000',
         );
         final saved = container
             .read(addressesControllerProvider)
@@ -474,7 +467,7 @@ void main() {
     );
   }
 
-  for (final phone in ['07700000000', '07812345678']) {
+  for (final phone in ['+9647700000000', '+9647812345678']) {
     testWidgets(
       'editing restores selection and preserves contact and coordinates $phone',
       (tester) async {
@@ -490,7 +483,7 @@ void main() {
         );
         await tester.pumpWidget(_host(container, address: address));
         await _open(tester);
-        final isPrimary = phone == '07700000000';
+        final isPrimary = phone == '+9647700000000';
         expect(
           tester
               .widget<RadioGroup<bool>>(find.byType(RadioGroup<bool>))
@@ -500,7 +493,7 @@ void main() {
         if (!isPrimary) {
           expect(
             tester.widget<TextFormField>(otherField).controller!.text,
-            phone,
+            InternationalPhone.parse(phone)!.nsn,
           );
         }
         await _save(tester);
@@ -521,6 +514,12 @@ void main() {
       final repo = RecordingAddresses();
       final container = (await tester.runAsync(() => _start(repo)))!;
       addTearDown(container.dispose);
+      (container.read(sessionControllerProvider.notifier) as AddressTestSession)
+          .setSession(
+            const Session.signedIn(
+              User(id: 'customer', role: 'customer', phone: '07700000000'),
+            ),
+          );
       await tester.pumpWidget(_host(container, list: true));
       await tester.pumpAndSettle();
       expect(find.text('07700000000'), findsOneWidget);
@@ -588,6 +587,34 @@ void main() {
     }
   }
 
+  testWidgets(
+    'alternate country and local digits survive primary-contact toggles',
+    (tester) async {
+      final repo = RecordingAddresses();
+      final container = (await tester.runAsync(() => _start(repo)))!;
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_host(container));
+      await _open(tester);
+      await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
+      await _tap(tester, other);
+      await _tap(tester, find.byKey(const ValueKey('phone-country-selector')));
+      await tester.enterText(find.byType(TextField).last, 'United Kingdom');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('United Kingdom').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(otherField, '02079460018');
+      await _tap(tester, primary);
+      await _tap(tester, other);
+      expect(find.text('+44'), findsOneWidget);
+      expect(
+        tester.widget<TextFormField>(otherField).controller!.text,
+        '02079460018',
+      );
+      await _save(tester);
+      expect(repo.created.single.contactPhone, '+442079460018');
+    },
+  );
+
   testWidgets('remote mode accepts normalized international delivery contacts', (
     tester,
   ) async {
@@ -595,6 +622,7 @@ void main() {
     final repo = RecordingAddresses();
     final remote = ProviderContainer(
       overrides: [
+        testGovernoratesOverride,
         notificationSyncProvider.overrideWith((ref) {}),
         unreadCountProvider.overrideWith((ref) async => 0),
         dataSourceProvider.overrideWithValue(DataSource.remote),
@@ -607,12 +635,13 @@ void main() {
     await tester.pumpWidget(_host(remote));
     await _open(tester);
     await tester.enterText(find.byType(TextFormField).at(1), 'Baghdad');
-    await _save(tester);
-    expect(
-      repo.created,
-      isEmpty,
-    ); // local account number needs explicit country code
     await _tap(tester, other);
+    final l10n = AppLocalizations.of(tester.element(otherField));
+    final helper = find.text(l10n.addressInternationalPhoneHint);
+    expect(
+      tester.getRect(helper).top - tester.getRect(otherField).bottom,
+      closeTo(AppSpacing.fieldHelperGap, .01),
+    );
     await tester.enterText(otherField, '(+٩٦٤) ٧٨١ ٢٣٤-٥٦٧٨');
     await _save(tester);
     expect(repo.created.single.contactPhone, '+9647812345678');

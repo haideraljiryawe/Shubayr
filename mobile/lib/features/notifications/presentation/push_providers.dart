@@ -10,11 +10,15 @@ import '../../auth/domain/user_role.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../data/device_registration.dart';
 import '../data/firebase_push_client.dart';
+import '../data/notification_settings.dart';
 import '../domain/push_client.dart';
 import '../domain/push_lifecycle.dart';
 
 final pushClientFactoryProvider = Provider<Future<PushClient?> Function()>(
   (ref) => createFirebasePushClient,
+);
+final notificationSettingsOpenerProvider = Provider(
+  (ref) => NotificationSettingsOpener(),
 );
 final deviceRegistrationProvider = Provider<DeviceRegistration>(
   (ref) => DeviceRegistrationRemote(ref.watch(apiClientProvider)),
@@ -58,8 +62,8 @@ final pushLifecycleProvider = Provider<PushLifecycle>((ref) {
   final remove = ref
       .read(sessionExitTasksProvider)
       .register(
-        (revision, deleted) =>
-            lifecycle.endSession(revision, unregister: !deleted),
+        (revision, skipUnregister) =>
+            lifecycle.endSession(revision, unregister: !skipUnregister),
       );
   ref.onDispose(() {
     remove();
@@ -68,20 +72,31 @@ final pushLifecycleProvider = Provider<PushLifecycle>((ref) {
   return lifecycle;
 });
 
-/// App-owned synchronization never prompts automatically. Permission is requested
-/// only from the explicit enable action; resume retries unavailable APNs/network.
+/// Silent session/resume sync; the app bridge requests initial permission only
+/// after the foreground UI is ready. Resume also retries APNs/network failures.
 final pushSyncProvider = Provider<void>((ref) {
   final lifecycle = ref.watch(pushLifecycleProvider);
-  void sync() {
+  void sync({bool refreshRegistration = false}) {
+    if (!ref.read(sessionRevalidationProvider).hasValue) return;
     unawaited(
       lifecycle
-          .synchronize(ref.read(pushOwnerProvider))
+          .synchronize(
+            ref.read(pushOwnerProvider),
+            refreshRegistration: refreshRegistration,
+          )
           .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
     );
   }
 
   ref.listen(pushOwnerProvider, (_, _) => sync());
-  final observer = AppLifecycleListener(onResume: sync);
+  ref.listen(sessionRevalidationProvider, (previous, next) {
+    if (previous?.hasValue == false && next.hasValue) {
+      sync(refreshRegistration: true);
+    }
+  });
+  final observer = AppLifecycleListener(
+    onResume: () => sync(refreshRegistration: true),
+  );
   ref.onDispose(observer.dispose);
   scheduleMicrotask(() {
     if (ref.mounted) sync();

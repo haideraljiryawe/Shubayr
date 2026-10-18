@@ -1,9 +1,12 @@
+import '../../../../core/utils/international_phone.dart';
+import 'store_information.dart';
 import '../../../notifications/presentation/push_permission_tile.dart';
 import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/session_credentials.dart';
 import '../providers/privacy_policy_provider.dart';
 import '../providers/support_provider.dart';
 import '../../../notifications/presentation/notification_button.dart';
+import '../../../notifications/presentation/notification_providers.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
@@ -20,7 +23,6 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/user_avatar.dart';
-import '../../../../core/utils/validators.dart';
 import '../../../auth/domain/session.dart';
 import '../../../auth/domain/user_role.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -56,14 +58,9 @@ class AccountView extends ConsumerWidget {
                       : const _SignInCard(),
                   const SizedBox(height: AppSpacing.lg),
                   if (isSignedIn) ...[
-                    AppCard(
+                    const AppCard(
                       padding: EdgeInsets.zero,
-                      child: ListTile(
-                        leading: const Icon(Icons.notifications_outlined),
-                        title: Text(l10n.notificationsTitle),
-                        trailing: const NotificationButton(),
-                        onTap: () => context.push(AppRoutes.notifications),
-                      ),
+                      child: _NotificationsTile(),
                     ),
                     const SizedBox(height: AppSpacing.md),
                   ],
@@ -104,6 +101,7 @@ class AccountView extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.lg),
                   _SectionLabel(l10n.accountSupport),
                   const _SupportCard(),
+                  const StoreInformation(),
                   if (kDebugMode) ...[
                     const SizedBox(height: AppSpacing.lg),
                     AppCard(
@@ -130,6 +128,29 @@ class AccountView extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _NotificationsTile extends ConsumerWidget {
+  const _NotificationsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final count = ref.watch(notificationIdentityProvider).signedIn
+        ? ref.watch(unreadCountProvider).value ?? 0
+        : 0;
+    return ListTile(
+      leading: ExcludeSemantics(child: NotificationIcon(count: count)),
+      title: Text(
+        l10n.notificationsTitle,
+        semanticsLabel: count > 0
+            ? l10n.notificationsUnreadCount('$count')
+            : l10n.notificationsTitle,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push(AppRoutes.notifications),
     );
   }
 }
@@ -179,7 +200,7 @@ class _ProfileCard extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           user.phone?.trim().isNotEmpty == true
-              ? Validators.foldDigits(user.phone!)
+              ? InternationalPhone.display(user.phone!)
               : l10n.accountNoPhone,
           textDirection: TextDirection.ltr,
           textAlign: TextAlign.center,

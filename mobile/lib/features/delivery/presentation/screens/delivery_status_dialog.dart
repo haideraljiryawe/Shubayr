@@ -76,9 +76,10 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${l10n.deliveryAmountDue}: ${formatMoney(widget.delivery.amountDue, currencyCode: 'IQD', localeCode: Localizations.localeOf(context).languageCode)}',
+              '${l10n.deliveryOrderTotal}: ${formatMoney(widget.delivery.amountDue, currencyCode: 'IQD', localeCode: Localizations.localeOf(context).languageCode)}',
             ),
             const SizedBox(height: AppSpacing.md),
+            Text(l10n.deliveryTotalNotBalance),
             if (retry) ...[
               Text(l10n.pendingDeliveryRetry),
               const SizedBox(height: AppSpacing.md),
@@ -103,7 +104,7 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
                   : (value) => setState(() => _status = value),
             ),
             if (_status == 'failed') ...[
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.formFieldGap),
               TextField(
                 contextMenuBuilder: appTextSelectionToolbar,
                 maxLength: 500,
@@ -117,7 +118,7 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
               ),
             ],
             if (_status == 'delivered') ...[
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.formFieldGap),
               DropdownButtonFormField<bool>(
                 initialValue: _confirmed,
                 isExpanded: true,
@@ -140,11 +141,11 @@ class _DeliveryStatusDialogState extends State<DeliveryStatusDialog> {
                     : (value) => setState(() => _confirmed = value),
               ),
               if (_confirmed == false) ...[
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.fieldHelperGap),
                 Text(l10n.deliveryCollectionUnconfirmedHint),
               ],
               if (_confirmed == true) ...[
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.formFieldGap),
                 TextField(
                   key: const ValueKey('delivery-collected-amount'),
                   controller: _amount,

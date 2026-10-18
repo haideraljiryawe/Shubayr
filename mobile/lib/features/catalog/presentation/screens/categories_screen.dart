@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
 import '../../../../core/l10n/l10n_context.dart';
 import '../../../../core/widgets/async_value_view.dart';
@@ -17,7 +16,6 @@ class CategoriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isMock = ref.watch(dataSourceProvider) == DataSource.mock;
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.mainCategoriesTitle)),
       body: ResponsiveContent.page(
@@ -45,12 +43,9 @@ class CategoriesScreen extends ConsumerWidget {
                   return CategoryCard(
                     key: ValueKey('cat-card-${category.id}'),
                     category: category,
-                    legacyMockArtwork: isMock,
-                    description: isMock
-                        ? category.localizedDescription(
-                            Localizations.localeOf(context).languageCode,
-                          )
-                        : null,
+                    description: category.localizedDescription(
+                      Localizations.localeOf(context).languageCode,
+                    ),
                     onTap: () => context.pushNamed(
                       AppRoutes.subcategoriesName,
                       pathParameters: {'categoryId': category.id},

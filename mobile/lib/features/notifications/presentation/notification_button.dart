@@ -20,13 +20,14 @@ class NotificationButton extends ConsumerWidget {
       iconSize: iconSize,
       tooltip: context.l10n.notificationsTitle,
       onPressed: () => context.push(AppRoutes.notifications),
-      icon: _NotificationIcon(count: count),
+      icon: NotificationIcon(count: count),
     );
   }
 }
 
-class _NotificationIcon extends StatelessWidget {
-  const _NotificationIcon({required this.count});
+/// Shared bell and badge visual; the enclosing control owns interactions.
+class NotificationIcon extends StatelessWidget {
+  const NotificationIcon({super.key, required this.count});
 
   final int count;
 

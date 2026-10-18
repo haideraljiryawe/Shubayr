@@ -19,6 +19,9 @@ class PushLifecycle {
   PushClient? _client;
   PushOwner? _owner;
   String? _registered;
+  (PushOwner, String)? _confirmedRegistration;
+  int _registrationSerial = 0;
+  bool _permissionRequested = false;
   bool _disposed = false, _initialChecked = false;
   Future<void> _lane = Future.value();
   StreamSubscription<String>? _tokens;
@@ -56,8 +59,11 @@ class PushLifecycle {
   Future<PushPermission> synchronize(
     PushOwner? owner, {
     bool requestPermission = false,
+    bool Function()? canRequestPermission,
+    bool refreshRegistration = false,
   }) {
     _owner = owner; // invalidate obsolete work immediately, before the queue.
+    final registrationAtRequest = _registrationSerial;
     if (owner == null || _disposed) {
       return Future.value(PushPermission.unavailable);
     }
@@ -66,9 +72,20 @@ class PushLifecycle {
       try {
         final client = await _initialize();
         if (client == null || !_owns(owner)) return PushPermission.unavailable;
-        final permission = await client.permission(request: requestPermission);
+        var permission = await client.permission();
         if (!_owns(owner)) return PushPermission.unavailable;
+        if (requestPermission &&
+            !_permissionRequested &&
+            permission == PushPermission.notDetermined &&
+            (canRequestPermission?.call() ?? true)) {
+          // One automatic attempt per app lifetime, including dismissal/errors.
+          // Across launches the OS/plugin retains the actual permission decision.
+          _permissionRequested = true;
+          permission = await client.permission(request: true);
+          if (!_owns(owner)) return PushPermission.unavailable;
+        }
         if (permission != PushPermission.authorized) {
+          _confirmedRegistration = null;
           final previous = _registered;
           if (previous != null) {
             await devices.unregister(previous, owner.revision);
@@ -85,16 +102,24 @@ class PushLifecycle {
           await devices.unregister(previous, owner.revision);
         }
         if (!_owns(owner)) return PushPermission.unavailable;
-        // Re-register on login/resume/locale changes even if FCM kept its token:
-        // the backend can deactivate invalid tokens independently.
-        _registered = token; // Also clean up an uncertain registration outcome.
-        await devices.register(
-          token,
-          client.platform,
-          owner.locale,
-          owner.revision,
-        );
-        if (!_owns(owner)) return PushPermission.unavailable;
+        // Resume can reactivate a backend-deactivated token. Coalesce queued
+        // refreshes when a registration has already completed since the request.
+        if (_confirmedRegistration != (owner, token) ||
+            (refreshRegistration &&
+                registrationAtRequest == _registrationSerial)) {
+          // Clean up even an uncertain registration outcome.
+          _registered = token;
+          _confirmedRegistration = null;
+          await devices.register(
+            token,
+            client.platform,
+            owner.locale,
+            owner.revision,
+          );
+          if (!_owns(owner)) return PushPermission.unavailable;
+          _confirmedRegistration = (owner, token);
+          _registrationSerial++;
+        }
         if (!_initialChecked) {
           _initialChecked = true;
           if (await client.initiallyOpened() && _owns(owner)) {
@@ -111,6 +136,7 @@ class PushLifecycle {
 
   Future<void> endSession(int transitionRevision, {bool unregister = true}) {
     _owner = null;
+    _confirmedRegistration = null;
     return _enqueue(() async {
       final token = _registered;
       try {

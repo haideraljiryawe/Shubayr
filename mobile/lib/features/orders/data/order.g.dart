@@ -49,6 +49,29 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
       : OrderCollectionResult.fromJson(
           json['collection'] as Map<String, dynamic>,
         ),
+  originalDeliveryFee: json['original_delivery_fee'] as num?,
+  adjustedDeliveryFee: json['adjusted_delivery_fee'] as num?,
+  couponDiscount: json['coupon_discount'] as num?,
+  tierDiscount: json['tier_discount'] as num?,
+  loyaltyRedemptionAmount: json['loyalty_redemption_amount'] as num?,
+  loyaltyPointsRedeemed: (json['loyalty_points_redeemed'] as num?)?.toInt(),
+  discountSource: json['discount_source'] as String?,
+  appliedTier: json['applied_tier'] == null
+      ? null
+      : DiscountTier.fromJson(json['applied_tier'] as Map<String, dynamic>),
+  nextTier: json['next_tier'] == null
+      ? null
+      : DiscountTier.fromJson(json['next_tier'] as Map<String, dynamic>),
+  deliveryGovernorate: json['delivery_governorate'] == null
+      ? null
+      : OrderGovernorate.fromJson(
+          json['delivery_governorate'] as Map<String, dynamic>,
+        ),
+  returns:
+      (json['returns'] as List<dynamic>?)
+          ?.map((e) => OrderReturnSummary.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -61,6 +84,17 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'subtotal': instance.subtotal,
   'delivery_fee': instance.deliveryFee,
   'discount': instance.discount,
+  'original_delivery_fee': instance.originalDeliveryFee,
+  'adjusted_delivery_fee': instance.adjustedDeliveryFee,
+  'coupon_discount': instance.couponDiscount,
+  'tier_discount': instance.tierDiscount,
+  'loyalty_redemption_amount': instance.loyaltyRedemptionAmount,
+  'loyalty_points_redeemed': instance.loyaltyPointsRedeemed,
+  'discount_source': instance.discountSource,
+  'applied_tier': instance.appliedTier?.toJson(),
+  'next_tier': instance.nextTier?.toJson(),
+  'delivery_governorate': instance.deliveryGovernorate?.toJson(),
+  'returns': instance.returns.map((e) => e.toJson()).toList(),
   'total': instance.total,
   'currency': ?instance.currency,
   'placed_at': instance.placedAt?.toIso8601String(),
@@ -86,6 +120,13 @@ OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
   lineTotal: json['line_total'] as num? ?? 0,
   reviewed: json['reviewed'] as bool?,
   currency: json['currency'] as String?,
+  discountShare: json['discount_share'] as num?,
+  couponDiscountShare: json['coupon_discount_share'] as num?,
+  tierDiscountShare: json['tier_discount_share'] as num?,
+  loyaltyDiscountShare: json['loyalty_discount_share'] as num?,
+  otherAdjustmentShare: json['other_adjustment_share'] as num?,
+  netLineTotal: json['net_line_total'] as num?,
+  netPaidTotal: json['net_paid_total'] as num?,
 );
 
 Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
@@ -100,6 +141,13 @@ Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
   'whole_units_only': ?instance.wholeUnitsOnly,
   'unit_price': instance.unitPrice,
   'line_total': instance.lineTotal,
+  'discount_share': instance.discountShare,
+  'coupon_discount_share': instance.couponDiscountShare,
+  'tier_discount_share': instance.tierDiscountShare,
+  'loyalty_discount_share': instance.loyaltyDiscountShare,
+  'other_adjustment_share': instance.otherAdjustmentShare,
+  'net_line_total': instance.netLineTotal,
+  'net_paid_total': instance.netPaidTotal,
   'reviewed': ?instance.reviewed,
   'currency': ?instance.currency,
 };
@@ -255,3 +303,33 @@ Map<String, dynamic> _$OrderCollectionResultToJson(
   'confirmation_state': instance.confirmationState,
   'currency': instance.currency,
 };
+
+OrderReturnSummary _$OrderReturnSummaryFromJson(Map<String, dynamic> json) =>
+    OrderReturnSummary(
+      id: json['id'] as String,
+      documentNumber: json['document_number'] as String,
+      status: json['status'] as String,
+      refundAmount: json['refund_amount'] as num,
+    );
+
+Map<String, dynamic> _$OrderReturnSummaryToJson(OrderReturnSummary instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'document_number': instance.documentNumber,
+      'status': instance.status,
+      'refund_amount': instance.refundAmount,
+    };
+
+OrderGovernorate _$OrderGovernorateFromJson(Map<String, dynamic> json) =>
+    OrderGovernorate(
+      code: json['code'] as String,
+      nameAr: json['name_ar'] as String?,
+      nameEn: json['name_en'] as String?,
+    );
+
+Map<String, dynamic> _$OrderGovernorateToJson(OrderGovernorate instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'name_ar': instance.nameAr,
+      'name_en': instance.nameEn,
+    };

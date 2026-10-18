@@ -9,6 +9,17 @@ abstract final class AppSpacing {
   static const double xxl = 32;
   static const double xxxl = 48;
 
+  /// Vertical gap between consecutive form controls, after their helper/error
+  /// content. Keep section, heading and action spacing independent.
+  static const double formFieldGap = md;
+
+  /// External explanatory text below a field. InputDecoration helper/error
+  /// slots already own their spacing and must not receive this again.
+  static const double fieldHelperGap = sm;
+
+  /// Extra separation between a radio option title and its supporting text.
+  static const double radioSubtitleGap = xs;
+
   /// Horizontal padding used by full-width screens.
   static const double screenH = 16;
 

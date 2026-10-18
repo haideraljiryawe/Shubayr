@@ -26,9 +26,13 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   deliveredAt: json['delivered_at'] == null
       ? null
       : DateTime.parse(json['delivered_at'] as String),
+  collection: json['collection'] == null
+      ? null
+      : DeliveryCollection.fromJson(json['collection'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
+  'collection': instance.collection?.toJson(),
   'id': instance.id,
   'order_id': instance.orderId,
   'amount_due': instance.amountDue,

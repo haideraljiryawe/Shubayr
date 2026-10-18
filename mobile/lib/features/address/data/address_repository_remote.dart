@@ -29,14 +29,20 @@ class AddressRepositoryRemote implements AddressRepository {
       });
 
   @override
-  Future<Address> createAddress(AddressInput input) => decodeResponse(
-    () async => Address.fromJson(
+  Future<Address> createAddress(AddressInput input) => decodeResponse(() async {
+    if (input.governorateId == null || input.governorateId!.isEmpty) {
+      throw const AppFailure(
+        FailureKind.validation,
+        code: 'ADDRESS_GOVERNORATE_REQUIRED',
+      );
+    }
+    return Address.fromJson(
       await _api.post<Map<String, dynamic>>(
         '/addresses',
         body: _payload(input),
       ),
-    ),
-  );
+    );
+  });
 
   @override
   Future<Address> updateAddress(String id, AddressInput input) =>

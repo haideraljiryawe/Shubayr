@@ -38,7 +38,7 @@ class _CartRepository implements CartRepository {
   Future<Cart> Function()? onRead;
 
   @override
-  Future<Cart> fetchCart() {
+  Future<Cart> fetchCart({String? addressId}) {
     reads.add(owner());
     return onRead?.call() ?? Future.value(_cart('${owner()}-loaded'));
   }

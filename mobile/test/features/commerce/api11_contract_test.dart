@@ -208,14 +208,26 @@ void main() {
         ),
       );
       final result = AfterSalesRepositoryRemote(ApiClient(dio)).requestReturn(
+        operationId: 'return-operation-123',
         orderId: 'o',
         reason: valid ? 'Damaged' : '  ',
-        items: [const ReturnRequestItem(orderItemId: 'i', quantity: .125)],
+        items: [
+          const ReturnRequestItem(
+            reasonCode: 'defect',
+            orderItemId: 'i',
+            quantity: .125,
+          ),
+        ],
       );
       if (valid) {
         await result;
         expect((requests.single.data as Map)['items'], [
-          {'order_item_id': 'i', 'quantity': .125, 'reason': 'Damaged'},
+          {
+            'order_item_id': 'i',
+            'quantity': .125,
+            'reason': 'Damaged',
+            'reason_code': 'defect',
+          },
         ]);
       } else {
         await expectLater(result, throwsA(isA<AppFailure>()));

@@ -13,6 +13,9 @@ extension NotificationDestination on InboxNotification {
     if (role == UserRole.customer && entityType == 'order') {
       return '${AppRoutes.orders}/${Uri.encodeComponent(entityId)}';
     }
+    if (role == UserRole.customer && entityType == 'return') {
+      return '/orders/returns/${Uri.encodeComponent(entityId)}';
+    }
     if (role == UserRole.delivery) return AppRoutes.delivery;
     return null;
   }

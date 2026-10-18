@@ -2,6 +2,7 @@ import 'package:shubayr/features/notifications/presentation/notification_provide
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
@@ -12,6 +13,7 @@ import 'package:shubayr/app/router/app_routes.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'package:shubayr/core/l10n/generated/app_localizations.dart';
 import 'package:shubayr/core/layout/app_layout.dart';
+import 'package:shubayr/core/network/api_client.dart';
 import 'package:shubayr/core/theme/app_colors.dart';
 import 'package:shubayr/core/theme/app_theme.dart';
 import 'package:shubayr/core/theme/theme_context.dart';
@@ -22,17 +24,15 @@ import 'package:shubayr/core/widgets/skeleton.dart';
 import 'package:shubayr/core/widgets/state_views.dart';
 import 'package:shubayr/features/catalog/data/category.dart';
 import 'package:shubayr/features/catalog/data/catalog_repository_mock.dart';
-import 'package:shubayr/features/catalog/presentation/widgets/catalog_image_view.dart';
-import 'package:shubayr/features/catalog/data/media/catalog_image.dart';
 import 'package:shubayr/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:shubayr/features/catalog/presentation/screens/categories_screen.dart';
 import 'package:shubayr/features/catalog/presentation/screens/subcategories_screen.dart';
 import 'package:shubayr/features/catalog/presentation/widgets/category_card.dart';
-import 'package:shubayr/features/catalog/presentation/widgets/category_icon.dart';
 
 const _tree = [
   Category(
     id: 'c1',
+    imageUrl: 'https://example.test/main-category.png',
     nameEn: 'Electronics',
     nameAr: 'إلكترونيات',
     children: [
@@ -66,6 +66,7 @@ Widget _host({
   DataSource dataSource = DataSource.mock,
   Widget home = const CategoriesScreen(),
   Future<List<Category>> Function()? load,
+  ApiClient? apiClient,
   GoRouter? router,
   EdgeInsets safeInsets = EdgeInsets.zero,
 }) {
@@ -82,9 +83,12 @@ Widget _host({
       notificationSyncProvider.overrideWith((ref) {}),
       unreadCountProvider.overrideWith((ref) async => 0),
       dataSourceProvider.overrideWithValue(dataSource),
-      categoriesProvider.overrideWith(
-        (ref) => load?.call() ?? Future.value(_tree),
-      ),
+      if (apiClient != null)
+        apiClientProvider.overrideWithValue(apiClient)
+      else
+        categoriesProvider.overrideWith(
+          (ref) => load?.call() ?? Future.value(_tree),
+        ),
     ],
     child: router == null
         ? MaterialApp(
@@ -209,6 +213,110 @@ void main() {
   }
   for (final locale in ['ar', 'en']) {
     for (final brightness in Brightness.values) {
+      testWidgets(
+        'remote descriptions reach cards without extra reads $locale $brightness',
+        (tester) async {
+          _size(tester, 390);
+          final requests = <String>[];
+          final dio = Dio();
+          addTearDown(() => dio.close(force: true));
+          dio.interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (request, handler) {
+                requests.add(request.path);
+                handler.resolve(
+                  Response(
+                    requestOptions: request,
+                    statusCode: 200,
+                    data: [
+                      for (final id in [
+                        'filled',
+                        'fallback',
+                        'null',
+                        'empty',
+                        'spaces',
+                      ])
+                        {
+                          'id': id,
+                          'name_ar': 'قسم',
+                          'name_en': 'Category',
+                          'description_ar': switch (id) {
+                            'filled' => '  أجهزة للمنزل والعمل  ',
+                            'empty' => '',
+                            'spaces' => '  \n  ',
+                            _ => null,
+                          },
+                          'description_en': switch (id) {
+                            'filled' => '  Devices for home and work  ',
+                            'fallback' => 'Useful essentials',
+                            'empty' => '',
+                            'spaces' => '  \n  ',
+                            _ => null,
+                          },
+                        },
+                    ],
+                  ),
+                );
+              },
+            ),
+          );
+          await tester.pumpWidget(
+            _host(
+              locale: locale,
+              brightness: brightness,
+              dataSource: DataSource.remote,
+              apiClient: ApiClient(dio),
+            ),
+          );
+          await tester.pumpAndSettle();
+          for (final id in ['filled', 'fallback', 'null', 'empty', 'spaces']) {
+            final card = find.byKey(ValueKey('cat-card-$id'));
+            await tester.scrollUntilVisible(card, 150);
+            await tester.pumpAndSettle();
+            final subtitle = find.byKey(ValueKey('cat-description-$id'));
+            final title = find.descendant(
+              of: card,
+              matching: find.text(locale == 'ar' ? 'قسم' : 'Category'),
+            );
+            final cardRect = tester.getRect(card);
+            final titleRect = tester.getRect(title);
+            if (id == 'filled' || id == 'fallback') {
+              final text = tester.widget<Text>(subtitle);
+              expect(
+                text.data,
+                id == 'fallback'
+                    ? 'Useful essentials'
+                    : locale == 'ar'
+                    ? 'أجهزة للمنزل والعمل'
+                    : 'Devices for home and work',
+              );
+              expect(text.maxLines, 2);
+              expect(text.overflow, TextOverflow.ellipsis);
+              final context = tester.element(card);
+              expect(text.style!.color, context.colors.textSecondary);
+              expect(
+                text.style!.fontSize,
+                lessThan(context.text.titleMedium!.fontSize!),
+              );
+              final subtitleRect = tester.getRect(subtitle);
+              expect(subtitleRect.top, greaterThan(titleRect.bottom));
+              expect(subtitleRect.bottom, lessThanOrEqualTo(cardRect.bottom));
+              expect(
+                locale == 'ar' ? subtitleRect.right : subtitleRect.left,
+                closeTo(locale == 'ar' ? titleRect.right : titleRect.left, .01),
+              );
+            } else {
+              expect(subtitle, findsNothing);
+              // No invisible subtitle or spacer displaces the centered name.
+              expect(titleRect.center.dy, closeTo(cardRect.center.dy, .01));
+            }
+            expect(cardRect.height, AppLayout.categoryCardHeight);
+            expect(tester.takeException(), isNull);
+          }
+          expect(requests, ['/categories']);
+        },
+      );
+
       testWidgets(
         'all Mock parents have a quiet description $locale $brightness',
         (tester) async {
@@ -337,23 +445,19 @@ void main() {
                   locale: locale,
                   brightness: brightness,
                   scale: scale,
-                  home: Scaffold(
-                    body: ListView(
-                      children: [
-                        CategoryCard(
-                          key: const ValueKey('long-card'),
-                          category: category,
-                          description: description,
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                  ),
+                  dataSource: DataSource.remote,
+                  load: () async => [
+                    Category.fromJson({
+                      ...category.toJson(),
+                      'description_ar': description,
+                      'description_en': description,
+                    }),
+                  ],
                 ),
               );
               await tester.pumpAndSettle();
               final cardRect = tester.getRect(
-                find.byKey(const ValueKey('long-card')),
+                find.byKey(const ValueKey('cat-card-long')),
               );
               final image = find.byKey(const ValueKey('cat-image-long'));
               final imageRect = tester.getRect(image);
@@ -372,6 +476,14 @@ void main() {
               expect(
                 tester.getRect(subtitle).bottom,
                 lessThanOrEqualTo(cardRect.bottom),
+              );
+              expect(
+                tester.getRect(subtitle).left,
+                greaterThanOrEqualTo(cardRect.left),
+              );
+              expect(
+                tester.getRect(subtitle).right,
+                lessThanOrEqualTo(cardRect.right),
               );
               expect(imageRect.height, cardRect.height);
               expect(
@@ -475,15 +587,14 @@ void main() {
         expect(find.byIcon(Icons.chevron_right), findsNothing);
         expect(find.byIcon(Icons.chevron_left), findsNothing);
         expect(find.byKey(const ValueKey('cat-sub-cat-phones')), findsNothing);
-        final url =
-            (tester.widget<CatalogImageView>(image).image as UrlCatalogImage)
-                .url;
+        final networkImage = find.descendant(
+          of: image,
+          matching: find.byType(CachedNetworkImage),
+        );
+        final url = tester.widget<CachedNetworkImage>(networkImage).imageUrl;
         await tester.pumpWidget(_host(locale: locale));
         await tester.pumpAndSettle();
-        expect(
-          (tester.widget<CatalogImageView>(image).image as UrlCatalogImage).url,
-          url,
-        );
+        expect(tester.widget<CachedNetworkImage>(networkImage).imageUrl, url);
         expect(
           tester.getSize(image).width,
           closeTo(
@@ -491,7 +602,7 @@ void main() {
             0.01,
           ),
         );
-        expect(url, isNot(categoryImageUrl('c2')));
+        expect(url, 'https://example.test/main-category.png');
         expect(tester.takeException(), isNull);
       },
     );
@@ -550,7 +661,10 @@ void main() {
           expect(decoration.borderRadius, AppRadii.mdAll);
           expect(tester.widget<Material>(tile).type, MaterialType.transparency);
           expect(find.byType(CachedNetworkImage), findsNothing);
-          final icon = find.byIcon(Icons.smartphone);
+          final icon = find.descendant(
+            of: artwork,
+            matching: find.byIcon(Icons.image_outlined),
+          );
           expect(icon, findsOneWidget);
           expect(tester.getCenter(icon).dx, closeTo(imageRect.center.dx, .01));
           expect(tester.getCenter(icon).dy, closeTo(imageRect.center.dy, .01));
@@ -566,7 +680,7 @@ void main() {
             greaterThanOrEqualTo(4.5),
           );
           expect(
-            contrast(colors.primary, colors.surface),
+            contrast(colors.textMuted, colors.surface),
             greaterThanOrEqualTo(3),
           );
           expect(tester.takeException(), isNull);
@@ -725,7 +839,7 @@ void main() {
   });
 
   testWidgets(
-    'subcategory uses its image and keeps the icon fallback inside the square',
+    'subcategory uses its image and keeps the neutral fallback inside the square',
     (tester) async {
       _size(tester, 390);
       await tester.pumpWidget(
@@ -757,10 +871,10 @@ void main() {
       expect(image.fit, BoxFit.cover);
       final icon = find.descendant(
         of: artwork,
-        matching: find.byIcon(Icons.smartphone),
+        matching: find.byIcon(Icons.image_outlined),
       );
       // Widget-test HTTP returns an error; the shared image view must keep the
-      // category icon and the surrounding card surface, not paint another fill.
+      // neutral placeholder and the surrounding card surface, not paint another fill.
       expect(icon, findsOneWidget);
       expect(
         find.descendant(of: artwork, matching: find.byType(ColoredBox)),
@@ -775,7 +889,7 @@ void main() {
     },
   );
 
-  testWidgets('failed category artwork retains the category icon', (
+  testWidgets('failed category artwork retains a neutral image placeholder', (
     tester,
   ) async {
     await tester.pumpWidget(_host());
@@ -794,24 +908,7 @@ void main() {
     );
     await tester.pumpWidget(_host(home: Scaffold(body: fallback)));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.category_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-
-  test(
-    'presentation icon fallback respects explicit icons and unknown categories',
-    () {
-      expect(categoryIconFor(null, categoryId: 'cat-phones'), Icons.smartphone);
-      expect(categoryIconFor('', categoryId: 'cat-audio'), Icons.headphones);
-      expect(categoryIconFor('watch', categoryId: 'cat-phones'), Icons.watch);
-      expect(
-        categoryIconFor(null, categoryId: 'unknown'),
-        Icons.category_outlined,
-      );
-      expect(
-        categoryIconFor('unknown', categoryId: 'cat-phones'),
-        Icons.category_outlined,
-      );
-    },
-  );
 }

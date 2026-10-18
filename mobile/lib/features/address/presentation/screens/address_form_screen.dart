@@ -1,3 +1,8 @@
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
+import '../../../../core/widgets/international_phone_field.dart';
+import '../../../../core/widgets/phone_number_text.dart';
+import '../../../../core/theme/tokens/app_spacing.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/theme/components/input_theme.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
@@ -10,7 +15,6 @@ import '../../../../core/error/response_decode.dart';
 import '../../../../core/storage/session_credentials.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/theme_context.dart';
-import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../core/l10n/l10n_context.dart';
@@ -18,6 +22,9 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/address.dart';
 import '../providers/address_providers.dart';
+import '../providers/governorate_provider.dart';
+import '../../../../core/widgets/async_value_view.dart';
+import '../../../../core/widgets/skeleton.dart';
 
 /// Full-screen add/edit address form (reached with a back button, like the
 /// profile editor). A full page — rather than a bottom sheet — so the fields
@@ -46,8 +53,11 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     text: normalizeDigits(widget.address?.details ?? ''),
   );
   late bool _isDefault = widget.address?.isDefault ?? false;
+  late String? _governorateId = widget.address?.governorateId;
   bool _busy = false;
   bool _usePrimaryPhone = true;
+  String _contactPhone = '';
+  IsoCode? _otherPhoneCountry;
   final _otherPhone = TextEditingController();
 
   String get _accountPhone => Validators.normalizePhone(
@@ -77,8 +87,14 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_busy) return;
+    if (_busy ||
+        !ref.read(governoratesProvider).hasValue ||
+        ref.read(governoratesProvider).isLoading ||
+        ref.read(governoratesProvider).hasError) {
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    _formKey.currentState!.save();
     final navigator = Navigator.of(context);
     final credentials = ref.read(sessionCredentialsProvider);
     final owner = credentials.revision;
@@ -93,12 +109,11 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     final input = AddressInput(
       label: _label.text.trim(),
       city: _city.text.trim(),
+      governorateId: _governorateId,
       area: _area.text.trim(),
       street: _street.text.trim(),
       details: details.isEmpty ? null : details,
-      contactPhone: _usePrimaryPhone
-          ? _accountPhone
-          : Validators.normalizePhone(_otherPhone.text),
+      contactPhone: _usePrimaryPhone ? _accountPhone : _contactPhone,
       lat: widget.address?.lat,
       lng: widget.address?.lng,
       isDefault: _isDefault,
@@ -126,6 +141,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final governorates = ref.watch(governoratesProvider);
     ref.watch(sessionControllerProvider);
     final isRemote = ref.watch(dataSourceProvider) == DataSource.remote;
     return Scaffold(
@@ -141,6 +157,57 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
             padding: AppLayout.formScrollInsets(context),
             child: ResponsiveFields(
               children: [
+                ResponsiveField(
+                  fullWidth: true,
+                  child: AsyncValueView(
+                    value: governorates,
+                    loading: const Skeleton.line(),
+                    onRetry: () => ref.invalidate(governoratesProvider),
+                    builder: (context, rows) => DropdownButtonFormField<String>(
+                      key: ValueKey(rows),
+                      initialValue: rows.any((g) => g.id == _governorateId)
+                          ? _governorateId
+                          : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: l10n.addressGovernorate,
+                      ),
+                      items: [
+                        for (final g in rows)
+                          DropdownMenuItem(
+                            value: g.id,
+                            child: Text(
+                              [
+                                Localizations.localeOf(context).languageCode ==
+                                        'ar'
+                                    ? g.nameAr
+                                    : g.nameEn,
+                                if (!g.isServed)
+                                  l10n.pricingUnserved
+                                else if (g.deliveryFee != null &&
+                                    g.currency != null)
+                                  formatMoney(
+                                    g.deliveryFee!,
+                                    currencyCode: g.currency!,
+                                    localeCode: Localizations.localeOf(
+                                      context,
+                                    ).languageCode,
+                                  ),
+                              ].join(' — '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() => _governorateId = value),
+                      validator: (value) => value == null
+                          ? l10n.errorAddressGovernorateRequired
+                          : null,
+                    ),
+                  ),
+                ),
                 TextFormField(
                   contextMenuBuilder: appTextSelectionToolbar,
                   controller: _label,
@@ -185,85 +252,96 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                 ),
                 ResponsiveField(
                   fullWidth: true,
-                  child: FormField<String>(
-                    validator: (_) =>
-                        (isRemote
-                            ? Validators.isE164Phone
-                            : Validators.isPhone)(
-                          _usePrimaryPhone ? _accountPhone : _otherPhone.text,
-                        )
-                        ? null
-                        : l10n.authPhoneInvalid,
-                    builder: (field) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          l10n.addressContactPhone,
-                          style: context.text.titleSmall,
-                        ),
-                        RadioGroup<bool>(
-                          groupValue: _usePrimaryPhone,
-                          onChanged: (value) {
-                            setState(() => _usePrimaryPhone = value!);
-                            field.didChange(null);
-                          },
-                          child: Column(
-                            children: [
-                              RadioListTile<bool>(
-                                key: const ValueKey('address-use-primary'),
-                                value: true,
-                                enabled: !_busy,
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(l10n.addressUsePrimaryPhone),
-                                subtitle: Text(
-                                  _accountPhone.isEmpty
-                                      ? l10n.accountNoPhone
-                                      : _accountPhone,
-                                  textDirection: _accountPhone.isEmpty
-                                      ? null
-                                      : TextDirection.ltr,
-                                ),
-                              ),
-                              RadioListTile<bool>(
-                                key: const ValueKey('address-use-other'),
-                                value: false,
-                                enabled: !_busy,
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(l10n.addressUseOtherPhone),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (!_usePrimaryPhone)
-                          TextFormField(
-                            contextMenuBuilder: appTextSelectionToolbar,
-                            key: const ValueKey('address-other-phone'),
-                            controller: _otherPhone,
-                            enabled: !_busy,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: const [PhoneInputFormatter()],
-                            textDirection: TextDirection.ltr,
-                            autofillHints: const [
-                              AutofillHints.telephoneNumber,
-                            ],
-                            decoration: InputDecoration(
-                              labelText: l10n.addressOtherPhone,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l10n.addressContactPhone,
+                        style: context.text.titleSmall,
+                      ),
+                      RadioGroup<bool>(
+                        groupValue: _usePrimaryPhone,
+                        onChanged: (value) {
+                          if (!_busy && value != null) {
+                            setState(() => _usePrimaryPhone = value);
+                          }
+                        },
+                        child: Column(
+                          children: [
+                            RadioListTile<bool>(
+                              key: const ValueKey('address-use-primary'),
+                              value: true,
+                              enabled: !_busy,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.addressUsePrimaryPhone),
+                              subtitle: _usePrimaryPhone
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: AppSpacing.radioSubtitleGap,
+                                      ),
+                                      child: FormField<String>(
+                                        validator: (_) =>
+                                            Validators.isE164Phone(
+                                              _accountPhone,
+                                            )
+                                            ? null
+                                            : l10n.authPhoneInvalid,
+                                        builder: (field) => Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (_accountPhone.isEmpty)
+                                              Text(l10n.accountNoPhone)
+                                            else
+                                              PhoneNumberText(
+                                                _accountPhone,
+                                                key: const ValueKey(
+                                                  'address-primary-phone',
+                                                ),
+                                              ),
+                                            if (field.hasError)
+                                              Text(
+                                                field.errorText!,
+                                                style: Theme.of(context)
+                                                    .inputDecorationTheme
+                                                    .errorStyle,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                             ),
-                            onChanged: (_) => field.didChange(null),
-                          ),
-                        if (field.hasError)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.xs),
-                            child: Text(
-                              field.errorText!,
-                              style: context.text.bodySmall?.copyWith(
-                                color: context.colors.danger,
-                              ),
+                            RadioListTile<bool>(
+                              key: const ValueKey('address-use-other'),
+                              value: false,
+                              enabled: !_busy,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.addressUseOtherPhone),
                             ),
+                          ],
+                        ),
+                      ),
+                      if (!_usePrimaryPhone)
+                        InternationalPhoneField(
+                          key: const ValueKey('address-other-phone-field'),
+                          inputKey: const ValueKey('address-other-phone'),
+                          controller: _otherPhone,
+                          initialCountry: _otherPhoneCountry,
+                          onCountryChanged: (country) =>
+                              _otherPhoneCountry = country,
+                          label: l10n.addressOtherPhone,
+                          enabled: !_busy,
+                          onSaved: (phone) => _contactPhone = phone,
+                        ),
+                      if (isRemote && !_usePrimaryPhone)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppSpacing.fieldHelperGap,
                           ),
-                        if (isRemote) Text(l10n.addressInternationalPhoneHint),
-                      ],
-                    ),
+                          child: Text(l10n.addressInternationalPhoneHint),
+                        ),
+                    ],
                   ),
                 ),
                 ResponsiveField(
@@ -281,7 +359,9 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                     label: l10n.actionSave,
                     icon: Icons.check,
                     isLoading: _busy,
-                    onPressed: _save,
+                    onPressed: governorates.isLoading || governorates.hasError
+                        ? null
+                        : _save,
                   ),
                 ),
               ],

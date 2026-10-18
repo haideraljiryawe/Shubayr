@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 
-import '../../data/media/catalog_image.dart';
-import 'catalog_image_view.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_layout.dart';
@@ -11,11 +9,7 @@ import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/theme/tokens/app_shadows.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../data/category.dart';
-import 'category_icon.dart';
-
-/// Temporary artwork stays in presentation, keyed by the stable category ID.
-String categoryImageUrl(String id) =>
-    'https://picsum.photos/seed/${Uri.encodeComponent('shubayr-category-$id')}/400/400';
+import 'category_image.dart';
 
 double _cardHeight(BuildContext context) {
   final style = context.text.titleMedium!;
@@ -34,10 +28,8 @@ class CategoryCard extends StatelessWidget {
     required this.category,
     required this.onTap,
     this.description,
-    this.legacyMockArtwork = false,
   });
   final Category category;
-  final bool legacyMockArtwork;
   final String? description;
   final VoidCallback onTap;
 
@@ -49,22 +41,6 @@ class CategoryCard extends StatelessWidget {
     );
     final subtitle = description?.trim();
     final hasDescription = subtitle != null && subtitle.isNotEmpty;
-    Widget fallback() => ColoredBox(
-      color: colors.surfaceAlt,
-      child: Center(
-        child: Icon(
-          !legacyMockArtwork
-              ? Icons.image_outlined
-              : categoryIconFor(
-                  null,
-                  categoryId: category.id,
-                  iconKey: category.iconKey,
-                ),
-          color: colors.textMuted,
-          size: AppLayout.categoryIconSize,
-        ),
-      ),
-    );
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: AppRadii.lgAll,
@@ -140,17 +116,12 @@ class CategoryCard extends StatelessWidget {
                         child: Stack(
                           children: [
                             Positioned.fill(
-                              child: CatalogImageView(
-                                key: ValueKey('cat-image-${category.id}'),
-                                image:
-                                    category.image ??
-                                    (!legacyMockArtwork
-                                        ? null
-                                        : UrlCatalogImage(
-                                            categoryImageUrl(category.id),
-                                          )),
-                                placeholder: fallback(),
-                                loading: fallback(),
+                              child: ColoredBox(
+                                color: colors.surfaceAlt,
+                                child: CategoryImage(
+                                  key: ValueKey('cat-image-${category.id}'),
+                                  category: category,
+                                ),
                               ),
                             ),
                           ],

@@ -4,6 +4,33 @@ import 'package:shubayr/app/router/role_guard.dart';
 import 'package:shubayr/features/auth/domain/user_role.dart';
 
 void main() {
+  test('FCM inbox is private and customer-only in both routing modes', () {
+    for (final customerOnly in [false, true]) {
+      for (final status in [SessionStatus.restoring, SessionStatus.signedOut]) {
+        expect(
+          RoleGuard.redirect(
+            status: status,
+            role: UserRole.customer,
+            location: AppRoutes.pushNotifications,
+            customerOnly: customerOnly,
+          ),
+          status == SessionStatus.restoring
+              ? AppRoutes.splash
+              : AppRoutes.signIn,
+        );
+      }
+      for (final role in UserRole.values) {
+        expect(
+          RoleGuard.allows(
+            role,
+            AppRoutes.pushNotifications,
+            customerOnly: customerOnly,
+          ),
+          role == UserRole.customer,
+        );
+      }
+    }
+  });
   group('UserRole.fromApi', () {
     test('maps only the current app contract roles', () {
       expect(UserRole.fromApi('customer'), UserRole.customer);

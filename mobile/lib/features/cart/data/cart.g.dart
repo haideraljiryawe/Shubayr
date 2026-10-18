@@ -19,6 +19,15 @@ Cart _$CartFromJson(Map<String, dynamic> json) => Cart(
   total: json['total'] as num? ?? 0,
   couponCode: json['coupon_code'] as String?,
   currency: json['currency'] as String?,
+  couponDiscount: json['coupon_discount'] as num?,
+  tierDiscount: json['tier_discount'] as num?,
+  discountSource: json['discount_source'] as String?,
+  appliedTier: json['applied_tier'] == null
+      ? null
+      : DiscountTier.fromJson(json['applied_tier'] as Map<String, dynamic>),
+  nextTier: json['next_tier'] == null
+      ? null
+      : DiscountTier.fromJson(json['next_tier'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$CartToJson(Cart instance) => <String, dynamic>{
@@ -26,6 +35,11 @@ Map<String, dynamic> _$CartToJson(Cart instance) => <String, dynamic>{
   'items': instance.items.map((e) => e.toJson()).toList(),
   'subtotal': instance.subtotal,
   'discount': instance.discount,
+  'coupon_discount': instance.couponDiscount,
+  'tier_discount': instance.tierDiscount,
+  'discount_source': instance.discountSource,
+  'applied_tier': instance.appliedTier?.toJson(),
+  'next_tier': instance.nextTier?.toJson(),
   'delivery_fee': instance.deliveryFee,
   'total': instance.total,
   'coupon_code': instance.couponCode,
@@ -63,3 +77,16 @@ Map<String, dynamic> _$CartItemToJson(CartItem instance) => <String, dynamic>{
   'current_price_version': instance.currentPriceVersion,
   'price_changed': instance.priceChanged,
 };
+
+DiscountTier _$DiscountTierFromJson(Map<String, dynamic> json) => DiscountTier(
+  minSubtotal: json['min_subtotal'] as num,
+  percent: json['percent'] as num,
+  amountRemaining: json['amount_remaining'] as num?,
+);
+
+Map<String, dynamic> _$DiscountTierToJson(DiscountTier instance) =>
+    <String, dynamic>{
+      'min_subtotal': instance.minSubtotal,
+      'percent': instance.percent,
+      'amount_remaining': instance.amountRemaining,
+    };

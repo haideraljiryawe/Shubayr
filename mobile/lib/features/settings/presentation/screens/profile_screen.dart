@@ -1,3 +1,4 @@
+import '../../../../core/utils/international_phone.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../app/shell/work_app_bar.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -13,7 +14,6 @@ import '../../../../core/theme/theme_context.dart';
 import '../../../../core/theme/tokens/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/user_avatar.dart';
-import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
@@ -200,7 +200,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Text(
                       _initialUser?.phone?.trim().isNotEmpty != true
                           ? l10n.accountNoPhone
-                          : Validators.foldDigits(_initialUser!.phone!),
+                          : InternationalPhone.display(_initialUser!.phone!),
                       textDirection: TextDirection.ltr,
                       style: context.text.bodyLarge,
                     ),

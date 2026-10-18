@@ -17,12 +17,15 @@ abstract final class AppRoutes {
   static const orderDetail = '/orders/:id';
   static const orderReview = '/orders/:id/review';
   static const orderReturn = '/orders/:id/return';
+  static const returnDetails = '/orders/returns/:returnId';
 
   // Role areas.
   static const delivery = '/delivery';
+  static const deliveryDetail = '/delivery/:id';
   static const monitor = '/monitor/orders';
   static const monitorDetail = '/monitor/orders/:id';
   static const notifications = '/notifications';
+  static const pushNotifications = '$home/notifications';
 
   // Product detail, pushed full-screen over the shell.
   static const product = '/products/:id';

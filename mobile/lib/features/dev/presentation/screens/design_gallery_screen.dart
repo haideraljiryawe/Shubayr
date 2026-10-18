@@ -220,7 +220,7 @@ class DesignGalleryScreen extends ConsumerWidget {
                       hintText: 'Hint text',
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.formFieldGap),
                   const TextField(
                     contextMenuBuilder: appTextSelectionToolbar,
                     decoration: InputDecoration(

@@ -155,7 +155,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField), ' +۴۴ (۲۰) ۷۱۲۳,۴۵۶۷ ');
     expect(
       tester.widget<TextFormField>(find.byType(TextFormField)).controller!.text,
-      '+442071234567',
+      '2071234567',
     );
     await tester.tap(find.byType(ElevatedButton));
     await tester.pumpAndSettle();
@@ -220,7 +220,7 @@ void main() {
         ).toString(),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField), '7701234567');
+      await tester.enterText(find.byType(TextFormField), '+9647701234567');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField), '123456');

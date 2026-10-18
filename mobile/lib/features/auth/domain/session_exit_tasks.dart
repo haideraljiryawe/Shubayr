@@ -10,9 +10,15 @@ class SessionExitTasks {
     return () => _tasks.remove(key);
   }
 
-  Future<void> run(int revision, {bool accountDeleted = false}) async {
+  Future<void> run(
+    int revision, {
+    bool accountDeleted = false,
+    bool credentialsRejected = false,
+  }) async {
     for (final task in _tasks.values.toList()) {
-      await task(revision, accountDeleted);
+      // Both cases skip authenticated cleanup, without claiming that rejection
+      // specifically means deletion.
+      await task(revision, accountDeleted || credentialsRejected);
     }
   }
 }

@@ -3,7 +3,7 @@ import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/utils/display_date.dart';
+import '../widgets/delivery_collection_summary.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failure.dart';
@@ -153,13 +153,10 @@ class _DeliveriesList extends ConsumerWidget {
                                 if (feedbackContext.mounted) {
                                   showAppSnackBarMessage(
                                     feedbackContext,
-                                    message: failure.statusCode == 409
-                                        ? feedbackContext
-                                              .l10n
-                                              .deliveryStatusConflict
-                                        : failure.localizedMessage(
-                                            feedbackContext.l10n,
-                                          ),
+                                    message: deliveryErrorLabel(
+                                      feedbackContext.l10n,
+                                      failure,
+                                    ),
                                   );
                                 }
                               },
@@ -308,40 +305,34 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
           Text(
             delivery.orderId,
             textDirection: TextDirection.ltr,
-            style: context.text.titleSmall,
+            style: context.text.bodySmall,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             '${l10n.deliveryFee}: $fee',
             style: context.text.titleSmall?.copyWith(color: colors.primaryDark),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            '${l10n.deliveryAmountDue}: ${formatMoney(delivery.amountDue, currencyCode: 'IQD', localeCode: Localizations.localeOf(context).languageCode)}',
+            '${l10n.deliveryOrderTotal}: ${formatMoney(delivery.amountDue, currencyCode: 'IQD', localeCode: Localizations.localeOf(context).languageCode)}',
             style: context.text.titleSmall,
           ),
-          if (delivery.dispatchedAt != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '${l10n.deliveryDispatchedAt}: ${DisplayDate.localDateTime(delivery.dispatchedAt!)}',
-              style: context.text.bodySmall,
-            ),
-          ],
-          if (delivery.failureReason != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(delivery.failureReason!),
-          ],
-          if (delivery.retryCount > 0) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text('${l10n.deliveryRetryCount}: ${delivery.retryCount}'),
-          ],
-          if (delivery.deliveredAt != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '${l10n.deliveryDeliveredAt}: ${DisplayDate.localDateTime(delivery.deliveredAt!)}',
-              style: context.text.bodySmall,
-            ),
-          ],
+          Text(l10n.deliveryTotalNotBalance, style: context.text.bodySmall),
+          const SizedBox(height: AppSpacing.sm),
+          DeliveryCollectionSummary(
+            collection: delivery.collection,
+            compact: true,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: l10n.deliveryViewDetails,
+            onPressed: widget.enabled
+                ? () => context.push(
+                    '${AppRoutes.delivery}/${Uri.encodeComponent(delivery.id)}',
+                    extra: true,
+                  )
+                : null,
+          ),
           if (delivery.nextStatuses.isNotEmpty &&
               delivery.orderVersion != null &&
               delivery.orderVersion! >= 1) ...[

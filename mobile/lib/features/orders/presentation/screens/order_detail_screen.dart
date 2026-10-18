@@ -1,3 +1,4 @@
+import 'return_detail_screen.dart';
 import '../../../../core/utils/quantity.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -148,6 +149,10 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _Header(order: o),
+                      if (o.deliveryGovernorate != null)
+                        Text(
+                          '${l10n.pricingDeliveryGovernorate}: ${Localizations.localeOf(context).languageCode == 'ar' ? o.deliveryGovernorate!.nameAr ?? o.deliveryGovernorate!.nameEn ?? o.deliveryGovernorate!.code : o.deliveryGovernorate!.nameEn ?? o.deliveryGovernorate!.nameAr ?? o.deliveryGovernorate!.code}',
+                        ),
                       const SizedBox(height: AppSpacing.lg),
                       _SectionTitle(l10n.orderTrackingTitle),
                       _TrackingCard(
@@ -220,6 +225,21 @@ class _OrderDetailScreenState extends ConsumerState<_OrderDetailView> {
                                   ),
                                 ),
                         ),
+                      ],
+                      if (o.returns.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        _SectionTitle(l10n.returnHistoryTitle),
+                        for (final request in o.returns)
+                          ListTile(
+                            title: Text(request.documentNumber),
+                            subtitle: Text(
+                              returnStatusLabel(l10n, request.status),
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => context.push(
+                              '/orders/returns/${Uri.encodeComponent(request.id)}',
+                            ),
+                          ),
                       ],
                       OrderServerDetails(order: o),
                       CustomerOrderRequests(order: o),
@@ -481,6 +501,8 @@ class _OrderItemTile extends ConsumerWidget {
                     ),
                   ),
                 ],
+                if (item.netPaidTotal != null)
+                  Text('${l10n.pricingNetPaid}: ${money(item.netPaidTotal!)}'),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   l10n.orderLineQuantity(
@@ -553,6 +575,27 @@ class _Summary extends StatelessWidget {
             label: l10n.checkoutDelivery,
             value: money(order.deliveryFee),
           ),
+          if (order.adjustedDeliveryFee != null &&
+              order.originalDeliveryFee != null)
+            _SummaryRow(
+              label: l10n.pricingOriginalDelivery,
+              value: money(order.originalDeliveryFee!),
+            ),
+          if ((order.couponDiscount ?? 0) > 0)
+            _SummaryRow(
+              label: l10n.pricingCouponDiscount,
+              value: money(order.couponDiscount!),
+            ),
+          if ((order.tierDiscount ?? 0) > 0)
+            _SummaryRow(
+              label: l10n.pricingTierDiscount,
+              value: money(order.tierDiscount!),
+            ),
+          if ((order.loyaltyRedemptionAmount ?? 0) > 0)
+            _SummaryRow(
+              label: l10n.pricingLoyaltyDiscount,
+              value: money(order.loyaltyRedemptionAmount!),
+            ),
           if (order.discount > 0) ...[
             const SizedBox(height: AppSpacing.sm),
             _SummaryRow(

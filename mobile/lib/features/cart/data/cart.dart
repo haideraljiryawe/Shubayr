@@ -18,12 +18,27 @@ class Cart {
     this.total = 0,
     this.couponCode,
     this.currency,
+    this.couponDiscount,
+    this.tierDiscount,
+    this.discountSource,
+    this.appliedTier,
+    this.nextTier,
   });
 
   final String? id;
   final List<CartItem> items;
   final num subtotal;
   final num discount;
+  @JsonKey(name: 'coupon_discount')
+  final num? couponDiscount;
+  @JsonKey(name: 'tier_discount')
+  final num? tierDiscount;
+  @JsonKey(name: 'discount_source')
+  final String? discountSource;
+  @JsonKey(name: 'applied_tier')
+  final DiscountTier? appliedTier;
+  @JsonKey(name: 'next_tier')
+  final DiscountTier? nextTier;
   @JsonKey(name: 'delivery_fee')
   final num deliveryFee;
   final num total;
@@ -151,4 +166,18 @@ void _requireCurrency(Object? value) {
   if (value is! String || !RegExp(r'^[A-Z]{3}$').hasMatch(value)) {
     throw const AppFailure(FailureKind.server);
   }
+}
+
+@JsonSerializable(fieldRename: FieldRename.snake)
+class DiscountTier {
+  const DiscountTier({
+    required this.minSubtotal,
+    required this.percent,
+    this.amountRemaining,
+  });
+  final num minSubtotal, percent;
+  final num? amountRemaining;
+  factory DiscountTier.fromJson(Map<String, dynamic> json) =>
+      _$DiscountTierFromJson(json);
+  Map<String, dynamic> toJson() => _$DiscountTierToJson(this);
 }

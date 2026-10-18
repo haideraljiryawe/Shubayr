@@ -1,3 +1,4 @@
+import 'return_detail_screen.dart';
 import '../../../../core/theme/components/input_theme.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
@@ -150,7 +151,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                                 _comment.clear();
                               }),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.formFieldGap),
                       Text(l10n.reviewRating, style: context.text.titleSmall),
                       Wrap(
                         children: [
@@ -170,7 +171,7 @@ class _ReviewOrderScreenState extends ConsumerState<_ReviewOrderForm> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.formFieldGap),
                       TextField(
                         contextMenuBuilder: appTextSelectionToolbar,
                         controller: _comment,
@@ -231,6 +232,7 @@ class _ReturnOrderForm extends ConsumerStatefulWidget {
 class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
   final _reason = TextEditingController();
   final Map<String, num> _quantities = {};
+  final Map<String, String> _reasonCodes = {};
   bool _busy = false;
   ReturnRequest? _submitted;
   AppFailure? _error;
@@ -270,7 +272,13 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
 
   Future<void> _submit(ReturnEligibility eligibility) async {
     if (_busy || !_quantities.values.any((n) => n > 0)) return;
-    if (_reason.text.trim().isEmpty || _reason.text.trim().length > 1000) {
+    if (_reason.text.trim().isEmpty ||
+        _reason.text.trim().length > 1000 ||
+        eligibility.remaining.keys.any(
+          (id) =>
+              _quantity(id, eligibility) > 0 &&
+              !returnReasonCodes.contains(_reasonCodes[id]),
+        )) {
       setState(() => _error = const AppFailure(FailureKind.validation));
       return;
     }
@@ -289,6 +297,7 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
                   ReturnRequestItem(
                     orderItemId: id,
                     quantity: _quantity(id, eligibility),
+                    reasonCode: _reasonCodes[id],
                   ),
             ],
           );
@@ -311,204 +320,316 @@ class _ReturnOrderScreenState extends ConsumerState<_ReturnOrderForm> {
       child: Scaffold(
         appBar: AppBar(title: Text(l10n.returnOrderTitle)),
         body: ResponsiveContent.page(
-          child: _AfterSalesOrderView(
-            orderId: widget.orderId,
-            builder: (order, products) => AsyncValueView<ReturnEligibility>(
-              value: ref.watch(returnEligibilityProvider(widget.orderId)),
-              loading: const SkeletonCardList(),
-              onRetry: () =>
-                  ref.invalidate(returnEligibilityProvider(widget.orderId)),
-              builder: (context, eligibility) {
-                final submitted = _submitted;
-                if (submitted != null) {
-                  return ListView(
+          child: AsyncValueView(
+            value: ref.watch(pendingReturnProvider(widget.orderId)),
+            loading: const SkeletonCardList(),
+            onRetry: () =>
+                ref.invalidate(pendingReturnProvider(widget.orderId)),
+            builder: (context, pending) => pending != null
+                ? ListView(
                     padding: AppLayout.pageInsets(context),
                     children: [
-                      _SuccessMessage(l10n.returnSubmitted),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(l10n.returnReference(submitted.id)),
-                      const SizedBox(height: AppSpacing.md),
-                      for (final line in submitted.items)
-                        ListTile(
-                          title: Text(
-                            _itemLabel(
-                              context,
-                              order.items.firstWhere(
-                                (i) => i.id == line.orderItemId,
-                              ),
-                              products,
-                            ),
-                          ),
-                          subtitle: Text(
-                            l10n.orderLineQuantity(
-                              '${formatQuantity(line.quantity)} ${line.baseUnit ?? order.items.firstWhere((item) => item.id == line.orderItemId).baseUnit ?? ''}'
-                                  .trim(),
-                            ),
-                          ),
-                        ),
-                      if (submitted.reason != null) Text(submitted.reason!),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(l10n.returnRequestOnly),
+                      Text(l10n.returnPendingNotice),
+                      if (_error != null) Text(_error!.localizedMessage(l10n)),
+                      AppButton(
+                        label: l10n.returnRetryPending,
+                        isLoading: _busy,
+                        onPressed: _busy
+                            ? null
+                            : () async {
+                                setState(() {
+                                  _busy = true;
+                                  _error = null;
+                                });
+                                try {
+                                  final result = await ref
+                                      .read(
+                                        returnEligibilityProvider(
+                                          widget.orderId,
+                                        ).notifier,
+                                      )
+                                      .retryPending();
+                                  if (mounted && result != null) {
+                                    setState(() => _submitted = result);
+                                  }
+                                } catch (error, stack) {
+                                  if (mounted) {
+                                    setState(
+                                      () =>
+                                          _error = actionFailure(error, stack),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) setState(() => _busy = false);
+                                }
+                              },
+                      ),
                     ],
-                  );
-                }
-                final available = order.items
-                    .where((i) => (eligibility.remaining[i.id] ?? 0) > 0)
-                    .toList();
-                return ListView(
-                  padding: AppLayout.formScrollInsets(context),
-                  children: [
-                    Text(order.orderNumber, style: context.text.titleMedium),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(l10n.returnOrderHint),
-                    const SizedBox(height: AppSpacing.lg),
-                    if (available.isEmpty) Text(l10n.returnAllRequested),
-                    for (final item in available) ...[
-                      AppCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _itemLabel(context, item, products),
-                              style: context.text.titleSmall,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              l10n.returnAvailable(
-                                '${formatQuantity(eligibility.remaining[item.id]!)} ${item.baseUnit ?? ''}'
-                                    .trim(),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  tooltip: l10n.returnDecrease,
-                                  onPressed:
-                                      _busy ||
-                                          (_quantity(item.id, eligibility)) == 0
-                                      ? null
-                                      : () => setState(
-                                          () => _quantities[item.id] =
-                                              subtractQuantity(
-                                                _quantity(item.id, eligibility),
-                                                1,
-                                              ).clamp(
-                                                0,
-                                                eligibility.remaining[item.id]!,
-                                              ),
-                                        ),
-                                  icon: const Icon(Icons.remove),
-                                ),
-                                InkWell(
-                                  onTap: _busy
-                                      ? null
-                                      : () async {
-                                          final identity = ref.read(
-                                            ordersIdentityProvider,
-                                          );
-                                          final quantity = await editQuantity(
-                                            context,
-                                            quantity: _quantity(
-                                              item.id,
-                                              eligibility,
-                                            ),
-                                            min: 0,
-                                            baseUnit: item.baseUnit,
-                                            dialogWrapper:
-                                                (dialogContext, dialog) =>
-                                                    _ownedQuantityDialog(
-                                                      dialogContext,
-                                                      identity,
-                                                      dialog,
-                                                    ),
-                                            wholeUnitsOnly:
-                                                item.wholeUnitsOnly!,
-                                            max:
-                                                eligibility.remaining[item.id]!,
-                                          );
-                                          if (mounted &&
-                                              quantity != null &&
-                                              ref.read(
-                                                    ordersIdentityProvider,
-                                                  ) ==
-                                                  identity) {
-                                            setState(
-                                              () => _quantities[item.id] =
-                                                  quantity,
-                                            );
-                                          }
-                                        },
-                                  child: Text(
-                                    formatQuantity(
-                                      _quantity(item.id, eligibility),
+                  )
+                : _AfterSalesOrderView(
+                    orderId: widget.orderId,
+                    builder: (order, products) => AsyncValueView<ReturnEligibility>(
+                      value: ref.watch(
+                        returnEligibilityProvider(widget.orderId),
+                      ),
+                      loading: const SkeletonCardList(),
+                      onRetry: () => ref.invalidate(
+                        returnEligibilityProvider(widget.orderId),
+                      ),
+                      builder: (context, eligibility) {
+                        final submitted = _submitted;
+                        if (submitted != null) {
+                          return ListView(
+                            padding: AppLayout.pageInsets(context),
+                            children: [
+                              _SuccessMessage(l10n.returnSubmitted),
+                              const SizedBox(height: AppSpacing.md),
+                              Text(l10n.returnReference(submitted.id)),
+                              const SizedBox(height: AppSpacing.md),
+                              for (final line in submitted.items)
+                                ListTile(
+                                  title: Text(
+                                    _itemLabel(
+                                      context,
+                                      order.items.firstWhere(
+                                        (i) => i.id == line.orderItemId,
+                                      ),
+                                      products,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    l10n.orderLineQuantity(
+                                      '${formatQuantity(line.quantity)} ${line.baseUnit ?? order.items.firstWhere((item) => item.id == line.orderItemId).baseUnit ?? ''}'
+                                          .trim(),
                                     ),
                                   ),
                                 ),
-                                IconButton(
-                                  tooltip: l10n.returnIncrease,
-                                  onPressed:
-                                      _busy ||
-                                          (_quantity(item.id, eligibility)) >=
-                                              eligibility.remaining[item.id]!
-                                      ? null
-                                      : () => setState(
-                                          () => _quantities[item.id] =
-                                              addQuantity(
-                                                _quantity(item.id, eligibility),
-                                                1,
-                                              ).clamp(
-                                                0,
-                                                eligibility.remaining[item.id]!,
-                                              ),
+                              if (submitted.reason != null)
+                                Text(submitted.reason!),
+                              const SizedBox(height: AppSpacing.lg),
+                              Text(l10n.returnRequestOnly),
+                              ReturnDetails(request: submitted),
+                            ],
+                          );
+                        }
+                        final available = order.items
+                            .where(
+                              (i) => (eligibility.remaining[i.id] ?? 0) > 0,
+                            )
+                            .toList();
+                        return ListView(
+                          padding: AppLayout.formScrollInsets(context),
+                          children: [
+                            Text(
+                              order.orderNumber,
+                              style: context.text.titleMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(l10n.returnOrderHint),
+                            const SizedBox(height: AppSpacing.lg),
+                            if (available.isEmpty)
+                              Text(l10n.returnAllRequested),
+                            for (final item in available) ...[
+                              AppCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _itemLabel(context, item, products),
+                                      style: context.text.titleSmall,
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Text(
+                                      l10n.returnAvailable(
+                                        '${formatQuantity(eligibility.remaining[item.id]!)} ${item.baseUnit ?? ''}'
+                                            .trim(),
+                                      ),
+                                    ),
+                                    DropdownButtonFormField<String>(
+                                      key: ValueKey('return-reason-${item.id}'),
+                                      initialValue: _reasonCodes[item.id],
+                                      isExpanded: true,
+                                      decoration: InputDecoration(
+                                        labelText: l10n.returnReasonCode,
+                                      ),
+                                      items: [
+                                        for (final code in returnReasonCodes)
+                                          DropdownMenuItem(
+                                            value: code,
+                                            child: Text(
+                                              returnReasonLabel(l10n, code),
+                                            ),
+                                          ),
+                                      ],
+                                      onChanged: _busy
+                                          ? null
+                                          : (value) => setState(() {
+                                              if (value != null) {
+                                                _reasonCodes[item.id] = value;
+                                              }
+                                            }),
+                                    ),
+                                    const SizedBox(
+                                      height: AppSpacing.formFieldGap,
+                                    ),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          tooltip: l10n.returnDecrease,
+                                          onPressed:
+                                              _busy ||
+                                                  (_quantity(
+                                                        item.id,
+                                                        eligibility,
+                                                      )) ==
+                                                      0
+                                              ? null
+                                              : () => setState(
+                                                  () => _quantities[item.id] =
+                                                      subtractQuantity(
+                                                        _quantity(
+                                                          item.id,
+                                                          eligibility,
+                                                        ),
+                                                        1,
+                                                      ).clamp(
+                                                        0,
+                                                        eligibility
+                                                            .remaining[item
+                                                            .id]!,
+                                                      ),
+                                                ),
+                                          icon: const Icon(Icons.remove),
                                         ),
-                                  icon: const Icon(Icons.add),
+                                        InkWell(
+                                          onTap: _busy
+                                              ? null
+                                              : () async {
+                                                  final identity = ref.read(
+                                                    ordersIdentityProvider,
+                                                  );
+                                                  final quantity =
+                                                      await editQuantity(
+                                                        context,
+                                                        quantity: _quantity(
+                                                          item.id,
+                                                          eligibility,
+                                                        ),
+                                                        min: 0,
+                                                        baseUnit: item.baseUnit,
+                                                        dialogWrapper:
+                                                            (
+                                                              dialogContext,
+                                                              dialog,
+                                                            ) =>
+                                                                _ownedQuantityDialog(
+                                                                  dialogContext,
+                                                                  identity,
+                                                                  dialog,
+                                                                ),
+                                                        wholeUnitsOnly: item
+                                                            .wholeUnitsOnly!,
+                                                        max:
+                                                            eligibility
+                                                                .remaining[item
+                                                                .id]!,
+                                                      );
+                                                  if (mounted &&
+                                                      quantity != null &&
+                                                      ref.read(
+                                                            ordersIdentityProvider,
+                                                          ) ==
+                                                          identity) {
+                                                    setState(
+                                                      () =>
+                                                          _quantities[item.id] =
+                                                              quantity,
+                                                    );
+                                                  }
+                                                },
+                                          child: Text(
+                                            formatQuantity(
+                                              _quantity(item.id, eligibility),
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: l10n.returnIncrease,
+                                          onPressed:
+                                              _busy ||
+                                                  (_quantity(
+                                                        item.id,
+                                                        eligibility,
+                                                      )) >=
+                                                      eligibility.remaining[item
+                                                          .id]!
+                                              ? null
+                                              : () => setState(
+                                                  () => _quantities[item.id] =
+                                                      addQuantity(
+                                                        _quantity(
+                                                          item.id,
+                                                          eligibility,
+                                                        ),
+                                                        1,
+                                                      ).clamp(
+                                                        0,
+                                                        eligibility
+                                                            .remaining[item
+                                                            .id]!,
+                                                      ),
+                                                ),
+                                          icon: const Icon(Icons.add),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                            ],
+                            if (available.isNotEmpty) ...[
+                              TextField(
+                                contextMenuBuilder: appTextSelectionToolbar,
+                                controller: _reason,
+                                maxLength: 1000,
+                                enabled: !_busy,
+                                minLines: 3,
+                                maxLines: 5,
+                                decoration: InputDecoration(
+                                  labelText: l10n.returnReason,
+                                  contentPadding:
+                                      InputTheme.spaciousContentPadding,
+                                ),
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: AppSpacing.md),
+                                Text(
+                                  _error!.localizedMessage(l10n),
+                                  style: context.text.bodyMedium?.copyWith(
+                                    color: context.colors.danger,
+                                  ),
                                 ),
                               ],
-                            ),
+                              const SizedBox(height: AppSpacing.lg),
+                              AppButton(
+                                label: l10n.returnSubmit,
+                                isLoading: _busy,
+                                onPressed:
+                                    !_busy &&
+                                        available.any(
+                                          (i) =>
+                                              _quantity(i.id, eligibility) > 0,
+                                        )
+                                    ? () => _submit(eligibility)
+                                    : null,
+                              ),
+                            ],
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                    if (available.isNotEmpty) ...[
-                      TextField(
-                        contextMenuBuilder: appTextSelectionToolbar,
-                        controller: _reason,
-                        maxLength: 1000,
-                        enabled: !_busy,
-                        minLines: 3,
-                        maxLines: 5,
-                        decoration: InputDecoration(
-                          labelText: l10n.returnReason,
-                          contentPadding: InputTheme.spaciousContentPadding,
-                        ),
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          _error!.localizedMessage(l10n),
-                          style: context.text.bodyMedium?.copyWith(
-                            color: context.colors.danger,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.lg),
-                      AppButton(
-                        label: l10n.returnSubmit,
-                        isLoading: _busy,
-                        onPressed:
-                            !_busy &&
-                                available.any(
-                                  (i) => _quantity(i.id, eligibility) > 0,
-                                )
-                            ? () => _submit(eligibility)
-                            : null,
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ),
       ),

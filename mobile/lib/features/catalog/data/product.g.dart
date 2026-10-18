@@ -10,6 +10,7 @@ ProductVariant _$ProductVariantFromJson(Map<String, dynamic> json) =>
     ProductVariant(
       id: json['id'] as String,
       sku: json['sku'] as String? ?? '',
+      barcode: json['barcode'] as String?,
       attributes: json['attributes'] as Map<String, dynamic>? ?? const {},
       priceDelta: json['price_delta'] as num? ?? 0,
       effectivePrice: json['effective_price'] as num? ?? 0,
@@ -30,6 +31,7 @@ Map<String, dynamic> _$ProductVariantToJson(ProductVariant instance) =>
     <String, dynamic>{
       'id': instance.id,
       'sku': instance.sku,
+      'barcode': instance.barcode,
       'attributes': instance.attributes,
       'price_delta': instance.priceDelta,
       'effective_price': instance.effectivePrice,
@@ -55,6 +57,8 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
   nameEn: json['name_en'] as String,
   nameAr: json['name_ar'] as String,
   description: json['description'] as String? ?? '',
+  descriptionAr: json['description_ar'] as String?,
+  descriptionEn: json['description_en'] as String?,
   price: json['price'] as num? ?? 0,
   currency: json['currency'] as String?,
   discountType: json['discount_type'] as String?,
@@ -96,6 +100,8 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'name_en': instance.nameEn,
   'name_ar': instance.nameAr,
   'description': instance.description,
+  'description_ar': instance.descriptionAr,
+  'description_en': instance.descriptionEn,
   'price': instance.price,
   'currency': ?instance.currency,
   'discount_type': instance.discountType,

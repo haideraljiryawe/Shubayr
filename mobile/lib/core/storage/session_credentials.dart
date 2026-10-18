@@ -40,6 +40,21 @@ class SessionCredentials {
 
   Future<StoredCredentials> read() => _serialize(_read);
 
+  Future<AccountScope?> readAccountScope() =>
+      _serialize(_store.readAccountScope);
+
+  /// Cleanup scope only; never an authenticated identity or a second token cache.
+  Future<bool> rememberAccount(int owner, AccountScope scope) =>
+      _serialize(() async {
+        if (!owns(owner)) return false;
+        await _store.saveAccountScope(scope);
+        if (!owns(owner)) {
+          await _store.saveAccountScope(null);
+          return false;
+        }
+        return true;
+      });
+
   Future<void> get settled => _operations;
 
   Future<bool> save(
@@ -54,6 +69,9 @@ class SessionCredentials {
       if (!owns(owner) || current != expected) return false;
     }
     try {
+      // A newly authenticated session cannot inherit an old account's cleanup
+      // metadata. Refresh rotation (expected != null) preserves the scope.
+      if (expected == null) await _store.saveAccountScope(null);
       await _store.save(accessToken: accessToken, refreshToken: refreshToken);
     } catch (_) {
       // A platform write can fail between the two keys. Clear the incomplete

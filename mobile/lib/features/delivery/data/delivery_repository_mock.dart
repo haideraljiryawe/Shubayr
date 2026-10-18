@@ -2,6 +2,7 @@ import '../domain/delivery_collection_input.dart';
 import '../../../core/error/failure.dart';
 import '../domain/delivery_repository.dart';
 import 'delivery.dart';
+import 'delivery_detail.dart';
 
 /// Test-only deliveries with version checks and repeat-safe collection writes.
 class DeliveryRepositoryMock implements DeliveryRepository {
@@ -34,6 +35,11 @@ class DeliveryRepositoryMock implements DeliveryRepository {
   final Duration delay;
   late final List<Delivery> _items;
   final _collections = <String, ({Object payload, Delivery result})>{};
+
+  // Tests of details must supply their explicit response fixture.
+  @override
+  Future<DeliveryDetail> fetchDetail(String id) async =>
+      throw const AppFailure(FailureKind.notFound);
 
   @override
   Future<DeliveryPage> fetchAssigned({

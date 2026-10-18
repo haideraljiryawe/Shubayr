@@ -12,6 +12,7 @@ class Address {
     this.userId,
     this.label = '',
     required this.city,
+    this.governorateId,
     this.area = '',
     this.street = '',
     this.details,
@@ -26,6 +27,8 @@ class Address {
   final String? userId;
   final String label;
   final String city;
+  @JsonKey(name: 'governorate_id', includeIfNull: false)
+  final String? governorateId;
   final String area;
   final String street;
   final String? details;
@@ -43,6 +46,7 @@ class Address {
   AddressInput toInput({bool? isDefault}) => AddressInput(
     label: label,
     city: city,
+    governorateId: governorateId,
     area: area,
     street: street,
     details: details,
@@ -57,6 +61,7 @@ class Address {
     userId: userId,
     label: label,
     city: city,
+    governorateId: governorateId,
     area: area,
     street: street,
     details: details,
@@ -78,6 +83,7 @@ class AddressInput {
   const AddressInput({
     this.label = '',
     required this.city,
+    this.governorateId,
     this.area = '',
     this.street = '',
     this.details,
@@ -89,6 +95,8 @@ class AddressInput {
 
   final String label;
   final String city;
+  @JsonKey(name: 'governorate_id', includeIfNull: false)
+  final String? governorateId;
   final String area;
   final String street;
   final String? details;

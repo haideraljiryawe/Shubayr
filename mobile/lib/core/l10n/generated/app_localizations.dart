@@ -2258,846 +2258,6 @@ abstract class AppLocalizations {
   /// **'Main Categories'**
   String get mainCategoriesTitle;
 
-  /// No description provided for @categoryGroupElectronics.
-  ///
-  /// In en, this message translates to:
-  /// **'Electronics'**
-  String get categoryGroupElectronics;
-
-  /// No description provided for @categoryIconElectronicsDevices.
-  ///
-  /// In en, this message translates to:
-  /// **'Devices'**
-  String get categoryIconElectronicsDevices;
-
-  /// No description provided for @categoryIconElectronicsCable.
-  ///
-  /// In en, this message translates to:
-  /// **'Cables'**
-  String get categoryIconElectronicsCable;
-
-  /// No description provided for @categoryIconElectronicsRouter.
-  ///
-  /// In en, this message translates to:
-  /// **'Routers'**
-  String get categoryIconElectronicsRouter;
-
-  /// No description provided for @categoryIconElectronicsTv.
-  ///
-  /// In en, this message translates to:
-  /// **'Televisions'**
-  String get categoryIconElectronicsTv;
-
-  /// No description provided for @categoryIconElectronicsPower.
-  ///
-  /// In en, this message translates to:
-  /// **'Electrical supplies'**
-  String get categoryIconElectronicsPower;
-
-  /// No description provided for @categoryIconElectronicsBattery.
-  ///
-  /// In en, this message translates to:
-  /// **'Batteries'**
-  String get categoryIconElectronicsBattery;
-
-  /// No description provided for @categoryGroupPhones.
-  ///
-  /// In en, this message translates to:
-  /// **'Phones'**
-  String get categoryGroupPhones;
-
-  /// No description provided for @categoryIconMobilePhone.
-  ///
-  /// In en, this message translates to:
-  /// **'Phones'**
-  String get categoryIconMobilePhone;
-
-  /// No description provided for @categoryIconMobileTablet.
-  ///
-  /// In en, this message translates to:
-  /// **'Tablets'**
-  String get categoryIconMobileTablet;
-
-  /// No description provided for @categoryIconMobileCharging.
-  ///
-  /// In en, this message translates to:
-  /// **'Chargers'**
-  String get categoryIconMobileCharging;
-
-  /// No description provided for @categoryIconMobileWatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Smart watches'**
-  String get categoryIconMobileWatch;
-
-  /// No description provided for @categoryGroupComputers.
-  ///
-  /// In en, this message translates to:
-  /// **'Computers'**
-  String get categoryGroupComputers;
-
-  /// No description provided for @categoryIconComputerLaptop.
-  ///
-  /// In en, this message translates to:
-  /// **'Laptops'**
-  String get categoryIconComputerLaptop;
-
-  /// No description provided for @categoryIconComputerDesktop.
-  ///
-  /// In en, this message translates to:
-  /// **'Desktop computers'**
-  String get categoryIconComputerDesktop;
-
-  /// No description provided for @categoryIconComputerKeyboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Keyboards'**
-  String get categoryIconComputerKeyboard;
-
-  /// No description provided for @categoryIconComputerMouse.
-  ///
-  /// In en, this message translates to:
-  /// **'Mice'**
-  String get categoryIconComputerMouse;
-
-  /// No description provided for @categoryIconComputerPrinter.
-  ///
-  /// In en, this message translates to:
-  /// **'Printers'**
-  String get categoryIconComputerPrinter;
-
-  /// No description provided for @categoryIconComputerStorage.
-  ///
-  /// In en, this message translates to:
-  /// **'Storage'**
-  String get categoryIconComputerStorage;
-
-  /// No description provided for @categoryGroupAudio.
-  ///
-  /// In en, this message translates to:
-  /// **'Audio'**
-  String get categoryGroupAudio;
-
-  /// No description provided for @categoryIconAudioHeadphones.
-  ///
-  /// In en, this message translates to:
-  /// **'Headphones'**
-  String get categoryIconAudioHeadphones;
-
-  /// No description provided for @categoryIconAudioEarbuds.
-  ///
-  /// In en, this message translates to:
-  /// **'Earbuds'**
-  String get categoryIconAudioEarbuds;
-
-  /// No description provided for @categoryIconAudioSpeaker.
-  ///
-  /// In en, this message translates to:
-  /// **'Speakers'**
-  String get categoryIconAudioSpeaker;
-
-  /// No description provided for @categoryIconAudioMic.
-  ///
-  /// In en, this message translates to:
-  /// **'Microphones'**
-  String get categoryIconAudioMic;
-
-  /// No description provided for @categoryIconAudioRadio.
-  ///
-  /// In en, this message translates to:
-  /// **'Radios'**
-  String get categoryIconAudioRadio;
-
-  /// No description provided for @categoryGroupCameras.
-  ///
-  /// In en, this message translates to:
-  /// **'Cameras'**
-  String get categoryGroupCameras;
-
-  /// No description provided for @categoryIconCameraPhoto.
-  ///
-  /// In en, this message translates to:
-  /// **'Cameras'**
-  String get categoryIconCameraPhoto;
-
-  /// No description provided for @categoryIconCameraVideo.
-  ///
-  /// In en, this message translates to:
-  /// **'Video cameras'**
-  String get categoryIconCameraVideo;
-
-  /// No description provided for @categoryIconCameraLens.
-  ///
-  /// In en, this message translates to:
-  /// **'Lenses'**
-  String get categoryIconCameraLens;
-
-  /// No description provided for @categoryIconCameraSecurity.
-  ///
-  /// In en, this message translates to:
-  /// **'Security cameras'**
-  String get categoryIconCameraSecurity;
-
-  /// No description provided for @categoryGroupGaming.
-  ///
-  /// In en, this message translates to:
-  /// **'Gaming'**
-  String get categoryGroupGaming;
-
-  /// No description provided for @categoryIconGamingConsole.
-  ///
-  /// In en, this message translates to:
-  /// **'Game consoles'**
-  String get categoryIconGamingConsole;
-
-  /// No description provided for @categoryIconGamingController.
-  ///
-  /// In en, this message translates to:
-  /// **'Controllers'**
-  String get categoryIconGamingController;
-
-  /// No description provided for @categoryGroupFashion.
-  ///
-  /// In en, this message translates to:
-  /// **'Fashion'**
-  String get categoryGroupFashion;
-
-  /// No description provided for @categoryIconFashionClothing.
-  ///
-  /// In en, this message translates to:
-  /// **'Clothing'**
-  String get categoryIconFashionClothing;
-
-  /// No description provided for @categoryIconFashionMen.
-  ///
-  /// In en, this message translates to:
-  /// **'Menswear'**
-  String get categoryIconFashionMen;
-
-  /// No description provided for @categoryIconFashionWomen.
-  ///
-  /// In en, this message translates to:
-  /// **'Womenswear'**
-  String get categoryIconFashionWomen;
-
-  /// No description provided for @categoryIconFashionShoes.
-  ///
-  /// In en, this message translates to:
-  /// **'Footwear'**
-  String get categoryIconFashionShoes;
-
-  /// No description provided for @categoryIconFashionUniform.
-  ///
-  /// In en, this message translates to:
-  /// **'Workwear'**
-  String get categoryIconFashionUniform;
-
-  /// No description provided for @categoryIconFashionLaundry.
-  ///
-  /// In en, this message translates to:
-  /// **'Clothing care'**
-  String get categoryIconFashionLaundry;
-
-  /// No description provided for @categoryGroupAccessories.
-  ///
-  /// In en, this message translates to:
-  /// **'Bags & accessories'**
-  String get categoryGroupAccessories;
-
-  /// No description provided for @categoryIconAccessoriesWatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Watches'**
-  String get categoryIconAccessoriesWatch;
-
-  /// No description provided for @categoryIconAccessoriesBag.
-  ///
-  /// In en, this message translates to:
-  /// **'Bags'**
-  String get categoryIconAccessoriesBag;
-
-  /// No description provided for @categoryIconAccessoriesBackpack.
-  ///
-  /// In en, this message translates to:
-  /// **'Backpacks'**
-  String get categoryIconAccessoriesBackpack;
-
-  /// No description provided for @categoryIconAccessoriesLuggage.
-  ///
-  /// In en, this message translates to:
-  /// **'Luggage'**
-  String get categoryIconAccessoriesLuggage;
-
-  /// No description provided for @categoryIconAccessoriesJewelry.
-  ///
-  /// In en, this message translates to:
-  /// **'Jewelry'**
-  String get categoryIconAccessoriesJewelry;
-
-  /// No description provided for @categoryIconAccessoriesUmbrella.
-  ///
-  /// In en, this message translates to:
-  /// **'Umbrellas'**
-  String get categoryIconAccessoriesUmbrella;
-
-  /// No description provided for @categoryGroupHome.
-  ///
-  /// In en, this message translates to:
-  /// **'Home & furniture'**
-  String get categoryGroupHome;
-
-  /// No description provided for @categoryIconHomeFurniture.
-  ///
-  /// In en, this message translates to:
-  /// **'Furniture'**
-  String get categoryIconHomeFurniture;
-
-  /// No description provided for @categoryIconHomeChair.
-  ///
-  /// In en, this message translates to:
-  /// **'Chairs'**
-  String get categoryIconHomeChair;
-
-  /// No description provided for @categoryIconHomeBed.
-  ///
-  /// In en, this message translates to:
-  /// **'Beds'**
-  String get categoryIconHomeBed;
-
-  /// No description provided for @categoryIconHomeTable.
-  ///
-  /// In en, this message translates to:
-  /// **'Tables'**
-  String get categoryIconHomeTable;
-
-  /// No description provided for @categoryIconHomeLighting.
-  ///
-  /// In en, this message translates to:
-  /// **'Lighting'**
-  String get categoryIconHomeLighting;
-
-  /// No description provided for @categoryIconHomeBath.
-  ///
-  /// In en, this message translates to:
-  /// **'Bathroom'**
-  String get categoryIconHomeBath;
-
-  /// No description provided for @categoryIconHomeCurtains.
-  ///
-  /// In en, this message translates to:
-  /// **'Curtains'**
-  String get categoryIconHomeCurtains;
-
-  /// No description provided for @categoryIconHomeBedding.
-  ///
-  /// In en, this message translates to:
-  /// **'Bedding'**
-  String get categoryIconHomeBedding;
-
-  /// No description provided for @categoryGroupKitchen.
-  ///
-  /// In en, this message translates to:
-  /// **'Kitchen'**
-  String get categoryGroupKitchen;
-
-  /// No description provided for @categoryIconKitchenAppliances.
-  ///
-  /// In en, this message translates to:
-  /// **'Appliances'**
-  String get categoryIconKitchenAppliances;
-
-  /// No description provided for @categoryIconKitchenCooking.
-  ///
-  /// In en, this message translates to:
-  /// **'Cookware'**
-  String get categoryIconKitchenCooking;
-
-  /// No description provided for @categoryIconKitchenTableware.
-  ///
-  /// In en, this message translates to:
-  /// **'Tableware'**
-  String get categoryIconKitchenTableware;
-
-  /// No description provided for @categoryIconKitchenBlender.
-  ///
-  /// In en, this message translates to:
-  /// **'Blenders'**
-  String get categoryIconKitchenBlender;
-
-  /// No description provided for @categoryIconKitchenMicrowave.
-  ///
-  /// In en, this message translates to:
-  /// **'Microwaves'**
-  String get categoryIconKitchenMicrowave;
-
-  /// No description provided for @categoryIconKitchenKettle.
-  ///
-  /// In en, this message translates to:
-  /// **'Coffee makers'**
-  String get categoryIconKitchenKettle;
-
-  /// No description provided for @categoryGroupCleaning.
-  ///
-  /// In en, this message translates to:
-  /// **'Cleaning'**
-  String get categoryGroupCleaning;
-
-  /// No description provided for @categoryIconCleaningSupplies.
-  ///
-  /// In en, this message translates to:
-  /// **'Cleaning supplies'**
-  String get categoryIconCleaningSupplies;
-
-  /// No description provided for @categoryIconCleaningSoap.
-  ///
-  /// In en, this message translates to:
-  /// **'Soap'**
-  String get categoryIconCleaningSoap;
-
-  /// No description provided for @categoryIconCleaningBins.
-  ///
-  /// In en, this message translates to:
-  /// **'Waste bins'**
-  String get categoryIconCleaningBins;
-
-  /// No description provided for @categoryIconCleaningWater.
-  ///
-  /// In en, this message translates to:
-  /// **'Water care'**
-  String get categoryIconCleaningWater;
-
-  /// No description provided for @categoryGroupFood.
-  ///
-  /// In en, this message translates to:
-  /// **'Grocery & food'**
-  String get categoryGroupFood;
-
-  /// No description provided for @categoryIconGroceryFood.
-  ///
-  /// In en, this message translates to:
-  /// **'Groceries'**
-  String get categoryIconGroceryFood;
-
-  /// No description provided for @categoryIconFoodRice.
-  ///
-  /// In en, this message translates to:
-  /// **'Rice & grains'**
-  String get categoryIconFoodRice;
-
-  /// No description provided for @categoryIconFoodBakery.
-  ///
-  /// In en, this message translates to:
-  /// **'Bakery'**
-  String get categoryIconFoodBakery;
-
-  /// No description provided for @categoryIconFoodFruit.
-  ///
-  /// In en, this message translates to:
-  /// **'Fruit'**
-  String get categoryIconFoodFruit;
-
-  /// No description provided for @categoryIconFoodVegetables.
-  ///
-  /// In en, this message translates to:
-  /// **'Vegetables'**
-  String get categoryIconFoodVegetables;
-
-  /// No description provided for @categoryIconFoodMeat.
-  ///
-  /// In en, this message translates to:
-  /// **'Meat'**
-  String get categoryIconFoodMeat;
-
-  /// No description provided for @categoryIconFoodSeafood.
-  ///
-  /// In en, this message translates to:
-  /// **'Seafood'**
-  String get categoryIconFoodSeafood;
-
-  /// No description provided for @categoryIconFoodPizza.
-  ///
-  /// In en, this message translates to:
-  /// **'Pizza'**
-  String get categoryIconFoodPizza;
-
-  /// No description provided for @categoryIconFoodIcecream.
-  ///
-  /// In en, this message translates to:
-  /// **'Ice cream'**
-  String get categoryIconFoodIcecream;
-
-  /// No description provided for @categoryIconFoodCake.
-  ///
-  /// In en, this message translates to:
-  /// **'Cakes'**
-  String get categoryIconFoodCake;
-
-  /// No description provided for @categoryIconFoodEggs.
-  ///
-  /// In en, this message translates to:
-  /// **'Eggs'**
-  String get categoryIconFoodEggs;
-
-  /// No description provided for @categoryIconFoodSnacks.
-  ///
-  /// In en, this message translates to:
-  /// **'Snacks'**
-  String get categoryIconFoodSnacks;
-
-  /// No description provided for @categoryGroupDrinks.
-  ///
-  /// In en, this message translates to:
-  /// **'Drinks'**
-  String get categoryGroupDrinks;
-
-  /// No description provided for @categoryIconDrinksCoffee.
-  ///
-  /// In en, this message translates to:
-  /// **'Coffee'**
-  String get categoryIconDrinksCoffee;
-
-  /// No description provided for @categoryIconDrinksTea.
-  ///
-  /// In en, this message translates to:
-  /// **'Tea'**
-  String get categoryIconDrinksTea;
-
-  /// No description provided for @categoryIconDrinksJuice.
-  ///
-  /// In en, this message translates to:
-  /// **'Juices'**
-  String get categoryIconDrinksJuice;
-
-  /// No description provided for @categoryIconDrinksWater.
-  ///
-  /// In en, this message translates to:
-  /// **'Water'**
-  String get categoryIconDrinksWater;
-
-  /// No description provided for @categoryGroupBeauty.
-  ///
-  /// In en, this message translates to:
-  /// **'Health & beauty'**
-  String get categoryGroupBeauty;
-
-  /// No description provided for @categoryIconBeautySpa.
-  ///
-  /// In en, this message translates to:
-  /// **'Beauty care'**
-  String get categoryIconBeautySpa;
-
-  /// No description provided for @categoryIconBeautySkin.
-  ///
-  /// In en, this message translates to:
-  /// **'Skin care'**
-  String get categoryIconBeautySkin;
-
-  /// No description provided for @categoryIconBeautyHair.
-  ///
-  /// In en, this message translates to:
-  /// **'Hair care'**
-  String get categoryIconBeautyHair;
-
-  /// No description provided for @categoryIconBeautyCosmetics.
-  ///
-  /// In en, this message translates to:
-  /// **'Cosmetics'**
-  String get categoryIconBeautyCosmetics;
-
-  /// No description provided for @categoryIconBeautyHealth.
-  ///
-  /// In en, this message translates to:
-  /// **'Health supplies'**
-  String get categoryIconBeautyHealth;
-
-  /// No description provided for @categoryIconBeautyHygiene.
-  ///
-  /// In en, this message translates to:
-  /// **'Personal hygiene'**
-  String get categoryIconBeautyHygiene;
-
-  /// No description provided for @categoryIconBeautyMedical.
-  ///
-  /// In en, this message translates to:
-  /// **'First aid'**
-  String get categoryIconBeautyMedical;
-
-  /// No description provided for @categoryGroupSport.
-  ///
-  /// In en, this message translates to:
-  /// **'Sports & fitness'**
-  String get categoryGroupSport;
-
-  /// No description provided for @categoryIconSportFitness.
-  ///
-  /// In en, this message translates to:
-  /// **'Fitness'**
-  String get categoryIconSportFitness;
-
-  /// No description provided for @categoryIconSportCycling.
-  ///
-  /// In en, this message translates to:
-  /// **'Cycling'**
-  String get categoryIconSportCycling;
-
-  /// No description provided for @categoryIconSportFootball.
-  ///
-  /// In en, this message translates to:
-  /// **'Football'**
-  String get categoryIconSportFootball;
-
-  /// No description provided for @categoryIconSportBasketball.
-  ///
-  /// In en, this message translates to:
-  /// **'Basketball'**
-  String get categoryIconSportBasketball;
-
-  /// No description provided for @categoryIconSportTennis.
-  ///
-  /// In en, this message translates to:
-  /// **'Tennis'**
-  String get categoryIconSportTennis;
-
-  /// No description provided for @categoryIconSportSwimming.
-  ///
-  /// In en, this message translates to:
-  /// **'Swimming'**
-  String get categoryIconSportSwimming;
-
-  /// No description provided for @categoryIconSportCamping.
-  ///
-  /// In en, this message translates to:
-  /// **'Camping'**
-  String get categoryIconSportCamping;
-
-  /// No description provided for @categoryIconSportFishing.
-  ///
-  /// In en, this message translates to:
-  /// **'Fishing'**
-  String get categoryIconSportFishing;
-
-  /// No description provided for @categoryGroupKids.
-  ///
-  /// In en, this message translates to:
-  /// **'Babies & toys'**
-  String get categoryGroupKids;
-
-  /// No description provided for @categoryIconKidsBaby.
-  ///
-  /// In en, this message translates to:
-  /// **'Baby care'**
-  String get categoryIconKidsBaby;
-
-  /// No description provided for @categoryIconKidsStroller.
-  ///
-  /// In en, this message translates to:
-  /// **'Strollers'**
-  String get categoryIconKidsStroller;
-
-  /// No description provided for @categoryIconKidsToys.
-  ///
-  /// In en, this message translates to:
-  /// **'Toys'**
-  String get categoryIconKidsToys;
-
-  /// No description provided for @categoryIconKidsPuzzle.
-  ///
-  /// In en, this message translates to:
-  /// **'Puzzles'**
-  String get categoryIconKidsPuzzle;
-
-  /// No description provided for @categoryIconKidsScooter.
-  ///
-  /// In en, this message translates to:
-  /// **'Skates & scooters'**
-  String get categoryIconKidsScooter;
-
-  /// No description provided for @categoryGroupAuto.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto supplies'**
-  String get categoryGroupAuto;
-
-  /// No description provided for @categoryIconAutoCar.
-  ///
-  /// In en, this message translates to:
-  /// **'Car supplies'**
-  String get categoryIconAutoCar;
-
-  /// No description provided for @categoryIconAutoMotorcycle.
-  ///
-  /// In en, this message translates to:
-  /// **'Motorcycles'**
-  String get categoryIconAutoMotorcycle;
-
-  /// No description provided for @categoryIconAutoTires.
-  ///
-  /// In en, this message translates to:
-  /// **'Tires'**
-  String get categoryIconAutoTires;
-
-  /// No description provided for @categoryIconAutoFuel.
-  ///
-  /// In en, this message translates to:
-  /// **'Fuel & oils'**
-  String get categoryIconAutoFuel;
-
-  /// No description provided for @categoryIconAutoTools.
-  ///
-  /// In en, this message translates to:
-  /// **'Car tools'**
-  String get categoryIconAutoTools;
-
-  /// No description provided for @categoryGroupBooks.
-  ///
-  /// In en, this message translates to:
-  /// **'Books & stationery'**
-  String get categoryGroupBooks;
-
-  /// No description provided for @categoryIconBooksReading.
-  ///
-  /// In en, this message translates to:
-  /// **'Books'**
-  String get categoryIconBooksReading;
-
-  /// No description provided for @categoryIconBooksNotebooks.
-  ///
-  /// In en, this message translates to:
-  /// **'Notebooks'**
-  String get categoryIconBooksNotebooks;
-
-  /// No description provided for @categoryIconBooksPens.
-  ///
-  /// In en, this message translates to:
-  /// **'Pens'**
-  String get categoryIconBooksPens;
-
-  /// No description provided for @categoryIconBooksArt.
-  ///
-  /// In en, this message translates to:
-  /// **'Art supplies'**
-  String get categoryIconBooksArt;
-
-  /// No description provided for @categoryIconBooksSchool.
-  ///
-  /// In en, this message translates to:
-  /// **'School supplies'**
-  String get categoryIconBooksSchool;
-
-  /// No description provided for @categoryGroupGarden.
-  ///
-  /// In en, this message translates to:
-  /// **'Pets, garden & tools'**
-  String get categoryGroupGarden;
-
-  /// No description provided for @categoryIconPetsSupplies.
-  ///
-  /// In en, this message translates to:
-  /// **'Pet supplies'**
-  String get categoryIconPetsSupplies;
-
-  /// No description provided for @categoryIconGardenTrees.
-  ///
-  /// In en, this message translates to:
-  /// **'Garden plants'**
-  String get categoryIconGardenTrees;
-
-  /// No description provided for @categoryIconGardenFlowers.
-  ///
-  /// In en, this message translates to:
-  /// **'Flowers'**
-  String get categoryIconGardenFlowers;
-
-  /// No description provided for @categoryIconGardenTools.
-  ///
-  /// In en, this message translates to:
-  /// **'Hand tools'**
-  String get categoryIconGardenTools;
-
-  /// No description provided for @categoryIconGardenBuilding.
-  ///
-  /// In en, this message translates to:
-  /// **'Building supplies'**
-  String get categoryIconGardenBuilding;
-
-  /// No description provided for @categoryIconGardenSolar.
-  ///
-  /// In en, this message translates to:
-  /// **'Solar supplies'**
-  String get categoryIconGardenSolar;
-
-  /// No description provided for @categoryIconGardenWatering.
-  ///
-  /// In en, this message translates to:
-  /// **'Garden care'**
-  String get categoryIconGardenWatering;
-
-  /// No description provided for @categoryGroupGifts.
-  ///
-  /// In en, this message translates to:
-  /// **'Gifts & general'**
-  String get categoryGroupGifts;
-
-  /// No description provided for @categoryIconGiftsPresent.
-  ///
-  /// In en, this message translates to:
-  /// **'Gifts'**
-  String get categoryIconGiftsPresent;
-
-  /// No description provided for @categoryIconBeautyFragrance.
-  ///
-  /// In en, this message translates to:
-  /// **'Fragrances'**
-  String get categoryIconBeautyFragrance;
-
-  /// No description provided for @categoryIconGiftsParty.
-  ///
-  /// In en, this message translates to:
-  /// **'Party supplies'**
-  String get categoryIconGiftsParty;
-
-  /// No description provided for @categoryIconGeneralCrafts.
-  ///
-  /// In en, this message translates to:
-  /// **'Craft supplies'**
-  String get categoryIconGeneralCrafts;
-
-  /// No description provided for @categoryIconGeneralMusic.
-  ///
-  /// In en, this message translates to:
-  /// **'Musical instruments'**
-  String get categoryIconGeneralMusic;
-
-  /// No description provided for @categoryIconGeneralCategory.
-  ///
-  /// In en, this message translates to:
-  /// **'General products'**
-  String get categoryIconGeneralCategory;
-
-  /// No description provided for @categoryChooseIcon.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose icon'**
-  String get categoryChooseIcon;
-
-  /// No description provided for @categorySearchIcons.
-  ///
-  /// In en, this message translates to:
-  /// **'Search icons'**
-  String get categorySearchIcons;
-
-  /// No description provided for @categoryAllGroups.
-  ///
-  /// In en, this message translates to:
-  /// **'All groups'**
-  String get categoryAllGroups;
-
-  /// No description provided for @categoryNoIcons.
-  ///
-  /// In en, this message translates to:
-  /// **'No matching icons'**
-  String get categoryNoIcons;
-
   /// No description provided for @categoryDescriptionEn.
   ///
   /// In en, this message translates to:
@@ -3401,7 +2561,7 @@ abstract class AppLocalizations {
   /// No description provided for @addressInternationalPhoneHint.
   ///
   /// In en, this message translates to:
-  /// **'Use an international number starting with + and country code; no country code is added automatically.'**
+  /// **'Choose a country and enter a local number, or enter the full international number with +.'**
   String get addressInternationalPhoneHint;
 
   /// No description provided for @mediaUploadHint.
@@ -3433,6 +2593,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notifications'**
   String get notificationsTitle;
+
+  /// No description provided for @notificationsUnreadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications, unread: {count}'**
+  String notificationsUnreadCount(String count);
 
   /// No description provided for @notificationsEmpty.
   ///
@@ -3551,7 +2717,7 @@ abstract class AppLocalizations {
   /// No description provided for @deliveryInvalidAmount.
   ///
   /// In en, this message translates to:
-  /// **'Enter an amount from zero up to the amount due (at most 6 decimal places).'**
+  /// **'Enter a valid recorded amount up to the order total (at most 6 decimal places).'**
   String get deliveryInvalidAmount;
 
   /// No description provided for @pendingDeliveryRetry.
@@ -3661,6 +2827,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Low stock'**
   String get productLowStockLabel;
+
+  /// No description provided for @pushSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Settings'**
+  String get pushSettings;
+
+  /// No description provided for @pushSettingsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open notification settings. Open the app in your device settings.'**
+  String get pushSettingsUnavailable;
 
   /// No description provided for @pushEnable.
   ///
@@ -3947,6 +3125,630 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Correct cart'**
   String get stockCorrectCart;
+
+  /// No description provided for @addressGovernorate.
+  ///
+  /// In en, this message translates to:
+  /// **'Governorate'**
+  String get addressGovernorate;
+
+  /// No description provided for @errorAddressGovernorateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a governorate in your delivery address before placing the order.'**
+  String get errorAddressGovernorateRequired;
+
+  /// No description provided for @errorDeliveryZoneNotServed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery is currently unavailable for this governorate. Choose an address in a served area or contact the store.'**
+  String get errorDeliveryZoneNotServed;
+
+  /// No description provided for @errorDeliveryLocationSelector.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not determine the delivery location. Select your delivery address again.'**
+  String get errorDeliveryLocationSelector;
+
+  /// No description provided for @returnDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Return details'**
+  String get returnDetailsTitle;
+
+  /// No description provided for @returnHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Returns'**
+  String get returnHistoryTitle;
+
+  /// No description provided for @returnReasonCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason category'**
+  String get returnReasonCode;
+
+  /// No description provided for @returnChangeMind.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed my mind'**
+  String get returnChangeMind;
+
+  /// No description provided for @returnDefect.
+  ///
+  /// In en, this message translates to:
+  /// **'Defective item'**
+  String get returnDefect;
+
+  /// No description provided for @returnStoreError.
+  ///
+  /// In en, this message translates to:
+  /// **'Store error'**
+  String get returnStoreError;
+
+  /// No description provided for @returnWrongItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong item'**
+  String get returnWrongItem;
+
+  /// No description provided for @returnOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get returnOther;
+
+  /// No description provided for @returnRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get returnRequested;
+
+  /// No description provided for @returnApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get returnApproved;
+
+  /// No description provided for @returnPartiallyApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially approved'**
+  String get returnPartiallyApproved;
+
+  /// No description provided for @returnRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get returnRejected;
+
+  /// No description provided for @returnReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received by store'**
+  String get returnReceived;
+
+  /// No description provided for @returnInspected.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspected'**
+  String get returnInspected;
+
+  /// No description provided for @returnRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get returnRefunded;
+
+  /// No description provided for @returnCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get returnCompleted;
+
+  /// No description provided for @returnExpectedRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated goods refund'**
+  String get returnExpectedRefund;
+
+  /// No description provided for @returnApprovedRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved refund'**
+  String get returnApprovedRefund;
+
+  /// No description provided for @returnDeliveryRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee refund'**
+  String get returnDeliveryRefund;
+
+  /// No description provided for @returnUncollectedOffset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduction of unpaid amount'**
+  String get returnUncollectedOffset;
+
+  /// No description provided for @returnCashRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash refund'**
+  String get returnCashRefund;
+
+  /// No description provided for @returnPointsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Points adjustments affect your loyalty balance, not an extra deduction from your cash refund.'**
+  String get returnPointsNote;
+
+  /// No description provided for @returnEarnedReversed.
+  ///
+  /// In en, this message translates to:
+  /// **'Earned points reversed'**
+  String get returnEarnedReversed;
+
+  /// No description provided for @returnRedeemedRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeemed points restored'**
+  String get returnRedeemedRestored;
+
+  /// No description provided for @returnNetPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Net points adjustment'**
+  String get returnNetPoints;
+
+  /// No description provided for @returnRequestedQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested quantity'**
+  String get returnRequestedQuantity;
+
+  /// No description provided for @returnApprovedQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved quantity'**
+  String get returnApprovedQuantity;
+
+  /// No description provided for @returnTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Status history'**
+  String get returnTimeline;
+
+  /// No description provided for @returnPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund payments'**
+  String get returnPayments;
+
+  /// No description provided for @returnCashAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Store cash payment'**
+  String get returnCashAccount;
+
+  /// No description provided for @returnDeliveryCustody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery collection refund'**
+  String get returnDeliveryCustody;
+
+  /// No description provided for @returnPendingNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The result of your previous request is not yet confirmed. Retry that same request before starting another.'**
+  String get returnPendingNotice;
+
+  /// No description provided for @returnRetryPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover previous request'**
+  String get returnRetryPending;
+
+  /// No description provided for @returnWindowExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The return period for this order has ended.'**
+  String get returnWindowExpired;
+
+  /// No description provided for @returnQuantityChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The available return quantity has changed. Refresh the order and try again.'**
+  String get returnQuantityChanged;
+
+  /// No description provided for @returnQuantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the return quantities and unit precision.'**
+  String get returnQuantityInvalid;
+
+  /// No description provided for @returnNotDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Returns are available only for delivered orders.'**
+  String get returnNotDelivered;
+
+  /// No description provided for @otpDeliveryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not send the verification code. Please try again later.'**
+  String get otpDeliveryUnavailable;
+
+  /// No description provided for @pricingCouponDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Coupon discount'**
+  String get pricingCouponDiscount;
+
+  /// No description provided for @pricingTierDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic discount'**
+  String get pricingTierDiscount;
+
+  /// No description provided for @pricingLoyaltyDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Points used'**
+  String get pricingLoyaltyDiscount;
+
+  /// No description provided for @pricingOriginalDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Original delivery fee'**
+  String get pricingOriginalDelivery;
+
+  /// No description provided for @pricingAdjustedDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusted delivery fee'**
+  String get pricingAdjustedDelivery;
+
+  /// No description provided for @pricingNetPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Net paid for this line'**
+  String get pricingNetPaid;
+
+  /// No description provided for @pricingDeliveryGovernorate.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery governorate'**
+  String get pricingDeliveryGovernorate;
+
+  /// No description provided for @pricingEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated total — final pricing is confirmed at checkout.'**
+  String get pricingEstimate;
+
+  /// No description provided for @pricingSelectGovernorate.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a governorate to estimate delivery'**
+  String get pricingSelectGovernorate;
+
+  /// No description provided for @pricingUnserved.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery is not available to this governorate.'**
+  String get pricingUnserved;
+
+  /// No description provided for @pricingStacking.
+  ///
+  /// In en, this message translates to:
+  /// **'Coupons can combine with automatic discounts.'**
+  String get pricingStacking;
+
+  /// No description provided for @pricingBestDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'The larger of the coupon and automatic discount applies.'**
+  String get pricingBestDiscount;
+
+  /// No description provided for @pricingDeliveryUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee is not included until a location is selected.'**
+  String get pricingDeliveryUnknown;
+
+  /// No description provided for @storeInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Store information'**
+  String get storeInfoTitle;
+
+  /// No description provided for @storeAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Store address'**
+  String get storeAddress;
+
+  /// No description provided for @storeSupportHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Support hours'**
+  String get storeSupportHours;
+
+  /// No description provided for @storeSupportPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Call support'**
+  String get storeSupportPhone;
+
+  /// No description provided for @storeSupportWhatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp support'**
+  String get storeSupportWhatsapp;
+
+  /// No description provided for @storeSupportEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Support email'**
+  String get storeSupportEmail;
+
+  /// No description provided for @storePrivacyEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy contact'**
+  String get storePrivacyEmail;
+
+  /// No description provided for @storePolicyDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Policy effective date'**
+  String get storePolicyDate;
+
+  /// No description provided for @loyaltyInsufficient.
+  ///
+  /// In en, this message translates to:
+  /// **'Your points balance is insufficient. Refresh and try again.'**
+  String get loyaltyInsufficient;
+
+  /// No description provided for @loyaltyExceedsGoods.
+  ///
+  /// In en, this message translates to:
+  /// **'Points cannot exceed the remaining goods value or pay delivery fees.'**
+  String get loyaltyExceedsGoods;
+
+  /// No description provided for @pricingNextTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {amount} to reach a {percent}% automatic discount.'**
+  String pricingNextTier(String amount, String percent);
+
+  /// No description provided for @storeReturnWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Return window: {days} days'**
+  String storeReturnWindow(String days);
+
+  /// No description provided for @storeRefundDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund processing: {days} days'**
+  String storeRefundDays(String days);
+
+  /// No description provided for @accountDeletionCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Open orders: {orders}; pending returns: {returns}; unsettled amounts: {unsettled}.'**
+  String accountDeletionCounts(String orders, String returns, String unsettled);
+
+  /// No description provided for @shoppingInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery and automatic discounts'**
+  String get shoppingInformation;
+
+  /// No description provided for @pricingTierThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% off goods subtotals of {amount} or more.'**
+  String pricingTierThreshold(String amount, String percent);
+
+  /// No description provided for @deliveryViewDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get deliveryViewDetails;
+
+  /// No description provided for @deliveryDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery details'**
+  String get deliveryDetailsTitle;
+
+  /// No description provided for @deliveryOrderTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Order total'**
+  String get deliveryOrderTotal;
+
+  /// No description provided for @deliveryTotalNotBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Order value, not a confirmed remaining collection balance.'**
+  String get deliveryTotalNotBalance;
+
+  /// No description provided for @deliveryCollectionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection information unavailable'**
+  String get deliveryCollectionUnknown;
+
+  /// No description provided for @deliveryCollectionFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Store collection confirmed in full'**
+  String get deliveryCollectionFull;
+
+  /// No description provided for @deliveryCollectionShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Store collection confirmed with a shortfall'**
+  String get deliveryCollectionShort;
+
+  /// No description provided for @deliveryRecordedCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded store collection'**
+  String get deliveryRecordedCollection;
+
+  /// No description provided for @deliveryRecordedShortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded collection shortfall'**
+  String get deliveryRecordedShortfall;
+
+  /// No description provided for @deliveryCollectionRecordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This record is not an instruction to collect additional money.'**
+  String get deliveryCollectionRecordNote;
+
+  /// No description provided for @deliveryRecipientTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient and delivery address'**
+  String get deliveryRecipientTitle;
+
+  /// No description provided for @deliveryContactHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact details are hidden after completion or while access is being checked.'**
+  String get deliveryContactHidden;
+
+  /// No description provided for @deliveryNameUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient name unavailable'**
+  String get deliveryNameUnavailable;
+
+  /// No description provided for @deliveryPhoneUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery phone unavailable'**
+  String get deliveryPhoneUnavailable;
+
+  /// No description provided for @deliveryAddressUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address unavailable'**
+  String get deliveryAddressUnavailable;
+
+  /// No description provided for @deliveryCopyReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy order reference'**
+  String get deliveryCopyReference;
+
+  /// No description provided for @deliveryCopyAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy address'**
+  String get deliveryCopyAddress;
+
+  /// No description provided for @deliveryCallRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Call recipient'**
+  String get deliveryCallRecipient;
+
+  /// No description provided for @deliveryOpenMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Open map'**
+  String get deliveryOpenMap;
+
+  /// No description provided for @deliveryCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get deliveryCopied;
+
+  /// No description provided for @deliveryActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not complete this action. Please try again.'**
+  String get deliveryActionFailed;
+
+  /// No description provided for @deliveryInvoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order value and collection'**
+  String get deliveryInvoiceTitle;
+
+  /// No description provided for @deliveryInvoiceBreakdownUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount breakdown and payment method are not available in these delivery details.'**
+  String get deliveryInvoiceBreakdownUnavailable;
+
+  /// No description provided for @deliveryLineTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Line total'**
+  String get deliveryLineTotal;
+
+  /// No description provided for @deliveryHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery history'**
+  String get deliveryHistoryTitle;
+
+  /// No description provided for @deliveryDetailUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery no longer available'**
+  String get deliveryDetailUnavailable;
+
+  /// No description provided for @deliveryDetailUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'It may have been reassigned. Return to the delivery list and refresh.'**
+  String get deliveryDetailUnavailableHint;
+
+  /// No description provided for @deliveryPeriodClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'The accounting period is closed. Contact the store before updating this delivery.'**
+  String get deliveryPeriodClosed;
+
+  /// No description provided for @deliveryFareMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The trip fare needs review by the store before delivery can be confirmed.'**
+  String get deliveryFareMismatch;
+
+  /// No description provided for @phoneCountryCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Country code'**
+  String get phoneCountryCode;
+
+  /// No description provided for @phoneCountrySearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search country or calling code'**
+  String get phoneCountrySearch;
+
+  /// No description provided for @authCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a verification code to'**
+  String get authCodeSentTo;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get notificationsMarkAllRead;
 }
 
 class _AppLocalizationsDelegate

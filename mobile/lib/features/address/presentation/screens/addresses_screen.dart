@@ -1,3 +1,4 @@
+import '../../../../core/utils/international_phone.dart';
 import '../../../../core/layout/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,7 +163,7 @@ class _AddressCard extends ConsumerWidget {
                     Text(
                       phone == null
                           ? context.l10n.addressContactUnavailable
-                          : Validators.foldDigits(phone),
+                          : InternationalPhone.display(phone),
                       textDirection: phone == null ? null : TextDirection.ltr,
                       style: context.text.bodyMedium,
                     ),

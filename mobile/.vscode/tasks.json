@@ -2,16 +2,16 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Check remote: ios",
+      "label": "Prepare Mobile: iphone-simulator",
       "type": "process",
       "command": "node",
       "args": [
         "${workspaceFolder}/tool/check_debug_environment.mjs",
-        "ios"
+        "iphone-simulator"
       ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
         "panel": "shared",
         "clear": true
       },
@@ -20,16 +20,16 @@
       }
     },
     {
-      "label": "Check remote: iphone",
+      "label": "Prepare Mobile: ipad-simulator",
       "type": "process",
       "command": "node",
       "args": [
         "${workspaceFolder}/tool/check_debug_environment.mjs",
-        "iphone"
+        "ipad-simulator"
       ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
         "panel": "shared",
         "clear": true
       },
@@ -38,16 +38,16 @@
       }
     },
     {
-      "label": "Check remote: chrome",
+      "label": "Prepare Mobile: android-emulator",
       "type": "process",
       "command": "node",
       "args": [
         "${workspaceFolder}/tool/check_debug_environment.mjs",
-        "chrome"
+        "android-emulator"
       ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
         "panel": "shared",
         "clear": true
       },
@@ -56,16 +56,34 @@
       }
     },
     {
-      "label": "Check remote: admin",
+      "label": "Prepare Mobile: iphone-device",
       "type": "process",
       "command": "node",
       "args": [
         "${workspaceFolder}/tool/check_debug_environment.mjs",
-        "admin"
+        "iphone-device"
       ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "Prepare Mobile: android-device",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/tool/check_debug_environment.mjs",
+        "android-device"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
         "panel": "shared",
         "clear": true
       },

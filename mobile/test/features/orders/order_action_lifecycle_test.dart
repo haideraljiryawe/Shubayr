@@ -49,7 +49,7 @@ class Carts extends CartRepositoryMock {
   int reads = 0;
   Future<Cart> Function()? onFetch;
   @override
-  Future<Cart> fetchCart() async {
+  Future<Cart> fetchCart({String? addressId}) async {
     reads++;
     return onFetch == null ? current : onFetch!();
   }
@@ -108,8 +108,14 @@ class Orders extends OrderRepositoryMock {
 class Addresses extends AddressesController {
   @override
   Future<List<Address>> build() async => const [
-    Address(id: 'a', label: 'Home', city: 'Baghdad', isDefault: true),
-    Address(id: 'b', label: 'Work', city: 'Basra'),
+    Address(
+      id: 'a',
+      label: 'Home',
+      city: 'Baghdad',
+      governorateId: 'test-baghdad',
+      isDefault: true,
+    ),
+    Address(id: 'b', label: 'Work', city: 'Basra', governorateId: 'test-basra'),
   ];
 }
 

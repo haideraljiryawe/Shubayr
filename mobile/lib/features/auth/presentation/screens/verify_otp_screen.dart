@@ -1,3 +1,4 @@
+import '../../../../core/widgets/phone_number_text.dart';
 import '../../../../core/widgets/app_text_selection_toolbar.dart';
 import '../../../../core/utils/numeric_input_formatters.dart';
 import '../../../../core/layout/app_layout.dart';
@@ -141,10 +142,17 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        l10n.authVerifySubtitle(widget.phone),
+                        l10n.authCodeSentTo,
                         style: context.text.bodyMedium?.copyWith(
                           color: colors.textSecondary,
                         ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      PhoneNumberText(
+                        widget.phone,
+                        selectable: true,
+                        key: const ValueKey('otp-phone-number'),
+                        style: context.text.titleMedium,
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       TextFormField(

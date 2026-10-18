@@ -1,3 +1,4 @@
+import 'package:shubayr/core/storage/pending_request_store.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,8 @@ ReturnRequest returned({
   status: status,
   items: [
     ReturnRequestItem(
+      reasonCode: 'defect',
+      reason: 'Damaged',
       orderItemId: 'i',
       quantity: quantity,
       approvedQuantity: approved,
@@ -61,6 +64,8 @@ class Repository implements AfterSalesRepository {
   Future<Review> Function()? onSubmitReview;
   Future<ReturnRequest> Function()? onSubmitReturn;
   final reviewPages = <int>[], returnPages = <int>[];
+  final operationIds = <String>[];
+  final submittedItems = <List<ReturnRequestItem>>[];
   @override
   Future<ReviewPage> fetchOwnReviews({int page = 1, int perPage = 100}) {
     reviewPages.add(page);
@@ -78,6 +83,10 @@ class Repository implements AfterSalesRepository {
   }
 
   @override
+  Future<ReturnRequest> fetchReturn(String id) async =>
+      (await fetchReturns()).data.firstWhere((entry) => entry.id == id);
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,
@@ -86,10 +95,15 @@ class Repository implements AfterSalesRepository {
   }) async => onSubmitReview == null ? review() : onSubmitReview!();
   @override
   Future<ReturnRequest> requestReturn({
+    required String operationId,
     required String orderId,
     required List<ReturnRequestItem> items,
     String? reason,
-  }) async => onSubmitReturn == null ? returned() : onSubmitReturn!();
+  }) async {
+    operationIds.add(operationId);
+    submittedItems.add(items);
+    return onSubmitReturn == null ? returned() : onSubmitReturn!();
+  }
 }
 
 void main() {
@@ -101,6 +115,9 @@ void main() {
     final container = ProviderContainer(
       retry: (_, _) => null,
       overrides: [
+        pendingRequestStoreProvider.overrideWithValue(
+          PendingRequestStore.memory(),
+        ),
         sessionControllerProvider.overrideWith(
           () => TestSession(
             initial: const Session.signedIn(User(id: 'A', role: 'customer')),
@@ -181,6 +198,8 @@ void main() {
         controller.submit(
           items: [
             const ReturnRequestItem(
+              reasonCode: 'defect',
+              reason: 'Damaged',
               orderItemId: 'i',
               quantity: .5,
               wholeUnitsOnly: false,
@@ -191,7 +210,14 @@ void main() {
       );
       expect(writes, 0);
       await controller.submit(
-        items: [const ReturnRequestItem(orderItemId: 'i', quantity: 1)],
+        items: [
+          const ReturnRequestItem(
+            reasonCode: 'defect',
+            reason: 'Damaged',
+            orderItemId: 'i',
+            quantity: 1,
+          ),
+        ],
       );
       expect(writes, 1);
       expect(
@@ -264,7 +290,14 @@ void main() {
         return gate.future;
       };
       final controller = c.read(returnEligibilityProvider('o').notifier);
-      const items = [ReturnRequestItem(orderItemId: 'i', quantity: .125)];
+      const items = [
+        ReturnRequestItem(
+          reasonCode: 'defect',
+          reason: 'Damaged',
+          orderItemId: 'i',
+          quantity: .125,
+        ),
+      ];
       final first = controller.submit(items: items, reason: 'Damaged');
       expect(await controller.submit(items: items, reason: 'Damaged'), isNull);
       gate.complete(returned());
@@ -358,17 +391,109 @@ void main() {
     },
   );
   test(
-    'an ambiguous successful return response cannot leave old eligibility usable',
+    'uncertain return keeps its operation and payload across provider recreation',
     () async {
       watchReturns();
       await c.read(returnEligibilityProvider('o').future);
-      repo.onSubmitReturn = () async => returned(status: 'rejected');
+      repo.onSubmitReturn = () async => throw const AppFailure.timeout();
       await expectLater(
         c
             .read(returnEligibilityProvider('o').notifier)
             .submit(
               items: [
-                const ReturnRequestItem(orderItemId: 'i', quantity: .125),
+                const ReturnRequestItem(
+                  orderItemId: 'i',
+                  quantity: .125,
+                  reasonCode: 'defect',
+                  reason: 'Damaged',
+                ),
+              ],
+            ),
+        throwsA(isA<AppFailure>()),
+      );
+      final slot = c.read(pendingReturnSlotProvider('o'))!;
+      final original = await c.read(pendingRequestStoreProvider).read(slot);
+      expect(original, isNotNull);
+      c.invalidate(returnEligibilityProvider('o'));
+      await c.read(returnEligibilityProvider('o').future);
+      await expectLater(
+        c
+            .read(returnEligibilityProvider('o').notifier)
+            .submit(
+              items: [
+                const ReturnRequestItem(
+                  orderItemId: 'i',
+                  quantity: .25,
+                  reasonCode: 'defect',
+                  reason: 'Changed',
+                ),
+              ],
+            ),
+        throwsA(
+          isA<AppFailure>().having((e) => e.code, 'code', 'PENDING_REQUEST'),
+        ),
+      );
+      repo.onSubmitReturn = null;
+      expect(
+        await c.read(returnEligibilityProvider('o').notifier).retryPending(),
+        isNotNull,
+      );
+      expect(repo.operationIds, [original!.id, original.id]);
+      expect(repo.submittedItems.last.single.quantity, .125);
+      expect(repo.submittedItems.last.single.reason, 'Damaged');
+      expect(await c.read(pendingRequestStoreProvider).read(slot), isNull);
+    },
+  );
+  test(
+    'definitive initial return refusal releases its pending operation',
+    () async {
+      watchReturns();
+      await c.read(returnEligibilityProvider('o').future);
+      repo.onSubmitReturn = () async => throw const AppFailure(
+        FailureKind.validation,
+        statusCode: 422,
+        code: 'RETURN_WINDOW_EXPIRED',
+      );
+      await expectLater(
+        c
+            .read(returnEligibilityProvider('o').notifier)
+            .submit(
+              items: [
+                const ReturnRequestItem(
+                  orderItemId: 'i',
+                  quantity: .125,
+                  reasonCode: 'defect',
+                  reason: 'Damaged',
+                ),
+              ],
+            ),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(
+        await c
+            .read(pendingRequestStoreProvider)
+            .read(c.read(pendingReturnSlotProvider('o'))!),
+        isNull,
+      );
+    },
+  );
+  test(
+    'an ambiguous successful return response cannot leave old eligibility usable',
+    () async {
+      watchReturns();
+      await c.read(returnEligibilityProvider('o').future);
+      repo.onSubmitReturn = () async => returned(status: 'unknown');
+      await expectLater(
+        c
+            .read(returnEligibilityProvider('o').notifier)
+            .submit(
+              items: [
+                const ReturnRequestItem(
+                  reasonCode: 'defect',
+                  reason: 'Damaged',
+                  orderItemId: 'i',
+                  quantity: .125,
+                ),
               ],
             ),
         throwsA(isA<AppFailure>()),
@@ -379,7 +504,12 @@ void main() {
             .read(returnEligibilityProvider('o').notifier)
             .submit(
               items: [
-                const ReturnRequestItem(orderItemId: 'i', quantity: .125),
+                const ReturnRequestItem(
+                  reasonCode: 'defect',
+                  reason: 'Damaged',
+                  orderItemId: 'i',
+                  quantity: .125,
+                ),
               ],
             ),
         throwsA(isA<AppFailure>()),
@@ -394,7 +524,14 @@ void main() {
       await c
           .read(returnEligibilityProvider('o').notifier)
           .submit(
-            items: [const ReturnRequestItem(orderItemId: 'i', quantity: .125)],
+            items: [
+              const ReturnRequestItem(
+                reasonCode: 'defect',
+                reason: 'Damaged',
+                orderItemId: 'i',
+                quantity: .125,
+              ),
+            ],
           );
       expect(
         c.read(returnEligibilityProvider('o')).requireValue.remaining['i'],
@@ -421,6 +558,10 @@ void main() {
     ('approved', .5, 0),
     ('partially_approved', .5, 0),
     ('completed', .5, 0),
+    ('received', .25, .25),
+    ('inspected', .25, .25),
+    ('refunded', .25, .25),
+    ('rejected', null, .5),
   ]) {
     test('$status uses its persisted quantity, approved=$approved', () {
       expect(
@@ -437,17 +578,18 @@ void main() {
     'completed',
     'rejected',
   ]) {
-    test('$status cannot assume unapproved quantities were released', () {
+    test('$status releases rejected or unapproved quantities in v17', () {
       for (final approved in [0, .125]) {
         expect(
-          () => ReturnEligibility(order(), [
+          ReturnEligibility(order(), [
             returned(quantity: .5, status: status, approved: approved),
-          ]),
-          throwsA(isA<AppFailure>()),
+          ]).remaining['i'],
+          status == 'rejected' ? .5 : .5 - approved,
         );
       }
     });
   }
+
   test(
     'an approved partial request leaves the unrequested quantity available',
     () {
@@ -527,7 +669,9 @@ void main() {
     'approved',
     'partially_approved',
     'completed',
-    'rejected',
+    'received',
+    'inspected',
+    'refunded',
     'unknown',
   ]) {
     test(
@@ -652,11 +796,14 @@ void main() {
                     .submit(
                       items: [
                         const ReturnRequestItem(
+                          reasonCode: 'defect',
+                          reason: 'Damaged',
                           orderItemId: 'i',
                           quantity: .125,
                         ),
                       ],
                     );
+          await flush(); // Wait until the durable intent has reached HTTP.
           (c.read(sessionControllerProvider.notifier) as TestSession)
               .setSession(
                 const Session.signedIn(User(id: 'B', role: 'customer')),
@@ -695,7 +842,14 @@ void main() {
       await c
           .read(returnEligibilityProvider('o').notifier)
           .submit(
-            items: [const ReturnRequestItem(orderItemId: 'i', quantity: .125)],
+            items: [
+              const ReturnRequestItem(
+                reasonCode: 'defect',
+                reason: 'Damaged',
+                orderItemId: 'i',
+                quantity: .125,
+              ),
+            ],
           );
       final session = c.read(sessionControllerProvider.notifier) as TestSession;
       session.setSession(const Session.signedOut());

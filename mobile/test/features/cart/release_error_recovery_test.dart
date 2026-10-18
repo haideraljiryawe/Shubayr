@@ -15,7 +15,7 @@ class _Cart extends CartRepositoryMock {
   bool failRefresh = false;
   String code = 'REQUESTED_QUANTITY_UNAVAILABLE';
   @override
-  Future<Cart> fetchCart() async {
+  Future<Cart> fetchCart({String? addressId}) async {
     reads++;
     if (failRefresh && reads > 1) throw const AppFailure.network();
     return Cart(couponCode: reads > 1 ? 'SERVER' : null);

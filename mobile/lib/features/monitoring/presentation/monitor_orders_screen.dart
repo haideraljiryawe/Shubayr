@@ -1,3 +1,4 @@
+import '../../../core/utils/international_phone.dart';
 import '../../../core/widgets/app_text_selection_toolbar.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -278,7 +279,10 @@ class _OrderCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           if (item.customerName?.trim().isNotEmpty == true)
             Text(item.customerName!),
-          Text(item.customerPhone, textDirection: TextDirection.ltr),
+          Text(
+            InternationalPhone.display(item.customerPhone),
+            textDirection: TextDirection.ltr,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             formatMoney(

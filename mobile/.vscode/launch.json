@@ -4,8 +4,7 @@
     {
       "name": "iPhone Simulator",
       "presentation": {
-        "order": 2,
-        "group": "Remote"
+        "order": 1
       },
       "type": "dart",
       "request": "launch",
@@ -14,16 +13,15 @@
       "deviceId": "iPhone 17 Pro",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define=DATA_SOURCE=remote",
-        "--dart-define=API_URL=http://localhost:8000/api/v1"
+        "--dart-define-from-file=${workspaceFolder}/.dart_tool/run/iphone-simulator.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-ios.json"
       ],
-      "preLaunchTask": "Check remote: ios"
+      "preLaunchTask": "Prepare Mobile: iphone-simulator"
     },
     {
       "name": "iPad Simulator",
       "presentation": {
-        "order": 8,
-        "group": "Remote"
+        "order": 2
       },
       "type": "dart",
       "request": "launch",
@@ -32,16 +30,32 @@
       "deviceId": "F58BF179-6ED2-4FCE-BA8B-0CA661CC37EE",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define=DATA_SOURCE=remote",
-        "--dart-define=API_URL=http://localhost:8000/api/v1"
+        "--dart-define-from-file=${workspaceFolder}/.dart_tool/run/ipad-simulator.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-ios.json"
       ],
-      "preLaunchTask": "Check remote: ios"
+      "preLaunchTask": "Prepare Mobile: ipad-simulator"
     },
     {
-      "name": "iPhone Device",
+      "name": "Android Emulator",
       "presentation": {
-        "order": 6,
-        "group": "Remote"
+        "order": 3
+      },
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/lib/main.dart",
+      "cwd": "${workspaceFolder}",
+      "deviceId": "emulator-5554",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define-from-file=${workspaceFolder}/.dart_tool/run/android-emulator.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-android.json"
+      ],
+      "preLaunchTask": "Prepare Mobile: android-emulator"
+    },
+    {
+      "name": "iPhone Device — iPhone 16 Pro",
+      "presentation": {
+        "order": 4
       },
       "type": "dart",
       "request": "launch",
@@ -50,62 +64,37 @@
       "deviceId": "00008140-001125441AFB001C",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define=DATA_SOURCE=remote",
-        "--dart-define-from-file=${workspaceFolder}/.vscode/iphone.json"
+        "--dart-define-from-file=${workspaceFolder}/.dart_tool/run/iphone-device.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-ios.json"
       ],
-      "preLaunchTask": "Check remote: iphone"
+      "preLaunchTask": "Prepare Mobile: iphone-device"
     },
     {
-      "name": "Chrome Preview (Remote)",
+      "name": "Android Device — Galaxy A34",
       "presentation": {
-        "order": 4,
-        "group": "Remote"
+        "order": 5
       },
       "type": "dart",
       "request": "launch",
       "program": "${workspaceFolder}/lib/main.dart",
       "cwd": "${workspaceFolder}",
-      "deviceId": "chrome",
+      "deviceId": "RFCWA13JCSH",
       "flutterMode": "debug",
       "toolArgs": [
-        "--dart-define=DATA_SOURCE=remote",
-        "--dart-define=API_URL=http://localhost:8000/api/v1",
-        "--web-hostname=localhost",
-        "--web-port=7357"
+        "--dart-define-from-file=${workspaceFolder}/.dart_tool/run/android-device.json",
+        "--dart-define-from-file=${env:HOME}/Documents/firebase/shubayr-android.json"
       ],
-      "preLaunchTask": "Check remote: chrome"
+      "preLaunchTask": "Prepare Mobile: android-device"
     },
     {
-      "name": "Web Admin (Remote)",
+      "name": "Web Admin",
       "presentation": {
-        "order": 3,
-        "group": "Remote"
+        "order": 6
       },
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev -- --hostname localhost",
-      "cwd": "${workspaceFolder}/../admin",
-      "env": {
-        "API_URL": "http://localhost:8000/api/v1",
-        "ADMIN_ORIGIN": "http://localhost:3200",
-        "ADMIN_COOKIE_SECURE": "true"
-      },
-      "preLaunchTask": "Check remote: admin"
-    }
-  ],
-  "compounds": [
-    {
-      "name": "iOS + Web Admin (Remote)",
-      "configurations": [
-        "Web Admin (Remote)",
-        "iPhone Simulator"
-      ],
-      "preLaunchTask": "Check remote: admin",
-      "stopAll": true,
-      "presentation": {
-        "group": "Remote",
-        "order": 1
-      }
+      "command": "node tool/run_web_admin.mjs",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

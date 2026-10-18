@@ -86,7 +86,7 @@ void main() {
       repo.gate = Completer<void>();
       await tester.pumpWidget(host(const SignInScreen()));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField), '07700000000');
+      await tester.enterText(find.byType(TextFormField), '+9647700000000');
       final submit = tester
           .widget<AppButton>(find.byType(AppButton))
           .onPressed!;

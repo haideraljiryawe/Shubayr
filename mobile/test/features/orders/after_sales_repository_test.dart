@@ -138,9 +138,14 @@ void main() {
     'partial return keeps other items and caps cumulative quantities',
     () async {
       final result = await repository.requestReturn(
+        operationId: 'return-operation-123',
         orderId: 'order-1042',
         items: [
-          const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 1),
+          const ReturnRequestItem(
+            reasonCode: 'defect',
+            orderItemId: 'oi-1042-p5',
+            quantity: 1,
+          ),
         ],
       );
       expect(result.status, 'requested');
@@ -149,17 +154,27 @@ void main() {
       expect((await orders.fetchOrder('order-1042')).status, 'delivered');
       await expectLater(
         repository.requestReturn(
+          operationId: 'return-operation-123',
           orderId: 'order-1042',
           items: [
-            const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 3),
+            const ReturnRequestItem(
+              reasonCode: 'defect',
+              orderItemId: 'oi-1042-p5',
+              quantity: 3,
+            ),
           ],
         ),
         throwsA(isA<AppFailure>()),
       );
       final remaining = await repository.requestReturn(
+        operationId: 'return-operation-123',
         orderId: 'order-1042',
         items: [
-          const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 2),
+          const ReturnRequestItem(
+            reasonCode: 'defect',
+            orderItemId: 'oi-1042-p5',
+            quantity: 2,
+          ),
         ],
       );
       expect(remaining.items.single.quantity, 2);
@@ -168,15 +183,39 @@ void main() {
   test('rejects empty, zero, foreign and duplicate return lines', () async {
     for (final lines in <List<ReturnRequestItem>>[
       [],
-      [const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 0)],
-      [const ReturnRequestItem(orderItemId: 'oi-1063-p2', quantity: 1)],
       [
-        const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 1),
-        const ReturnRequestItem(orderItemId: 'oi-1042-p5', quantity: 1),
+        const ReturnRequestItem(
+          reasonCode: 'defect',
+          orderItemId: 'oi-1042-p5',
+          quantity: 0,
+        ),
+      ],
+      [
+        const ReturnRequestItem(
+          reasonCode: 'defect',
+          orderItemId: 'oi-1063-p2',
+          quantity: 1,
+        ),
+      ],
+      [
+        const ReturnRequestItem(
+          reasonCode: 'defect',
+          orderItemId: 'oi-1042-p5',
+          quantity: 1,
+        ),
+        const ReturnRequestItem(
+          reasonCode: 'defect',
+          orderItemId: 'oi-1042-p5',
+          quantity: 1,
+        ),
       ],
     ]) {
       await expectLater(
-        repository.requestReturn(orderId: 'order-1042', items: lines),
+        repository.requestReturn(
+          operationId: 'return-operation-123',
+          orderId: 'order-1042',
+          items: lines,
+        ),
         throwsA(isA<AppFailure>()),
       );
     }
@@ -198,7 +237,11 @@ void main() {
       ),
     );
     await expectLater(
-      guest.requestReturn(orderId: 'order-1042', items: []),
+      guest.requestReturn(
+        operationId: 'return-operation-123',
+        orderId: 'order-1042',
+        items: [],
+      ),
       throwsA(
         isA<AppFailure>().having(
           (e) => e.kind,
@@ -257,16 +300,29 @@ void main() {
       expect(requests.first.path, '/products/p1/reviews');
       expect(requests.first.data, {'order_item_id': 'i1', 'rating': 4});
       final result = await remote.requestReturn(
+        operationId: 'return-operation-123',
         orderId: 'o1',
         reason: 'Reason',
-        items: [const ReturnRequestItem(orderItemId: 'i1', quantity: 1)],
+        items: [
+          const ReturnRequestItem(
+            reasonCode: 'defect',
+            orderItemId: 'i1',
+            quantity: 1,
+          ),
+        ],
       );
       expect(result.id, 'r1');
       expect(requests.last.data, {
         'order_id': 'o1',
+        'operation_id': 'return-operation-123',
         'reason': 'Reason',
         'items': [
-          {'order_item_id': 'i1', 'quantity': 1, 'reason': 'Reason'},
+          {
+            'order_item_id': 'i1',
+            'quantity': 1,
+            'reason': 'Reason',
+            'reason_code': 'defect',
+          },
         ],
       });
     },

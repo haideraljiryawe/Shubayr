@@ -1,6 +1,9 @@
 import '../data/delivery.dart';
+import '../data/delivery_detail.dart';
 
 abstract interface class DeliveryRepository {
+  Future<DeliveryDetail> fetchDetail(String id);
+
   /// GET /deliveries/assigned — scoped to the authenticated agent.
   Future<DeliveryPage> fetchAssigned({
     String? status,

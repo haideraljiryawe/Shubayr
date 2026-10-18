@@ -2,10 +2,22 @@ import '../../../core/network/api_client.dart';
 import '../../../core/error/response_decode.dart';
 import '../domain/delivery_repository.dart';
 import 'delivery.dart';
+import 'delivery_detail.dart';
 
 class DeliveryRepositoryRemote implements DeliveryRepository {
   const DeliveryRepositoryRemote(this._api);
   final ApiClient _api;
+
+  @override
+  Future<DeliveryDetail> fetchDetail(String id) => decodeResponse(() async {
+    final detail = DeliveryDetail.fromJson(
+      await _api.get<Map<String, dynamic>>(
+        '/deliveries/${Uri.encodeComponent(id)}',
+      ),
+    );
+    if (detail.id != id) throw const FormatException('Mismatched delivery');
+    return detail;
+  });
 
   @override
   Future<DeliveryPage> fetchAssigned({

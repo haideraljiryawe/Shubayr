@@ -1,3 +1,5 @@
+import 'package:shubayr/features/delivery/data/delivery_detail.dart';
+import 'package:shubayr/features/delivery/presentation/screens/delivery_detail_screen.dart';
 import 'package:shubayr/features/notifications/presentation/notification_providers.dart';
 import 'package:shubayr/core/config/app_config.dart';
 import 'dart:async';
@@ -25,6 +27,7 @@ Widget _host(
   bool dark = false,
   double textScale = 1,
   Session session = agentSession,
+  Widget? home,
 }) => ProviderScope(
   retry: (retryCount, error) => null,
   overrides: [
@@ -50,7 +53,7 @@ Widget _host(
       ).copyWith(textScaler: TextScaler.linear(textScale)),
       child: child!,
     ),
-    home: const DeliveryHomeScreen(),
+    home: home ?? const DeliveryHomeScreen(),
   ),
 );
 
@@ -72,7 +75,7 @@ Finder _listScroll() => find
 
 void main() {
   for (final locale in ['ar', 'en']) {
-    testWidgets('delivery timestamps use local Western dates $locale', (
+    testWidgets('detail history timestamps use local Western dates $locale', (
       tester,
     ) async {
       final repo = RecordingDeliveries()
@@ -90,7 +93,30 @@ void main() {
             ),
           ],
         );
-      await tester.pumpWidget(_host(repo, locale: locale));
+      final summary = (await repo.fetchAssigned()).data.single;
+      await tester.pumpWidget(
+        _host(
+          repo,
+          locale: locale,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DeliveryDetailContent(
+                detail: const DeliveryDetail(
+                  id: 'd',
+                  orderId: 'o',
+                  orderNumber: 'ORD-1',
+                  orderVersion: 1,
+                  status: 'delivered',
+                  currency: 'IQD',
+                  amountDue: 25000,
+                  items: [],
+                ),
+                summary: summary,
+              ),
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.textContaining('2026/10/03 00:15'), findsOneWidget);
       expect(find.textContaining('2026/10/03 00:45'), findsOneWidget);

@@ -38,6 +38,13 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
       );
 
   @override
+  Future<ReturnRequest> fetchReturn(String id) => decodeResponse(
+    () async => ReturnRequest.fromJson(
+      await _api.get<Map<String, dynamic>>('/returns/$id'),
+    ),
+  );
+
+  @override
   Future<Review> submitReview({
     required String productId,
     required String orderItemId,
@@ -58,6 +65,7 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
 
   @override
   Future<ReturnRequest> requestReturn({
+    required String operationId,
     required String orderId,
     required List<ReturnRequestItem> items,
     String? reason,
@@ -67,10 +75,12 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
         '/returns',
         body: {
           'order_id': orderId,
+          'operation_id': operationId,
           'reason': ?reason,
           'items': items.map((item) {
             final itemReason = (item.reason ?? reason)?.trim();
-            if (!isValidQuantity(item.quantity) ||
+            if (!returnReasonCodes.contains(item.reasonCode) ||
+                !isValidQuantity(item.quantity) ||
                 itemReason == null ||
                 itemReason.isEmpty ||
                 itemReason.length > 1000) {
@@ -80,6 +90,7 @@ class AfterSalesRepositoryRemote implements AfterSalesRepository {
               'order_item_id': item.orderItemId,
               'quantity': item.quantity,
               'reason': itemReason,
+              'reason_code': item.reasonCode,
             };
           }).toList(),
         },

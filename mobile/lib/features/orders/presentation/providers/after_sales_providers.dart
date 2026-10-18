@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/storage/pending_request_store.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/quantity.dart';
@@ -186,21 +187,19 @@ class ReturnEligibility {
             quantity = item.quantity;
           case 'approved':
           case 'partially_approved':
+          case 'received':
+          case 'inspected':
+          case 'refunded':
           case 'completed':
-            // The contract exposes approved units but does not specify when the
-            // unapproved remainder is released for another request. Only equal
-            // requested/approved quantities have an unambiguous consumed amount.
-            // Completion can also follow rejection: never treat it as full return.
             final approved = item.approvedQuantity;
             if (approved == null ||
-                !isValidQuantity(approved, min: 0, max: item.quantity) ||
-                approved != item.quantity) {
+                !isValidQuantity(approved, min: 0, max: item.quantity)) {
               throw const AppFailure(FailureKind.server);
             }
             quantity = approved;
           case 'rejected':
+            quantity = 0;
           default:
-            // Rejection's reservation-release policy is not defined by the contract.
             throw const AppFailure(FailureKind.server);
         }
         consumed[item.orderItemId] = addQuantity(
@@ -326,24 +325,60 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
         items.isEmpty ||
         items.map((i) => i.orderItemId).toSet().length != items.length ||
         items.any(
-          (i) => !isValidQuantity(
-            i.quantity,
-            wholeUnitsOnly:
-                current.order.items
-                    .where((item) => item.id == i.orderItemId)
-                    .firstOrNull
-                    ?.wholeUnitsOnly ??
-                true,
-            max: current.remaining[i.orderItemId] ?? 0,
-          ),
+          (i) =>
+              !returnReasonCodes.contains(i.reasonCode) ||
+              (i.reason ?? reason ?? '').trim().isEmpty ||
+              (i.reason ?? reason ?? '').trim().length > 1000 ||
+              !isValidQuantity(
+                i.quantity,
+                wholeUnitsOnly:
+                    current.order.items
+                        .where((item) => item.id == i.orderItemId)
+                        .firstOrNull
+                        ?.wholeUnitsOnly ??
+                    true,
+                max: current.remaining[i.orderItemId] ?? 0,
+              ),
         )) {
       throw const AppFailure(FailureKind.validation);
     }
     _submitting.add(key);
+    final keepAlive = ref.keepAlive();
     try {
-      final request = await ref
-          .read(afterSalesRepositoryProvider)
-          .requestReturn(orderId: orderId, items: items, reason: reason);
+      final slot = ref.read(pendingReturnSlotProvider(orderId));
+      if (slot == null) throw const AppFailure.unauthorized();
+      final store = ref.read(pendingRequestStoreProvider);
+      if (await store.read(slot) != null) {
+        throw const AppFailure(FailureKind.conflict, code: 'PENDING_REQUEST');
+      }
+      if (!_owns(identity)) return null;
+      final pending = await store.prepare(slot, {
+        'order_id': orderId,
+        'reason': ?reason,
+        'items': [
+          for (final item in items)
+            {
+              'order_item_id': item.orderItemId,
+              'quantity': item.quantity,
+              'reason': item.reason ?? reason,
+              'reason_code': item.reasonCode,
+            },
+        ],
+      });
+      if (!_owns(identity)) return null;
+      ReturnRequest request;
+      try {
+        request = await _sendReturn(
+          ref.read(afterSalesRepositoryProvider),
+          pending,
+        );
+      } catch (error) {
+        if (isDefinitiveWriteRejection(error)) {
+          await store.complete(slot, pending.id);
+        }
+        rethrow;
+      }
+      await store.complete(slot, pending.id);
       if (!_owns(identity)) return null;
       if (generation == _generation) {
         try {
@@ -363,9 +398,86 @@ class ReturnEligibilityController extends AsyncNotifier<ReturnEligibility> {
       rethrow;
     } finally {
       _submitting.remove(key);
+      if (ref.mounted) ref.invalidate(pendingReturnProvider(orderId));
+      keepAlive.close();
+    }
+  }
+
+  Future<ReturnRequest?> retryPending() async {
+    final identity = ref.read(ordersIdentityProvider);
+    if (!_owns(identity) || _submitting.contains(identity)) return null;
+    _submitting.add(identity!);
+    final keepAlive = ref.keepAlive();
+    final slot = ref.read(pendingReturnSlotProvider(orderId));
+    final store = ref.read(pendingRequestStoreProvider);
+    final repository = ref.read(afterSalesRepositoryProvider);
+    try {
+      if (slot == null) return null;
+      final pending = await store.read(slot);
+      if (pending == null || !_owns(identity)) return null;
+      // Recovery always resends the durable payload and key. A later refusal
+      // does not prove that an earlier ambiguous request was never applied.
+      final result = await _sendReturn(repository, pending);
+      await store.complete(slot, pending.id);
+      if (!_owns(identity)) return null;
+      ref.invalidateSelf();
+      return result;
+    } finally {
+      _submitting.remove(identity);
+      if (ref.mounted) ref.invalidate(pendingReturnProvider(orderId));
+      keepAlive.close();
     }
   }
 }
+
+Future<ReturnRequest> _sendReturn(
+  AfterSalesRepository repository,
+  PendingRequest pending,
+) {
+  final body = pending.body;
+  return repository.requestReturn(
+    operationId: pending.id,
+    orderId: body['order_id'] as String,
+    reason: body['reason'] as String?,
+    items: [
+      for (final item in body['items'] as List)
+        ReturnRequestItem(
+          orderItemId: item['order_item_id'] as String,
+          quantity: item['quantity'] as num,
+          reason: item['reason'] as String?,
+          reasonCode: item['reason_code'] as String?,
+        ),
+    ],
+  );
+}
+
+final pendingReturnSlotProvider = Provider.autoDispose.family<String?, String>((
+  ref,
+  orderId,
+) {
+  final identity = ref.watch(ordersIdentityProvider);
+  if (identity == null) return null;
+  return PendingRequestStore.slot(
+    ref.watch(appConfigProvider).apiBaseUrl,
+    identity.customerId,
+    'return',
+    orderId,
+  );
+});
+final pendingReturnProvider = FutureProvider.autoDispose
+    .family<PendingRequest?, String>((ref, orderId) {
+      final slot = ref.watch(pendingReturnSlotProvider(orderId));
+      return slot == null
+          ? null
+          : ref.watch(pendingRequestStoreProvider).read(slot);
+    });
+final returnDetailProvider = FutureProvider.autoDispose
+    .family<ReturnRequest, String>((ref, id) {
+      if (ref.watch(ordersIdentityProvider) == null) {
+        throw const AppFailure.unauthorized();
+      }
+      return ref.watch(afterSalesRepositoryProvider).fetchReturn(id);
+    });
 
 final returnEligibilityProvider = AsyncNotifierProvider.autoDispose
     .family<ReturnEligibilityController, ReturnEligibility, String>(

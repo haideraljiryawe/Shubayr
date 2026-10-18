@@ -86,7 +86,7 @@ class _FailingCart extends CartRepositoryMock {
   _FailingCart(this.cart);
   final Cart cart;
   @override
-  Future<Cart> fetchCart() async => cart;
+  Future<Cart> fetchCart({String? addressId}) async => cart;
   @override
   Future<Cart> updateItem(String itemId, num quantity) async =>
       throw const AppFailure.network();
@@ -130,7 +130,7 @@ class _UpdatingCart extends CartRepositoryMock {
   Cart cart;
   num? requested;
   @override
-  Future<Cart> fetchCart() async => cart;
+  Future<Cart> fetchCart({String? addressId}) async => cart;
   @override
   Future<Cart> updateItem(String id, num quantity) async {
     requested = quantity;

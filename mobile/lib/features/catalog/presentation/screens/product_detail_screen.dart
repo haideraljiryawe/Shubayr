@@ -298,7 +298,11 @@ class _DetailState extends ConsumerState<_Detail> {
                             ],
                           ),
                         ],
-                        if (product.description.isNotEmpty) ...[
+                        if (product
+                            .localizedDescription(
+                              Localizations.localeOf(context).languageCode,
+                            )
+                            .isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             l10n.productDescription,
@@ -306,7 +310,9 @@ class _DetailState extends ConsumerState<_Detail> {
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            product.description,
+                            product.localizedDescription(
+                              Localizations.localeOf(context).languageCode,
+                            ),
                             style: context.text.bodyMedium?.copyWith(
                               color: colors.textSecondary,
                             ),

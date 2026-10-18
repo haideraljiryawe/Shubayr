@@ -9,6 +9,9 @@ import 'package:shubayr/features/notifications/domain/push_lifecycle.dart';
 
 class _Client implements PushClient {
   PushPermission allowed = PushPermission.authorized;
+  PushPermission? requestResult;
+  Completer<PushPermission>? permissionGate;
+  Completer<PushPermission>? requestGate;
   String? currentToken = 'token-1';
   bool opened = false;
   int prompts = 0, resets = 0;
@@ -19,8 +22,12 @@ class _Client implements PushClient {
   String get platform => 'ios';
   @override
   Future<PushPermission> permission({bool request = false}) async {
-    if (request) prompts++;
-    return allowed;
+    if (request) {
+      prompts++;
+      allowed = requestResult ?? allowed;
+      if (requestGate != null) return requestGate!.future;
+    }
+    return permissionGate?.future ?? Future.value(allowed);
   }
 
   @override
@@ -104,17 +111,145 @@ void main() {
       empty.dispose();
     },
   );
-  test('permission is explicit; denied/APNs pending cannot register', () async {
-    client.allowed = PushPermission.denied;
-    expect(await lifecycle.synchronize(_a), PushPermission.denied);
-    expect(client.prompts, 0);
-    expect(devices.calls, isEmpty);
+  test(
+    'denied permission is never requested; APNs pending cannot register',
+    () async {
+      client.allowed = PushPermission.denied;
+      expect(await lifecycle.synchronize(_a), PushPermission.denied);
+      expect(client.prompts, 0);
+      expect(devices.calls, isEmpty);
+      await lifecycle.synchronize(_a, requestPermission: true);
+      expect(client.prompts, 0);
+      client.allowed = PushPermission.authorized;
+      client.currentToken = null;
+      expect(await lifecycle.synchronize(_a), PushPermission.notDetermined);
+      expect(devices.calls, isEmpty);
+    },
+  );
+  test('initial request grants permission and registers once', () async {
+    client.allowed = PushPermission.notDetermined;
+    client.requestResult = PushPermission.authorized;
+    await lifecycle.synchronize(_a, requestPermission: true);
     await lifecycle.synchronize(_a, requestPermission: true);
     expect(client.prompts, 1);
-    client.allowed = PushPermission.authorized;
-    client.currentToken = null;
-    expect(await lifecycle.synchronize(_a), PushPermission.notDetermined);
+    expect(devices.calls, ['register:token-1:ios:ar:1']);
+  });
+  test('already granted permission registers without a prompt', () async {
+    await lifecycle.synchronize(_a, requestPermission: true);
+    expect(client.prompts, 0);
+    expect(devices.calls, ['register:token-1:ios:ar:1']);
+  });
+  test(
+    'logout while system prompt is open prevents stale registration',
+    () async {
+      client.allowed = PushPermission.notDetermined;
+      final gate = client.requestGate = Completer<PushPermission>();
+      final sync = lifecycle.synchronize(_a, requestPermission: true);
+      await Future<void>.delayed(Duration.zero);
+      expect(client.prompts, 1);
+      final logout = lifecycle.endSession(2);
+      gate.complete(PushPermission.authorized);
+      expect(await sync, PushPermission.unavailable);
+      await logout;
+      expect(devices.calls, isEmpty);
+    },
+  );
+  test(
+    'failed system prompt is not retried automatically in the same run',
+    () async {
+      client.allowed = PushPermission.notDetermined;
+      final gate = client.requestGate = Completer<PushPermission>();
+      final sync = lifecycle.synchronize(_a, requestPermission: true);
+      final failure = expectLater(sync, throwsStateError);
+      await Future<void>.delayed(Duration.zero);
+      gate.completeError(StateError('fixture'));
+      await failure;
+      await lifecycle.synchronize(_a, requestPermission: true);
+      expect(client.prompts, 1);
+      expect(devices.calls, isEmpty);
+    },
+  );
+  for (final result in [PushPermission.denied, PushPermission.notDetermined]) {
+    test(
+      'initial $result does not prompt again on sync or account change',
+      () async {
+        client.allowed = PushPermission.notDetermined;
+        client.requestResult = result;
+        await lifecycle.synchronize(_a, requestPermission: true);
+        await lifecycle.synchronize(_a, requestPermission: true);
+        await lifecycle.synchronize(_b, requestPermission: true);
+        expect(client.prompts, 1);
+        expect(devices.calls, isEmpty);
+      },
+    );
+  }
+  test(
+    'permission read completing after logout cannot prompt or register',
+    () async {
+      final gate = client.permissionGate = Completer<PushPermission>();
+      final sync = lifecycle.synchronize(_a, requestPermission: true);
+      await Future<void>.delayed(Duration.zero);
+      final logout = lifecycle.endSession(2);
+      gate.complete(PushPermission.notDetermined);
+      await sync;
+      await logout;
+      expect(client.prompts, 0);
+      expect(devices.calls, isEmpty);
+    },
+  );
+  test('UI readiness is checked after asynchronous permission read', () async {
+    var ready = true;
+    final gate = client.permissionGate = Completer<PushPermission>();
+    final sync = lifecycle.synchronize(
+      _a,
+      requestPermission: true,
+      canRequestPermission: () => ready,
+    );
+    await Future<void>.delayed(Duration.zero);
+    ready = false;
+    gate.complete(PushPermission.notDetermined);
+    await sync;
+    expect(client.prompts, 0);
     expect(devices.calls, isEmpty);
+  });
+  test(
+    'OS settings changes unregister and register without prompting',
+    () async {
+      await lifecycle.synchronize(_a);
+      client.allowed = PushPermission.denied;
+      await lifecycle.synchronize(_a, refreshRegistration: true);
+      client.allowed = PushPermission.authorized;
+      await lifecycle.synchronize(_a, refreshRegistration: true);
+      expect(devices.calls, [
+        'register:token-1:ios:ar:1',
+        'unregister:token-1:1',
+        'register:token-1:ios:ar:1',
+      ]);
+      expect(client.prompts, 0);
+    },
+  );
+  test(
+    'resume reactivates current token; queued refreshes are coalesced',
+    () async {
+      await lifecycle.synchronize(_a);
+      await lifecycle.synchronize(_a);
+      expect(devices.calls.length, 1);
+      await Future.wait([
+        lifecycle.synchronize(_a, refreshRegistration: true),
+        lifecycle.synchronize(_a, refreshRegistration: true),
+      ]);
+      expect(devices.calls.length, 2);
+      await lifecycle.synchronize(_a, refreshRegistration: true);
+      expect(devices.calls.length, 3);
+    },
+  );
+  test('failed registration does not become a deduplicated success', () async {
+    devices.failRegister = true;
+    await expectLater(lifecycle.synchronize(_a), throwsStateError);
+    devices.failRegister = false;
+    await lifecycle.synchronize(_a);
+    await lifecycle.synchronize(_a);
+    expect(devices.calls.length, 2);
   });
   test(
     'refresh retires old token and registration follows current locale',

@@ -25,6 +25,7 @@ class AppFailure implements Exception {
     this.serverMessage,
     this.code,
     this.errors = const [],
+    this.details = const {},
   });
 
   const AppFailure.network() : this(FailureKind.network);
@@ -36,6 +37,7 @@ class AppFailure implements Exception {
   final int? statusCode;
   final String? code;
   final List<ApiFieldError> errors;
+  final Map<String, dynamic> details;
 
   /// `Error.message` from the API, when present. Shown only as a detail line —
   /// primary copy is always localised.
@@ -63,6 +65,17 @@ class AppFailure implements Exception {
 
   String localizedMessage(AppLocalizations l10n) {
     if (code == 'ACCOUNT_DELETION_BLOCKED') {
+      if ([
+        'open_orders',
+        'pending_returns',
+        'unsettled_amounts',
+      ].every((key) => details[key] is int && (details[key] as int) >= 0)) {
+        return l10n.accountDeletionCounts(
+          '${details['open_orders']}',
+          '${details['pending_returns']}',
+          '${details['unsettled_amounts']}',
+        );
+      }
       final blockers = <String>{
         for (final error in errors)
           if (error.code == 'OPEN_ORDERS')
@@ -83,10 +96,24 @@ class AppFailure implements Exception {
       return l10n.privacyPolicyOpenFailed;
     }
     return switch (code) {
+      'SMS_NOT_CONFIGURED' ||
+      'OTP_DELIVERY_UNAVAILABLE' => l10n.otpDeliveryUnavailable,
+      'RETURN_WINDOW_EXPIRED' => l10n.returnWindowExpired,
+      'RETURN_QUANTITY_EXCEEDS_ELIGIBLE' => l10n.returnQuantityChanged,
+      'RETURN_QUANTITY_INVALID' ||
+      'RETURN_QUANTITY_PRECISION' => l10n.returnQuantityInvalid,
+      'RETURN_ORDER_NOT_DELIVERED' ||
+      'RETURN_DELIVERY_NOT_FOUND' => l10n.returnNotDelivered,
+      'LOYALTY_POINTS_INSUFFICIENT' => l10n.loyaltyInsufficient,
+      'LOYALTY_REDEMPTION_EXCEEDS_GOODS' => l10n.loyaltyExceedsGoods,
       'SUPPORT_UNAVAILABLE' => l10n.supportUnavailable,
       'SUPPORT_OPEN_FAILED' => l10n.supportOpenFailed,
       'IDEMPOTENCY_KEY_REUSED' => l10n.errorCheckoutIdentity,
       'CART_EMPTY' => l10n.errorCartEmpty,
+      'ADDRESS_GOVERNORATE_REQUIRED' => l10n.errorAddressGovernorateRequired,
+      'DELIVERY_ZONE_NOT_SERVED' => l10n.errorDeliveryZoneNotServed,
+      'DELIVERY_LOCATION_SELECTOR_CONFLICT' =>
+        l10n.errorDeliveryLocationSelector,
       'CART_QUANTITY_INVALID' => l10n.errorCartQuantity,
       'CART_PRODUCT_UNAVAILABLE' ||
       'CART_VARIANT_UNAVAILABLE' ||

@@ -76,7 +76,13 @@ void main() {
             id: 'r$q',
             orderId: 'o',
             reason: 'Damaged',
-            items: [ReturnRequestItem(orderItemId: 'i', quantity: q)],
+            items: [
+              ReturnRequestItem(
+                reasonCode: 'defect',
+                orderItemId: 'i',
+                quantity: q,
+              ),
+            ],
           ),
       ],
     );
@@ -109,8 +115,15 @@ void main() {
     }
     await expectLater(
       AfterSalesRepositoryRemote(ApiClient(dio)).requestReturn(
+        operationId: 'return-operation-123',
         orderId: 'o',
-        items: const [ReturnRequestItem(orderItemId: 'i', quantity: 0.0001)],
+        items: const [
+          ReturnRequestItem(
+            reasonCode: 'defect',
+            orderItemId: 'i',
+            quantity: 0.0001,
+          ),
+        ],
       ),
       throwsA(isA<AppFailure>()),
     );
@@ -269,11 +282,13 @@ void main() {
       expect(requests[1].data['quantity'], 0.125);
       final returned = await AfterSalesRepositoryRemote(ApiClient(dio))
           .requestReturn(
+            operationId: 'return-operation-123',
             orderId: 'o',
             reason: 'Damaged',
             items: [
               ReturnRequestItem.fromJson({
                 'order_item_id': 'i',
+                'reason_code': 'defect',
                 'quantity': 0.125,
               }),
             ],

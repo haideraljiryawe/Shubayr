@@ -5,10 +5,14 @@ import '../theme/tokens/app_typography.dart';
 
 /// Preserve Flutter's adaptive menu actions and geometry while giving iOS
 /// toolbar labels a family: their SDK style has inherit:false and no family.
-Widget appTextSelectionToolbar(BuildContext context, EditableTextState state) {
+Widget appTextSelectionToolbar(
+  BuildContext context,
+  EditableTextState state, {
+  List<ContextMenuButtonItem>? buttonItems,
+}) {
   final buttons = AdaptiveTextSelectionToolbar.getAdaptiveButtons(
     context,
-    state.contextMenuButtonItems,
+    buttonItems ?? state.contextMenuButtonItems,
   );
   return AdaptiveTextSelectionToolbar(
     anchors: state.contextMenuAnchors,

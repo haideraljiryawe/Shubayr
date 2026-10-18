@@ -70,8 +70,14 @@ void _pollInForeground(
 
   void tick() {
     final owner = epoch;
-    if (isActive()) sync(() => isActive() && epoch == owner);
+    if (isActive() && ref.read(sessionRevalidationProvider).hasValue) {
+      sync(() => isActive() && epoch == owner);
+    }
   }
+
+  ref.listen(sessionRevalidationProvider, (previous, next) {
+    if (previous?.hasValue == false && next.hasValue) tick();
+  });
 
   bool foreground() =>
       WidgetsBinding.instance.lifecycleState == null ||
@@ -130,6 +136,7 @@ class InboxController extends AsyncNotifier<InboxState> {
   bool _syncing = false;
   Object? _identity;
   final _reading = <Object, Future<bool>>{};
+  final _readingAll = <Object, Future<bool>>{};
   @override
   Future<InboxState> build() async {
     final identity = ref.watch(notificationIdentityProvider);
@@ -266,6 +273,37 @@ class InboxController extends AsyncNotifier<InboxState> {
     // Cancel stale page responses and obtain the authoritative read state.
     ref.invalidateSelf();
     return true;
+  }
+
+  Future<bool> markAllRead() {
+    final identity = ref.read(notificationIdentityProvider);
+    if (!identity.signedIn) return Future.value(false);
+    final key = (identity, ref.read(sessionCredentialsProvider).revision);
+    return _readingAll[key] ??= _markAllRead().whenComplete(() {
+      _readingAll.remove(key);
+    });
+  }
+
+  Future<bool> _markAllRead() async {
+    final credentials = ref.read(sessionCredentialsProvider);
+    final owner = credentials.revision;
+    final identity = ref.read(notificationIdentityProvider);
+    final keepAlive = ref.keepAlive();
+    try {
+      await ref.read(notificationRepositoryProvider).readAll();
+      if (!ref.mounted ||
+          !credentials.owns(owner) ||
+          identity != ref.read(notificationIdentityProvider)) {
+        return false;
+      }
+      // Re-read rather than setting the badge to zero: a newer notification may
+      // have arrived after the server's bulk-operation boundary.
+      ref.invalidate(unreadCountProvider);
+      ref.invalidateSelf();
+      return true;
+    } finally {
+      keepAlive.close();
+    }
   }
 }
 
