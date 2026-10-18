@@ -17,6 +17,7 @@ export type NavKey =
   | "products"
   | "categories"
   | "brands"
+  | "banners"
   | "catalogImport"
   | "catalogImages"
   | "stock"
@@ -60,6 +61,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "products", href: "/catalog/products", requires: ["catalog.products"] },
   { key: "categories", href: "/catalog/categories", requires: ["catalog.categories"] },
   { key: "brands", href: "/catalog/brands", requires: ["catalog.brands"] },
+  // Home banners (NOTE-001): the API guards them with catalog.products.
+  { key: "banners", href: "/catalog/banners", requires: ["catalog.products"] },
   // Excel import and bulk images (API 15.1).
   { key: "catalogImport", href: "/catalog/import", requires: ["catalog.import"] },
   { key: "catalogImages", href: "/catalog/images", requires: ["catalog.import"] },

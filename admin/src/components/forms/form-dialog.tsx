@@ -20,6 +20,7 @@ export function FormDialog({
   onClose,
   testId,
   footer,
+  wide = false,
 }: {
   open: boolean;
   title: ReactNode;
@@ -31,6 +32,8 @@ export function FormDialog({
   testId?: string;
   /** Replaces the default cancel/submit row, e.g. for a two-step flow. */
   footer?: ReactNode;
+  /** Room for side-by-side previews (the banner editor). */
+  wide?: boolean;
 }) {
   const t = useTranslations("common");
   const ref = useRef<HTMLDialogElement>(null);
@@ -47,7 +50,7 @@ export function FormDialog({
       ref={ref}
       onClose={onClose}
       data-testid={testId}
-      className="m-auto max-h-[90dvh] w-[min(40rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-border bg-surface p-0 text-text shadow-lg backdrop:bg-text/40"
+      className={`m-auto max-h-[90dvh] ${wide ? "w-[min(64rem,calc(100vw-2rem))]" : "w-[min(40rem,calc(100vw-2rem))]"} overflow-y-auto rounded-lg border border-border bg-surface p-0 text-text shadow-lg backdrop:bg-text/40`}
     >
       <form
         className="flex flex-col gap-4 p-6"

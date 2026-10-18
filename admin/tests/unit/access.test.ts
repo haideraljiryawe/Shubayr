@@ -25,9 +25,11 @@ describe("visibleNav", () => {
   it("shows only what the current permissions open", () => {
     expect(visibleNav([]).map((item) => item.key)).toEqual(["dashboard"]);
     // Catalog v2: each catalog screen follows its own permission.
+    // Home banners share catalog.products with the API banner routes.
     expect(visibleNav(["catalog.products"]).map((item) => item.key)).toEqual([
       "dashboard",
       "products",
+      "banners",
     ]);
     expect(
       visibleNav(["catalog.categories", "catalog.brands"]).map((item) => item.key),

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeftRight, FolderPlus, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { Field } from "@/components/forms/field";
@@ -12,6 +12,14 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { FormError } from "@/components/forms/form-error";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
+import { EditorialHint } from "@/components/forms/editorial-hint";
+import { Artwork, CategoryCardPreview } from "@/components/catalog/category-card-preview";
+import { CroppedImageField, type ImageChoice } from "@/components/catalog/cropped-image-field";
+import { descriptionChanges, descriptionDraft, mayBeFallback, type DescriptionDraft } from "@/lib/category-content";
+import { DESCRIPTION_GUIDE, NAME_GUIDE } from "@/lib/editorial";
+import { CATEGORY_CROP } from "@/lib/image-crop";
+import { uploadImage } from "@/lib/media-upload";
+import { MAX_UPLOAD_BYTES } from "@/lib/product-images";
 import { browserApi, unwrap } from "@/lib/api/client";
 import {
   canConvertToBrand,
@@ -47,7 +55,16 @@ function nameOf(category: Category, locale: string): string {
  * that an older tree still holds is listed for review (convert it to a brand,
  * or move it under a department).
  */
-export function CategoriesView({ tree, canConvert }: { tree: Category[]; canConvert: boolean }) {
+export function CategoriesView({
+  tree,
+  canConvert,
+  canUploadImages,
+}: {
+  tree: Category[];
+  canConvert: boolean;
+  /** Pictures go through POST /media/images, which needs catalog.products. */
+  canUploadImages: boolean;
+}) {
   const t = useTranslations("categories");
   const locale = useLocale();
   const router = useRouter();
@@ -65,6 +82,13 @@ export function CategoriesView({ tree, canConvert }: { tree: Category[]; canConv
         data-testid={`category-row-${category.slug}`}
         data-depth={depth}
       >
+        <span
+          className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-background"
+          data-testid={`category-thumb-${category.slug}`}
+          data-image={category.image_url ?? ""}
+        >
+          <Artwork url={category.image_url ?? null} cover />
+        </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="font-semibold">
             {nameOf(category, locale)}
@@ -178,6 +202,7 @@ export function CategoriesView({ tree, canConvert }: { tree: Category[]; canConv
         <CategoryForm
           key={dialog.kind === "edit" ? dialog.category.id : `new-${dialog.parent?.id ?? "root"}`}
           tree={tree}
+          canUploadImages={canUploadImages}
           editing={dialog.kind === "edit" ? dialog.category : null}
           parent={dialog.kind === "create" ? dialog.parent : null}
           onClose={close}
@@ -230,21 +255,29 @@ export function CategoriesView({ tree, canConvert }: { tree: Category[]; canConv
  * category that has subcategories cannot take a parent at all. If the tree
  * changed since the page loaded, the API refuses with its own reason, which
  * is shown as sent.
+ *
+ * Descriptions and the picture (NOTE-003/006/008) are sent only when they
+ * changed, so editing a name never touches them. A new picture is uploaded
+ * when the form saves, then its URL is saved with the category; if either step
+ * fails, the category keeps the picture it had and saving can be retried.
  */
 function CategoryForm({
   tree,
   editing,
   parent,
+  canUploadImages,
   onClose,
   onSaved,
 }: {
   tree: Category[];
   editing: Category | null;
   parent: Category | null;
+  canUploadImages: boolean;
   onClose: () => void;
   onSaved: (category: Category, created: boolean) => void;
 }) {
   const t = useTranslations("categories");
+  const tImage = useTranslations("imageEditor");
   const locale = useLocale();
   const api = useApiForm();
   const { options, lock } = parentChoices(tree, editing);
@@ -252,6 +285,12 @@ function CategoryForm({
   const [parentId, setParentId] = useState(initialParent);
   const [nameAr, setNameAr] = useState(editing?.name_ar ?? "");
   const [nameEn, setNameEn] = useState(editing?.name_en ?? "");
+  const [descriptions, setDescriptions] = useState<DescriptionDraft>(descriptionDraft(editing));
+  const [image, setImage] = useState<ImageChoice>({ kind: "keep" });
+  // An upload that succeeded but whose save failed: reused on retry, not sent twice.
+  const [uploaded, setUploaded] = useState<{ blob: Blob; url: string } | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(false);
   const [slug, setSlug] = useState(editing?.slug ?? "");
   const [sortOrder, setSortOrder] = useState<number | null>(editing?.sort_order ?? 0);
   const [visible, setVisible] = useState(editing?.is_visible ?? true);
@@ -267,6 +306,25 @@ function CategoryForm({
       ? t("newSubcategoryTitle", { name: nameOf(parent, locale) })
       : t("newDepartmentTitle");
 
+  /** The image_url to send: undefined leaves it as it is. */
+  async function imageUrl(): Promise<string | null | undefined> {
+    if (image.kind === "keep") return undefined;
+    if (image.kind === "remove") return null;
+    if (uploaded?.blob === image.cropped.blob) return uploaded.url;
+    setUploadFailed(false);
+    setProgress(0);
+    try {
+      const media = await uploadImage(image.cropped.blob, image.cropped.name, setProgress);
+      setUploaded({ blob: image.cropped.blob, url: media.public_url });
+      return media.public_url;
+    } catch {
+      setUploadFailed(true);
+      throw new Error("upload");
+    } finally {
+      setProgress(null);
+    }
+  }
+
   async function submit() {
     const found: Record<string, string> = {};
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
@@ -276,6 +334,13 @@ function CategoryForm({
     if (Object.keys(found).length) {
       // A problem in the advanced fields must not hide behind the fold.
       if (found.slug || found.sort_order) setAdvanced(true);
+      return;
+    }
+
+    let url: string | null | undefined;
+    try {
+      url = await imageUrl();
+    } catch {
       return;
     }
 
@@ -289,6 +354,8 @@ function CategoryForm({
       ...(finalSlug ? { slug: finalSlug } : {}),
       sort_order: sortOrder ?? 0,
       is_visible: visible,
+      ...descriptionChanges(editing, descriptions),
+      ...(url !== undefined ? { image_url: url } : {}),
     };
     const saved = await api.run(() =>
       editing
@@ -310,25 +377,117 @@ function CategoryForm({
   }
 
   const error = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;
+  const pending = api.pending || progress !== null;
 
   return (
     <FormDialog
       open
       title={title}
       submitLabel={editing ? t("save") : t("create")}
-      pending={api.pending}
+      pending={pending}
       onSubmit={() => void submit()}
       onClose={onClose}
       testId="category-form"
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
+        <Field
+          label={t("fields.nameAr")}
+          name="name_ar"
+          error={error("name_ar")}
+          hint={<EditorialHint text={nameAr} guide={NAME_GUIDE} testId="category-name-ar-guide" />}
+        >
           <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="category-name-ar" />
         </Field>
-        <Field label={t("fields.nameEnOptional")} name="name_en" error={error("name_en")} hint={t("fields.nameEnHint")}>
+        <Field
+          label={t("fields.nameEnOptional")}
+          name="name_en"
+          error={error("name_en")}
+          hint={
+            <>
+              {t("fields.nameEnHint")} <EditorialHint text={nameEn} guide={NAME_GUIDE} testId="category-name-en-guide" />
+            </>
+          }
+        >
           <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="category-name-en" />
         </Field>
+        <Field
+          label={t("fields.descriptionAr")}
+          name="description_ar"
+          error={error("description_ar")}
+          hint={<EditorialHint text={descriptions.ar} guide={DESCRIPTION_GUIDE} testId="category-description-ar-guide" />}
+        >
+          <Textarea
+            value={descriptions.ar}
+            dir="rtl"
+            rows={2}
+            onChange={(e) => setDescriptions({ ...descriptions, ar: e.target.value })}
+            data-testid="category-description-ar"
+          />
+        </Field>
+        <Field
+          label={t("fields.descriptionEn")}
+          name="description_en"
+          error={error("description_en")}
+          hint={<EditorialHint text={descriptions.en} guide={DESCRIPTION_GUIDE} testId="category-description-en-guide" />}
+        >
+          <Textarea
+            value={descriptions.en}
+            dir="ltr"
+            rows={2}
+            onChange={(e) => setDescriptions({ ...descriptions, en: e.target.value })}
+            data-testid="category-description-en"
+          />
+        </Field>
       </div>
+      <p className="-mt-2 text-xs text-text-muted" data-testid="category-description-fallback">
+        {t("fields.descriptionFallback")}
+        {mayBeFallback(editing) ? <> {t("fields.descriptionMaybeCopy")}</> : null}
+      </p>
+
+      {canUploadImages ? (
+        <CroppedImageField
+          label={t("fields.image")}
+          savedUrl={editing?.image_url ?? null}
+          value={image}
+          onChange={(next) => {
+            setImage(next);
+            setUploadFailed(false);
+          }}
+          target={CATEGORY_CROP}
+          keepTransparency
+          removable
+          guidance={tImage("categoryGuidance", { width: CATEGORY_CROP.width, height: CATEGORY_CROP.width, mb: MAX_UPLOAD_BYTES / 1024 / 1024 })}
+          preview={(url) => (
+            <CategoryCardPreview
+              imageUrl={url}
+              nameAr={nameAr.trim()}
+              nameEn={nameEn.trim()}
+              descriptionAr={descriptions.ar}
+              descriptionEn={descriptions.en}
+            />
+          )}
+          testId="category-image"
+        />
+      ) : (
+        <>
+          <CategoryCardPreview
+            imageUrl={editing?.image_url ?? null}
+            nameAr={nameAr.trim()}
+            nameEn={nameEn.trim()}
+            descriptionAr={descriptions.ar}
+            descriptionEn={descriptions.en}
+          />
+          <p className="text-xs text-text-muted" data-testid="category-image-forbidden">
+            {t("fields.imageNeedsPermission")}
+          </p>
+        </>
+      )}
+      {progress !== null ? (
+        <p className="text-sm text-text-muted" data-testid="category-image-progress">
+          {tImage("uploading", { percent: progress })}
+        </p>
+      ) : null}
+      {uploadFailed ? <Alert data-testid="category-image-upload-failed">{tImage("uploadFailed")}</Alert> : null}
 
       <details
         className="rounded-md border border-border px-3 py-2"
