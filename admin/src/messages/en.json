@@ -3144,7 +3144,8 @@
     "store": "Store settings",
     "zones": "Delivery zones",
     "governorates": "Governorates",
-    "discounts": "Automatic discounts"
+    "discounts": "Automatic discounts",
+    "storeInfo": "Store info"
   },
   "deliveryZones": {
     "title": "Delivery zones",
@@ -3832,5 +3833,53 @@
       "SEPARATION_OF_DUTIES_VIOLATION": "Separation of duties: this step must be done by a different person from the one who did the previous step (or created the return).",
       "PERIOD_CLOSED": "The accounting period for today is closed, so the server refused to post. Ask for the period to be reopened."
     }
+  },
+  "storeInfo": {
+    "title": "Store info",
+    "description": "The legal, contact and policy details your store and app show customers.",
+    "intro": "Customers see these on the privacy, terms, returns and contact pages, in the footer and in their account's help. A field left empty is hidden from them — nothing is made up in its place.",
+    "sections": {
+      "legal": "Business",
+      "contact": "Contact",
+      "policy": "Returns and policies"
+    },
+    "fields": {
+      "store_legal_name_ar": "Legal name (Arabic)",
+      "store_legal_name_en": "Legal name (English)",
+      "store_address_ar": "Registered address (Arabic)",
+      "store_address_en": "Registered address (English)",
+      "support_phone": "Support phone",
+      "support_whatsapp": "WhatsApp number",
+      "support_email": "Support e-mail",
+      "privacy_email": "Privacy e-mail",
+      "support_hours_ar": "Support hours (Arabic)",
+      "support_hours_en": "Support hours (English)",
+      "return_window_days": "Return window (days)",
+      "refund_days": "Refund within (days)",
+      "policy_effective_date": "Policies effective from"
+    },
+    "hints": {
+      "store_legal_name_ar": "The registered business name, as in its papers.",
+      "support_phone": "E.g. 0770 123 4567 or +9647701234567.",
+      "support_whatsapp": "The number customers message on WhatsApp.",
+      "privacy_email": "Where customers send privacy requests. Leave empty to use the support e-mail.",
+      "support_hours_ar": "E.g. السبت إلى الخميس، ٩ صباحًا – ٩ مساءً",
+      "return_window_days": "Days after delivery a customer may ask for a return. The server applies this rule; it can be changed but not left empty.",
+      "refund_days": "Days to refund an accepted return (0 = the same day).",
+      "policy_effective_date": "Shown as \"Last updated\" on the policy pages."
+    },
+    "problems": {
+      "required": "This is required.",
+      "maxLength": "At most {max} characters.",
+      "phone": "Enter a phone number such as 0770 123 4567 or +9647701234567.",
+      "email": "Enter a valid e-mail address.",
+      "positiveInteger": "Enter a whole number of days, 1 or more.",
+      "nonNegativeInteger": "Enter a whole number of days (0 or more).",
+      "date": "Enter a valid date.",
+      "invalid": "The server refused this value."
+    },
+    "save": "Save store info",
+    "saved": "Store info saved",
+    "unchanged": "Nothing changed."
   }
 }

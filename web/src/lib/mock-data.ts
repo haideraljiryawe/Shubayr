@@ -23,6 +23,21 @@ export const mockSettings: StoreSettings = {
   // The mockup prices read $89 / $299, so the demo tenant is USD. Real Iraqi
   // deployments set IQD here — nothing in the code assumes a currency.
   currency: "USD",
+  // Contract 17.2: the demo store's legal, contact and policy details (the
+  // owner enters the real ones in the Web Admin). Mock mode only.
+  store_legal_name_ar: "شركة شبير التجريبية",
+  store_legal_name_en: "Shubayr Demo Trading",
+  store_address_ar: "شارع المتنبي، بغداد، العراق",
+  store_address_en: "Al-Mutanabbi Street, Baghdad, Iraq",
+  support_phone: "+9647701112233",
+  support_whatsapp: "+9647701112244",
+  support_email: "help@shubayr.test",
+  privacy_email: "privacy@shubayr.test",
+  support_hours_ar: "السبت إلى الخميس، من ٩ صباحًا حتى ٩ مساءً (بتوقيت بغداد)",
+  support_hours_en: "Saturday to Thursday, 9 am to 9 pm (Baghdad time)",
+  return_window_days: 14,
+  refund_days: 5,
+  policy_effective_date: "2026-10-17",
 };
 
 /**

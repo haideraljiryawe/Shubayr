@@ -26,7 +26,8 @@
   },
   "footer": {
     "tagline": "An easier shopping experience … for everything you need",
-    "rights": "All rights reserved"
+    "rights": "All rights reserved",
+    "contact": "Contact us:"
   },
   "common": {
     "viewAll": "View all",
@@ -714,7 +715,18 @@
     "event_rejected": "Not approved",
     "event_received": "Items received",
     "event_inspected": "Items checked",
-    "event_refunded": "Refund paid"
+    "event_refunded": "Refund paid",
+    "reasonCode": "Reason",
+    "reasonCodePlaceholder": "Choose a reason",
+    "reasonCodes": {
+      "defect": "Faulty or damaged",
+      "wrong_item": "Not what I ordered",
+      "store_error": "The store made a mistake",
+      "change_of_mind": "Changed my mind",
+      "other": "Something else"
+    },
+    "errNoReasonCode": "Choose a reason for each item you selected.",
+    "feeHint": "If an item is faulty, not what you ordered, or the store made a mistake, the delivery fee may also be refunded under the store's policy. We confirm it when we review your request."
   },
   "reviews": {
     "title": "Reviews",
@@ -803,7 +815,9 @@
     "notifyType_promo": "Offers and promotions",
     "notifyType_quantity_reduction_proposed": "A smaller quantity to approve",
     "notifyType_cancellation_request_approved": "Cancellation request approved",
-    "notifyType_cancellation_request_denied": "Cancellation request declined"
+    "notifyType_cancellation_request_denied": "Cancellation request declined",
+    "faq2ANoWindow": "Yes — within the store's return period, in its original condition, from the order page. The return form shows whether your order is still eligible.",
+    "helpNoContact": "Our contact details will be published here soon. Meanwhile, see the Contact us page."
   },
   "workAccount": {
     "title": "Work account",
@@ -1036,7 +1050,8 @@
     "address": "Address",
     "privacy": "Privacy requests",
     "orderHelp": "Have an order? Its status and your return requests are in your account.",
-    "myOrders": "My orders"
+    "myOrders": "My orders",
+    "noContactYet": "Our contact details will be published here soon."
   },
   "deleteAccount": {
     "title": "Delete your account",
@@ -1058,7 +1073,6 @@
     "signedOutTitle": "Sign in to delete your account",
     "signedOutBody": "To make sure the account is yours, sign in with your phone number and the code we send to it, then confirm the deletion.",
     "signIn": "Sign in",
-    "noAccess": "Can't reach your number? Contact us: <phone></phone> or <email></email>.",
     "confirmTitle": "Delete the account for <phone></phone>",
     "confirmBody": "Your account will be deleted and you will be signed out on every device.",
     "confirmCheck": "I understand that deletion is permanent.",
@@ -1078,6 +1092,9 @@
     "doneTitle": "Your account has been deleted",
     "doneBody": "Your personal data has been deleted and you have been signed out on every device. Thank you for shopping with us.",
     "home": "Back to the home page",
-    "contact": "Contact us"
+    "contact": "Contact us",
+    "noAccessLead": "Can't reach your number? Contact us:",
+    "or": "or",
+    "contactPage": "the Contact us page"
   }
 }

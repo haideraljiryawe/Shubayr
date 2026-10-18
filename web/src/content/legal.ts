@@ -1,14 +1,15 @@
-import { STORE_INFO } from "@/config/store-info";
+import type { StoreInfo } from "@/lib/store-info";
 
 /* ---------------------------------------------------------------------------
  * DRAFT policy texts — privacy, terms of use, returns & refunds — in Arabic
  * and English, for the owner's and a lawyer's review before launch
- * (docs/launch/legal-pages.md). Store-specific values (legal name, address,
- * contacts, return window, refund time) come from src/config/store-info.ts;
- * the store's display name from the API's settings.
+ * (docs/launch/legal-pages.md).
  *
- * The returns rules (window, condition, refund timing) are PLACEHOLDERS the
- * owner must confirm.
+ * The store's own details — legal name, address, contacts, return window,
+ * refund time — come from the public settings (GET /settings, filled in from
+ * the Web Admin under Settings → Store info); the display name from the same
+ * settings. A detail the owner hasn't entered is left out of its sentence or
+ * replaced by a neutral one — never by a placeholder.
  * ------------------------------------------------------------------------- */
 
 export type LegalPageKey = "privacy" | "terms" | "returns";
@@ -25,23 +26,59 @@ export interface LegalDocument {
   blocks: LegalBlock[];
 }
 
-interface Context {
+export interface LegalContext {
   storeName: string;
   siteUrl: string;
+  info: StoreInfo;
 }
 
-const info = STORE_INFO;
+type Lang = "ar" | "en";
 
-function privacy(locale: "ar" | "en", { storeName, siteUrl }: Context): LegalDocument {
-  const deleteUrl = `${siteUrl}${locale === "en" ? "/en" : ""}/account/delete`;
-  if (locale === "ar") {
+/** "7 أيام", "14 يومًا", "يوم واحد" — Arabic counts agree with their noun. */
+export function arabicDays(count: number): string {
+  if (count === 1) return "يوم واحد";
+  if (count === 2) return "يومين";
+  if (count >= 3 && count <= 10) return `${count} أيام`;
+  return `${count} يومًا`;
+}
+
+export function englishDays(count: number): string {
+  return count === 1 ? "1 day" : `${count} days`;
+}
+
+/** The legal name and address that are known, joined; null when neither is. */
+function operator(info: StoreInfo, lang: Lang): string | null {
+  const name = lang === "en" ? (info.legalName.en ?? info.legalName.ar) : (info.legalName.ar ?? info.legalName.en);
+  const address = lang === "en" ? (info.address.en ?? info.address.ar) : (info.address.ar ?? info.address.en);
+  const parts = [name, address].filter((part): part is string => Boolean(part));
+  return parts.length ? parts.join(lang === "ar" ? "، " : ", ") : null;
+}
+
+/** The phone and e-mail that are known, as "A or B"; null when none is. */
+function contacts(info: StoreInfo, lang: Lang): string | null {
+  const parts = [info.phone, info.email].filter((part): part is string => Boolean(part));
+  return parts.length ? parts.join(lang === "ar" ? " أو " : " or ") : null;
+}
+
+function privacyContact(info: StoreInfo): string | null {
+  return info.privacyEmail ?? info.email;
+}
+
+function privacy(lang: Lang, { storeName, siteUrl, info }: LegalContext): LegalDocument {
+  const deleteUrl = `${siteUrl}${lang === "en" ? "/en" : ""}/account/delete`;
+  const who = operator(info, lang);
+  const privacyEmail = privacyContact(info);
+  if (lang === "ar") {
     return {
       title: "سياسة الخصوصية",
       intro: `يدير ${storeName} («نحن») هذا المتجر الإلكتروني وتطبيقاته. توضّح هذه السياسة المعلومات الشخصية التي نجمعها، ولماذا، ومدة الاحتفاظ بها، والخيارات المتاحة لك.`,
       blocks: [
         {
           heading: "من نحن",
-          paragraphs: [`${info.legalName.ar}، ${info.address.ar}. للاستفسارات المتعلقة بالخصوصية: ${info.privacyEmail}.`],
+          paragraphs: [
+            `${who ?? storeName}.`,
+            privacyEmail ? `للاستفسارات المتعلقة بالخصوصية: ${privacyEmail}.` : "للاستفسارات المتعلقة بالخصوصية تواصل معنا من صفحة «اتصل بنا».",
+          ],
         },
         {
           heading: "ما المعلومات التي نجمعها",
@@ -88,7 +125,7 @@ function privacy(locale: "ar" | "en", { storeName, siteUrl }: Context): LegalDoc
             "عرض اسمك وعناوينك وتصحيحها من حسابك.",
             "إيقاف الإشعارات من إعدادات حسابك أو جهازك.",
             `حذف حسابك من التطبيق أو من الصفحة ${deleteUrl}.`,
-            `أي طلب آخر يخص بياناتك: ${info.privacyEmail}.`,
+            privacyEmail ? `أي طلب آخر يخص بياناتك: ${privacyEmail}.` : "أي طلب آخر يخص بياناتك: من صفحة «اتصل بنا».",
           ],
         },
         {
@@ -112,7 +149,10 @@ function privacy(locale: "ar" | "en", { storeName, siteUrl }: Context): LegalDoc
     blocks: [
       {
         heading: "Who we are",
-        paragraphs: [`${info.legalName.en}, ${info.address.en}. For privacy questions: ${info.privacyEmail}.`],
+        paragraphs: [
+          `${who ?? storeName}.`,
+          privacyEmail ? `For privacy questions: ${privacyEmail}.` : "For privacy questions, reach us through the Contact us page.",
+        ],
       },
       {
         heading: "What we collect",
@@ -159,7 +199,7 @@ function privacy(locale: "ar" | "en", { storeName, siteUrl }: Context): LegalDoc
           "See and correct your name and addresses in your account.",
           "Turn notifications off in your account or device settings.",
           `Delete your account in the app or at ${deleteUrl}.`,
-          `Any other request about your data: ${info.privacyEmail}.`,
+          privacyEmail ? `Any other request about your data: ${privacyEmail}.` : "Any other request about your data: through the Contact us page.",
         ],
       },
       {
@@ -178,13 +218,14 @@ function privacy(locale: "ar" | "en", { storeName, siteUrl }: Context): LegalDoc
   };
 }
 
-function terms(locale: "ar" | "en", { storeName }: Context): LegalDocument {
-  if (locale === "ar") {
+function terms(lang: Lang, { storeName, info }: LegalContext): LegalDocument {
+  const who = operator(info, lang);
+  if (lang === "ar") {
     return {
       title: "شروط الاستخدام",
       intro: `تسري هذه الشروط عند تصفّح ${storeName} أو الطلب منه. بإتمامك طلبًا فإنك توافق عليها.`,
       blocks: [
-        { heading: "المتجر", paragraphs: [`يدير المتجر ${info.legalName.ar}، ${info.address.ar}.`] },
+        { heading: "المتجر", paragraphs: [who ? `يدير المتجر ${who}.` : `يدير المتجر ${storeName}.`] },
         {
           heading: "حسابك",
           paragraphs: [
@@ -244,7 +285,7 @@ function terms(locale: "ar" | "en", { storeName }: Context): LegalDocument {
     title: "Terms of use",
     intro: `These terms apply when you browse or order from ${storeName}. By placing an order, you agree to them.`,
     blocks: [
-      { heading: "The store", paragraphs: [`The store is operated by ${info.legalName.en}, ${info.address.en}.`] },
+      { heading: "The store", paragraphs: [`The store is operated by ${who ?? storeName}.`] },
       {
         heading: "Your account",
         paragraphs: [
@@ -303,18 +344,26 @@ function terms(locale: "ar" | "en", { storeName }: Context): LegalDocument {
   };
 }
 
-function returns(locale: "ar" | "en"): LegalDocument {
-  const days = info.returnWindowDays;
+function returns(lang: Lang, { info }: LegalContext): LegalDocument {
+  const window = info.returnWindowDays;
   const refund = info.refundDays;
-  if (locale === "ar") {
+  const reach = contacts(info, lang);
+  if (lang === "ar") {
+    const ask =
+      window !== null
+        ? `يمكنك طلب إرجاع منتج خلال ${arabicDays(window)} من استلامه، من حسابك (طلباتي ← طلب إرجاع) أو بالتواصل معنا.`
+        : "يمكنك طلب إرجاع منتج خلال مدة الإرجاع التي يحددها المتجر، من حسابك (طلباتي ← طلب إرجاع) أو بالتواصل معنا. يُظهر لك نموذج الإرجاع إن كان الطلب لا يزال ضمنها.";
+    const paid =
+      refund === null
+        ? "بعد قبول المنتج المُرجَع نعيد قيمته نقدًا."
+        : refund === 0
+          ? "بعد قبول المنتج المُرجَع نعيد قيمته نقدًا في اليوم نفسه."
+          : `بعد قبول المنتج المُرجَع نعيد قيمته خلال ${arabicDays(refund)} نقدًا.`;
     return {
       title: "سياسة الإرجاع والاسترداد",
       intro: "نريد أن تكون راضيًا عن طلبك. إليك كيف تُرجع منتجًا وتسترد مبلغه.",
       blocks: [
-        {
-          heading: "طلب الإرجاع",
-          paragraphs: [`يمكنك طلب إرجاع منتج خلال ${days} أيام من استلامه، من حسابك (طلباتي ← طلب إرجاع) أو بالتواصل معنا.`],
-        },
+        { heading: "طلب الإرجاع", paragraphs: [ask] },
         {
           heading: "شروط المنتج المُرجَع",
           items: [
@@ -337,25 +386,32 @@ function returns(locale: "ar" | "en"): LegalDocument {
         {
           heading: "الاسترداد",
           paragraphs: [
-            `بعد قبول المنتج المُرجَع نعيد قيمته خلال ${refund} أيام نقدًا. تُعاد رسوم التوصيل فقط إذا كان المنتج معيبًا أو كان الخطأ منّا.`,
+            `${paid} تُعاد رسوم التوصيل فقط إذا كان المنتج معيبًا أو كان الخطأ منّا.`,
             "عند إرجاع جزء من الطلب يُحسب المبلغ المسترد لكل منتج بعد توزيع خصومات الطلب عليه.",
           ],
         },
         {
           heading: "التواصل",
-          paragraphs: [`للمساعدة في الإرجاع: ${info.phone} أو ${info.email}.`],
+          paragraphs: [reach ? `للمساعدة في الإرجاع: ${reach}.` : "للمساعدة في الإرجاع تواصل معنا من صفحة «اتصل بنا»."],
         },
       ],
     };
   }
+  const ask =
+    window !== null
+      ? `You can ask to return a product within ${englishDays(window)} of receiving it, from your account (My orders → Request a return) or by contacting us.`
+      : "You can ask to return a product within the return period the store sets, from your account (My orders → Request a return) or by contacting us. The return form shows whether your order is still within it.";
+  const paid =
+    refund === null
+      ? "Once the returned product is accepted, we refund it in cash."
+      : refund === 0
+        ? "Once the returned product is accepted, we refund it in cash the same day."
+        : `Once the returned product is accepted, we refund it within ${englishDays(refund)}, in cash.`;
   return {
     title: "Returns & refunds",
     intro: "We want you to be happy with your order. Here is how to return a product and get your money back.",
     blocks: [
-      {
-        heading: "Asking for a return",
-        paragraphs: [`You can ask to return a product within ${days} days of receiving it, from your account (My orders → Request a return) or by contacting us.`],
-      },
+      { heading: "Asking for a return", paragraphs: [ask] },
       {
         heading: "Condition of returned products",
         items: [
@@ -378,25 +434,25 @@ function returns(locale: "ar" | "en"): LegalDocument {
       {
         heading: "Refunds",
         paragraphs: [
-          `Once the returned product is accepted, we refund it within ${refund} days, in cash. The delivery fee is refunded only if the product was faulty or the mistake was ours.`,
+          `${paid} The delivery fee is refunded only if the product was faulty or the mistake was ours.`,
           "When part of an order is returned, each product's refund is its price after the order's discounts are shared across it.",
         ],
       },
       {
         heading: "Contact",
-        paragraphs: [`For help with a return: ${info.phone} or ${info.email}.`],
+        paragraphs: [reach ? `For help with a return: ${reach}.` : "For help with a return, reach us through the Contact us page."],
       },
     ],
   };
 }
 
-export function legalDocument(page: LegalPageKey, locale: "ar" | "en", context: Context): LegalDocument {
+export function legalDocument(page: LegalPageKey, lang: Lang, context: LegalContext): LegalDocument {
   switch (page) {
     case "privacy":
-      return privacy(locale, context);
+      return privacy(lang, context);
     case "terms":
-      return terms(locale, context);
+      return terms(lang, context);
     default:
-      return returns(locale);
+      return returns(lang, context);
   }
 }

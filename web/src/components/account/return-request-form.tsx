@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -19,6 +20,12 @@ import {
   type OrderItem,
   type Return,
 } from "@/lib/api";
+import {
+  RETURN_REASON_CODES,
+  mayRefundDeliveryFee,
+  returnLineProblem,
+  type ReturnReasonCode,
+} from "@/lib/return-reasons";
 import { useResource } from "@/lib/use-resource";
 import { OrderItemLine } from "./order-item-line";
 import { AccountError, AccountSkeleton } from "./states";
@@ -26,6 +33,8 @@ import { AccountError, AccountSkeleton } from "./states";
 type Selection = {
   checked: boolean;
   quantity: number;
+  /** One of the API's reasons; "" until the shopper picks one. */
+  reasonCode: ReturnReasonCode | "";
   reason: string;
   /** A weighed or measured line's quantity as typed ("0.25"). */
   text?: string;
@@ -143,6 +152,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       const existing = current[id] ?? {
         checked: false,
         quantity: 1,
+        reasonCode: "",
         reason: "",
       };
       return { ...current, [id]: { ...existing, ...patch } };
@@ -197,7 +207,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       return {
         order_item_id: item.id ?? "",
         quantity,
-        reason_code: "other" as const,
+        reason_code: line.reasonCode,
         // Per LINE, which is what the contract requires: one line may be
         // damaged while another is simply the wrong size.
         reason: line.reason.trim(),
@@ -210,7 +220,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
         order_item_id: string;
         quantity: number;
         reason: string;
-        reason_code: "other";
+        reason_code: ReturnReasonCode | "";
       } => Boolean(line),
     );
 
@@ -219,9 +229,14 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       setError(t("errNoItems"));
       return;
     }
-    // The contract makes the per-line reason mandatory, so an unfilled one is
-    // caught here rather than spent on a 422.
-    if (chosen.some((line) => !line.reason)) {
+    // The contract makes a reason and a note mandatory on every line, so a
+    // missing one is caught here rather than spent on a 422.
+    const problems = chosen.map((line) => returnLineProblem({ reasonCode: line.reason_code, note: line.reason }));
+    if (problems.includes("reasonCode")) {
+      setError(t("errNoReasonCode"));
+      return;
+    }
+    if (problems.includes("note")) {
       setError(t("errNoLineReason"));
       return;
     }
@@ -232,7 +247,7 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
     const payload = {
       order_id: order.id ?? orderId,
       reason: reason.trim() || undefined,
-      items: chosen,
+      items: chosen.map((line) => ({ ...line, reason_code: line.reason_code as ReturnReasonCode })),
     };
     const signature = JSON.stringify(payload);
     if (operation.current?.signature !== signature) {
@@ -298,6 +313,19 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
             />
           ))}
         </ul>
+
+        {/* No amounts: the delivery-fee outcome is the server's, decided at review. */}
+        <p
+          data-testid="return-fee-hint"
+          data-highlight={mayRefundDeliveryFee(chosen.map((line) => line.reason_code)) || undefined}
+          className={
+            mayRefundDeliveryFee(chosen.map((line) => line.reason_code))
+              ? "rounded-md bg-primary/10 px-3 py-2 text-xs text-text"
+              : "text-xs text-text-muted"
+          }
+        >
+          {t("feeHint")}
+        </p>
 
         {error ? (
           <p
@@ -481,6 +509,22 @@ function ReturnLine({
 
             {/* Required per line by the contract, and genuinely per line: one
                 item can arrive damaged while another is the wrong size. */}
+            <Field label={t("reasonCode")} htmlFor={`return-line-code-${id}`}>
+              <Select
+                id={`return-line-code-${id}`}
+                name={`return-line-code-${id}`}
+                data-testid={`return-line-code-${id}`}
+                value={selection?.reasonCode ?? ""}
+                placeholder={t("reasonCodePlaceholder")}
+                onChange={(event) => onChange({ reasonCode: event.target.value as ReturnReasonCode })}
+              >
+                {RETURN_REASON_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {t(`reasonCodes.${code}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
             <Field label={t("lineReason")} htmlFor={`return-line-reason-${id}`}>
               <Input
                 id={`return-line-reason-${id}`}

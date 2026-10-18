@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { StoreSettings } from "@/lib/api";
 import { deriveBrandRamp } from "@/lib/color";
+import { EMPTY_STORE_INFO, storeInfoFrom, type StoreInfo } from "@/lib/store-info";
 
 /* ---------------------------------------------------------------------------
  * WHITE-LABEL (docs/ARCHITECTURE.md rule #1)
@@ -72,16 +73,31 @@ export function ThemeProvider({
   };
 
   const override = brandOverrideCss(theme.primaryColor);
+  const info = storeInfoFrom(settings);
 
   return (
     <ThemeContext.Provider value={theme}>
-      {override ? (
-        <style
-          data-shubayr-theme=""
-          dangerouslySetInnerHTML={{ __html: override }}
-        />
-      ) : null}
-      {children}
+      <StoreInfoContext.Provider value={info}>
+        {override ? (
+          <style
+            data-shubayr-theme=""
+            dangerouslySetInnerHTML={{ __html: override }}
+          />
+        ) : null}
+        {children}
+      </StoreInfoContext.Provider>
     </ThemeContext.Provider>
   );
+}
+
+/* ---------------------------------------------------------------------------
+ * The store's legal, contact and policy details, from the same settings
+ * (src/lib/store-info.ts). Null fields are null: hide the line, never invent
+ * a value.
+ * ------------------------------------------------------------------------- */
+
+const StoreInfoContext = createContext<StoreInfo>(EMPTY_STORE_INFO);
+
+export function useStoreInfo(): StoreInfo {
+  return useContext(StoreInfoContext);
 }

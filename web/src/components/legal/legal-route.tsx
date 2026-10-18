@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { legalDocument, type LegalPageKey } from "@/content/legal";
-import { infoPageMetadata, infoStoreName, policyUpdatedLine } from "@/lib/info-pages";
+import { infoPageMetadata, infoStore, policyUpdatedLine } from "@/lib/info-pages";
 import { SITE_URL } from "@/lib/site";
 import { LegalPage } from "./legal-page";
 
@@ -17,20 +17,17 @@ export function legalRoute(page: LegalPageKey) {
 
   async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { locale } = await params;
-    const storeName = await infoStoreName(locale);
-    const document = legalDocument(page, language(locale), { storeName, siteUrl: SITE_URL });
+    const { storeName, info } = await infoStore(locale);
+    const document = legalDocument(page, language(locale), { storeName, siteUrl: SITE_URL, info });
     return infoPageMetadata({ locale, path, title: document.title, description: document.intro, storeName });
   }
 
   async function Page({ params }: PageProps) {
     const { locale } = await params;
     setRequestLocale(locale);
-    const [storeName, updated, t] = await Promise.all([
-      infoStoreName(locale),
-      policyUpdatedLine(locale),
-      getTranslations("legal"),
-    ]);
-    const document = legalDocument(page, language(locale), { storeName, siteUrl: SITE_URL });
+    const [{ storeName, info }, t] = await Promise.all([infoStore(locale), getTranslations("legal")]);
+    const updated = await policyUpdatedLine(locale, info);
+    const document = legalDocument(page, language(locale), { storeName, siteUrl: SITE_URL, info });
     return <LegalPage page={page} document={document} updated={updated} contentsLabel={t("contents")} />;
   }
 

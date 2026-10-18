@@ -65,8 +65,13 @@ test("a partial return can be requested and shows up in the list", async ({
   await expect(stepper).toBeVisible();
   await stepper.getByRole("button", { name: "زيادة الكمية" }).click();
 
-  // The contract requires a reason on every LINE, so submitting without one
-  // is refused here rather than spent on a 422.
+  // The contract requires a reason from its list AND a note on every LINE,
+  // so submitting without either is refused here rather than spent on a 422.
+  await page.getByTestId("return-submit").click();
+  await expect(page.getByTestId("return-error")).toContainText(
+    "اختر سببًا لكل منتج",
+  );
+  await page.getByTestId("return-line-code-oi-p10").selectOption("change_of_mind");
   await page.getByTestId("return-submit").click();
   await expect(page.getByTestId("return-error")).toContainText(
     "اذكر سبب الإرجاع لكل منتج",
@@ -131,6 +136,7 @@ test("a weighed product is returned by typed weight, to three decimals at most",
   await expect(hint).toContainText("لا يمكن إرجاع أكثر من 2 kg");
   await weight.fill("0.1234");
   await expect(hint).toContainText("ثلاث منازل عشرية");
+  await page.getByTestId("return-line-code-oi-p36").selectOption("defect");
   await page.getByTestId("return-line-reason-oi-p36").fill("الكيس ممزق");
   await page.getByTestId("return-submit").click();
   await expect(page.getByTestId("return-error")).toContainText("راجع كمية كل منتج");
@@ -194,4 +200,45 @@ test("an unknown return is not found", async ({ page }) => {
   await signIn(page);
   await page.goto("/account/returns/ret-missing");
   await expect(page.getByTestId("return-not-found")).toBeVisible();
+});
+
+test("each line picks a reason the API accepts; defects may bring the delivery fee back", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/account/orders/sb-1035/return");
+  await page.getByTestId("return-check-oi-p10").check();
+  const picker = page.getByTestId("return-line-code-oi-p10");
+  // Exactly the five reasons, with Arabic labels, and nothing chosen for the shopper.
+  await expect(picker.locator("option:not([disabled])")).toHaveText([
+    "معيب أو تالف",
+    "ليس ما طلبته",
+    "خطأ من المتجر",
+    "غيّرت رأيي",
+    "سبب آخر",
+  ]);
+  await expect(picker).toHaveValue("");
+
+  // A neutral hint, no amounts; it stands out once a qualifying reason is chosen.
+  const hint = page.getByTestId("return-fee-hint");
+  await expect(hint).toContainText("قد تُسترد أجرة التوصيل");
+  await expect(hint).not.toContainText(/[0-9٠-٩]/);
+  await expect(hint).not.toHaveAttribute("data-highlight", "true");
+  await picker.selectOption("change_of_mind");
+  await expect(hint).not.toHaveAttribute("data-highlight", "true");
+  await picker.selectOption("defect");
+  await expect(hint).toHaveAttribute("data-highlight", "true");
+
+  await page.getByTestId("return-line-reason-oi-p10").fill("Screen cracked");
+  await page.getByTestId("return-submit").click();
+  await expect(page).toHaveURL(/\/account\/returns$/);
+  await expect(page.getByTestId("returns-list").locator("> li").first()).toContainText("Screen cracked");
+
+  await page.goto("/en/account/orders/sb-1035/return");
+  await page.getByTestId("return-check-oi-p4").check();
+  await expect(page.getByTestId("return-line-code-oi-p4").locator("option:not([disabled])")).toHaveText([
+    "Faulty or damaged",
+    "Not what I ordered",
+    "The store made a mistake",
+    "Changed my mind",
+    "Something else",
+  ]);
 });

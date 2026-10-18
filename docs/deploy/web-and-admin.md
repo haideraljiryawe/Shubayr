@@ -215,8 +215,12 @@ page is sent `Cache-Control: no-store` (each also carries its own CSP nonce).
   [The production chain](#the-production-chain)).
 - **Don't strip the security headers** the apps set: Content-Security-Policy
   with a per-request nonce, `X-Content-Type-Options`, `Referrer-Policy`,
-  `Permissions-Policy`, `X-Frame-Options` and `Cross-Origin-Opener-Policy`.
-  The admin also sends `X-Robots-Tag: noindex`.
+  `Permissions-Policy`, `X-Frame-Options` (the store) and
+  `Cross-Origin-Opener-Policy`. The admin also sends `X-Robots-Tag: noindex`;
+  its `X-Frame-Options: DENY` comes from the proxy (`deploy/caddy/Caddyfile`
+  adds it for `admin.`), while the admin itself refuses framing through CSP
+  `frame-ancestors 'none'`. A proxy of your own must add that header for the
+  admin too.
 - **Don't cache HTML pages** at the proxy. Each page carries its own CSP nonce.
   Files under `/_next/static/` are content-hashed and safe to cache forever.
 - **Health checks:** `GET /api/health` answers `200 {"status":"ok"}` when the

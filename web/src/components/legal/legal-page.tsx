@@ -14,7 +14,8 @@ export function LegalPage({
 }: {
   page: string;
   document: LegalDocument;
-  updated: string;
+  /** "Last updated …", or null until the owner sets the policy date. */
+  updated: string | null;
   contentsLabel: string;
   children?: ReactNode;
 }) {
@@ -22,9 +23,11 @@ export function LegalPage({
     <article className="mx-auto max-w-3xl px-4 py-10 lg:px-8" data-testid={`legal-${page}`}>
       <header className="flex flex-col gap-2 border-b border-border pb-6">
         <h1 className="text-2xl font-bold text-text sm:text-3xl">{document.title}</h1>
-        <p className="text-xs text-text-muted" data-testid="legal-updated">
-          {updated}
-        </p>
+        {updated ? (
+          <p className="text-xs text-text-muted" data-testid="legal-updated">
+            {updated}
+          </p>
+        ) : null}
         <p className="mt-2 text-base leading-relaxed text-text-muted">{document.intro}</p>
       </header>
 

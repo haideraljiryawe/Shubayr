@@ -2,17 +2,19 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 
-export type SettingsView = "store" | "zones" | "governorates" | "discounts";
+export type SettingsView = "store" | "storeInfo" | "zones" | "governorates" | "discounts";
 
 const TABS: ReadonlyArray<{ key: SettingsView; href: string; requires: string }> = [
   { key: "store", href: "/settings", requires: "settings.manage" },
+  // The public legal, contact and policy details (contract 17.2).
+  { key: "storeInfo", href: "/settings/store-info", requires: "settings.manage" },
   { key: "zones", href: "/settings/delivery-zones", requires: "delivery_zones.manage" },
   { key: "governorates", href: "/settings/governorates", requires: "delivery_zones.manage" },
   { key: "discounts", href: "/settings/discounts", requires: "discount_tiers.manage" },
 ];
 
 /**
- * The settings area: store settings, delivery zones and the governorates
+ * The settings area: store settings, the store's public info, delivery zones and the governorates
  * they cover, and automatic discounts — each tab only for the staff whose
  * permissions open it (the API still decides every call).
  */
