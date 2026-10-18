@@ -7,7 +7,7 @@ import { OtpForm } from "@/components/auth/otp-form";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { STORE_INFO } from "@/config/store-info";
+import { useStoreInfo } from "@/components/providers/theme-provider";
 import { Link } from "@/i18n/navigation";
 import {
   ACCOUNT_DELETION_BLOCKED,
@@ -17,6 +17,7 @@ import {
   type AccountDeletionReason,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { telLink } from "@/lib/store-info";
 
 interface Refusal {
   reason: AccountDeletionReason | "other";
@@ -46,6 +47,7 @@ function refusalsOf(error: ApiError): Refusal[] {
 export function DeleteAccount() {
   const t = useTranslations("deleteAccount");
   const { ready, isAuthenticated, user, logout } = useAuth();
+  const info = useStoreInfo();
   const [understood, setUnderstood] = useState(false);
   const [pending, setPending] = useState(false);
   const [refusals, setRefusals] = useState<Refusal[] | null>(null);
@@ -103,18 +105,27 @@ export function DeleteAccount() {
         {/* Signing in keeps the visitor here: the confirm step replaces the form. */}
         <OtpForm onSignedIn={() => undefined} />
         <p className="text-xs text-text-muted" data-testid="delete-support">
-          {t.rich("noAccess", {
-            phone: () => (
-              <a href={`tel:${STORE_INFO.phone}`} dir="ltr" className="font-medium text-primary-dark [unicode-bidi:isolate]">
-                {STORE_INFO.phone}
-              </a>
-            ),
-            email: () => (
-              <a href={`mailto:${STORE_INFO.email}`} dir="ltr" className="font-medium text-primary-dark [unicode-bidi:isolate]">
-                {STORE_INFO.email}
-              </a>
-            ),
-          })}
+          {t("noAccessLead")}{" "}
+          {info.phone || info.email ? (
+            [
+              info.phone ? (
+                <a key="phone" href={telLink(info.phone)} dir="ltr" className="font-medium text-primary-dark [unicode-bidi:isolate]">
+                  {info.phone}
+                </a>
+              ) : null,
+              info.email ? (
+                <a key="email" href={`mailto:${info.email}`} dir="ltr" className="font-medium text-primary-dark [unicode-bidi:isolate]">
+                  {info.email}
+                </a>
+              ) : null,
+            ]
+              .filter(Boolean)
+              .flatMap((link, index) => (index ? [<span key={`or-${index}`}> {t("or")} </span>, link] : [link]))
+          ) : (
+            <Link href="/support" className="font-medium text-primary-dark underline-offset-4 hover:underline" data-testid="delete-support-page">
+              {t("contactPage")}
+            </Link>
+          )}
         </p>
       </Card>
     );

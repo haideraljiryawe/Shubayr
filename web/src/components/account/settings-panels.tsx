@@ -28,7 +28,8 @@ import {
   type NotificationPreferences,
   type NotificationType,
 } from "@/lib/api";
-import { STORE_INFO, telLink, whatsappLink } from "@/config/store-info";
+import { useStoreInfo } from "@/components/providers/theme-provider";
+import { inLocale, telLink, whatsappLink } from "@/lib/store-info";
 import { PolicyLinks } from "@/components/legal/policy-links";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -354,20 +355,28 @@ export function LanguagePanel() {
 
 /* ------------------------------------------------------------------ help */
 
-/** Contacts and hours come from the one store config (src/config/store-info.ts). */
+/**
+ * Contacts, hours and the return window come from the store's public
+ * settings (useStoreInfo). Only what the owner has entered is listed.
+ */
 export function HelpPanel() {
   const t = useTranslations("settings");
   const locale = useLocale() as Locale;
+  const info = useStoreInfo();
+  const hours = inLocale(info.hours, locale);
 
-  const channels: [string, string, string, typeof Phone][] = [
-    [t("helpCall"), STORE_INFO.phone, telLink(), Phone],
-    [t("helpWhatsapp"), STORE_INFO.whatsapp, whatsappLink(), MessageCircle],
-    [t("helpEmail"), STORE_INFO.email, `mailto:${STORE_INFO.email}`, Mail],
-  ];
+  const channels = [
+    info.phone ? ([t("helpCall"), info.phone, telLink(info.phone), Phone] as const) : null,
+    info.whatsapp ? ([t("helpWhatsapp"), info.whatsapp, whatsappLink(info.whatsapp), MessageCircle] as const) : null,
+    info.email ? ([t("helpEmail"), info.email, `mailto:${info.email}`, Mail] as const) : null,
+  ].filter((channel) => channel !== null);
 
   const faqs: [string, string][] = [
     [t("faq1Q"), t("faq1A")],
-    [t("faq2Q"), t("faq2A", { days: STORE_INFO.returnWindowDays })],
+    [
+      t("faq2Q"),
+      info.returnWindowDays !== null ? t("faq2A", { days: info.returnWindowDays }) : t("faq2ANoWindow"),
+    ],
     [t("faq3Q"), t("faq3A")],
   ];
 
@@ -408,17 +417,22 @@ export function HelpPanel() {
             </li>
           ))}
 
-          <li className="flex items-center gap-3 px-4 py-3.5">
-            <Clock className="size-5 shrink-0 text-primary-dark" aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-text">
-                {t("helpHours")}
+          {hours ? (
+            <li className="flex items-center gap-3 px-4 py-3.5" data-testid="help-hours">
+              <Clock className="size-5 shrink-0 text-primary-dark" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-text">
+                  {t("helpHours")}
+                </span>
+                <span className="block text-xs text-text-muted">{hours}</span>
               </span>
-              <span className="block text-xs text-text-muted">
-                {STORE_INFO.hours[locale]}
-              </span>
-            </span>
-          </li>
+            </li>
+          ) : null}
+          {!channels.length && !hours ? (
+            <li className="px-4 py-3.5 text-sm text-text-muted" data-testid="help-none">
+              {t("helpNoContact")}
+            </li>
+          ) : null}
         </ul>
       </Card>
 

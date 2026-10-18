@@ -133,26 +133,35 @@ test("a customer requests a return by piece and by weight, then follows it to th
   await signIn(page, `/account/orders/${order.id}/return`);
   await expect(page.getByTestId("return-form")).toBeVisible();
   await page.getByTestId(`return-check-${order.piece}`).check();
+  // A defect: one of the reasons for which the store may refund the delivery fee.
+  await page.getByTestId(`return-line-code-${order.piece}`).selectOption("defect");
+  await expect(page.getByTestId("return-fee-hint")).toHaveAttribute("data-highlight", "true");
   await page.getByTestId(`return-line-reason-${order.piece}`).fill("Arrived scratched");
   await page.getByTestId(`return-check-${order.kg}`).check();
   const weight = page.getByTestId(`return-qty-input-${order.kg}`);
   await expect(weight).toHaveValue("1.5");
   await weight.fill("0.25");
+  await page.getByTestId(`return-line-code-${order.kg}`).selectOption("change_of_mind");
   await page.getByTestId(`return-line-reason-${order.kg}`).fill("Bought too much");
 
   const [sent] = await Promise.all([
     page.waitForRequest((candidate) => candidate.method() === "POST" && new URL(candidate.url()).pathname.endsWith("/returns")),
     page.getByTestId("return-submit").click(),
   ]);
-  const payload = sent.postDataJSON() as { operation_id: string; items: Array<{ order_item_id: string; quantity: number }> };
+  const payload = sent.postDataJSON() as { operation_id: string; items: Array<{ order_item_id: string; quantity: number; reason_code: string }> };
+  expect(payload.items.find((line) => line.order_item_id === order.piece)?.reason_code).toBe("defect");
+  expect(payload.items.find((line) => line.order_item_id === order.kg)?.reason_code).toBe("change_of_mind");
   expect(payload.operation_id.length).toBeGreaterThanOrEqual(8);
   expect(payload.items.find((line) => line.order_item_id === order.piece)?.quantity).toBe(1);
   expect(payload.items.find((line) => line.order_item_id === order.kg)?.quantity).toBe(0.25);
 
   await page.waitForURL(/\/account\/returns$/);
   const mine = await (await request.get(`${API}/returns?per_page=10`, { headers: bearer(await customerToken(request)) })).json();
-  const created = (mine.data as Array<{ id: string; order_id: string; items: Array<{ id: string; order_item_id: string; quantity: number }> }>).find((entry) => entry.order_id === order.id)!;
+  const created = (mine.data as Array<{ id: string; order_id: string; items: Array<{ id: string; order_item_id: string; quantity: number; reason_code: string }> }>).find((entry) => entry.order_id === order.id)!;
   expect(created, "the new return").toBeTruthy();
+  // The API accepted and stored each line's reason as chosen.
+  expect(created.items.find((line) => line.order_item_id === order.piece)?.reason_code).toBe("defect");
+  expect(created.items.find((line) => line.order_item_id === order.kg)?.reason_code).toBe("change_of_mind");
   await expect(page.getByTestId(`return-status-${created.id}`)).toHaveText("قيد المراجعة");
 
   await page.getByTestId(`return-details-${created.id}`).click();

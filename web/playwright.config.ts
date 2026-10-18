@@ -43,6 +43,7 @@ export default defineConfig({
           "**/work-account.spec.ts",
           "**/forwarding-rules.spec.ts",
           "**/legal.spec.ts",
+          "**/store-info-rules.spec.ts",
           // Skips itself unless a real backend is reachable.
           "**/live-catalog.spec.ts",
           "**/live-checkout.spec.ts",
