@@ -157,9 +157,11 @@ void main() {
           }
           final image = find.byKey(const ValueKey('cat-image-c1'));
           final imageRect = tester.getRect(image);
+          expect(imageRect.width, closeTo(imageRect.height, .01));
+          expect(imageRect.height, lessThanOrEqualTo(a.height));
           expect(
             imageRect.width,
-            closeTo(a.width * AppLayout.categoryCardImageFraction, .01),
+            lessThanOrEqualTo(a.width * AppLayout.categoryCardImageFraction),
           );
           expect(
             tester
@@ -202,11 +204,24 @@ void main() {
       final b = tester.getRect(cards.at(1));
       expect(a.width, 358);
       expect(a.top, b.top);
+      final loadingImage = find.descendant(
+        of: cards.first,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Skeleton && widget.borderRadius == BorderRadius.zero,
+        ),
+      );
+      final loadingImageSize = tester.getSize(loadingImage);
+      expect(loadingImageSize.width, closeTo(loadingImageSize.height, .01));
       pending.complete(_tree);
       await tester.pumpAndSettle();
       expect(
         tester.getRect(find.byKey(const ValueKey('cat-card-c1'))).topLeft,
         a.topLeft,
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('cat-image-c1'))),
+        loadingImageSize,
       );
       expect(tester.takeException(), isNull);
     });
@@ -485,12 +500,13 @@ void main() {
                 tester.getRect(subtitle).right,
                 lessThanOrEqualTo(cardRect.right),
               );
-              expect(imageRect.height, cardRect.height);
+              expect(imageRect.width, closeTo(imageRect.height, .01));
+              expect(imageRect.height, lessThanOrEqualTo(cardRect.height));
+              expect(imageRect.center.dy, closeTo(cardRect.center.dy, .01));
               expect(
                 imageRect.width,
-                closeTo(
+                lessThanOrEqualTo(
                   cardRect.width * AppLayout.categoryCardImageFraction,
-                  0.01,
                 ),
               );
               expect(
@@ -530,10 +546,7 @@ void main() {
         final imageRect = tester.getRect(image);
         final label = find.text(locale == 'ar' ? 'إلكترونيات' : 'Electronics');
         expect(imageRect.height, rect.height);
-        expect(
-          imageRect.width,
-          closeTo(rect.width * AppLayout.categoryCardImageFraction, 0.01),
-        );
+        expect(imageRect.width, closeTo(imageRect.height, 0.01));
         expect(
           tester
               .widget<CachedNetworkImage>(
@@ -597,10 +610,7 @@ void main() {
         expect(tester.widget<CachedNetworkImage>(networkImage).imageUrl, url);
         expect(
           tester.getSize(image).width,
-          closeTo(
-            tester.getSize(first).width * AppLayout.categoryCardImageFraction,
-            0.01,
-          ),
+          closeTo(tester.getSize(image).height, 0.01),
         );
         expect(url, 'https://example.test/main-category.png');
         expect(tester.takeException(), isNull);

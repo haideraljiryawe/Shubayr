@@ -22,6 +22,12 @@ double _cardHeight(BuildContext context) {
   );
 }
 
+// Keep artwork square without taking space needed by the adjacent text.
+double _imageSide(BuildContext context, double cardWidth) => math.min(
+  _cardHeight(context),
+  cardWidth * AppLayout.categoryCardImageFraction,
+);
+
 class CategoryCard extends StatelessWidget {
   const CategoryCard({
     super.key,
@@ -59,7 +65,7 @@ class CategoryCard extends StatelessWidget {
             builder: (context, constraints) => ConstrainedBox(
               constraints: BoxConstraints(minHeight: _cardHeight(context)),
               // Grow only when the text really needs more room (e.g. text
-              // scaling). Positioned artwork does not determine intrinsic height.
+              // scaling). The square artwork remains centered beside it.
               child: IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,22 +115,19 @@ class CategoryCard extends StatelessWidget {
                     // Directionality keeps artwork left in Arabic, right in
                     // English. Only the outer Material rounds the corners.
                     SizedBox(
-                      width:
-                          constraints.maxWidth *
-                          AppLayout.categoryCardImageFraction,
-                      child: ExcludeSemantics(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: ColoredBox(
-                                color: colors.surfaceAlt,
-                                child: CategoryImage(
-                                  key: ValueKey('cat-image-${category.id}'),
-                                  category: category,
-                                ),
+                      width: _imageSide(context, constraints.maxWidth),
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: _imageSide(context, constraints.maxWidth),
+                          child: ExcludeSemantics(
+                            child: ColoredBox(
+                              color: colors.surfaceAlt,
+                              child: CategoryImage(
+                                key: ValueKey('cat-image-${category.id}'),
+                                category: category,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -166,8 +169,13 @@ class CategoryCardSkeleton extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: constraints.maxWidth * AppLayout.categoryCardImageFraction,
-              child: const Skeleton(borderRadius: BorderRadius.zero),
+              width: _imageSide(context, constraints.maxWidth),
+              child: Center(
+                child: SizedBox.square(
+                  dimension: _imageSide(context, constraints.maxWidth),
+                  child: const Skeleton(borderRadius: BorderRadius.zero),
+                ),
+              ),
             ),
           ],
         ),
