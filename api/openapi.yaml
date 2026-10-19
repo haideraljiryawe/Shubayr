@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.5.0
+  version: 17.6.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -2945,6 +2945,72 @@ paths:
         "200": { description: Inventory valuation report, content: { application/json: { schema: { $ref: "#/components/schemas/InventoryValuationReport" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/purchases:
+    get:
+      tags: [Reports]
+      summary: Purchase quantities and landed costs, including supplier returns
+      x-permission: reports.purchases.read
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: group_by, in: query, schema: { type: string, enum: [period, supplier, sku, category], default: period } }
+        - { name: supplier_id, in: query, schema: { type: string, format: uuid } }
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Purchases report, content: { application/json: { schema: { $ref: "#/components/schemas/PurchasesReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/supplier-statement:
+    get:
+      tags: [Reports]
+      summary: Supplier statement and accounts-payable reconciliation as of a date
+      x-permission: reports.suppliers.read
+      parameters:
+        - { name: supplier_id, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Supplier statement, content: { application/json: { schema: { $ref: "#/components/schemas/SupplierStatementReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/stock-movement:
+    get:
+      tags: [Reports]
+      summary: Quantity and value movement by SKU and warehouse
+      x-permission: reports.stock.read
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: warehouse_id, in: query, schema: { type: string, format: uuid } }
+        - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Stock movement report, content: { application/json: { schema: { $ref: "#/components/schemas/StockMovementReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/reports/expenses:
+    get:
+      tags: [Reports]
+      summary: Recognized expense report including prepaid amortisation
+      x-permission: reports.expenses.read
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: group_by, in: query, schema: { type: string, enum: [category, payee, month], default: category } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid } }
+        - { name: payee, in: query, schema: { type: string, maxLength: 200 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Expenses report, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensesReport" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/reports/dashboard:
     get:
       tags: [Reports]
@@ -4670,6 +4736,47 @@ paths:
       summary: Enable a currency or select the base before the first movement
       x-surface: admin
       x-permission: settings.manage
+      x-field-error-codes:
+        settings.*: [unknown, isString]
+        settings.store_name: [not_empty, max_length]
+        settings.store_address: [not_empty, max_length]
+        settings.store_phone: [not_empty, max_length]
+        settings.store_legal_name_ar: [not_empty, max_length]
+        settings.store_legal_name_en: [not_empty, max_length]
+        settings.store_address_ar: [not_empty, max_length]
+        settings.store_address_en: [not_empty, max_length]
+        settings.support_hours_ar: [not_empty, max_length]
+        settings.support_hours_en: [not_empty, max_length]
+        settings.support_phone: [e164]
+        settings.support_whatsapp: [e164]
+        settings.support_email: [email]
+        settings.privacy_email: [email]
+        settings.refund_days: [non_negative_integer]
+        settings.policy_effective_date: [date]
+        settings.logo_url: [url]
+        settings.primary_color: [hex_color]
+        settings.timezone: [required, iana_timezone]
+        settings.delivery_fee: [base_currency_amount]
+        settings.sale_rounding_multiple: [base_currency_amount]
+        settings.default_low_stock_threshold: [quantity_threshold]
+        settings.markup_alert_percent: [percentage]
+        settings.acceptance_alert_timeout_minutes: [required, positive_integer]
+        settings.backdating_window_days: [required, positive_integer]
+        settings.return_window_days: [positive_integer]
+        settings.auto_cancel_enabled: [boolean]
+        settings.discount_tier_coupon_stacking_enabled: [boolean]
+        settings.separation_of_duties_level: [enum]
+        settings.auto_cancel_timeout_minutes: [required, positive_integer]
+        settings.auto_cancel_warning_minutes: [required, positive_integer, less_than_timeout]
+        business_hours.*: [isObject, closed_hours]
+        business_hours.*.weekday: [weekday, unique]
+        business_hours.*.is_closed: [isBoolean]
+        business_hours.*.opens_at: [time]
+        business_hours.*.closes_at: [time, after_open]
+        closed_days.*: [isObject]
+        closed_days.*.date: [date, unique]
+        closed_days.*.reason: [max_length]
+        protection_thresholds.*: [unknown, percentage]
       parameters:
         - name: code
           in: path
@@ -5066,6 +5173,80 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+
+  /admin/owner-transactions:
+    get:
+      tags: [Finance]
+      summary: List owner capital deposits and drawings
+      x-surface: admin
+      x-permission: owner_transactions.read
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+        - { name: kind, in: query, schema: { type: string, enum: [capital_deposit, drawing] } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, posted, reversed] } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Owner transaction page, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransactionPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Finance]
+      summary: Create a draft owner capital deposit or drawing
+      x-surface: admin
+      x-permission: owner_transactions.create
+      x-error-codes: [OWNER_TRANSACTION_IDEMPOTENCY_KEY_REQUIRED, OWNER_TRANSACTION_IDEMPOTENCY_KEY_INVALID, OWNER_TRANSACTION_CASH_ACCOUNT_NOT_FOUND, OWNER_TRANSACTION_CASH_ACCOUNT_INACTIVE, OWNER_TRANSACTION_CURRENCY_MISMATCH, OWNER_TRANSACTION_AMOUNT_INVALID, OWNER_TRANSACTION_PERIOD_CLOSED, OWNER_TRANSACTION_BACKDATE_WINDOW, EXCHANGE_RATE_NOT_FOUND]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransactionCreateInput" } } } }
+      responses:
+        "201": { description: Draft owner transaction, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransaction" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/owner-transactions/{id}:
+    get:
+      tags: [Finance]
+      summary: Read an owner transaction and its journal entries
+      x-surface: admin
+      x-permission: owner_transactions.read
+      x-error-codes: [OWNER_TRANSACTION_NOT_FOUND]
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Owner transaction, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransaction" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/owner-transactions/{id}/post:
+    post:
+      tags: [Finance]
+      summary: Post an owner transaction to cash and equity
+      x-surface: admin
+      x-permission: owner_transactions.post
+      x-error-codes: [OWNER_TRANSACTION_IDEMPOTENCY_KEY_REQUIRED, OWNER_TRANSACTION_IDEMPOTENCY_KEY_INVALID, OWNER_TRANSACTION_NOT_FOUND, OWNER_TRANSACTION_ALREADY_POSTED, OWNER_TRANSACTION_CASH_ACCOUNT_INACTIVE, OWNER_TRANSACTION_PERIOD_CLOSED, OWNER_TRANSACTION_BACKDATE_WINDOW, OWNER_TRANSACTION_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransactionPostInput" } } } }
+      responses:
+        "200": { description: Posted owner transaction, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransaction" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/owner-transactions/{id}/reverse:
+    post:
+      tags: [Finance]
+      summary: Reverse a posted owner transaction through a correction journal
+      x-surface: admin
+      x-permission: owner_transactions.reverse
+      x-error-codes: [OWNER_TRANSACTION_IDEMPOTENCY_KEY_REQUIRED, OWNER_TRANSACTION_IDEMPOTENCY_KEY_INVALID, OWNER_TRANSACTION_NOT_FOUND, OWNER_TRANSACTION_INVALID_STATE, OWNER_TRANSACTION_PERIOD_CLOSED, OWNER_TRANSACTION_BACKDATE_WINDOW, OWNER_TRANSACTION_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransactionReverseInput" } } } }
+      responses:
+        "200": { description: Reversed owner transaction, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerTransaction" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
 
   /admin/cash-receipts:
     get:
@@ -5744,7 +5925,7 @@ paths:
       summary: Create a draft expense using the central rate effective at its document timestamp
       x-surface: admin
       x-permission: expenses.create
-      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID]
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID, EXPENSE_PREPAID_PAYMENT_REQUIRED, EXPENSE_PREPAID_SCHEDULE_REQUIRED, EXPENSE_PREPAID_PERIODS_INVALID, EXPENSE_PREPAID_START_DATE_INVALID, EXPENSE_PREPAID_SCHEDULE_NOT_ALLOWED, EXPENSE_PREPAID_AMOUNT_TOO_SMALL]
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseCreateInput" } } } }
       responses:
@@ -5804,7 +5985,7 @@ paths:
       summary: Edit a draft expense; posted expenses remain immutable
       x-surface: admin
       x-permission: expenses.create
-      x-error-codes: [EXPENSE_UPDATE_EMPTY, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID]
+      x-error-codes: [EXPENSE_UPDATE_EMPTY, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_CATEGORY_NOT_FOUND, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CURRENCY_DISABLED, EXCHANGE_RATE_NOT_FOUND, EXPENSE_AMOUNT_INVALID, EXPENSE_AMOUNT_PRECISION, EXPENSE_PAYEE_REQUIRED, EXPENSE_SUPPLIER_NOT_FOUND, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_NOT_ALLOWED, EXPENSE_CASH_ACCOUNT_NOT_FOUND, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_CASH_ACCOUNT_CURRENCY_MISMATCH, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_RECEIPT_INVALID, EXPENSE_PREPAID_PAYMENT_REQUIRED, EXPENSE_PREPAID_SCHEDULE_REQUIRED, EXPENSE_PREPAID_PERIODS_INVALID, EXPENSE_PREPAID_START_DATE_INVALID, EXPENSE_PREPAID_SCHEDULE_NOT_ALLOWED, EXPENSE_PREPAID_AMOUNT_TOO_SMALL]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePatchInput" } } } }
       responses:
@@ -5832,7 +6013,7 @@ paths:
       summary: Post a draft expense to the immutable ledger
       x-surface: admin
       x-permission: expenses.post
-      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_INVALID_STATE, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN]
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_ALREADY_POSTED, EXPENSE_INVALID_STATE, EXPENSE_CATEGORY_INACTIVE, EXPENSE_CASH_ACCOUNT_REQUIRED, EXPENSE_CASH_ACCOUNT_INACTIVE, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN, EXPENSE_PREPAID_SCHEDULE_REQUIRED]
       parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePostInput" } } } }
       responses:
@@ -5867,6 +6048,21 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseReverseInput" } } } }
       responses:
         "201": { description: Reversed expense, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/expenses/{id}/prepaid-schedule/cancel:
+    post:
+      tags: [Expenses]
+      summary: Cancel the remaining prepaid schedule with a correction posting
+      x-surface: admin
+      x-permission: expenses.reverse
+      x-error-codes: [EXPENSE_IDEMPOTENCY_KEY_REQUIRED, EXPENSE_IDEMPOTENCY_KEY_INVALID, EXPENSE_NOT_FOUND, EXPENSE_PREPAID_INVALID_STATE, EXPENSE_PREPAID_PAYMENT_REQUIRED, EXPENSE_PERIOD_CLOSED, EXPENSE_BACKDATE_WINDOW, EXPENSE_SELF_APPROVAL_FORBIDDEN]
+      parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseReverseInput" } } } }
+      responses:
+        "201": { description: Expense with canceled remaining schedule and new correction, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -10846,19 +11042,259 @@ components:
               balance: { $ref: "#/components/schemas/ExactDecimal" }
         payables_due_next_7_days: { $ref: "#/components/schemas/ExactDecimal" }
 
+    PurchasesReportAmounts:
+      type: object
+      additionalProperties: false
+      required: [purchased_quantity, returned_quantity, net_quantity, goods_cost_iqd, landed_cost_iqd, purchase_cost_iqd, returns_iqd, net_cost_iqd, document_count]
+      properties:
+        purchased_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        returned_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        net_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        goods_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        landed_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        purchase_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        returns_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        net_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        document_count: { type: integer, minimum: 0 }
+    PurchasesReportRow:
+      type: object
+      additionalProperties: false
+      required: [group_id, name_ar, name_en, purchased_quantity, returned_quantity, net_quantity, goods_cost_iqd, landed_cost_iqd, purchase_cost_iqd, returns_iqd, net_cost_iqd, document_count, drilldown]
+      properties:
+        group_id: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        purchased_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        returned_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        net_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        goods_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        landed_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        purchase_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        returns_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        net_cost_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        document_count: { type: integer, minimum: 0 }
+        drilldown:
+          type: object
+          additionalProperties: false
+          required: [report, group_by, group_id, from, to]
+          properties:
+            report: { type: string, const: purchases }
+            group_by: { type: string, enum: [period, supplier, sku, category] }
+            group_id: { type: string }
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+    PurchasesReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, group_by, currency, touches_open_period, totals, pagination, data]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        group_by: { type: string, enum: [period, supplier, sku, category] }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals: { $ref: "#/components/schemas/PurchasesReportAmounts" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PurchasesReportRow" }
+
+    SupplierStatementReport:
+      type: object
+      additionalProperties: false
+      required: [as_of, currency, touches_open_period, supplier, totals, reconciliation, pagination, data]
+      properties:
+        as_of: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        supplier: { $ref: "#/components/schemas/ExpensePartyLink" }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [opening_balance, invoices, payments, credits, fx_differences, returns, closing_balance]
+          properties:
+            opening_balance: { $ref: "#/components/schemas/ExactDecimal" }
+            invoices: { $ref: "#/components/schemas/ExactDecimal" }
+            payments: { $ref: "#/components/schemas/ExactDecimal" }
+            credits: { $ref: "#/components/schemas/ExactDecimal" }
+            fx_differences: { $ref: "#/components/schemas/ExactDecimal" }
+            returns: { $ref: "#/components/schemas/ExactDecimal" }
+            closing_balance: { $ref: "#/components/schemas/ExactDecimal" }
+        reconciliation:
+          type: object
+          additionalProperties: false
+          required: [supplier_subledger_iqd, accounts_payable_iqd, difference_iqd]
+          properties:
+            supplier_subledger_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+            accounts_payable_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+            difference_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, source_type, source_id, document_number, document_date, accounting_date, currency, debit_currency, credit_currency, debit_iqd, credit_iqd, drilldown]
+            properties:
+              id: { type: string, format: uuid }
+              source_type: { type: string }
+              source_id: { type: string, format: uuid }
+              document_number: { type: string }
+              document_date: { type: string, format: date-time }
+              accounting_date: { type: string, format: date-time }
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
+              debit_currency: { $ref: "#/components/schemas/ExactDecimal" }
+              credit_currency: { $ref: "#/components/schemas/ExactDecimal" }
+              debit_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+              credit_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+              drilldown:
+                type: object
+                additionalProperties: false
+                required: [resource, id]
+                properties:
+                  resource: { type: string }
+                  id: { type: string, format: uuid }
+
+    StockMovementAmounts:
+      type: object
+      additionalProperties: false
+      required: [opening_quantity, opening_value_iqd, receipts_quantity, receipts_value_iqd, sales_quantity, sales_value_iqd, returns_quantity, returns_value_iqd, transfers_quantity, transfers_value_iqd, counts_write_downs_quantity, counts_write_downs_value_iqd, closing_quantity, closing_value_iqd]
+      properties:
+        opening_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        opening_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        receipts_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        receipts_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        sales_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        sales_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        returns_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        returns_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        transfers_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        transfers_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        counts_write_downs_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        counts_write_downs_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        closing_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        closing_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+    StockMovementReportRow:
+      type: object
+      additionalProperties: false
+      required: [variant_id, sku, product, warehouse, opening_quantity, opening_value_iqd, receipts_quantity, receipts_value_iqd, sales_quantity, sales_value_iqd, returns_quantity, returns_value_iqd, transfers_quantity, transfers_value_iqd, counts_write_downs_quantity, counts_write_downs_value_iqd, closing_quantity, closing_value_iqd, drilldown]
+      properties:
+        variant_id: { type: string, format: uuid }
+        sku: { type: string }
+        product:
+          type: object
+          additionalProperties: false
+          required: [name_ar, name_en]
+          properties:
+            name_ar: { type: string }
+            name_en: { type: string }
+        warehouse: { $ref: "#/components/schemas/ExpensePartyLink" }
+        opening_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        opening_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        receipts_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        receipts_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        sales_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        sales_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        returns_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        returns_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        transfers_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        transfers_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        counts_write_downs_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        counts_write_downs_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        closing_quantity: { $ref: "#/components/schemas/QuantityDecimal" }
+        closing_value_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        drilldown:
+          type: object
+          additionalProperties: false
+          required: [resource, variant_id, warehouse_id, from, to]
+          properties:
+            resource: { type: string, const: stock_movements }
+            variant_id: { type: string, format: uuid }
+            warehouse_id: { type: string, format: uuid }
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+    StockMovementReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, currency, touches_open_period, totals, pagination, data]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals: { $ref: "#/components/schemas/StockMovementAmounts" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/StockMovementReportRow" }
+
+    ExpensesReportAmounts:
+      type: object
+      additionalProperties: false
+      required: [immediate_iqd, prepaid_amortisation_iqd, corrections_iqd, total_iqd, document_count]
+      properties:
+        immediate_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        prepaid_amortisation_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        corrections_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        total_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        document_count: { type: integer, minimum: 0 }
+    ExpensesReportRow:
+      type: object
+      additionalProperties: false
+      required: [group_id, name_ar, name_en, immediate_iqd, prepaid_amortisation_iqd, corrections_iqd, total_iqd, document_count, drilldown]
+      properties:
+        group_id: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        immediate_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        prepaid_amortisation_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        corrections_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        total_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        document_count: { type: integer, minimum: 0 }
+        drilldown:
+          type: object
+          additionalProperties: false
+          required: [resource, group_by, group_id, from, to]
+          properties:
+            resource: { type: string, const: expenses }
+            group_by: { type: string, enum: [category, payee, month] }
+            group_id: { type: string }
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+    ExpensesReport:
+      type: object
+      additionalProperties: false
+      required: [from, to, group_by, currency, touches_open_period, totals, pagination, data]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        group_by: { type: string, enum: [category, payee, month] }
+        currency: { type: string, const: IQD }
+        touches_open_period: { type: boolean }
+        totals: { $ref: "#/components/schemas/ExpensesReportAmounts" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ExpensesReportRow" }
+
     ReportExportInput:
       type: object
       additionalProperties: false
       required: [report_type, format]
       properties:
-        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation] }
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation, purchases, supplier_statement, stock_movement, expenses] }
         format: { type: string, enum: [csv, xlsx] }
         language: { type: string, enum: [ar, en], description: Defaults to en when omitted. }
         from: { type: string, format: date }
         to: { type: string, format: date }
         as_of: { type: string, format: date }
-        group_by: { type: string, enum: [day, week, month, department, category, brand, product, sku] }
+        group_by: { type: string, enum: [day, week, month, department, category, brand, product, sku, period, supplier, payee] }
         slow_days: { type: integer, minimum: 1, maximum: 3650 }
+        supplier_id: { type: string, format: uuid }
+        variant_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid }
+        warehouse_id: { type: string, format: uuid }
+        payee: { type: string, maxLength: 200 }
 
     ReportExportProgress:
       type: object
@@ -10866,7 +11302,7 @@ components:
       required: [id, report_type, format, language, status, rows_done, rows_total, last_error, created_at, started_at, completed_at, download_ready]
       properties:
         id: { type: string, format: uuid }
-        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation] }
+        report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation, purchases, supplier_statement, stock_movement, expenses] }
         format: { type: string, enum: [csv, xlsx] }
         language: { type: string, enum: [ar, en] }
         status: { type: string, enum: [queued, processing, completed, failed] }
@@ -10900,7 +11336,7 @@ components:
         support_hours_en: { type: [string, "null"], minLength: 1, maxLength: 500 }
         refund_days: { type: [integer, "null"], minimum: 0 }
         policy_effective_date: { type: [string, "null"], format: date }
-        return_window_days: { type: [integer, "null"], minimum: 1, description: Existing operational return-window setting; no duplicate policy key is introduced. }
+        return_window_days: { type: [integer, "null"], minimum: 1, description: Optional existing return-window setting; null means the owner has not published a value. }
 
     ExactDecimal:
       oneOf:
@@ -11803,6 +12239,74 @@ components:
         can_close: { type: boolean }
         checks: { type: array, items: { type: object, additionalProperties: true } }
 
+    OwnerTransactionCreateInput:
+      type: object
+      additionalProperties: false
+      required: [kind, cash_account_id, currency_code, amount, document_date, reason]
+      properties:
+        kind: { type: string, enum: [capital_deposit, drawing] }
+        cash_account_id: { type: string, format: uuid }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        reference_number: { type: string, maxLength: 160 }
+    OwnerTransactionPostInput:
+      type: object
+      additionalProperties: false
+      properties:
+        note: { type: string, minLength: 3, maxLength: 500 }
+    OwnerTransactionReverseInput:
+      type: object
+      additionalProperties: false
+      required: [reason, document_date]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+        document_date: { type: string, format: date }
+        accounting_date: { type: string, format: date }
+        backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+    OwnerTransaction:
+      type: object
+      additionalProperties: false
+      required: [id, document_number, status, kind, cash_account, currency_code, amount_currency, exchange_rate, amount_iqd, document_date, accounting_date, backdate_reason, reason, reference_number, created_by, posted_by, posted_at, reversed_by, reversed_at, reversal_reason, created_at, updated_at, creator, poster, reverser, journal_entry, reversal_journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        document_number: { type: string }
+        status: { type: string, enum: [draft, posted, reversed] }
+        kind: { type: string, enum: [capital_deposit, drawing] }
+        cash_account: { $ref: "#/components/schemas/ExpenseCashAccountLink" }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$' }
+        amount_currency: { $ref: "#/components/schemas/ExactDecimal" }
+        exchange_rate: { $ref: "#/components/schemas/ExactDecimal" }
+        amount_iqd: { $ref: "#/components/schemas/ExactDecimal" }
+        document_date: { type: string, format: date-time }
+        accounting_date: { type: string, format: date-time }
+        backdate_reason: { type: [string, "null"] }
+        reason: { type: string }
+        reference_number: { type: [string, "null"] }
+        created_by: { type: string, format: uuid }
+        posted_by: { type: [string, "null"], format: uuid }
+        posted_at: { type: [string, "null"], format: date-time }
+        reversed_by: { type: [string, "null"], format: uuid }
+        reversed_at: { type: [string, "null"], format: date-time }
+        reversal_reason: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        creator: { $ref: "#/components/schemas/ExpenseActor" }
+        poster: { oneOf: [{ $ref: "#/components/schemas/ExpenseActor" }, { type: "null" }] }
+        reverser: { oneOf: [{ $ref: "#/components/schemas/ExpenseActor" }, { type: "null" }] }
+        journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
+        reversal_journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
+    OwnerTransactionPage:
+      type: object
+      additionalProperties: false
+      required: [data, pagination]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/OwnerTransaction" } }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+
     ExpenseCategoryInput:
       type: object
       additionalProperties: false
@@ -11857,6 +12361,8 @@ components:
         amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         payment_mode: { type: string, enum: [paid_now, owed] }
+        recognition_mode: { type: string, enum: [immediate, prepaid], description: Omit for the existing immediate-expense behavior. }
+        prepaid_schedule: { $ref: "#/components/schemas/PrepaidExpenseScheduleInput" }
         cash_account_id: { type: string, format: uuid, description: Required for paid_now and forbidden for owed. }
         supplier_id: { type: string, format: uuid }
         payee: { type: string, minLength: 1, maxLength: 200 }
@@ -11876,6 +12382,11 @@ components:
         amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         payment_mode: { type: string, enum: [paid_now, owed] }
+        recognition_mode: { type: string, enum: [immediate, prepaid] }
+        prepaid_schedule:
+          oneOf:
+            - { $ref: "#/components/schemas/PrepaidExpenseScheduleInput" }
+            - { type: "null" }
         cash_account_id: { type: [string, "null"], format: uuid, description: Required for paid_now and forbidden for owed. }
         supplier_id: { type: [string, "null"], format: uuid }
         payee: { type: [string, "null"], minLength: 1, maxLength: 200 }
@@ -11906,6 +12417,14 @@ components:
           items: { $ref: "#/components/schemas/ExpensePartyLink" }
         rate_preview: { $ref: "#/components/schemas/ExpenseRatePreview" }
         backdating_window_days: { type: integer, minimum: 0 }
+
+    PrepaidExpenseScheduleInput:
+      type: object
+      additionalProperties: false
+      required: [start_date, periods]
+      properties:
+        start_date: { type: string, format: date }
+        periods: { type: integer, minimum: 2, maximum: 120 }
 
     ExpenseFormCurrencyOption:
       type: object
@@ -12079,7 +12598,7 @@ components:
     Expense:
       type: object
       additionalProperties: false
-      required: [id, document_number, status, category, amount_currency, currency_code, exchange_rate, amount_iqd, paid_currency, balance_currency, balance_iqd, payment_mode, cash_account, supplier, payee, description, reference_number, receipt, document_date, accounting_date, backdate_reason, created_by, posted_by, posted_at, created_at, updated_at, creator, poster, journal_entry, payments, corrections]
+      required: [id, document_number, status, category, amount_currency, currency_code, exchange_rate, amount_iqd, paid_currency, balance_currency, balance_iqd, payment_mode, recognition_mode, cash_account, supplier, payee, description, reference_number, receipt, document_date, accounting_date, backdate_reason, created_by, posted_by, posted_at, created_at, updated_at, creator, poster, journal_entry, payments, corrections, prepaid_schedule]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -12093,6 +12612,7 @@ components:
         balance_currency: { type: number, minimum: 0 }
         balance_iqd: { type: [number, "null"], minimum: 0 }
         payment_mode: { type: string, enum: [paid_now, owed] }
+        recognition_mode: { type: string, enum: [immediate, prepaid] }
         cash_account: { oneOf: [{ $ref: "#/components/schemas/ExpenseCashAccountLink" }, { type: "null" }] }
         supplier: { oneOf: [{ $ref: "#/components/schemas/ExpensePartyLink" }, { type: "null" }] }
         payee: { type: [string, "null"] }
@@ -12112,11 +12632,52 @@ components:
         journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
         payments: { type: array, items: { $ref: "#/components/schemas/ExpensePayment" } }
         corrections: { type: array, items: { $ref: "#/components/schemas/ExpenseCorrection" } }
+        prepaid_schedule:
+          oneOf:
+            - { $ref: "#/components/schemas/PrepaidExpenseSchedule" }
+            - { type: "null" }
+
+    PrepaidExpenseScheduleInstallment:
+      type: object
+      additionalProperties: false
+      required: [id, sequence, scheduled_date, amount_iqd, status, posted_at, last_error, journal_entry]
+      properties:
+        id: { type: string, format: uuid }
+        sequence: { type: integer, minimum: 1 }
+        scheduled_date: { type: string, format: date-time }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        status: { type: string, enum: [pending, posted, blocked, cancelled] }
+        posted_at: { type: [string, "null"], format: date-time }
+        last_error: { type: [string, "null"] }
+        journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
+
+    PrepaidExpenseSchedule:
+      type: object
+      additionalProperties: false
+      required: [id, status, start_date, periods, amount_iqd, recognized_iqd, cancelled_iqd, created_by, cancelled_by, cancelled_at, cancel_reason, created_at, updated_at, creator, canceller, cancellation_journal_entry, installments]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [active, blocked, completed, cancelled, reversed] }
+        start_date: { type: string, format: date-time }
+        periods: { type: integer, minimum: 2, maximum: 120 }
+        amount_iqd: { type: number, exclusiveMinimum: 0 }
+        recognized_iqd: { type: number, minimum: 0 }
+        cancelled_iqd: { type: number, minimum: 0 }
+        created_by: { type: string, format: uuid }
+        cancelled_by: { type: [string, "null"], format: uuid }
+        cancelled_at: { type: [string, "null"], format: date-time }
+        cancel_reason: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        creator: { $ref: "#/components/schemas/ExpenseActor" }
+        canceller: { oneOf: [{ $ref: "#/components/schemas/ExpenseActor" }, { type: "null" }] }
+        cancellation_journal_entry: { oneOf: [{ $ref: "#/components/schemas/JournalEntry" }, { type: "null" }] }
+        installments: { type: array, items: { $ref: "#/components/schemas/PrepaidExpenseScheduleInstallment" } }
 
     ExpenseSummary:
       type: object
       additionalProperties: false
-      required: [id, document_number, status, category, amount_currency, amount_iqd, paid_currency, balance_currency, currency_code, payment_mode, payee, supplier, cash_account, description, document_date, created_at]
+      required: [id, document_number, status, category, amount_currency, amount_iqd, paid_currency, balance_currency, currency_code, payment_mode, recognition_mode, payee, supplier, cash_account, description, document_date, created_at]
       properties:
         id: { type: string, format: uuid }
         document_number: { type: string }
@@ -12128,6 +12689,7 @@ components:
         balance_currency: { type: number, minimum: 0 }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         payment_mode: { type: string, enum: [paid_now, owed] }
+        recognition_mode: { type: string, enum: [immediate, prepaid] }
         payee: { type: [string, "null"] }
         supplier: { oneOf: [{ $ref: "#/components/schemas/ExpensePartyLink" }, { type: "null" }] }
         cash_account:

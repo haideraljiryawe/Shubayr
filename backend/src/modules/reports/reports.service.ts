@@ -852,19 +852,26 @@ export class ReportsService {
         COALESCE(SUM(jl.debit_base - jl.credit_base) FILTER (WHERE a.code = '5010'), 0) AS inventory_write_downs,
         COALESCE(SUM(jl.debit_base - jl.credit_base) FILTER (
           WHERE a.type = 'expense'
-            AND (expense_source.id IS NOT NULL OR expense_correction_source.id IS NOT NULL)
+            AND (
+              expense_source.id IS NOT NULL
+              OR expense_installment.id IS NOT NULL
+              OR expense_correction_source.id IS NOT NULL
+            )
         ), 0) AS operating_expenses,
         COALESCE(SUM(jl.credit_base - jl.debit_base) FILTER (WHERE a.type = 'income' AND a.code NOT IN ('4000','4010')), 0) AS other_income,
         COALESCE(SUM(jl.debit_base - jl.credit_base) FILTER (
           WHERE a.type = 'expense'
             AND a.code NOT IN ('5000','5010')
             AND expense_source.id IS NULL
+            AND expense_installment.id IS NULL
             AND expense_correction_source.id IS NULL
         ), 0) AS other_costs
       FROM journal_entries je
       JOIN journal_lines jl ON jl.entry_id = je.id
       JOIN ledger_accounts a ON a.id = jl.account_id
       LEFT JOIN expenses expense_source ON expense_source.journal_entry_id = je.id
+      LEFT JOIN expense_schedule_installments expense_installment
+        ON expense_installment.journal_entry_id = je.id
       LEFT JOIN expense_correction_postings expense_correction_source
         ON expense_correction_source.reversal_journal_entry_id = je.id
        AND expense_correction_source.role = 'expense'
@@ -890,6 +897,20 @@ export class ReportsService {
         SELECT jl.debit_base - jl.credit_base AS amount
         FROM expenses e
         JOIN journal_entries je ON je.id = e.journal_entry_id
+        JOIN journal_lines jl
+          ON jl.entry_id = je.id
+         AND jl.account_id = ec.ledger_account_id
+        WHERE e.category_id = ec.id
+          AND je.accounting_date BETWEEN ${from} AND ${to}
+
+        UNION ALL
+
+        SELECT jl.debit_base - jl.credit_base AS amount
+        FROM expenses e
+        JOIN expense_schedules schedule ON schedule.expense_id = e.id
+        JOIN expense_schedule_installments installment
+          ON installment.schedule_id = schedule.id
+        JOIN journal_entries je ON je.id = installment.journal_entry_id
         JOIN journal_lines jl
           ON jl.entry_id = je.id
          AND jl.account_id = ec.ledger_account_id

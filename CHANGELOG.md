@@ -1,5 +1,28 @@
 # Changelog
 
+## 17.6.0 - 2026-10-19
+
+### Added
+
+- Prepaid-expense schedules with exact monthly allocation, idempotent worker
+  catch-up, closed-period blocking and correction-based cancellation of the
+  unrecognised balance.
+- Audited owner capital-deposit and drawing documents with separation of
+  duties, immutable posting and correction-only reversal. Existing phase-3
+  cash transfers remain the single transfer implementation.
+- Ledger-reconciled purchases, supplier-statement, stock-movement and expenses
+  reports with database pagination, drill-down metadata and CSV/XLSX exports.
+
+### Changed
+
+- `return_window_days` is consistently optional in public and Admin settings:
+  the owner may clear it, and both reads return `null` when it is unset. This
+  preserves the existing contract while removing the former save mismatch.
+- Admin settings update operations declare the exact field-level validation
+  codes returned by the backend.
+- The API contract is version 17.6.0. The new finance/reporting routes are
+  additive; no existing response field was made required.
+
 ## 17.5.0 - 2026-10-18
 
 ### Added

@@ -22,6 +22,7 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import type { UploadedImage } from '../media/media.service';
 import {
   CreateExpenseCategoryDto,
+  CancelPrepaidScheduleDto,
   CreateExpenseDto,
   ExpenseFormOptionsQueryDto,
   ExpenseQueryDto,
@@ -218,6 +219,22 @@ export class ExpensesController {
     @Body() input: ReverseExpenseDto,
   ) {
     return this.expenses.reverse(
+      { id: request.user.id, permissions: request.user.permissions },
+      id,
+      key,
+      input,
+    );
+  }
+
+  @Post(':id/prepaid-schedule/cancel')
+  @AdminPolicy('expenses.reverse')
+  cancelPrepaidSchedule(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() input: CancelPrepaidScheduleDto,
+  ) {
+    return this.expenses.cancelPrepaidSchedule(
       { id: request.user.id, permissions: request.user.permissions },
       id,
       key,

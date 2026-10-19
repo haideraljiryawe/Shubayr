@@ -12,6 +12,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,11 +31,23 @@ export class UpdateExpenseCategoryDto {
   @IsOptional() @IsBoolean() is_active?: boolean;
 }
 
+export class PrepaidExpenseScheduleDto {
+  @Matches(DATE) start_date!: string;
+  @Type(() => Number) @IsInt() @Min(2) @Max(120) periods!: number;
+}
+
 export class CreateExpenseDto {
   @IsUUID('4') category_id!: string;
   @IsDecimal({ decimal_digits: '0,6', force_decimal: false }) amount!: string;
   @Matches(CURRENCY) currency_code!: string;
   @IsIn(['paid_now', 'owed']) payment_mode!: 'paid_now' | 'owed';
+  @IsOptional()
+  @IsIn(['immediate', 'prepaid'])
+  recognition_mode?: 'immediate' | 'prepaid';
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PrepaidExpenseScheduleDto)
+  prepaid_schedule?: PrepaidExpenseScheduleDto;
   @IsOptional() @IsUUID('4') cash_account_id?: string;
   @IsOptional() @IsUUID('4') supplier_id?: string;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200) payee?: string;
@@ -59,6 +72,13 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsIn(['paid_now', 'owed'])
   payment_mode?: 'paid_now' | 'owed';
+  @IsOptional()
+  @IsIn(['immediate', 'prepaid'])
+  recognition_mode?: 'immediate' | 'prepaid';
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PrepaidExpenseScheduleDto)
+  prepaid_schedule?: PrepaidExpenseScheduleDto | null;
   @IsOptional() @IsUUID('4') cash_account_id?: string | null;
   @IsOptional() @IsUUID('4') supplier_id?: string | null;
   @IsOptional()
@@ -118,6 +138,8 @@ export class ReverseExpenseDto {
   @MaxLength(500)
   backdate_reason?: string;
 }
+
+export class CancelPrepaidScheduleDto extends ReverseExpenseDto {}
 
 export class ExpenseQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;

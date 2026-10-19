@@ -123,6 +123,22 @@ export const PERMISSION_REGISTRY = {
   'expenses.pay': ['expenses', 'Pay accrued expense documents'],
   'expenses.reverse': ['expenses', 'Reverse posted expense documents'],
   'expense_categories.manage': ['expenses', 'Manage expense categories'],
+  'owner_transactions.read': [
+    'finance',
+    'View owner capital and drawing documents',
+  ],
+  'owner_transactions.create': [
+    'finance',
+    'Create owner capital and drawing drafts',
+  ],
+  'owner_transactions.post': [
+    'finance',
+    'Post owner capital and drawing documents',
+  ],
+  'owner_transactions.reverse': [
+    'finance',
+    'Reverse owner capital and drawing documents',
+  ],
   'period.reopen': ['accounting', 'Reopen closed accounting periods'],
   'backdate.approve': [
     'controls',
@@ -147,6 +163,10 @@ export const PERMISSION_REGISTRY = {
   'reports.cash.read': ['reports', 'View cash and delivery custody reports'],
   'reports.liabilities.read': ['reports', 'View liability reports'],
   'reports.inventory.read': ['reports', 'View inventory valuation reports'],
+  'reports.purchases.read': ['reports', 'View purchase cost reports'],
+  'reports.suppliers.read': ['reports', 'View supplier statements'],
+  'reports.stock.read': ['reports', 'View stock movement reports'],
+  'reports.expenses.read': ['reports', 'View expense analysis reports'],
   'period.close': ['accounting', 'Close accounting periods'],
 } as const;
 
@@ -253,11 +273,18 @@ export const PERMISSION_DEPENDENCIES: Partial<
   'expenses.pay': ['expenses.read', 'cash_accounts.view'],
   'expenses.reverse': ['expenses.read', 'ledger.view'],
   'expense_categories.manage': ['expenses.read', 'ledger.view'],
+  'owner_transactions.create': [],
+  'owner_transactions.post': ['owner_transactions.read', 'cash_accounts.view'],
+  'owner_transactions.reverse': ['owner_transactions.read', 'ledger.view'],
   'reports.profit.read': ['reports.sales.read'],
   'reports.financial.read': ['ledger.view'],
   'reports.cash.read': ['ledger.view', 'cash_accounts.view'],
   'reports.liabilities.read': ['ledger.view'],
   'reports.inventory.read': ['ledger.view', 'inventory.view', 'cost.view'],
+  'reports.purchases.read': ['suppliers.view', 'cost.view'],
+  'reports.suppliers.read': ['suppliers.view', 'ledger.view'],
+  'reports.stock.read': ['inventory.view', 'cost.view'],
+  'reports.expenses.read': ['expenses.read', 'ledger.view'],
   'period.reopen': ['ledger.view'],
   'period.close': ['ledger.view'],
 };
@@ -350,6 +377,8 @@ export const SEEDED_PRESET_GRANTS = {
     'cost.view',
     'expenses.read',
     'expenses.create',
+    'owner_transactions.read',
+    'owner_transactions.create',
     'suppliers.view',
     'supplier_payments.record',
     'supplier_payments.reverse',
@@ -380,5 +409,9 @@ export const SEEDED_PRESET_GRANTS = {
     'reports.cash.read',
     'reports.liabilities.read',
     'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.suppliers.read',
+    'reports.stock.read',
+    'reports.expenses.read',
   ],
 } as const satisfies Record<string, readonly PermissionKey[]>;
