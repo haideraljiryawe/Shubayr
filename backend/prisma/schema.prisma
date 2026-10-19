@@ -788,61 +788,75 @@ model Brand {
 }
 
 model Banner {
-  id         String    @id(map: "banners_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title      String    @db.VarChar(200)
-  subtitle   String?   @db.Text
-  image_url  String    @db.Text
-  cta_text   String?   @db.VarChar(120)
-  link_url   String?   @db.Text
-  sort_order Int       @default(0)
-  is_active  Boolean   @default(true)
-  starts_at  DateTime? @db.Timestamptz(6)
-  ends_at    DateTime? @db.Timestamptz(6)
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  id               String    @id(map: "banners_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String    @db.VarChar(200)
+  subtitle         String?   @db.Text
+  image_url        String    @db.Text
+  cta_text         String?   @db.VarChar(120)
+  link_url         String?   @db.Text
+  internal_name    String?   @db.VarChar(200)
+  title_ar         String?   @db.VarChar(200)
+  title_en         String?   @db.VarChar(200)
+  subtitle_ar      String?   @db.Text
+  subtitle_en      String?   @db.Text
+  cta_label_ar     String?   @db.VarChar(120)
+  cta_label_en     String?   @db.VarChar(120)
+  show_text        Boolean   @default(true)
+  action_type      String    @default("none") @db.VarChar(20)
+  action_target_id String?   @db.Uuid
+  is_default       Boolean   @default(false)
+  default_priority Int       @default(0)
+  sort_order       Int       @default(0)
+  is_active        Boolean   @default(true)
+  starts_at        DateTime? @db.Timestamptz(6)
+  ends_at          DateTime? @db.Timestamptz(6)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([is_active, sort_order], map: "idx_banners_active_sort")
   @@map("banners")
 }
 
 model Product {
-  id                      String                 @id(map: "products_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  category_id             String                 @db.Uuid
-  brand_id                String?                @db.Uuid
-  name_en                 String                 @db.VarChar(200)
-  name_ar                 String                 @db.VarChar(200)
-  description             String?                @db.Text
-  description_en          String?                @db.Text
-  description_ar          String?                @db.Text
-  price                   Decimal                @default(0) @db.Decimal(20, 6)
-  currency_code           String                 @default("IQD") @db.Char(3)
+  id                          String                 @id(map: "products_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id                 String                 @db.Uuid
+  brand_id                    String?                @db.Uuid
+  name_en                     String                 @db.VarChar(200)
+  name_ar                     String                 @db.VarChar(200)
+  description                 String?                @db.Text
+  description_en              String?                @db.Text
+  description_ar              String?                @db.Text
+  price                       Decimal                @default(0) @db.Decimal(20, 6)
+  currency_code               String                 @default("IQD") @db.Char(3)
   /// Discount definition only; on_sale, discounted_price, effective_price and
   /// discount_percent are derived at read time, never stored.
-  discount_type           String?                @db.VarChar(10)
-  discount_value          Decimal?               @db.Decimal(20, 6)
-  discount_starts_at      DateTime?              @db.Timestamptz(6)
-  discount_ends_at        DateTime?              @db.Timestamptz(6)
-  tracks_expiry           Boolean                @default(false)
-  rating_avg              Decimal                @default(0) @db.Decimal(3, 2)
-  rating_count            Int                    @default(0)
-  status                  String                 @default("active") @db.VarChar(20)
-  published_at            DateTime?              @db.Timestamptz(6)
-  price_approved_at       DateTime?              @db.Timestamptz(6)
-  price_proposed_by       String?                @db.Uuid
-  created_at              DateTime               @default(now()) @db.Timestamptz(6)
-  updated_at              DateTime               @default(now()) @db.Timestamptz(6)
-  search_sync_required    Boolean                @default(true)
-  search_synced_at        DateTime?              @db.Timestamptz(6)
-  category                Category               @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "products_category_id_fkey")
-  brand                   Brand?                 @relation(fields: [brand_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "products_brand_id_fkey")
-  variants                ProductVariant[]
-  images                  ProductImage[]
-  purchase_invoice_items  PurchaseInvoiceItem[]
-  inventory_batches       InventoryBatch[]
-  cart_items              CartItem[]
-  wishlist_items          WishlistItem[]
-  order_items             OrderItem[]
-  product_reviews         ProductReview[]
-  price_approval_requests PricePublishApproval[]
+  discount_type               String?                @db.VarChar(10)
+  discount_value              Decimal?               @db.Decimal(20, 6)
+  discount_starts_at          DateTime?              @db.Timestamptz(6)
+  discount_ends_at            DateTime?              @db.Timestamptz(6)
+  tracks_expiry               Boolean                @default(false)
+  rating_avg                  Decimal                @default(0) @db.Decimal(3, 2)
+  rating_count                Int                    @default(0)
+  status                      String                 @default("active") @db.VarChar(20)
+  purchase_limit_enabled      Boolean                @default(false)
+  purchase_limit_max_quantity Decimal?               @db.Decimal(20, 3)
+  published_at                DateTime?              @db.Timestamptz(6)
+  price_approved_at           DateTime?              @db.Timestamptz(6)
+  price_proposed_by           String?                @db.Uuid
+  created_at                  DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime               @default(now()) @db.Timestamptz(6)
+  search_sync_required        Boolean                @default(true)
+  search_synced_at            DateTime?              @db.Timestamptz(6)
+  category                    Category               @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "products_category_id_fkey")
+  brand                       Brand?                 @relation(fields: [brand_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "products_brand_id_fkey")
+  variants                    ProductVariant[]
+  images                      ProductImage[]
+  purchase_invoice_items      PurchaseInvoiceItem[]
+  inventory_batches           InventoryBatch[]
+  cart_items                  CartItem[]
+  wishlist_items              WishlistItem[]
+  order_items                 OrderItem[]
+  product_reviews             ProductReview[]
+  price_approval_requests     PricePublishApproval[]
 
   @@index([category_id], map: "idx_products_category")
   @@index([brand_id], map: "idx_products_brand")

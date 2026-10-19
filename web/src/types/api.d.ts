@@ -507,7 +507,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an unassociated media object
-         * @description Returns 409 while a category, product image, or banner still references the URL.
+         * @description Returns 409 while any category, product image, brand, banner, order snapshot, store setting, or expense still references the media. Intended for cleaning up an orphan left by a failed admin save.
          */
         delete: {
             parameters: {
@@ -1233,7 +1233,7 @@ export interface paths {
         };
         /**
          * List active home hero banners ordered by sort order
-         * @description Active means is_active is true and the current time is within the optional starts_at and ends_at window.
+         * @description Composes eligible regular campaigns with managed defaults: zero regular campaigns returns the first two usable defaults, one returns that campaign plus one default, and two or more returns regular campaigns only. Eligibility uses inclusive optional schedule boundaries on server time. Expired campaigns are never revived as fallbacks.
          */
         get: {
             parameters: {
@@ -1301,6 +1301,49 @@ export interface paths {
             requestBody?: never;
             responses: {
                 /** @description Paginated products */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductPage"];
+                    };
+                };
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/recently-added": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List configured Recently Added products
+         * @description Uses the product's immutable created_at timestamp and a rolling server-time window. Active, published, visible and sellable products are filtered before the configured maximum and pagination are applied. Positive low stock remains eligible; out-of-stock products do not. Editing or republishing never renews recency. The catalog rate-limit tier applies.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated Recently Added products, or an empty page when disabled */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1537,7 +1580,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["ProductOrderLimitConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1593,7 +1636,7 @@ export interface paths {
                     };
                 };
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                409: components["responses"]["ProductOrderLimitConflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -1702,6 +1745,7 @@ export interface paths {
                         "application/json": components["schemas"]["Cart"];
                     };
                 };
+                409: components["responses"]["ProductOrderLimitConflict"];
             };
         };
         trace?: never;
@@ -1944,7 +1988,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Error"] | components["schemas"]["ProductOrderLimitError"];
                     };
                 };
             };
@@ -8545,7 +8589,7 @@ export interface paths {
         };
         /**
          * List all categories, including hidden categories
-         * @description Same parent/subtree filtering as the public route, without visibility filtering.
+         * @description Same parent/subtree filtering as the public route, without visibility filtering. Unlike public reads, description_ar and description_en are returned exactly as stored with no language fallback.
          */
         get: {
             parameters: {
@@ -8939,6 +8983,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/banners/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Atomically replace the complete banner order
+         * @description The ids array must contain every stored banner exactly once; array position becomes sort_order.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description All banners in their new order */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Banner"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/banners/{id}": {
         parameters: {
             query?: never;
@@ -8994,6 +9085,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         options?: never;
@@ -9025,6 +9117,7 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
                 422: components["responses"]["Validation"];
             };
         };
@@ -13351,6 +13444,20 @@ export interface components {
                 unsettled_amounts: number;
             };
         };
+        ProductOrderLimitError: {
+            /** @enum {integer} */
+            status: 409;
+            /** @enum {string} */
+            code: "PRODUCT_ORDER_LIMIT_EXCEEDED";
+            message: string;
+            errors: components["schemas"]["FieldError"][];
+            details: {
+                /** Format: uuid */
+                product_id: string;
+                allowed_quantity: number;
+                requested_quantity: number;
+            };
+        };
         FieldError: {
             /** @example items.0.quantity */
             field: string;
@@ -13626,7 +13733,7 @@ export interface components {
         AddressPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Address"][];
         };
-        /** @description Category reads populate an empty localized name or description from the other language. */
+        /** @description Public category reads populate an empty localized name or description from the other language. Admin category reads return stored description_ar/description_en exactly, including null, so editors can distinguish missing translations. */
         Category: {
             /** Format: uuid */
             id?: string;
@@ -13789,6 +13896,10 @@ export interface components {
             /** @description Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false. */
             readonly discount_percent?: number | null;
             tracks_expiry?: boolean;
+            /** @description When true, the sum of every variant/line of this product in one order may not exceed purchase_limit_max_quantity. */
+            purchase_limit_enabled?: boolean;
+            /** @description Per-order product quantity limit in the product's selling units. Null when no value is retained; clients must enforce only when enabled. */
+            purchase_limit_max_quantity?: number | null;
             /** @description Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero. */
             rating_avg?: number;
             /** @description Cached count of published product reviews only; review rows are authoritative. */
@@ -13873,6 +13984,9 @@ export interface components {
             discount_ends_at?: string | null;
             /** @default false */
             tracks_expiry: boolean;
+            purchase_limit_enabled?: boolean;
+            /** @description Required when enabled. The suggested editor prefill of 10 is a client convenience, not a server default. */
+            purchase_limit_max_quantity?: number | null;
             /**
              * @default hidden
              * @enum {string}
@@ -13912,6 +14026,8 @@ export interface components {
             /** Format: date-time */
             discount_ends_at?: string | null;
             tracks_expiry?: boolean;
+            purchase_limit_enabled?: boolean;
+            purchase_limit_max_quantity?: number | null;
             /** @enum {string} */
             status?: "active" | "hidden" | "archived";
             published?: boolean;
@@ -14219,15 +14335,49 @@ export interface components {
         Banner: {
             /** Format: uuid */
             id: string;
+            /** @description Legacy single-language title, retained unchanged for existing clients. */
             title: string;
+            /** @description Legacy single-language subtitle. */
             subtitle: string | null;
             /** Format: uri */
             image_url: string;
+            /** @description Legacy single-language CTA label. */
             cta_text: string | null;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Legacy URL field and the URL for action_type=url.
+             */
             link_url: string | null;
+            /** @description Admin identifier; falls back to legacy title when unset. */
+            internal_name: string;
+            /** @description Arabic title; falls back to English then legacy title. */
+            title_ar: string;
+            /** @description English title; falls back to Arabic then legacy title. */
+            title_en: string;
+            /** @description Arabic subtitle; falls back to English then legacy subtitle. */
+            subtitle_ar: string | null;
+            /** @description English subtitle; falls back to Arabic then legacy subtitle. */
+            subtitle_en: string | null;
+            /** @description Arabic CTA; falls back to English then legacy cta_text. */
+            cta_label_ar: string | null;
+            /** @description English CTA; falls back to Arabic then legacy cta_text. */
+            cta_label_en: string | null;
+            /** @description False means clients render image-only artwork with no text overlay. */
+            show_text: boolean;
+            /** @enum {string} */
+            action_type: "none" | "url" | "product" | "category" | "offers";
+            /** Format: uuid */
+            action_target_id: string | null;
+            action: components["schemas"]["BannerAction"];
+            is_default: boolean;
+            default_priority: number;
             sort_order: number;
             is_active: boolean;
+            /**
+             * @description Computed from server time; disabled takes precedence, then scheduled, expired, active.
+             * @enum {string}
+             */
+            effective_status: "active" | "scheduled" | "expired" | "disabled";
             /** Format: date-time */
             starts_at: string | null;
             /** Format: date-time */
@@ -14235,17 +14385,54 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        BannerAction: {
+            /** @enum {string} */
+            type: "none" | "url" | "product" | "category" | "offers";
+            /** Format: uri */
+            url: string | null;
+            target: components["schemas"]["BannerResolvedTarget"] | null;
+        };
+        BannerResolvedTarget: {
+            /** Format: uuid */
+            id: string;
+            /** @description Nullable because products and legacy categories do not necessarily have a stored slug. */
+            slug: string | null;
+            name_ar: string;
+            name_en: string;
+            /** @description True when the target is currently customer-visible; false keeps the destination identifiable without redirecting elsewhere. */
+            available: boolean;
+        };
         BannerCreate: {
             title: string;
+            internal_name?: string | null;
+            title_ar?: string | null;
+            title_en?: string | null;
             subtitle?: string | null;
+            subtitle_ar?: string | null;
+            subtitle_en?: string | null;
             /**
              * Format: uri
              * @description Stable URL returned by POST /media/images.
              */
             image_url: string;
             cta_text?: string | null;
+            cta_label_ar?: string | null;
+            cta_label_en?: string | null;
             /** Format: uri */
             link_url?: string | null;
+            show_text?: boolean;
+            /**
+             * @description When omitted, a non-null legacy link_url maps to url and no link maps to none.
+             * @enum {string}
+             */
+            action_type?: "none" | "url" | "product" | "category" | "offers";
+            /**
+             * Format: uuid
+             * @description Required for product/category and rejected for other actions.
+             */
+            action_target_id?: string | null;
+            is_default?: boolean;
+            default_priority?: number;
             /** @default 0 */
             sort_order: number;
             /** @default true */
@@ -14258,15 +14445,29 @@ export interface components {
         /** @description Omitted properties retain their stored values; explicit null clears nullable text or schedule properties. */
         BannerPatch: {
             title?: string;
+            internal_name?: string | null;
+            title_ar?: string | null;
+            title_en?: string | null;
             subtitle?: string | null;
+            subtitle_ar?: string | null;
+            subtitle_en?: string | null;
             /**
              * Format: uri
              * @description Stable URL returned by POST /media/images.
              */
             image_url?: string;
             cta_text?: string | null;
+            cta_label_ar?: string | null;
+            cta_label_en?: string | null;
             /** Format: uri */
             link_url?: string | null;
+            show_text?: boolean;
+            /** @enum {string} */
+            action_type?: "none" | "url" | "product" | "category" | "offers";
+            /** Format: uuid */
+            action_target_id?: string | null;
+            is_default?: boolean;
+            default_priority?: number;
             sort_order?: number;
             is_active?: boolean;
             /** Format: date-time */
@@ -17518,6 +17719,15 @@ export interface components {
             policy_effective_date?: string | null;
             /** @description Optional existing return-window setting; null means the owner has not published a value. */
             return_window_days?: number | null;
+            /** @default false */
+            recently_added_enabled: boolean;
+            /** @default 10 */
+            recently_added_max_count: number;
+            /**
+             * @description Rolling elapsed server-time window.
+             * @default 30
+             */
+            recently_added_window_days: number;
         };
         ExactDecimal: string | number;
         QuantityDecimal: string;
@@ -18750,6 +18960,15 @@ export interface components {
                 /** Format: date */
                 policy_effective_date?: string | null;
                 return_window_days?: string | null;
+                /**
+                 * @default false
+                 * @enum {string}
+                 */
+                recently_added_enabled: "true" | "false";
+                /** @default 10 */
+                recently_added_max_count: string;
+                /** @default 30 */
+                recently_added_window_days: string;
             } & {
                 [key: string]: string | null;
             };
@@ -18777,6 +18996,10 @@ export interface components {
                 /** Format: date */
                 policy_effective_date?: string | null;
                 return_window_days?: string | null;
+                /** @enum {string} */
+                recently_added_enabled?: "true" | "false";
+                recently_added_max_count?: string;
+                recently_added_window_days?: string;
             } & {
                 [key: string]: string | null;
             };
@@ -18856,6 +19079,15 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description State conflict, including a per-product order limit refusal with structured quantities */
+        ProductOrderLimitConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"] | components["schemas"]["ProductOrderLimitError"];
             };
         };
         /** @description State conflict (`CONFLICT`) or a closed accounting period (`PERIOD_CLOSED`) */

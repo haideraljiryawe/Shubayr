@@ -75,6 +75,14 @@ export class CartService {
       if (key && (await this.replayed(tx, cartId, key, 'add', fingerprint))) {
         return;
       }
+      await this.requireProductOrderLimit(
+        tx,
+        cartId,
+        input.product_id,
+        input.quantity,
+        sellable.purchaseLimitEnabled,
+        sellable.purchaseLimitMaxQuantity,
+      );
       const existing = await tx.cartItem.findFirst({
         where: {
           cart_id: cartId,
@@ -158,6 +166,14 @@ export class CartService {
       await this.lockCart(tx, cartId);
       if (await this.replayed(tx, cartId, key, 'merge', fingerprint)) return;
       for (const item of prepared) {
+        await this.requireProductOrderLimit(
+          tx,
+          cartId,
+          item.product_id,
+          item.quantity,
+          item.sellable.purchaseLimitEnabled,
+          item.sellable.purchaseLimitMaxQuantity,
+        );
         const existing = await tx.cartItem.findFirst({
           where: {
             cart_id: cartId,
@@ -214,17 +230,29 @@ export class CartService {
     const { unitPrice, availableQty, priceVersion } = sellable;
     this.requireQuantityUnit(input.quantity, sellable.wholeUnitsOnly);
     this.requireAvailable(input.quantity, availableQty);
-    await this.prisma.cartItem.update({
-      where: { id },
-      data: {
-        quantity: input.quantity,
-        unit_price: unitPrice,
-        price_version: priceVersion,
-      },
-    });
-    await this.prisma.cart.update({
-      where: { id: item.cart_id },
-      data: { updated_at: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockCart(tx, item.cart_id);
+      await this.requireProductOrderLimit(
+        tx,
+        item.cart_id,
+        item.product_id,
+        input.quantity,
+        sellable.purchaseLimitEnabled,
+        sellable.purchaseLimitMaxQuantity,
+        item.id,
+      );
+      await tx.cartItem.update({
+        where: { id },
+        data: {
+          quantity: input.quantity,
+          unit_price: unitPrice,
+          price_version: priceVersion,
+        },
+      });
+      await tx.cart.update({
+        where: { id: item.cart_id },
+        data: { updated_at: new Date() },
+      });
     });
     return this.response(item.cart_id);
   }
@@ -382,7 +410,47 @@ export class CartService {
       availableQty,
       variantId: variant.id,
       wholeUnitsOnly: variant.whole_units_only,
+      purchaseLimitEnabled: product.purchase_limit_enabled,
+      purchaseLimitMaxQuantity: product.purchase_limit_max_quantity,
     };
+  }
+
+  private async requireProductOrderLimit(
+    tx: Prisma.TransactionClient,
+    cartId: string,
+    productId: string,
+    addedOrReplacementQuantity: number,
+    enabled: boolean,
+    maximum: number | null,
+    replacedItemId?: string,
+  ) {
+    if (!enabled || maximum === null) return;
+    const existing = await tx.cartItem.aggregate({
+      where: {
+        cart_id: cartId,
+        product_id: productId,
+        ...(replacedItemId ? { id: { not: replacedItemId } } : {}),
+      },
+      _sum: { quantity: true },
+    });
+    const requested = Number(
+      (
+        Number(existing._sum.quantity ?? 0) + addedOrReplacementQuantity
+      ).toFixed(3),
+    );
+    if (requested > maximum) {
+      throw new ConflictException({
+        status: 409,
+        code: 'PRODUCT_ORDER_LIMIT_EXCEEDED',
+        message: 'Requested quantity exceeds this product order limit',
+        errors: [],
+        details: {
+          product_id: productId,
+          allowed_quantity: maximum,
+          requested_quantity: requested,
+        },
+      });
+    }
   }
 
   private requireAvailable(quantity: number, availableQty: number): void {

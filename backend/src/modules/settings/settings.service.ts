@@ -37,6 +37,9 @@ const MANAGED_KEYS = new Set([
   'support_hours_en',
   'refund_days',
   'policy_effective_date',
+  'recently_added_enabled',
+  'recently_added_max_count',
+  'recently_added_window_days',
 ]);
 
 const LEGACY_PUBLIC_KEYS = [
@@ -64,6 +67,12 @@ const NULLABLE_PUBLIC_KEYS = [
   'return_window_days',
 ] as const;
 
+const RECENTLY_ADDED_DEFAULTS = {
+  recently_added_enabled: false,
+  recently_added_max_count: 10,
+  recently_added_window_days: 30,
+} as const;
+
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(
     JSON.stringify(value, (_key, item: unknown) =>
@@ -81,11 +90,17 @@ export class SettingsService {
     private readonly audit: AuditService,
   ) {}
 
-  async getPublicSettings(): Promise<Record<string, string | number | null>> {
+  async getPublicSettings(): Promise<
+    Record<string, string | number | boolean | null>
+  > {
     const rows = await this.prisma.storeSetting.findMany({
       where: {
         key: {
-          in: [...LEGACY_PUBLIC_KEYS, ...NULLABLE_PUBLIC_KEYS],
+          in: [
+            ...LEGACY_PUBLIC_KEYS,
+            ...NULLABLE_PUBLIC_KEYS,
+            ...Object.keys(RECENTLY_ADDED_DEFAULTS),
+          ],
         },
       },
     });
@@ -108,6 +123,14 @@ export class SettingsService {
           ];
         }),
       ),
+      recently_added_enabled:
+        (values.get('recently_added_enabled') ?? 'false') === 'true',
+      recently_added_max_count:
+        Number(values.get('recently_added_max_count')) ||
+        RECENTLY_ADDED_DEFAULTS.recently_added_max_count,
+      recently_added_window_days:
+        Number(values.get('recently_added_window_days')) ||
+        RECENTLY_ADDED_DEFAULTS.recently_added_window_days,
     };
   }
 

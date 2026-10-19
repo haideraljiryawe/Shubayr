@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.6.0
+  version: 17.7.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -319,7 +319,7 @@ paths:
     delete:
       tags: [Media]
       summary: Delete an unassociated media object
-      description: Returns 409 while a category, product image, or banner still references the URL.
+      description: Returns 409 while any category, product image, brand, banner, order snapshot, store setting, or expense still references the media. Intended for cleaning up an orphan left by a failed admin save.
       x-permission: catalog.products
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
@@ -664,7 +664,12 @@ paths:
     get:
       tags: [Banners]
       summary: List active home hero banners ordered by sort order
-      description: Active means is_active is true and the current time is within the optional starts_at and ends_at window.
+      description: >
+        Composes eligible regular campaigns with managed defaults: zero regular
+        campaigns returns the first two usable defaults, one returns that campaign
+        plus one default, and two or more returns regular campaigns only. Eligibility
+        uses inclusive optional schedule boundaries on server time. Expired campaigns
+        are never revived as fallbacks.
       security: []
       responses:
         "200":
@@ -697,6 +702,27 @@ paths:
       responses:
         "200":
           description: Paginated products
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductPage" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /products/recently-added:
+    get:
+      tags: [Catalog]
+      summary: List configured Recently Added products
+      description: >
+        Uses the product's immutable created_at timestamp and a rolling server-time
+        window. Active, published, visible and sellable products are filtered before
+        the configured maximum and pagination are applied. Positive low stock remains
+        eligible; out-of-stock products do not. Editing or republishing never renews
+        recency. The catalog rate-limit tier applies.
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+      responses:
+        "200":
+          description: Paginated Recently Added products, or an empty page when disabled
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProductPage" }
@@ -788,7 +814,7 @@ paths:
     post:
       tags: [Cart]
       summary: Add an item to the cart
-      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, PRODUCT_ORDER_LIMIT_EXCEEDED]
       description: An optional Idempotency-Key makes retries repeat-safe. Reusing the key with the same body returns the cart without adding again; a different body returns 409.
       parameters:
         - name: Idempotency-Key
@@ -813,13 +839,13 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/ProductOrderLimitConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /cart/merge:
     post:
       tags: [Cart]
       summary: Atomically merge a guest basket into the authenticated cart
-      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED, REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, PRODUCT_ORDER_LIMIT_EXCEEDED]
       description: The entire guest basket is merged under the cart lock. Replaying the same key and body is a no-op; a simultaneous add is serialized and retained exactly once.
       parameters:
         - name: Idempotency-Key
@@ -854,7 +880,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "409": { $ref: "#/components/responses/ProductOrderLimitConflict" }
         "422": { $ref: "#/components/responses/Validation" }
   /cart/coupon:
     delete:
@@ -871,7 +897,7 @@ paths:
     patch:
       tags: [Cart]
       summary: Update a cart item quantity
-      x-error-codes: [REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY]
+      x-error-codes: [REQUESTED_QUANTITY_UNAVAILABLE, SKU_WHOLE_UNITS_ONLY, PRODUCT_ORDER_LIMIT_EXCEEDED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -888,6 +914,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Cart" }
+        "409": { $ref: "#/components/responses/ProductOrderLimitConflict" }
     delete:
       tags: [Cart]
       summary: Remove a cart item
@@ -1000,6 +1027,7 @@ paths:
           DELIVERY_ZONE_NOT_SERVED,
           LOYALTY_POINTS_INSUFFICIENT,
           LOYALTY_REDEMPTION_EXCEEDS_GOODS,
+          PRODUCT_ORDER_LIMIT_EXCEEDED,
         ]
       description: >
         Atomically reprices and consumes the caller's server cart using server-time
@@ -1056,7 +1084,10 @@ paths:
           description: Cart empty, item unavailable, coupon invalid, or idempotency conflict
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/Error" }
+                  - { $ref: "#/components/schemas/ProductOrderLimitError" }
   /orders/{id}:
     get:
       tags: [Orders]
@@ -4145,7 +4176,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create a product
-      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED, PRODUCT_PURCHASE_LIMIT_REQUIRED]
       description: Both `name_ar` and `name_en` are required and must contain non-whitespace text; validation errors identify the missing or empty field.
       x-permissions: [catalog.products, prices.change]
       requestBody:
@@ -4200,7 +4231,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Update a product
-      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED]
+      x-error-codes: [BELOW_COST_BLOCKED, VARIANT_SKUS_DUPLICATED, VARIANT_SKU_DUPLICATE, VARIANT_BARCODES_DUPLICATED, VARIANT_BARCODE_DUPLICATE, BASE_CURRENCY_NOT_CONFIGURED, PRODUCT_PURCHASE_LIMIT_REQUIRED]
       description: >
         Omitted fields are preserved. Explicit null clears only nullable fields;
         `discount_type: null` clears the complete stored discount definition.
@@ -4257,7 +4288,7 @@ paths:
     get:
       tags: [Admin]
       summary: List all categories, including hidden categories
-      description: Same parent/subtree filtering as the public route, without visibility filtering.
+      description: Same parent/subtree filtering as the public route, without visibility filtering. Unlike public reads, description_ar and description_en are returned exactly as stored with no language fallback.
       x-permission: catalog.categories
       parameters:
         - { name: parent_id, in: query, schema: { type: string, format: uuid } }
@@ -4416,6 +4447,7 @@ paths:
       tags: [Admin]
       summary: Create a home hero banner
       x-permission: catalog.products
+      x-error-codes: [BANNER_ACTION_URL_REQUIRED, BANNER_ACTION_TARGET_REQUIRED, BANNER_ACTION_TARGET_NOT_ALLOWED, BANNER_ACTION_TARGET_NOT_FOUND]
       requestBody:
         required: true
         content:
@@ -4427,6 +4459,37 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Banner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/banners/order:
+    put:
+      tags: [Admin]
+      summary: Atomically replace the complete banner order
+      description: The ids array must contain every stored banner exactly once; array position becomes sort_order.
+      x-permission: catalog.products
+      x-error-codes: [BANNER_ORDER_IDS_INVALID]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: All banners in their new order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Banner" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/banners/{id}:
@@ -4447,6 +4510,7 @@ paths:
       tags: [Admin]
       summary: Update a home hero banner
       x-permission: catalog.products
+      x-error-codes: [BANNER_ACTION_URL_REQUIRED, BANNER_ACTION_TARGET_REQUIRED, BANNER_ACTION_TARGET_NOT_ALLOWED, BANNER_ACTION_TARGET_NOT_FOUND, BANNER_DEFAULT_MINIMUM_REQUIRED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -4461,16 +4525,19 @@ paths:
               schema: { $ref: "#/components/schemas/Banner" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/Validation" }
     delete:
       tags: [Admin]
       summary: Delete a home hero banner
       x-permission: catalog.products
+      x-error-codes: [BANNER_DEFAULT_MINIMUM_REQUIRED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   # ---------------- ADMIN: ACCESS MANAGEMENT ----------------
   /admin/staff:
@@ -5799,6 +5866,10 @@ paths:
       summary: Update operational and financial settings atomically
       x-surface: admin
       x-permission: settings.manage
+      x-field-error-codes:
+        settings.recently_added_enabled: [boolean]
+        settings.recently_added_max_count: [required, positive_integer, maximum]
+        settings.recently_added_window_days: [required, positive_integer, maximum]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AdminFinancialSettingsPatch" } } } }
       responses:
         "200": { description: Updated settings, content: { application/json: { schema: { $ref: "#/components/schemas/AdminFinancialSettings" } } } }
@@ -6110,6 +6181,14 @@ components:
     Unauthorized: { description: Missing/invalid token (`UNAUTHORIZED`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     NotFound: { description: Not found (`NOT_FOUND`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
     Conflict: { description: State conflict (`CONFLICT`), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    ProductOrderLimitConflict:
+      description: State conflict, including a per-product order limit refusal with structured quantities
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: "#/components/schemas/Error" }
+              - { $ref: "#/components/schemas/ProductOrderLimitError" }
     PostingConflict:
       description: State conflict (`CONFLICT`) or a closed accounting period (`PERIOD_CLOSED`)
       content:
@@ -6170,6 +6249,24 @@ components:
             open_orders: { type: integer, minimum: 0 }
             pending_returns: { type: integer, minimum: 0 }
             unsettled_amounts: { type: integer, minimum: 0 }
+
+    ProductOrderLimitError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message, errors, details]
+      properties:
+        status: { type: integer, enum: [409] }
+        code: { type: string, enum: [PRODUCT_ORDER_LIMIT_EXCEEDED] }
+        message: { type: string }
+        errors: { type: array, maxItems: 0, items: { $ref: "#/components/schemas/FieldError" } }
+        details:
+          type: object
+          additionalProperties: false
+          required: [product_id, allowed_quantity, requested_quantity]
+          properties:
+            product_id: { type: string, format: uuid }
+            allowed_quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
+            requested_quantity: { type: number, multipleOf: 0.001, minimum: 0.001 }
 
     FieldError:
       type: object
@@ -6513,7 +6610,7 @@ components:
 
     Category:
       type: object
-      description: Category reads populate an empty localized name or description from the other language.
+      description: Public category reads populate an empty localized name or description from the other language. Admin category reads return stored description_ar/description_en exactly, including null, so editors can distinguish missing translations.
       properties:
         id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
@@ -6666,6 +6763,8 @@ components:
         effective_price: { $ref: "#/components/schemas/Money", readOnly: true, description: "The price the customer pays. Cart and order pricing use this exact value." }
         discount_percent: { type: [integer, "null"], readOnly: true, description: "Computed when on_sale is true: round((price - discounted_price) / price * 100). Null when on_sale is false." }
         tracks_expiry: { type: boolean }
+        purchase_limit_enabled: { type: boolean, description: "When true, the sum of every variant/line of this product in one order may not exceed purchase_limit_max_quantity." }
+        purchase_limit_max_quantity: { type: [number, "null"], multipleOf: 0.001, minimum: 0.001, description: "Per-order product quantity limit in the product's selling units. Null when no value is retained; clients must enforce only when enabled." }
         rating_avg: { type: number, description: "Cached average of published product reviews only, reconciled transactionally from review rows and rounded to two decimals half away from zero." }
         rating_count: { type: integer, description: "Cached count of published product reviews only; review rows are authoritative." }
         status: { type: string, enum: [active, hidden, archived] }
@@ -6727,6 +6826,8 @@ components:
         discount_starts_at: { type: [string, "null"], format: date-time, description: "Optional window start; null means the discount is active immediately." }
         discount_ends_at: { type: [string, "null"], format: date-time, description: "Optional window end; null means the discount never expires. Must be after discount_starts_at when both are set." }
         tracks_expiry: { type: boolean, default: false }
+        purchase_limit_enabled: { type: boolean }
+        purchase_limit_max_quantity: { type: [number, "null"], multipleOf: 0.001, minimum: 0.001, description: "Required when enabled. The suggested editor prefill of 10 is a client convenience, not a server default." }
         status: { type: string, enum: [active, hidden, archived], default: hidden }
         published: { type: boolean, default: false, description: "Publishing also requires at least one SKU with an approved effective selling price." }
         images:
@@ -6761,6 +6862,8 @@ components:
         discount_starts_at: { type: [string, "null"], format: date-time }
         discount_ends_at: { type: [string, "null"], format: date-time }
         tracks_expiry: { type: boolean }
+        purchase_limit_enabled: { type: boolean }
+        purchase_limit_max_quantity: { type: [number, "null"], multipleOf: 0.001, minimum: 0.001 }
         status: { type: string, enum: [active, hidden, archived] }
         published: { type: boolean }
         media_operations:
@@ -7099,19 +7202,56 @@ components:
     Banner:
       type: object
       additionalProperties: false
-      required: [id, title, subtitle, image_url, cta_text, link_url, sort_order, is_active, starts_at, ends_at, created_at]
+      required: [id, title, subtitle, image_url, cta_text, link_url, internal_name, title_ar, title_en, subtitle_ar, subtitle_en, cta_label_ar, cta_label_en, show_text, action_type, action_target_id, action, is_default, default_priority, sort_order, is_active, effective_status, starts_at, ends_at, created_at]
       properties:
         id: { type: string, format: uuid }
-        title: { type: string }
-        subtitle: { type: [string, "null"] }
+        title: { type: string, description: "Legacy single-language title, retained unchanged for existing clients." }
+        subtitle: { type: [string, "null"], description: "Legacy single-language subtitle." }
         image_url: { type: string, format: uri }
-        cta_text: { type: [string, "null"] }
-        link_url: { type: [string, "null"], format: uri }
+        cta_text: { type: [string, "null"], description: "Legacy single-language CTA label." }
+        link_url: { type: [string, "null"], format: uri, description: "Legacy URL field and the URL for action_type=url." }
+        internal_name: { type: string, description: "Admin identifier; falls back to legacy title when unset." }
+        title_ar: { type: string, description: "Arabic title; falls back to English then legacy title." }
+        title_en: { type: string, description: "English title; falls back to Arabic then legacy title." }
+        subtitle_ar: { type: [string, "null"], description: "Arabic subtitle; falls back to English then legacy subtitle." }
+        subtitle_en: { type: [string, "null"], description: "English subtitle; falls back to Arabic then legacy subtitle." }
+        cta_label_ar: { type: [string, "null"], description: "Arabic CTA; falls back to English then legacy cta_text." }
+        cta_label_en: { type: [string, "null"], description: "English CTA; falls back to Arabic then legacy cta_text." }
+        show_text: { type: boolean, description: "False means clients render image-only artwork with no text overlay." }
+        action_type: { type: string, enum: [none, url, product, category, offers] }
+        action_target_id: { type: [string, "null"], format: uuid }
+        action: { $ref: "#/components/schemas/BannerAction" }
+        is_default: { type: boolean }
+        default_priority: { type: integer, minimum: 0 }
         sort_order: { type: integer }
         is_active: { type: boolean }
+        effective_status: { type: string, enum: [active, scheduled, expired, disabled], description: "Computed from server time; disabled takes precedence, then scheduled, expired, active." }
         starts_at: { type: [string, "null"], format: date-time }
         ends_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
+
+    BannerAction:
+      type: object
+      additionalProperties: false
+      required: [type, url, target]
+      properties:
+        type: { type: string, enum: [none, url, product, category, offers] }
+        url: { type: [string, "null"], format: uri }
+        target:
+          oneOf:
+            - { $ref: "#/components/schemas/BannerResolvedTarget" }
+            - { type: "null" }
+
+    BannerResolvedTarget:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name_ar, name_en, available]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, "null"], description: "Nullable because products and legacy categories do not necessarily have a stored slug." }
+        name_ar: { type: string }
+        name_en: { type: string }
+        available: { type: boolean, description: "True when the target is currently customer-visible; false keeps the destination identifiable without redirecting elsewhere." }
 
     BannerCreate:
       type: object
@@ -7119,10 +7259,22 @@ components:
       required: [title, image_url]
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
+        internal_name: { type: [string, "null"], maxLength: 200 }
+        title_ar: { type: [string, "null"], maxLength: 200 }
+        title_en: { type: [string, "null"], maxLength: 200 }
         subtitle: { type: [string, "null"] }
+        subtitle_ar: { type: [string, "null"] }
+        subtitle_en: { type: [string, "null"] }
         image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         cta_text: { type: [string, "null"], maxLength: 120 }
+        cta_label_ar: { type: [string, "null"], maxLength: 120 }
+        cta_label_en: { type: [string, "null"], maxLength: 120 }
         link_url: { type: [string, "null"], format: uri }
+        show_text: { type: boolean }
+        action_type: { type: string, enum: [none, url, product, category, offers], description: "When omitted, a non-null legacy link_url maps to url and no link maps to none." }
+        action_target_id: { type: [string, "null"], format: uuid, description: "Required for product/category and rejected for other actions." }
+        is_default: { type: boolean }
+        default_priority: { type: integer, minimum: 0 }
         sort_order: { type: integer, minimum: 0, default: 0 }
         is_active: { type: boolean, default: true }
         starts_at: { type: [string, "null"], format: date-time }
@@ -7135,10 +7287,22 @@ components:
       description: Omitted properties retain their stored values; explicit null clears nullable text or schedule properties.
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
+        internal_name: { type: [string, "null"], maxLength: 200 }
+        title_ar: { type: [string, "null"], maxLength: 200 }
+        title_en: { type: [string, "null"], maxLength: 200 }
         subtitle: { type: [string, "null"] }
+        subtitle_ar: { type: [string, "null"] }
+        subtitle_en: { type: [string, "null"] }
         image_url: { type: string, format: uri, description: "Stable URL returned by POST /media/images." }
         cta_text: { type: [string, "null"], maxLength: 120 }
+        cta_label_ar: { type: [string, "null"], maxLength: 120 }
+        cta_label_en: { type: [string, "null"], maxLength: 120 }
         link_url: { type: [string, "null"], format: uri }
+        show_text: { type: boolean }
+        action_type: { type: string, enum: [none, url, product, category, offers] }
+        action_target_id: { type: [string, "null"], format: uuid }
+        is_default: { type: boolean }
+        default_priority: { type: integer, minimum: 0 }
         sort_order: { type: integer, minimum: 0 }
         is_active: { type: boolean }
         starts_at: { type: [string, "null"], format: date-time }
@@ -11337,6 +11501,9 @@ components:
         refund_days: { type: [integer, "null"], minimum: 0 }
         policy_effective_date: { type: [string, "null"], format: date }
         return_window_days: { type: [integer, "null"], minimum: 1, description: Optional existing return-window setting; null means the owner has not published a value. }
+        recently_added_enabled: { type: boolean, default: false }
+        recently_added_max_count: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        recently_added_window_days: { type: integer, minimum: 1, maximum: 365, default: 30, description: "Rolling elapsed server-time window." }
 
     ExactDecimal:
       oneOf:
@@ -12756,6 +12923,9 @@ components:
             refund_days: { type: [string, "null"], pattern: '^\d+$' }
             policy_effective_date: { type: [string, "null"], format: date }
             return_window_days: { type: [string, "null"], pattern: '^[1-9]\d*$' }
+            recently_added_enabled: { type: string, enum: ['true', 'false'], default: 'false' }
+            recently_added_max_count: { type: string, pattern: '^(?:[1-9]|[1-4]\d|50)$', default: '10' }
+            recently_added_window_days: { type: string, pattern: '^(?:[1-9]|[1-9]\d|[12]\d{2}|3[0-5]\d|36[0-5])$', default: '30' }
           additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
@@ -12782,6 +12952,9 @@ components:
             refund_days: { type: [string, "null"], pattern: '^\d+$' }
             policy_effective_date: { type: [string, "null"], format: date }
             return_window_days: { type: [string, "null"], pattern: '^[1-9]\d*$' }
+            recently_added_enabled: { type: string, enum: ['true', 'false'] }
+            recently_added_max_count: { type: string, pattern: '^(?:[1-9]|[1-4]\d|50)$' }
+            recently_added_window_days: { type: string, pattern: '^(?:[1-9]|[1-9]\d|[12]\d{2}|3[0-5]\d|36[0-5])$' }
           additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }

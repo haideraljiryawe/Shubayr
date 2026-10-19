@@ -293,6 +293,18 @@ CREATE TABLE banners (
     image_url       TEXT NOT NULL,
     cta_text        VARCHAR(120),
     link_url        TEXT,
+    internal_name   VARCHAR(200),
+    title_ar        VARCHAR(200),
+    title_en        VARCHAR(200),
+    subtitle_ar     TEXT,
+    subtitle_en     TEXT,
+    cta_label_ar    VARCHAR(120),
+    cta_label_en    VARCHAR(120),
+    show_text       BOOLEAN NOT NULL DEFAULT TRUE,
+    action_type     VARCHAR(20) NOT NULL DEFAULT 'none' CHECK (action_type IN ('none','url','product','category','offers')),
+    action_target_id UUID,
+    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+    default_priority INT NOT NULL DEFAULT 0 CHECK (default_priority >= 0),
     sort_order      INT NOT NULL DEFAULT 0,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     starts_at       TIMESTAMPTZ,
@@ -321,6 +333,8 @@ CREATE TABLE products (
     rating_avg      NUMERIC(3,2) NOT NULL DEFAULT 0,
     rating_count    INT NOT NULL DEFAULT 0,
     status          VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | archived
+    purchase_limit_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    purchase_limit_max_quantity NUMERIC(20,3),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- A discount is either fully defined or absent.
@@ -339,6 +353,10 @@ CREATE TABLE products (
         discount_starts_at IS NULL
         OR discount_ends_at IS NULL
         OR discount_ends_at > discount_starts_at
+    ),
+    CONSTRAINT products_purchase_limit_check CHECK (
+        NOT purchase_limit_enabled
+        OR (purchase_limit_max_quantity IS NOT NULL AND purchase_limit_max_quantity > 0)
     ),
     CONSTRAINT products_negotiation_values_check CHECK (
         (floor_price IS NULL OR (floor_price >= 0 AND floor_price <= price))
@@ -1369,6 +1387,7 @@ CREATE INDEX idx_products_discount_window ON products(discount_starts_at, discou
     WHERE discount_type IS NOT NULL;
 CREATE UNIQUE INDEX idx_categories_slug ON categories(slug);
 CREATE INDEX idx_banners_active_sort    ON banners(is_active, sort_order);
+CREATE INDEX idx_banners_defaults       ON banners(is_default, is_active, default_priority, id);
 CREATE INDEX idx_batches_product        ON inventory_batches(product_id);
 CREATE INDEX idx_batches_expiry         ON inventory_batches(expiry_date);      -- FEFO
 CREATE INDEX idx_batch_stock_batch      ON batch_stock(batch_id);

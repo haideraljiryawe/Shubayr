@@ -58,6 +58,18 @@ describe('server-side settings validation', () => {
     [{ settings: { refund_days: '-1' } }, 'settings.refund_days'],
     [{ settings: { return_window_days: '0' } }, 'settings.return_window_days'],
     [
+      { settings: { recently_added_enabled: 'yes' } },
+      'settings.recently_added_enabled',
+    ],
+    [
+      { settings: { recently_added_max_count: '51' } },
+      'settings.recently_added_max_count',
+    ],
+    [
+      { settings: { recently_added_window_days: '366' } },
+      'settings.recently_added_window_days',
+    ],
+    [
       { settings: { policy_effective_date: '2026-02-30' } },
       'settings.policy_effective_date',
     ],

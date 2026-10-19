@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
 import { CategoriesService } from './categories.service';
-import { CategoryQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
+import {
+  CategoryQueryDto,
+  ProductQueryDto,
+  RecentlyAddedQueryDto,
+} from './dto/catalog-query.dto';
 import { ProductsService } from './products.service';
 import { BrandsService } from './brands.service';
 import { BrandQueryDto } from './dto/brand.dto';
@@ -41,6 +45,11 @@ export class CatalogController {
   @Get('products')
   listProducts(@Query() query: ProductQueryDto) {
     return this.products.listPublic(query);
+  }
+
+  @Get('products/recently-added')
+  listRecentlyAdded(@Query() query: RecentlyAddedQueryDto) {
+    return this.products.listRecentlyAdded(query);
   }
 
   @Get('products/:id')

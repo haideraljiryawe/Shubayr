@@ -104,6 +104,21 @@ export class ProductQueryDto {
   per_page?: number;
 }
 
+export class RecentlyAddedQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  per_page?: number;
+}
+
 export class AdminProductQueryDto extends ProductQueryDto {
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

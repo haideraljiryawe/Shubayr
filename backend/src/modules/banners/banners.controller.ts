@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -16,6 +17,7 @@ import { BannersService } from './banners.service';
 import { BannerQueryDto } from './dto/banner-query.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import { ReorderBannersDto } from './dto/reorder-banners.dto';
 import {
   RateLimitRisk,
   RateLimitTier,
@@ -51,6 +53,11 @@ export class AdminBannersController {
   @Post()
   create(@Body() input: CreateBannerDto) {
     return this.banners.create(input);
+  }
+
+  @Put('order')
+  reorder(@Body() input: ReorderBannersDto) {
+    return this.banners.reorder(input.ids);
   }
 
   @Patch(':id')

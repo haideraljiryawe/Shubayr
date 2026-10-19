@@ -112,7 +112,11 @@ describe('MediaService', () => {
       mediaObject: { findUnique: jest.fn().mockResolvedValue(media) },
       category: { findFirst: jest.fn().mockResolvedValue({ id: 'category' }) },
       productImage: { findFirst: jest.fn().mockResolvedValue(null) },
+      brand: { findFirst: jest.fn().mockResolvedValue(null) },
       banner: { findFirst: jest.fn().mockResolvedValue(null) },
+      orderItem: { findFirst: jest.fn().mockResolvedValue(null) },
+      storeSetting: { findFirst: jest.fn().mockResolvedValue(null) },
+      expense: { findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
         Promise.all(operations),
       ),

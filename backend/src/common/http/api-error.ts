@@ -19,6 +19,9 @@ export type ApiFieldError = {
   delivery_zone_id?: string;
   delivery_zone_name_ar?: string;
   delivery_zone_name_en?: string;
+  product_id?: string;
+  allowed_quantity?: number;
+  requested_quantity?: number;
 };
 
 export type ApiError = {

@@ -48,7 +48,12 @@ export class CategoriesService {
       query.parent_id ? parent_id === query.parent_id : parent_id === null,
     );
     return roots.map((row) =>
-      this.toResponse(row, filtered, query.include_subtree ?? !query.parent_id),
+      this.toResponse(
+        row,
+        filtered,
+        query.include_subtree ?? !query.parent_id,
+        !includeHidden,
+      ),
     );
   }
 
@@ -95,6 +100,7 @@ export class CategoriesService {
       }),
       [],
       false,
+      false,
     );
   }
 
@@ -134,7 +140,7 @@ export class CategoriesService {
       where: { id },
       data: this.categoryData(input),
     });
-    return this.toResponse(updated, [], false);
+    return this.toResponse(updated, [], false, false);
   }
 
   async remove(id: string): Promise<void> {
@@ -143,13 +149,16 @@ export class CategoriesService {
       select: { id: true },
     });
     if (!category) throw new NotFoundException('Category not found');
-    const [children, products] = await this.prisma.$transaction([
+    const [children, products, bannerTargets] = await this.prisma.$transaction([
       this.prisma.category.count({ where: { parent_id: id } }),
       this.prisma.product.count({ where: { category_id: id } }),
+      this.prisma.banner.count({
+        where: { action_type: 'category', action_target_id: id },
+      }),
     ]);
-    if (children || products) {
+    if (children || products || bannerTargets) {
       throw new ConflictException(
-        'Only leaf categories without products can be deleted',
+        'Only leaf categories without products or banner targets can be deleted',
       );
     }
     await this.prisma.category.delete({ where: { id } });
@@ -352,9 +361,14 @@ export class CategoriesService {
     row: CategoryRow,
     all: CategoryRow[],
     recursive: boolean,
+    fallbackDescriptions: boolean,
   ): CategoryResponse {
-    const descriptionEn = row.description_en?.trim() || row.description_ar;
-    const descriptionAr = row.description_ar?.trim() || row.description_en;
+    const descriptionEn = fallbackDescriptions
+      ? row.description_en?.trim() || row.description_ar
+      : row.description_en;
+    const descriptionAr = fallbackDescriptions
+      ? row.description_ar?.trim() || row.description_en
+      : row.description_ar;
     return {
       ...row,
       description_en: descriptionEn,
@@ -362,7 +376,9 @@ export class CategoriesService {
       children: recursive
         ? all
             .filter(({ parent_id }) => parent_id === row.id)
-            .map((child) => this.toResponse(child, all, true))
+            .map((child) =>
+              this.toResponse(child, all, true, fallbackDescriptions),
+            )
         : [],
     };
   }

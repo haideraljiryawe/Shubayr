@@ -230,10 +230,22 @@ export function validateSettingsUpdate(
       positiveInteger(value, field, errors);
     } else if (key === 'return_window_days') {
       positiveInteger(value, field, errors, false);
+    } else if (key === 'recently_added_max_count') {
+      const numeric = positiveInteger(value, field, errors);
+      if (numeric !== undefined && numeric > 50) {
+        errors.push(error(field, 'maximum', `${field} must be at most 50`));
+      }
+    } else if (key === 'recently_added_window_days') {
+      const numeric = positiveInteger(value, field, errors);
+      if (numeric !== undefined && numeric > 365) {
+        errors.push(error(field, 'maximum', `${field} must be at most 365`));
+      }
     } else if (
-      ['auto_cancel_enabled', 'discount_tier_coupon_stacking_enabled'].includes(
-        key,
-      ) &&
+      [
+        'auto_cancel_enabled',
+        'discount_tier_coupon_stacking_enabled',
+        'recently_added_enabled',
+      ].includes(key) &&
       !['true', 'false'].includes(value ?? '')
     ) {
       errors.push(
