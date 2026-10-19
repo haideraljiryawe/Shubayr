@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { LAUNCH_MODULES } from "./src/lib/modules";
 
 /**
  * The Web Admin in a real browser against a REAL, seeded API.
@@ -26,6 +27,12 @@ const origin = `http://localhost:${port}`;
 const untrustedPort = port + 1;
 const untrustedOrigin = `http://localhost:${untrustedPort}`;
 if (process.env.CI) process.env.ADMIN_UNTRUSTED_ORIGIN = untrustedOrigin;
+// A third admin server with exactly the launch modules (LAUNCH_MODULES), for
+// tests/live/launch.spec.ts — also only in CI mode. Locally, run that spec
+// with ADMIN_MODULES set to the launch set: the one dev server takes it.
+const launchPort = port + 2;
+const launchOrigin = `http://localhost:${launchPort}`;
+if (process.env.CI) process.env.ADMIN_LAUNCH_ORIGIN = launchOrigin;
 
 export default defineConfig({
   testDir: "./tests/live",
@@ -62,6 +69,7 @@ export default defineConfig({
       // The runner stands in for the admin's front proxy: the forwarding
       // spec sends client addresses through it (tests/live/forwarding.spec.ts).
       TRUSTED_FRONT_PROXIES: process.env.TRUSTED_FRONT_PROXIES ?? "loopback",
+      ...(process.env.ADMIN_MODULES ? { ADMIN_MODULES: process.env.ADMIN_MODULES } : {}),
     },
   },
   ...(process.env.CI
@@ -76,6 +84,19 @@ export default defineConfig({
             ADMIN_ORIGIN: untrustedOrigin,
             ADMIN_COOKIE_SECURE: "true",
             TRUSTED_FRONT_PROXIES: "",
+          },
+        },
+        {
+          command: `npx next start --port ${launchPort}`,
+          url: `${launchOrigin}/login`,
+          reuseExistingServer: false,
+          timeout: 180_000,
+          env: {
+            API_URL: api,
+            ADMIN_ORIGIN: launchOrigin,
+            ADMIN_COOKIE_SECURE: "true",
+            TRUSTED_FRONT_PROXIES: process.env.TRUSTED_FRONT_PROXIES ?? "loopback",
+            ADMIN_MODULES: LAUNCH_MODULES,
           },
         },
       ]
