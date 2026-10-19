@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
 import { ApiError } from "@/lib/api/errors";
-import { isRouteEnabled, parseModules } from "@/lib/modules";
+import { isRouteEnabled, parseModules, LAUNCH_MODULES } from "@/lib/modules";
 import {
   STORE_INFO_KEYS,
   storeInfoApiProblems,
@@ -91,7 +91,7 @@ describe("store info form", () => {
   });
 
   it("is part of Settings, so it is on in the launch configuration", () => {
-    expect(isRouteEnabled("/settings/store-info", parseModules("catalog,stock,orders,settings,users"))).toBe(true);
+    expect(isRouteEnabled("/settings/store-info", parseModules(LAUNCH_MODULES))).toBe(true);
   });
 });
 

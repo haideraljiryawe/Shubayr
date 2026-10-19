@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
 import { ApiError } from "@/lib/api/errors";
-import { isRouteEnabled, parseModules, routeModule } from "@/lib/modules";
+import { isRouteEnabled, parseModules, routeModule, LAUNCH_MODULES } from "@/lib/modules";
 import { visibleNav } from "@/lib/nav";
 import {
   RETURN_ACTIONS,
@@ -320,12 +320,13 @@ describe("returns list query", () => {
 /* ---------------------------------------------------------------- module */
 
 describe("returns module", () => {
-  it("is its own module, off in the launch configuration", () => {
+  it("is its own module, on in the launch configuration", () => {
     expect(routeModule("/returns")).toBe("returns");
     expect(routeModule("/returns/abc")).toBe("returns");
-    const launch = parseModules("catalog,stock,orders,settings,users");
-    expect(isRouteEnabled("/returns", launch)).toBe(false);
-    expect(visibleNav(["returns.view"], undefined, launch).map((entry) => entry.key)).not.toContain("returns");
+    expect(isRouteEnabled("/returns", parseModules(LAUNCH_MODULES))).toBe(true);
+    const core = parseModules("catalog,stock,orders,settings,users");
+    expect(isRouteEnabled("/returns", core)).toBe(false);
+    expect(visibleNav(["returns.view"], undefined, core).map((entry) => entry.key)).not.toContain("returns");
     expect(visibleNav(["returns.view"], undefined, parseModules("returns")).map((entry) => entry.key)).toContain("returns");
     // And it needs returns.view to appear at all.
     expect(visibleNav([], undefined, parseModules("returns")).map((entry) => entry.key)).not.toContain("returns");

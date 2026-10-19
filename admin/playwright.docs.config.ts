@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { LAUNCH_MODULES } from "./src/lib/modules";
 
 /**
  * Screenshots for the owner's guide (docs/owner-guide), taken from the real
@@ -39,7 +40,7 @@ export default defineConfig({
       API_URL: api,
       ADMIN_ORIGIN: origin,
       ADMIN_COOKIE_SECURE: "true",
-      ADMIN_MODULES: process.env.ADMIN_MODULES ?? "catalog,stock,orders,settings,users",
+      ADMIN_MODULES: process.env.ADMIN_MODULES ?? LAUNCH_MODULES,
     },
   },
 });
