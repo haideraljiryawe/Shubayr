@@ -813,6 +813,7 @@ model Banner {
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([is_active, sort_order], map: "idx_banners_active_sort")
+  @@index([is_default, is_active, default_priority, id], map: "idx_banners_defaults")
   @@map("banners")
 }
 
