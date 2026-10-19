@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
+import { ADMIN_MODULES } from "@/lib/config";
+import { parseModules } from "@/lib/modules";
 import { OrderDetailView } from "./order-detail";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,6 +46,8 @@ export default async function OrderPage({
       order={order.data}
       permissions={permissions}
       currency={settings.ok ? (settings.data.currency ?? "USD") : "USD"}
+      // Where "add your first delivery party" leads, when this person may.
+      addPartyHref={parseModules(ADMIN_MODULES).includes("deliveryParties") && permissions.includes("drivers.manage") ? "/delivery-parties#driver-form" : null}
     />
   );
 }

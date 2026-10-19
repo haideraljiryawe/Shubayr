@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Search } from "lucide-react";
-import { Alert, Badge, Input } from "@/components/ui";
+import { Search, UserPlus } from "lucide-react";
+import { Alert, Badge, buttonClasses, Input } from "@/components/ui";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { errorKind, type ErrorKind } from "@/lib/api/errors";
 import { FormError } from "@/components/forms/form-error";
@@ -20,13 +21,19 @@ const PER_PAGE = 20;
  *
  * Typing is debounced, and only the newest search may land: an older, slower
  * answer never replaces a newer one.
+ *
+ * With no delivery party at all, it says so and leads straight to adding one
+ * (the store's own driver or a courier company) instead of a dead end.
  */
 export function PartyPicker({
   value,
   onChange,
+  addPartyHref = null,
 }: {
   value: string;
   onChange: (party: DeliveryParty | null) => void;
+  /** Where to add a delivery party, when this person may; null says who can. */
+  addPartyHref?: string | null;
 }) {
   const t = useTranslations("orders.assign");
   const [q, setQ] = useState("");
@@ -72,10 +79,22 @@ export function PartyPicker({
       <FormError kind={error} />
       {result === null ? (
         <div className="h-16 animate-pulse rounded-md bg-card" aria-busy />
-      ) : result.rows.length === 0 ? (
+      ) : result.rows.length === 0 && q.trim() ? (
         <p className="text-xs text-text-muted" data-testid="party-none">
-          {q.trim() ? t("noMatch") : t("noParties")}
+          {t("noMatch")}
         </p>
+      ) : result.rows.length === 0 ? (
+        <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-border p-3" data-testid="party-none">
+          <p className="text-sm">{t("noPartiesYet")}</p>
+          {addPartyHref ? (
+            <Link href={addPartyHref} className={buttonClasses({ size: "sm" })} data-testid="party-add-first">
+              <UserPlus className="size-4" aria-hidden />
+              {t("addFirstParty")}
+            </Link>
+          ) : (
+            <p className="text-xs text-text-muted">{t("askToAddParty")}</p>
+          )}
+        </div>
       ) : (
         <fieldset className="flex max-h-56 flex-col gap-1 overflow-y-auto" aria-label={t("pick")}>
           {result.rows.map((party) => (

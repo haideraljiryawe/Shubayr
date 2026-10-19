@@ -20,7 +20,7 @@ export const COOKIE_SECURE = process.env.ADMIN_COOKIE_SECURE !== "false";
 
 /**
  * Which admin modules this installation shows (src/lib/modules.ts). Unset or
- * "all" shows everything; e.g. "catalog,stock,orders,settings,users" for a
- * launch without the delivery add-ons.
+ * "all" shows everything; the launch uses LAUNCH_MODULES (trips and custody
+ * exceptions off).
  */
 export const ADMIN_MODULES = process.env.ADMIN_MODULES ?? "";

@@ -10,11 +10,11 @@ A short, step-by-step tour of the Shubayr Web Admin, from the first sign-in to t
 1. [First sign-in and changing the password](#1-first-sign-in-and-changing-the-password)
 2. [Categories and brands](#2-categories-and-brands)
 3. [Adding a product](#3-adding-a-product)
-4. [Opening stock](#4-opening-stock)
+4. [Opening stock and restocking](#4-opening-stock-and-restocking)
 5. [Bulk actions in the product list](#5-bulk-actions-in-the-product-list)
 6. [Excel import and bulk images](#6-excel-import-and-bulk-images)
 7. [Delivery zones, governorates and automatic discounts](#7-delivery-zones-governorates-and-automatic-discounts)
-8. [Confirming an order](#8-confirming-an-order)
+8. [Confirming and delivering an order](#8-confirming-and-delivering-an-order)
 9. [Staff and permissions](#9-staff-and-permissions)
 
 ---
@@ -59,15 +59,25 @@ Categories have exactly two levels: a **department** (such as "Electronics") and
 
 ![Pictures, variants and visibility](images/03-product.en.png)
 
-## 4. Opening stock
+## 4. Opening stock and restocking
 
-A product shows as available only once it has stock.
+A product shows as available only once it has stock. There are two ways in, for two different moments.
 
-1. On the product page, press **Opening stock**. The form opens with a line per variant.
-2. For each line: the location (chosen for you when you have only one), the **quantity** and the **unit cost**.
-3. Press **Review**, then **Post opening stock**. The document posts exactly once.
+**Opening stock (first time only)** — the stock you already have on your first day.
+
+1. On the product page, press **Opening stock (first time only)**. The form opens with a line per variant.
+2. For each line you have: the location (chosen for you when you have only one), the **quantity** and the **unit cost**. A line you leave without a quantity is skipped — you don't have to delete it (a button removes the empty lines if you prefer).
+3. Press **Review**: it lists only the lines that will be posted. Then **Post opening stock**. The document posts exactly once.
 
 ![Opening stock for a product's variants](images/04-opening-stock.en.png)
+
+**Restock** — stock you buy later, from a supplier. Never use opening stock for this: restocking is a purchase, so it records what you paid and what you owe.
+
+1. On the product page (or on its row in **Stock**), press **Restock**. Once the product has stock, this is the main button.
+2. The purchase invoice opens with a line per variant, each starting at what you last paid, today's date and your usual location. Enter the quantity you received **only on the lines you restock** — to restock just the red one, fill only the red line; the others stay empty and are left out.
+3. Choose the **supplier** (the ones you bought from recently come first). A new one? Press **New supplier** (the person icon next to the list): name and phone, and it is chosen.
+4. **Payment:** *Owed — pay later* adds the amount to what you owe the supplier (pay it later from **Supplier payments**); *Paid now from a cash account* pays the whole invoice from the cash account you choose, right after the stock is added.
+5. Press **Review**, then **Save and add to stock**. The page shows each variant's new stock, with a button back to the product.
 
 ## 5. Bulk actions in the product list
 
@@ -123,7 +133,7 @@ One file can hold up to 5,000 rows. A big import is applied on the server in bat
 
 ![Automatic discounts](images/07-discount-tiers.en.png)
 
-## 8. Confirming an order
+## 8. Confirming and delivering an order
 
 Call the customer before confirming every order.
 
@@ -133,6 +143,13 @@ Call the customer before confirming every order.
 4. Press **Accept order** in the dialog.
 
 ![Confirming an order with a new delivery fee](images/08-confirm-order.en.png)
+
+**Delivering it.** First add your **delivery party** once: your own driver or a courier company (**Delivery parties** → name and phone). Then, on the order:
+
+1. **Start preparing**, then **Mark ready**.
+2. Under the delivery, choose who carries it and press **Assign**, then **Hand over to agent**. If there is no delivery party yet, the order says so and takes you straight to adding one.
+3. When it is delivered, press **Mark delivered** and confirm the cash the driver collected (the full amount is filled in; enter less if they collected less).
+4. When the driver brings the cash, record it in **Cash receipts** → **Receive cash**: choose the driver and the cash account, then **All held** and **Auto-allocate oldest first**, review and confirm. What the driver holds for the store goes back to zero.
 
 ## 9. Staff and permissions
 

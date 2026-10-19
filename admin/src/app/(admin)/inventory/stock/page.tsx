@@ -7,6 +7,8 @@ import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
 import { storeDay } from "@/lib/finance/dates";
+import { ADMIN_MODULES } from "@/lib/config";
+import { parseModules } from "@/lib/modules";
 import { balanceQuery, STOCK_FILTER_KEYS, stockTotals, type Balance } from "@/lib/inventory";
 import { StockTabs } from "./stock-tabs";
 import { StockView, type SkuSummary } from "./stock-view";
@@ -67,6 +69,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
         filters={params.filters}
         summary={summary}
         today={storeDay()}
+        canRestock={parseModules(ADMIN_MODULES).includes("purchasing") && permissions.includes("purchases.create")}
       />
     </>
   );

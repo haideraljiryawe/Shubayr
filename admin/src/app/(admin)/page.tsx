@@ -64,12 +64,14 @@ export default async function DashboardPage() {
 /** What the checklist needs, each fact null when the person may not read it. */
 async function firstDayFacts(api: Api, permissions: readonly string[]) {
   const has = (key: string) => permissions.includes(key);
-  const [tree, brands, products, openings, warehouses] = await Promise.all([
+  const [tree, brands, products, openings, warehouses, suppliers, parties] = await Promise.all([
     has("catalog.categories") ? load(api.GET("/admin/categories")) : null,
     has("catalog.brands") ? load(api.GET("/admin/brands", { params: { query: { per_page: 1 } } })) : null,
     has("catalog.products") ? load(api.GET("/admin/products", { params: { query: { per_page: 1 } } })) : null,
     has("inventory.view") ? load(api.GET("/admin/inventory/openings", { params: { query: { per_page: 1 } } })) : null,
     has("inventory.view") ? load(api.GET("/admin/inventory/warehouses")) : null,
+    has("suppliers.view") ? load(api.GET("/admin/suppliers", { params: { query: { per_page: 1 } } })) : null,
+    has("drivers.manage") ? load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 1, active: true } } })) : null,
   ]);
   return {
     subcategoryCount: tree?.ok
@@ -81,6 +83,8 @@ async function firstDayFacts(api: Api, permissions: readonly string[]) {
     sellableLocations: warehouses?.ok
       ? [...locationIndex(warehouses.data).values()].filter((info) => info.active && info.sellable).length
       : null,
+    supplierCount: suppliers?.ok ? suppliers.data.total : null,
+    partyCount: parties?.ok ? (parties.data.total ?? 0) : null,
   };
 }
 

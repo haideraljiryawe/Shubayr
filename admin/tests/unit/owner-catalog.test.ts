@@ -14,7 +14,7 @@ import {
   type Product,
 } from "@/lib/catalog";
 import { firstDayComplete, firstDaySteps, type FirstDayFacts } from "@/lib/first-day";
-import { MODULES, isRouteEnabled, parseModules, routeModule } from "@/lib/modules";
+import { MODULES, isRouteEnabled, parseModules, routeModule, LAUNCH_MODULES } from "@/lib/modules";
 import { NAV_ITEMS, visibleNav } from "@/lib/nav";
 import {
   checkImageFile,
@@ -77,14 +77,20 @@ describe("admin modules (ADMIN_MODULES)", () => {
     expect(routeModule("/catalogue")).toBeNull();
   });
 
-  it("hides the delivery add-ons in the launch configuration", () => {
-    const launch = parseModules("catalog,stock,orders,settings,users");
+  it("launches with purchasing, delivery parties and cash receipts; trips and custody stay off", () => {
+    const launch = parseModules(LAUNCH_MODULES);
+    expect(launch).toEqual(["catalog", "stock", "orders", "settings", "users", "returns", "purchasing", "finance", "expenses", "deliveryParties", "cashReceipts", "audit"]);
     expect(isRouteEnabled("/catalog/products", launch)).toBe(true);
     expect(isRouteEnabled("/orders/1", launch)).toBe(true);
-    expect(isRouteEnabled("/delivery-parties", launch)).toBe(false);
+    expect(isRouteEnabled("/purchasing/invoices/new", launch)).toBe(true);
+    expect(isRouteEnabled("/delivery-parties", launch)).toBe(true);
+    expect(isRouteEnabled("/finance/cash-receipts", launch)).toBe(true);
     expect(isRouteEnabled("/deliveries/trips", launch)).toBe(false);
+    expect(isRouteEnabled("/deliveries/trips/abc", launch)).toBe(false);
+    // Confirming a delivery's cash later is part of orders, on at launch.
+    expect(isRouteEnabled("/deliveries/unconfirmed", launch)).toBe(true);
+    expect(isRouteEnabled("/deliveries/unconfirmed", parseModules("orders"))).toBe(true);
     expect(isRouteEnabled("/finance/custody-exceptions", launch)).toBe(false);
-    expect(isRouteEnabled("/finance/cash-receipts", launch)).toBe(false);
     expect(isRouteEnabled("/", launch)).toBe(true);
     expect(isRouteEnabled("/module-disabled", launch)).toBe(true);
 
@@ -106,13 +112,30 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "counts",
       "writeDowns",
       "orders",
+      "returns",
       "settings",
       "deliveryZones",
       "discountTiers",
       "staff",
       "presets",
       "workPhones",
+      "suppliers",
+      "purchasing",
+      "supplierPayments",
+      "payables",
+      "currencies",
+      "cashAccounts",
+      "periods",
+      "ledger",
+      "deliveryParties",
+      "cashReceipts",
+      "expenses",
+      "expenseCategories",
+      "audit",
     ]);
+    // Trips and custody exceptions are the add-ons still off.
+    expect(keys).not.toContain("trips");
+    expect(keys).not.toContain("custodyExceptions");
     // Without a module list, permissions alone decide (every entry here).
     expect(visibleNav(all)).toHaveLength(NAV_ITEMS.length);
   });

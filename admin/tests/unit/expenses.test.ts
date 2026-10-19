@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
 import { ApiError } from "@/lib/api/errors";
-import { isRouteEnabled, parseModules, routeModule } from "@/lib/modules";
+import { isRouteEnabled, parseModules, routeModule, LAUNCH_MODULES } from "@/lib/modules";
 import { visibleNav } from "@/lib/nav";
 import { idempotencyHeader } from "@/lib/session/bff";
 import {
@@ -291,12 +291,14 @@ describe("expense refusals", () => {
 /* ---------------------------------------------------------------- module */
 
 describe("expenses module", () => {
-  it("is its own module, off in the launch configuration", () => {
+  it("is its own module, on in the launch configuration", () => {
     expect(routeModule("/expenses")).toBe("expenses");
     expect(routeModule("/expenses/categories")).toBe("expenses");
-    const launch = parseModules("catalog,stock,orders,settings,users");
-    expect(isRouteEnabled("/expenses/new", launch)).toBe(false);
-    expect(visibleNav(["expenses.read", "expense_categories.manage"], undefined, launch).map((entry) => entry.key)).not.toContain("expenses");
+    const launch = parseModules(LAUNCH_MODULES);
+    expect(isRouteEnabled("/expenses/new", launch)).toBe(true);
+    const core = parseModules("catalog,stock,orders,settings,users");
+    expect(isRouteEnabled("/expenses/new", core)).toBe(false);
+    expect(visibleNav(["expenses.read", "expense_categories.manage"], undefined, core).map((entry) => entry.key)).not.toContain("expenses");
     expect(visibleNav(["expenses.read", "expense_categories.manage"], undefined, parseModules("expenses")).map((entry) => entry.key)).toEqual(
       expect.arrayContaining(["expenses", "expenseCategories"]),
     );

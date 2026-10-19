@@ -2,13 +2,16 @@ import type { ModuleKey } from "./modules";
 
 /* ---------------------------------------------------------------------------
  * The owner's first day, as the dashboard's checklist: departments and
- * subcategories, brands (optional), the first product, opening stock. Each
+ * subcategories, brands (optional), the first product, opening stock, the
+ * first supplier (restocking is a purchase from one) and the first delivery
+ * party (the store's own driver or a courier company — without one no order
+ * can be handed over). Each
  * step knows whether it is done from what the API already reports; a step
  * whose facts the person may not read (no permission) or whose module is off
  * is left out rather than shown as undone.
  * ------------------------------------------------------------------------- */
 
-export type FirstDayStepKey = "categories" | "brands" | "product" | "stock";
+export type FirstDayStepKey = "categories" | "brands" | "product" | "stock" | "supplier" | "delivery";
 
 export interface FirstDayFacts {
   permissions: readonly string[];
@@ -20,6 +23,9 @@ export interface FirstDayFacts {
   openingCount: number | null;
   /** Active, sellable locations; null when unreadable. */
   sellableLocations: number | null;
+  /** Suppliers, and delivery parties; null when unreadable. Optional for older callers. */
+  supplierCount?: number | null;
+  partyCount?: number | null;
 }
 
 export interface FirstDayStep {
@@ -59,6 +65,12 @@ export function firstDaySteps(facts: FirstDayFacts): FirstDayStep[] {
       optional: false,
       ...(noLocation && facts.openingCount === 0 ? { blockedBy: "location" as const } : {}),
     });
+  }
+  if (facts.modules.includes("purchasing") && has("suppliers.view") && has("suppliers.manage") && facts.supplierCount != null) {
+    steps.push({ key: "supplier", href: "/purchasing/suppliers", done: facts.supplierCount > 0, optional: false });
+  }
+  if (facts.modules.includes("deliveryParties") && has("drivers.manage") && facts.partyCount != null) {
+    steps.push({ key: "delivery", href: "/delivery-parties#driver-form", done: facts.partyCount > 0, optional: false });
   }
   return steps;
 }

@@ -15,5 +15,5 @@ cd admin
 ADMIN_DOCS_API=http://localhost:8000/api/v1 npm run docs:screenshots
 ```
 
-It starts the admin itself with the launch modules (`ADMIN_MODULES=catalog,stock,orders,settings,users`)
+It starts the admin itself with the launch modules (`ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit`)
 and writes `images/<step>.<ar|en>.png`.

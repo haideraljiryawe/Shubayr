@@ -5,14 +5,12 @@ import type { NavKey } from "./nav";
  *
  * ADMIN_MODULES (server environment) is a comma-separated list of module
  * keys. Unset, empty or "all" shows everything — the default, so an existing
- * installation changes nothing. A launch that starts with the core sets, for
- * example:
- *
- *   ADMIN_MODULES=catalog,stock,orders,settings,users
- *
- * and customer returns, delivery parties, trips, custody exceptions and cash
- * receipts (each its own module) stay out of the menu, off the dashboard, and their routes
- * answer with a "not enabled" page until they are switched on as add-ons.
+ * installation changes nothing. The launch sets LAUNCH_MODULES below: what a
+ * store needs from day one — restocking through purchasing, delivering with
+ * its own driver or a courier company, taking that cash in, returns, expenses
+ * and the audit log — while external-driver trips and custody exceptions stay
+ * out of the menu, off the dashboard, and their routes answer with a "not
+ * enabled" page until they are switched on as add-ons.
  *
  * This is presentation only. Permissions still decide who sees what inside
  * an enabled module, and the API still decides every call.
@@ -36,6 +34,10 @@ export const MODULES = [
 ] as const;
 
 export type ModuleKey = (typeof MODULES)[number];
+
+/** ADMIN_MODULES for the launch (production's .env.production.example). */
+export const LAUNCH_MODULES =
+  "catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit";
 
 /** Each sidebar entry's module; the dashboard belongs to none and always shows. */
 export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
@@ -86,7 +88,10 @@ const ROUTES: ReadonlyArray<[prefix: string, owner: ModuleKey]> = [
   ["/finance/cash-receipts", "cashReceipts"],
   ["/finance/price-approvals", "catalog"],
   ["/finance", "finance"],
-  ["/deliveries", "trips"],
+  // The unconfirmed-collections queue is an Orders tab: confirming later the
+  // cash of a delivery marked delivered is part of delivering, not of trips.
+  ["/deliveries/unconfirmed", "orders"],
+  ["/deliveries/trips", "trips"],
   ["/delivery-parties", "deliveryParties"],
   ["/catalog", "catalog"],
   ["/inventory", "stock"],

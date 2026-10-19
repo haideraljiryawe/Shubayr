@@ -12,15 +12,22 @@ import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import type { CurrencyCode, Supplier } from "@/lib/purchasing";
 
-/** Create or edit a supplier: name, contacts, default currency and payment terms. */
+/**
+ * Create or edit a supplier: name, contacts, default currency and payment
+ * terms. `quick` (from a purchase invoice) asks only the name and phone; the
+ * currency (IQD) and terms (30 days) keep their defaults and can be changed
+ * later on the supplier's page.
+ */
 export function SupplierDialog({
   supplier,
   onClose,
   onSaved,
+  quick = false,
 }: {
   supplier: Supplier | null;
   onClose: () => void;
   onSaved: (supplier: Supplier) => void;
+  quick?: boolean;
 }) {
   const t = useTranslations("purchasing.suppliers");
   const toast = useToast();
@@ -75,8 +82,10 @@ export function SupplierDialog({
           <Input value={name} maxLength={160} onChange={(event) => setName(event.target.value)} data-testid="supplier-name" />
         </Field>
         <Field label={t("columns.phone")} name="phone" error={api.fieldErrors.phone}>
-          <Input value={phone} maxLength={32} dir="ltr" inputMode="tel" onChange={(event) => setPhone(event.target.value)} />
+          <Input value={phone} maxLength={32} dir="ltr" inputMode="tel" onChange={(event) => setPhone(event.target.value)} data-testid="supplier-phone" />
         </Field>
+        {quick ? null : (
+          <>
         <Field label={t("email")} name="email" error={errors.email ?? api.fieldErrors.email}>
           <Input value={email} maxLength={160} dir="ltr" type="email" onChange={(event) => setEmail(event.target.value)} />
         </Field>
@@ -92,10 +101,18 @@ export function SupplierDialog({
         <Field label={t("address")} name="address">
           <Input value={address} maxLength={1000} onChange={(event) => setAddress(event.target.value)} />
         </Field>
+          </>
+        )}
       </div>
-      <Field label={t("notes")} name="notes">
-        <Textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} />
-      </Field>
+      {quick ? (
+        <p className="text-xs text-text-muted" data-testid="supplier-quick-hint">
+          {t("quickHint")}
+        </p>
+      ) : (
+        <Field label={t("notes")} name="notes">
+          <Textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} />
+        </Field>
+      )}
       <FormError kind={api.formError} detail={api.formErrorDetail} />
     </FormDialog>
   );
