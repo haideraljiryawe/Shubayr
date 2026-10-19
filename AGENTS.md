@@ -19,6 +19,10 @@
   PRs into `main`, under the workflow below. There is no long-lived `mobile`
   branch any more; the old `origin/mobile` (and `codex/mobile-*`) branches are
   history — don't base new work on them or push to them.
+- When resuming an older checkout, fetch `origin/main` and review its root
+  `AGENTS.md` before choosing a branch or pushing. Stale branch-local instructions
+  must not silently restore the retired `mobile` workflow. This remains the
+  standing policy for future Flutter tasks unless Ahmed explicitly changes it.
 - Agents (Codex, Claude Code) do not edit `mobile/` unless Ahmed explicitly asks
   for that task. Authorization for other work never extends to `mobile/`, and a
   Mobile task never extends to the other projects.
