@@ -56,6 +56,7 @@ describe('server-side settings validation', () => {
       'settings.privacy_email',
     ],
     [{ settings: { refund_days: '-1' } }, 'settings.refund_days'],
+    [{ settings: { return_window_days: null } }, 'settings.return_window_days'],
     [
       { settings: { policy_effective_date: '2026-02-30' } },
       'settings.policy_effective_date',

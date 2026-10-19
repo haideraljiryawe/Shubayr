@@ -1,4 +1,8 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -61,8 +65,9 @@ const NULLABLE_PUBLIC_KEYS = [
   'support_hours_en',
   'refund_days',
   'policy_effective_date',
-  'return_window_days',
 ] as const;
+
+const REQUIRED_PUBLIC_KEYS = ['return_window_days'] as const;
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(
@@ -85,11 +90,24 @@ export class SettingsService {
     const rows = await this.prisma.storeSetting.findMany({
       where: {
         key: {
-          in: [...LEGACY_PUBLIC_KEYS, ...NULLABLE_PUBLIC_KEYS],
+          in: [
+            ...LEGACY_PUBLIC_KEYS,
+            ...NULLABLE_PUBLIC_KEYS,
+            ...REQUIRED_PUBLIC_KEYS,
+          ],
         },
       },
     });
     const values = new Map(rows.map(({ key, value }) => [key, value]));
+    const returnWindow = values.get('return_window_days');
+    if (returnWindow === undefined || returnWindow === null) {
+      throw new InternalServerErrorException({
+        status: 500,
+        code: 'REFERENCE_DATA_MISSING',
+        message: 'Required return-window reference setting is missing',
+        errors: [],
+      });
+    }
     return {
       ...Object.fromEntries(
         LEGACY_PUBLIC_KEYS.flatMap((key) =>
@@ -108,6 +126,7 @@ export class SettingsService {
           ];
         }),
       ),
+      return_window_days: Number(returnWindow),
     };
   }
 

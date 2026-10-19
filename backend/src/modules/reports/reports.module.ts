@@ -8,6 +8,7 @@ import { ReportExportService } from './report-export.service';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 import { ReportsPart2Service } from './reports-part2.service';
+import { ReportsPart3Service } from './reports-part3.service';
 
 export const reportWorkerProviders = () =>
   runsBackgroundJobs() ? [ReportExportProcessor, ReportExportScheduler] : [];
@@ -18,6 +19,7 @@ export const reportWorkerProviders = () =>
   providers: [
     ReportsService,
     ReportsPart2Service,
+    ReportsPart3Service,
     ReportExportService,
     ...reportWorkerProviders(),
   ],

@@ -23,6 +23,8 @@ import { LinkedPricingService } from './linked-pricing.service';
 import { PeriodService } from './period.service';
 import { CatalogModule } from '../catalog/catalog.module';
 import { CashReceiptService } from './cash-receipt.service';
+import { OwnerTransactionsController } from './owner-transactions.controller';
+import { OwnerTransactionsService } from './owner-transactions.service';
 
 @Module({
   imports: [CatalogModule],
@@ -38,6 +40,7 @@ import { CashReceiptService } from './cash-receipt.service';
     FinancialDocumentsController,
     AccountingPeriodsController,
     PricePublishApprovalsController,
+    OwnerTransactionsController,
   ],
   providers: [
     CurrencyService,
@@ -50,6 +53,7 @@ import { CashReceiptService } from './cash-receipt.service';
     CashReceiptService,
     PeriodService,
     LinkedPricingService,
+    OwnerTransactionsService,
   ],
   exports: [
     CurrencyService,

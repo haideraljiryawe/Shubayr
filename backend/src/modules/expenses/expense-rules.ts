@@ -1,5 +1,39 @@
 import { Prisma } from '../../generated/prisma/client';
 import { invalid } from '../../common/http/api-error';
+import { parseBusinessDate } from '../finance/business-date';
+
+export function monthlyBusinessDates(
+  startDate: string,
+  periods: number,
+): Date[] {
+  let start: Date;
+  try {
+    start = parseBusinessDate(startDate);
+  } catch {
+    throw invalid(
+      'EXPENSE_PREPAID_START_DATE_INVALID',
+      'Prepaid schedule start_date must be a valid calendar date',
+    );
+  }
+  const year = start.getUTCFullYear();
+  const month = start.getUTCMonth();
+  const day = start.getUTCDate();
+  return Array.from({ length: periods }, (_, index) => {
+    const targetMonth = month + index;
+    const lastDay = new Date(Date.UTC(year, targetMonth + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(year, targetMonth, Math.min(day, lastDay)));
+  });
+}
+
+export function splitScheduleAmount(amount: Prisma.Decimal, periods: number) {
+  const portion = amount
+    .div(periods)
+    .toDecimalPlaces(12, Prisma.Decimal.ROUND_DOWN);
+  const final = amount.minus(portion.times(periods - 1));
+  return Array.from({ length: periods }, (_, index) =>
+    index === periods - 1 ? final : portion,
+  );
+}
 
 export function expenseIdempotencyKey(value: string | undefined): string {
   const key = value?.trim();

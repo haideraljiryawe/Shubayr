@@ -15,6 +15,7 @@ import { ObjectStorageService } from '../media/object-storage.service';
 import type { CreateReportExportDto } from './reports.dto';
 import { ReportsService } from './reports.service';
 import { ReportsPart2Service } from './reports-part2.service';
+import { ReportsPart3Service } from './reports-part3.service';
 
 type Actor = { id: string; permissions: string[] };
 type ExportType = CreateReportExportDto['report_type'];
@@ -29,6 +30,10 @@ const permissions: Record<ExportType, string> = {
   delivery_custody: 'reports.cash.read',
   liabilities: 'reports.liabilities.read',
   inventory_valuation: 'reports.inventory.read',
+  purchases: 'reports.purchases.read',
+  supplier_statement: 'reports.suppliers.read',
+  stock_movement: 'reports.stock.read',
+  expenses: 'reports.expenses.read',
 };
 
 const labels: Record<string, { en: string; ar: string }> = {
@@ -104,6 +109,19 @@ const labels: Record<string, { en: string; ar: string }> = {
   stock_state: { en: 'Stock state', ar: 'حالة المخزون' },
   last_sale_date: { en: 'Last sale date', ar: 'تاريخ آخر بيع' },
   slow_moving: { en: 'Slow moving', ar: 'بطيء الحركة' },
+  purchased_quantity: { en: 'Purchased quantity', ar: 'الكمية المشتراة' },
+  returned_quantity: { en: 'Returned quantity', ar: 'الكمية المرتجعة' },
+  net_quantity: { en: 'Net quantity', ar: 'صافي الكمية' },
+  goods_cost_iqd: { en: 'Goods cost (IQD)', ar: 'تكلفة البضاعة (د.ع)' },
+  landed_cost_iqd: { en: 'Landed cost (IQD)', ar: 'التكلفة الواصلة (د.ع)' },
+  purchase_cost_iqd: { en: 'Purchase cost (IQD)', ar: 'تكلفة الشراء (د.ع)' },
+  returns_iqd: { en: 'Supplier returns (IQD)', ar: 'مرتجعات المورد (د.ع)' },
+  net_cost_iqd: { en: 'Net cost (IQD)', ar: 'صافي التكلفة (د.ع)' },
+  prepaid_amortisation_iqd: {
+    en: 'Prepaid amortisation (IQD)',
+    ar: 'إطفاء المصروف المقدم (د.ع)',
+  },
+  total_iqd: { en: 'Total (IQD)', ar: 'الإجمالي (د.ع)' },
 };
 
 @Injectable()
@@ -112,6 +130,7 @@ export class ReportExportService {
     private readonly prisma: PrismaService,
     private readonly reports: ReportsService,
     private readonly reportsPart2: ReportsPart2Service,
+    private readonly reportsPart3: ReportsPart3Service,
     private readonly storage: ObjectStorageService,
     private readonly audit: AuditService,
     @InjectQueue('report-exports') private readonly queue: Queue,
@@ -324,7 +343,7 @@ export class ReportExportService {
               {
                 from: input.from!,
                 to: input.to!,
-                group_by: input.group_by,
+                group_by: input.group_by as never,
                 page,
                 per_page: perPage,
               },
@@ -376,17 +395,71 @@ export class ReportExportService {
                         },
                         false,
                       )
-                    : input.report_type === 'trial_balance'
-                      ? await this.reports.trialBalance(actor, {
-                          as_of: input.as_of!,
-                          page,
-                          per_page: perPage,
-                        })
-                      : await this.reports.balanceSheet(actor, {
-                          as_of: input.as_of!,
-                          page,
-                          per_page: perPage,
-                        });
+                    : input.report_type === 'purchases'
+                      ? await this.reportsPart3.purchases(
+                          actor,
+                          {
+                            from: input.from!,
+                            to: input.to!,
+                            group_by: (input.group_by ?? 'period') as never,
+                            supplier_id: input.supplier_id,
+                            variant_id: input.variant_id,
+                            category_id: input.category_id,
+                            page,
+                            per_page: perPage,
+                          },
+                          false,
+                        )
+                      : input.report_type === 'supplier_statement'
+                        ? await this.reportsPart3.supplierStatement(
+                            actor,
+                            {
+                              as_of: input.as_of!,
+                              supplier_id: input.supplier_id!,
+                              page,
+                              per_page: perPage,
+                            },
+                            false,
+                          )
+                        : input.report_type === 'stock_movement'
+                          ? await this.reportsPart3.stockMovement(
+                              actor,
+                              {
+                                from: input.from!,
+                                to: input.to!,
+                                warehouse_id: input.warehouse_id,
+                                variant_id: input.variant_id,
+                                page,
+                                per_page: perPage,
+                              },
+                              false,
+                            )
+                          : input.report_type === 'expenses'
+                            ? await this.reportsPart3.expenses(
+                                actor,
+                                {
+                                  from: input.from!,
+                                  to: input.to!,
+                                  group_by: (input.group_by ??
+                                    'category') as never,
+                                  category_id: input.category_id,
+                                  payee: input.payee,
+                                  page,
+                                  per_page: perPage,
+                                },
+                                false,
+                              )
+                            : input.report_type === 'trial_balance'
+                              ? await this.reports.trialBalance(actor, {
+                                  as_of: input.as_of!,
+                                  page,
+                                  per_page: perPage,
+                                })
+                              : await this.reports.balanceSheet(actor, {
+                                  as_of: input.as_of!,
+                                  page,
+                                  per_page: perPage,
+                                });
       total = report.pagination.total;
       rows.push(...(report.data as Array<Record<string, unknown>>));
       await progress(rows.length, total);
@@ -445,9 +518,15 @@ export class ReportExportService {
   }
 
   private validateDates(input: CreateReportExportDto) {
-    const period = ['sales', 'profitability', 'profit_loss', 'cash'].includes(
-      input.report_type,
-    );
+    const period = [
+      'sales',
+      'profitability',
+      'profit_loss',
+      'cash',
+      'purchases',
+      'stock_movement',
+      'expenses',
+    ].includes(input.report_type);
     if (period && (!input.from || !input.to)) {
       throw new UnprocessableEntityException({
         status: 422,
@@ -461,6 +540,14 @@ export class ReportExportService {
         status: 422,
         code: 'REPORT_EXPORT_PARAMETERS_INVALID',
         message: 'as_of is required for this report',
+        errors: [],
+      });
+    }
+    if (input.report_type === 'supplier_statement' && !input.supplier_id) {
+      throw new UnprocessableEntityException({
+        status: 422,
+        code: 'REPORT_EXPORT_PARAMETERS_INVALID',
+        message: 'supplier_id is required for a supplier statement',
         errors: [],
       });
     }
@@ -489,7 +576,7 @@ export class ReportExportService {
       });
     }
     if (
-      type === 'inventory_valuation' &&
+      ['inventory_valuation', 'purchases', 'stock_movement'].includes(type) &&
       !actor.permissions.includes('cost.view')
     ) {
       throw new ForbiddenException({

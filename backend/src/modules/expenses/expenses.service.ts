@@ -1,4 +1,6 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
+import type { Queue } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
@@ -30,6 +32,7 @@ import { MediaService, type UploadedImage } from '../media/media.service';
 import {
   CreateExpenseCategoryDto,
   CreateExpenseDto,
+  CancelPrepaidScheduleDto,
   ExpenseFormOptionsQueryDto,
   ExpenseQueryDto,
   PayExpenseDto,
@@ -38,7 +41,12 @@ import {
   UpdateExpenseCategoryDto,
   UpdateExpenseDto,
 } from './dto/expenses.dto';
-import { expenseIdempotencyKey, expensePostingLines } from './expense-rules';
+import {
+  expenseIdempotencyKey,
+  expensePostingLines,
+  monthlyBusinessDates,
+  splitScheduleAmount,
+} from './expense-rules';
 
 type Actor = { id: string; permissions: readonly string[] };
 type JournalWithLines = Prisma.JournalEntryGetPayload<{
@@ -79,6 +87,23 @@ const detailInclude = {
       },
     },
   },
+  schedule: {
+    include: {
+      creator: { select: { id: true, name: true, username: true } },
+      canceller: { select: { id: true, name: true, username: true } },
+      cancellation_journal_entry: {
+        include: { lines: { include: { account: true } } },
+      },
+      installments: {
+        include: {
+          journal_entry: {
+            include: { lines: { include: { account: true } } },
+          },
+        },
+        orderBy: { sequence: 'asc' as const },
+      },
+    },
+  },
 } satisfies Prisma.ExpenseInclude;
 
 @Injectable()
@@ -92,6 +117,9 @@ export class ExpensesService {
     private readonly ledger: LedgerService,
     private readonly operations: OperationService,
     private readonly media: MediaService,
+    @Optional()
+    @InjectQueue('expense-schedules')
+    private readonly scheduleQueue?: Queue,
   ) {}
 
   async listCategories() {
@@ -410,6 +438,12 @@ export class ExpensesService {
           if (!supplier)
             throw notFound('EXPENSE_SUPPLIER_NOT_FOUND', 'Supplier not found');
         }
+        const recognitionMode = input.recognition_mode ?? 'immediate';
+        this.validateRecognition(
+          recognitionMode,
+          input.payment_mode,
+          input.prepaid_schedule,
+        );
         const cash = await this.validateCashAccount(
           tx,
           input.payment_mode,
@@ -440,6 +474,7 @@ export class ExpensesService {
             paid_currency: new Prisma.Decimal(0),
             balance_currency: amount,
             payment_mode: input.payment_mode,
+            recognition_mode: recognitionMode,
             cash_account_id: cash?.id,
             supplier_id: input.supplier_id,
             payee: input.payee?.trim(),
@@ -453,6 +488,15 @@ export class ExpensesService {
           },
           include: detailInclude,
         });
+        if (recognitionMode === 'prepaid') {
+          await this.createSchedule(
+            tx,
+            expense.id,
+            actor.id,
+            amountIqd,
+            input.prepaid_schedule!,
+          );
+        }
         await this.audit.record(tx, {
           actorId: actor.id,
           action: 'expense.create',
@@ -460,7 +504,7 @@ export class ExpensesService {
           entityId: expense.id,
           after: this.auditExpense(expense),
         });
-        return this.present(expense);
+        return this.getWith(tx, expense.id);
       },
     });
   }
@@ -486,6 +530,23 @@ export class ExpensesService {
       const categoryId = input.category_id ?? current.category_id;
       const currencyCode = input.currency_code ?? current.currency_code;
       const paymentMode = input.payment_mode ?? current.payment_mode;
+      const recognitionMode =
+        input.recognition_mode ?? current.recognition_mode;
+      const currentSchedule = current.schedule
+        ? {
+            start_date: businessDateText(current.schedule.start_date),
+            periods: current.schedule.periods,
+          }
+        : undefined;
+      const scheduleInput =
+        input.prepaid_schedule === null
+          ? undefined
+          : (input.prepaid_schedule ?? currentSchedule);
+      this.validateRecognition(
+        recognitionMode as 'immediate' | 'prepaid',
+        paymentMode as 'paid_now' | 'owed',
+        scheduleInput,
+      );
       const cashAccountId =
         input.cash_account_id === undefined
           ? current.cash_account_id
@@ -586,6 +647,7 @@ export class ExpensesService {
           paid_currency: new Prisma.Decimal(0),
           balance_currency: amount,
           payment_mode: paymentMode,
+          recognition_mode: recognitionMode,
           cash_account_id: cash?.id ?? null,
           supplier_id: supplierId,
           payee,
@@ -602,6 +664,21 @@ export class ExpensesService {
         },
         include: detailInclude,
       });
+      if (current.schedule) {
+        await tx.expenseScheduleInstallment.deleteMany({
+          where: { schedule_id: current.schedule.id },
+        });
+        await tx.expenseSchedule.delete({ where: { id: current.schedule.id } });
+      }
+      if (recognitionMode === 'prepaid') {
+        await this.createSchedule(
+          tx,
+          id,
+          actor.id,
+          amount.times(rate),
+          scheduleInput!,
+        );
+      }
       await this.audit.record(tx, {
         actorId: actor.id,
         action: 'expense.update',
@@ -610,7 +687,7 @@ export class ExpensesService {
         before: this.auditExpense(current),
         after: this.auditExpense(updated),
       });
-      return this.present(updated);
+      return this.getWith(tx, updated.id);
     });
   }
 
@@ -625,6 +702,16 @@ export class ExpensesService {
           'Posted expenses are immutable; use a correction',
         );
       }
+      const schedule = await tx.expenseSchedule.findUnique({
+        where: { expense_id: id },
+        select: { id: true },
+      });
+      if (schedule) {
+        await tx.expenseScheduleInstallment.deleteMany({
+          where: { schedule_id: schedule.id },
+        });
+        await tx.expenseSchedule.delete({ where: { id: schedule.id } });
+      }
       await tx.expense.delete({ where: { id } });
       await this.audit.record(tx, {
         actorId,
@@ -636,14 +723,14 @@ export class ExpensesService {
     });
   }
 
-  post(
+  async post(
     actor: Actor,
     id: string,
     key: string | undefined,
     input: PostExpenseDto,
   ) {
     const operationId = expenseIdempotencyKey(key);
-    return this.operations.execute({
+    const result = await this.operations.execute({
       userId: actor.id,
       operationId,
       endpoint: `/admin/expenses/${id}/post`,
@@ -654,6 +741,7 @@ export class ExpensesService {
           include: {
             category: { include: { ledger_account: true } },
             cash_account: { include: { ledger_account: true } },
+            schedule: true,
           },
         });
         if (!expense) throw notFound('EXPENSE_NOT_FOUND', 'Expense not found');
@@ -692,6 +780,12 @@ export class ExpensesService {
             'Expense conversion snapshot is missing',
           );
         }
+        if (expense.recognition_mode === 'prepaid' && !expense.schedule) {
+          throw conflict(
+            'EXPENSE_PREPAID_SCHEDULE_REQUIRED',
+            'A prepaid expense requires a schedule before posting',
+          );
+        }
         const creditCode =
           expense.payment_mode === 'paid_now'
             ? expense.cash_account?.ledger_account.code
@@ -708,6 +802,10 @@ export class ExpensesService {
             'Cash account is inactive',
           );
         }
+        const debitCode =
+          expense.recognition_mode === 'prepaid'
+            ? '1060'
+            : expense.category.ledger_account.code;
         const journal = await this.ledger.post(tx, {
           sourceType: 'expense',
           sourceId: expense.id,
@@ -717,7 +815,7 @@ export class ExpensesService {
           createdBy: actor.id,
           description: input.note?.trim() || expense.description,
           lines: expensePostingLines(
-            expense.category.ledger_account.code,
+            debitCode,
             creditCode,
             expense.amount_currency,
             expense.amount_iqd,
@@ -752,6 +850,18 @@ export class ExpensesService {
         return this.getWith(tx, id);
       },
     });
+    if (this.scheduleQueue) {
+      await this.scheduleQueue.add(
+        'catch-up',
+        {},
+        {
+          jobId: `expense-prepaid-${id}-${businessDateText()}`,
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        },
+      );
+    }
+    return result;
   }
 
   pay(actor: Actor, id: string, key: string | undefined, input: PayExpenseDto) {
@@ -881,6 +991,274 @@ export class ExpensesService {
     });
   }
 
+  cancelPrepaidSchedule(
+    actor: Actor,
+    id: string,
+    key: string | undefined,
+    input: CancelPrepaidScheduleDto,
+  ) {
+    return this.operations.execute({
+      userId: actor.id,
+      operationId: expenseIdempotencyKey(key),
+      endpoint: `/admin/expenses/${id}/prepaid-schedule/cancel`,
+      payload: { id, ...input },
+      work: async (tx) => {
+        const expense = await tx.expense.findUnique({
+          where: { id },
+          include: {
+            cash_account: { include: { ledger_account: true } },
+            schedule: {
+              include: {
+                installments: {
+                  where: { status: 'pending' },
+                  orderBy: { sequence: 'asc' },
+                },
+              },
+            },
+          },
+        });
+        if (!expense) throw notFound('EXPENSE_NOT_FOUND', 'Expense not found');
+        if (
+          expense.status !== 'posted' ||
+          expense.recognition_mode !== 'prepaid' ||
+          !expense.schedule
+        ) {
+          throw conflict(
+            'EXPENSE_PREPAID_INVALID_STATE',
+            'Only a posted prepaid expense with an active schedule can be cancelled',
+          );
+        }
+        if (!['active', 'blocked'].includes(expense.schedule.status)) {
+          throw conflict(
+            'EXPENSE_PREPAID_INVALID_STATE',
+            'The prepaid schedule has no remaining periods to cancel',
+          );
+        }
+        if (!expense.cash_account || !expense.exchange_rate) {
+          throw conflict(
+            'EXPENSE_PREPAID_PAYMENT_REQUIRED',
+            'A prepaid expense must have its original cash account and rate',
+          );
+        }
+        if ((await separationOfDutiesLevel(tx)) === 'strict') {
+          assertDifferentActor(
+            actor.id,
+            expense.created_by,
+            'A creator cannot cancel their own prepaid schedule in strict mode',
+            'EXPENSE_SELF_APPROVAL_FORBIDDEN',
+          );
+        }
+        const dates = await this.expenseDates({
+          documentDate: input.document_date,
+          accountingDate: input.accounting_date,
+          backdateReason: input.backdate_reason,
+          permissions: actor.permissions,
+        });
+        const remaining = expense.schedule.installments.reduce(
+          (sum, installment) => sum.plus(installment.amount_iqd),
+          new Prisma.Decimal(0),
+        );
+        if (!remaining.gt(0)) {
+          throw conflict(
+            'EXPENSE_PREPAID_INVALID_STATE',
+            'The prepaid schedule has no remaining balance',
+          );
+        }
+        const originalAmount = remaining.div(expense.exchange_rate);
+        const journal = await this.ledger.post(tx, {
+          sourceType: 'expense_prepaid_schedule',
+          sourceId: expense.schedule.id,
+          event: 'cancelled',
+          ...dates,
+          createdBy: actor.id,
+          description: input.reason.trim(),
+          lines: expensePostingLines(
+            expense.cash_account.ledger_account.code,
+            '1060',
+            originalAmount,
+            remaining,
+            expense.currency_code,
+            expense.exchange_rate,
+          ),
+        });
+        await tx.expenseScheduleInstallment.updateMany({
+          where: { schedule_id: expense.schedule.id, status: 'pending' },
+          data: { status: 'cancelled', last_error: null },
+        });
+        await tx.expenseSchedule.update({
+          where: { id: expense.schedule.id },
+          data: {
+            status: 'cancelled',
+            cancelled_iqd: remaining,
+            cancelled_by: actor.id,
+            cancelled_at: new Date(),
+            cancel_reason: input.reason.trim(),
+            cancellation_journal_entry_id: journal.id,
+            updated_at: new Date(),
+          },
+        });
+        await this.audit.record(tx, {
+          actorId: actor.id,
+          action: 'expense.prepaid.cancel',
+          entityType: 'expense',
+          entityId: id,
+          after: {
+            schedule_id: expense.schedule.id,
+            cancelled_iqd: remaining.toString(),
+            journal_entry_id: journal.id,
+          },
+          reason: input.reason.trim(),
+        });
+        return this.getWith(tx, id);
+      },
+    });
+  }
+
+  async processDueSchedules(asOf = businessDateText()) {
+    const cutoff = parseBusinessDate(asOf);
+    const schedules = await this.prisma.expenseSchedule.findMany({
+      where: {
+        status: { in: ['active', 'blocked'] },
+        expense: { status: 'posted' },
+        installments: {
+          some: { status: 'pending', scheduled_date: { lte: cutoff } },
+        },
+      },
+      select: {
+        id: true,
+        installments: {
+          where: { status: 'pending', scheduled_date: { lte: cutoff } },
+          select: { id: true },
+          orderBy: { sequence: 'asc' },
+        },
+      },
+      orderBy: { start_date: 'asc' },
+    });
+    let posted = 0;
+    let blocked = 0;
+    for (const schedule of schedules) {
+      for (const installment of schedule.installments) {
+        const result = await this.postScheduleInstallment(installment.id);
+        if (result === 'posted') posted += 1;
+        if (result === 'blocked') {
+          blocked += 1;
+          break;
+        }
+      }
+    }
+    return { schedules: schedules.length, posted, blocked, as_of: asOf };
+  }
+
+  private async postScheduleInstallment(id: string) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM expense_schedule_installments WHERE id = ${id}::uuid FOR UPDATE`;
+        const installment = await tx.expenseScheduleInstallment.findUnique({
+          where: { id },
+          include: {
+            schedule: {
+              include: {
+                expense: {
+                  include: {
+                    category: { include: { ledger_account: true } },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!installment || installment.status !== 'pending')
+          return 'skipped' as const;
+        const expense = installment.schedule.expense;
+        if (
+          expense.status !== 'posted' ||
+          installment.schedule.status === 'cancelled'
+        ) {
+          return 'skipped' as const;
+        }
+        await this.dates.assertOpen(tx, installment.scheduled_date);
+        const journal = await this.ledger.post(tx, {
+          sourceType: 'expense_prepaid_amortization',
+          sourceId: installment.id,
+          event: 'posted',
+          documentDate: installment.scheduled_date,
+          accountingDate: installment.scheduled_date,
+          createdBy: installment.schedule.created_by,
+          description: `Prepaid recognition for ${expense.document_number}, period ${installment.sequence}`,
+          lines: expensePostingLines(
+            expense.category.ledger_account.code,
+            '1060',
+            installment.amount_iqd,
+            installment.amount_iqd,
+            'IQD',
+            new Prisma.Decimal(1),
+          ),
+        });
+        await tx.expenseScheduleInstallment.update({
+          where: { id },
+          data: {
+            status: 'posted',
+            journal_entry_id: journal.id,
+            posted_at: new Date(),
+            last_error: null,
+          },
+        });
+        const remaining = await tx.expenseScheduleInstallment.count({
+          where: { schedule_id: installment.schedule_id, status: 'pending' },
+        });
+        await tx.expenseSchedule.update({
+          where: { id: installment.schedule_id },
+          data: {
+            status: remaining === 0 ? 'completed' : 'active',
+            recognized_iqd: { increment: installment.amount_iqd },
+            updated_at: new Date(),
+          },
+        });
+        await this.audit.record(tx, {
+          actorId: installment.schedule.created_by,
+          action: 'expense.prepaid.recognize',
+          entityType: 'expense',
+          entityId: expense.id,
+          after: {
+            schedule_id: installment.schedule_id,
+            installment_id: id,
+            sequence: installment.sequence,
+            amount_iqd: installment.amount_iqd.toString(),
+            journal_entry_id: journal.id,
+          },
+        });
+        return 'posted' as const;
+      });
+    } catch (error) {
+      const response =
+        error instanceof HttpException ? error.getResponse() : error;
+      const text =
+        typeof response === 'string' ? response : JSON.stringify(response);
+      const closed =
+        text.includes('PERIOD_CLOSED') || text.includes('period is closed');
+      await this.prisma.$transaction(async (tx) => {
+        const installment = await tx.expenseScheduleInstallment.findUnique({
+          where: { id },
+          select: { schedule_id: true, status: true },
+        });
+        if (!installment || installment.status !== 'pending') return;
+        await tx.expenseScheduleInstallment.update({
+          where: { id },
+          data: {
+            last_error: closed
+              ? 'EXPENSE_PREPAID_PERIOD_CLOSED'
+              : 'EXPENSE_PREPAID_POSTING_FAILED',
+          },
+        });
+        await tx.expenseSchedule.update({
+          where: { id: installment.schedule_id },
+          data: { status: 'blocked', updated_at: new Date() },
+        });
+      });
+      return 'blocked' as const;
+    }
+  }
+
   reverse(
     actor: Actor,
     id: string,
@@ -908,6 +1286,22 @@ export class ExpensesService {
                 },
               },
               orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+            },
+            schedule: {
+              include: {
+                installments: {
+                  where: { journal_entry_id: { not: null } },
+                  include: {
+                    journal_entry: {
+                      include: { lines: { include: { account: true } } },
+                    },
+                  },
+                  orderBy: { sequence: 'asc' },
+                },
+                cancellation_journal_entry: {
+                  include: { lines: { include: { account: true } } },
+                },
+              },
             },
           },
         });
@@ -962,6 +1356,26 @@ export class ExpensesService {
             paymentId: payment.id,
             journal: payment.journal_entry,
           })),
+          ...(expense.schedule?.installments ?? []).flatMap((installment) =>
+            installment.journal_entry
+              ? [
+                  {
+                    role: `prepaid-${installment.sequence}`,
+                    paymentId: undefined,
+                    journal: installment.journal_entry,
+                  },
+                ]
+              : [],
+          ),
+          ...(expense.schedule?.cancellation_journal_entry
+            ? [
+                {
+                  role: 'prepaid-cancel',
+                  paymentId: undefined,
+                  journal: expense.schedule.cancellation_journal_entry,
+                },
+              ]
+            : []),
         ];
         for (const original of originals) {
           const reversal = await this.ledger.post(tx, {
@@ -1005,6 +1419,19 @@ export class ExpensesService {
             updated_at: new Date(),
           },
         });
+        if (expense.schedule) {
+          await tx.expenseScheduleInstallment.updateMany({
+            where: {
+              schedule_id: expense.schedule.id,
+              status: 'pending',
+            },
+            data: { status: 'cancelled', last_error: null },
+          });
+          await tx.expenseSchedule.update({
+            where: { id: expense.schedule.id },
+            data: { status: 'reversed', updated_at: new Date() },
+          });
+        }
         await this.audit.record(tx, {
           actorId: actor.id,
           action: 'expense.reverse',
@@ -1185,6 +1612,7 @@ export class ExpensesService {
       amount_iqd: expense.amount_iqd,
       paid_currency: expense.paid_currency,
       balance_currency: expense.balance_currency,
+      recognition_mode: expense.recognition_mode,
       receipt: expense.receipt
         ? { ...expense.receipt, download_url: expense.receipt.public_url }
         : null,
@@ -1255,6 +1683,41 @@ export class ExpensesService {
           ),
         })),
       })),
+      prepaid_schedule: expense.schedule
+        ? {
+            id: expense.schedule.id,
+            status: expense.schedule.status,
+            start_date: expense.schedule.start_date,
+            periods: expense.schedule.periods,
+            amount_iqd: expense.schedule.amount_iqd,
+            recognized_iqd: expense.schedule.recognized_iqd,
+            cancelled_iqd: expense.schedule.cancelled_iqd,
+            created_by: expense.schedule.created_by,
+            cancelled_by: expense.schedule.cancelled_by,
+            cancelled_at: expense.schedule.cancelled_at,
+            cancel_reason: expense.schedule.cancel_reason,
+            created_at: expense.schedule.created_at,
+            updated_at: expense.schedule.updated_at,
+            creator: expense.schedule.creator,
+            canceller: expense.schedule.canceller,
+            cancellation_journal_entry: expense.schedule
+              .cancellation_journal_entry
+              ? this.presentJournal(expense.schedule.cancellation_journal_entry)
+              : null,
+            installments: expense.schedule.installments.map((installment) => ({
+              id: installment.id,
+              sequence: installment.sequence,
+              scheduled_date: installment.scheduled_date,
+              amount_iqd: installment.amount_iqd,
+              status: installment.status,
+              posted_at: installment.posted_at,
+              last_error: installment.last_error,
+              journal_entry: installment.journal_entry
+                ? this.presentJournal(installment.journal_entry)
+                : null,
+            })),
+          }
+        : null,
     };
   }
 
@@ -1268,6 +1731,7 @@ export class ExpensesService {
     balance_currency: Prisma.Decimal;
     currency_code: string;
     payment_mode: string;
+    recognition_mode: string;
     payee: string | null;
     description: string;
     document_date: Date;
@@ -1291,6 +1755,7 @@ export class ExpensesService {
       balance_currency: expense.balance_currency,
       currency_code: expense.currency_code,
       payment_mode: expense.payment_mode,
+      recognition_mode: expense.recognition_mode,
       payee: expense.payee,
       supplier: expense.supplier,
       cash_account: expense.cash_account,
@@ -1354,6 +1819,80 @@ export class ExpensesService {
         account: line.account,
       })),
     };
+  }
+
+  private validateRecognition(
+    mode: 'immediate' | 'prepaid',
+    paymentMode: 'paid_now' | 'owed',
+    schedule: { start_date: string; periods: number } | null | undefined,
+  ) {
+    if (mode === 'prepaid') {
+      if (paymentMode !== 'paid_now') {
+        throw invalid(
+          'EXPENSE_PREPAID_PAYMENT_REQUIRED',
+          'A prepaid expense must be paid now from a cash account',
+        );
+      }
+      if (!schedule) {
+        throw invalid(
+          'EXPENSE_PREPAID_SCHEDULE_REQUIRED',
+          'A prepaid expense requires a monthly schedule',
+        );
+      }
+      if (
+        !Number.isInteger(schedule.periods) ||
+        schedule.periods < 2 ||
+        schedule.periods > 120
+      ) {
+        throw invalid(
+          'EXPENSE_PREPAID_PERIODS_INVALID',
+          'Prepaid schedule periods must be between 2 and 120',
+        );
+      }
+      monthlyBusinessDates(schedule.start_date, schedule.periods);
+      return;
+    }
+    if (schedule) {
+      throw invalid(
+        'EXPENSE_PREPAID_SCHEDULE_NOT_ALLOWED',
+        'An immediate expense cannot include a prepaid schedule',
+      );
+    }
+  }
+
+  private async createSchedule(
+    tx: Prisma.TransactionClient,
+    expenseId: string,
+    actorId: string,
+    amountIqd: Prisma.Decimal,
+    input: { start_date: string; periods: number },
+  ) {
+    const dates = monthlyBusinessDates(input.start_date, input.periods);
+    const amounts = splitScheduleAmount(amountIqd, input.periods);
+    if (amounts.some((amount) => !amount.gt(0))) {
+      throw invalid(
+        'EXPENSE_PREPAID_AMOUNT_TOO_SMALL',
+        'The prepaid amount is too small for the requested number of periods',
+      );
+    }
+    const schedule = await tx.expenseSchedule.create({
+      data: {
+        expense_id: expenseId,
+        start_date: dates[0],
+        periods: input.periods,
+        amount_iqd: amountIqd,
+        created_by: actorId,
+      },
+    });
+    await tx.expenseScheduleInstallment.createMany({
+      data: dates.map((date, index) => ({
+        schedule_id: schedule.id,
+        sequence: index + 1,
+        scheduled_date: date,
+        amount_iqd: amounts[index],
+      })),
+    });
+    return schedule;
   }
 
   private async requireExpenseAccount(
@@ -1450,6 +1989,7 @@ export class ExpensesService {
     currency_code: string;
     amount_iqd: Prisma.Decimal | null;
     payment_mode: string;
+    recognition_mode: string;
     cash_account_id: string | null;
     supplier_id: string | null;
     payee: string | null;
@@ -1462,6 +2002,7 @@ export class ExpensesService {
       currency_code: expense.currency_code,
       amount_iqd: expense.amount_iqd?.toString() ?? null,
       payment_mode: expense.payment_mode,
+      recognition_mode: expense.recognition_mode,
       cash_account_id: expense.cash_account_id,
       supplier_id: expense.supplier_id,
       payee: expense.payee,

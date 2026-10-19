@@ -1,5 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SALES_GROUPS = [
@@ -65,6 +75,32 @@ export class InventoryValuationQueryDto extends AsOfReportQueryDto {
   slow_days = 90;
 }
 
+export class PurchasesReportQueryDto extends PeriodReportQueryDto {
+  @IsOptional()
+  @IsIn(['period', 'supplier', 'sku', 'category'])
+  group_by?: 'period' | 'supplier' | 'sku' | 'category';
+  @IsOptional() @IsUUID() supplier_id?: string;
+  @IsOptional() @IsUUID() variant_id?: string;
+  @IsOptional() @IsUUID() category_id?: string;
+}
+
+export class SupplierStatementQueryDto extends AsOfReportQueryDto {
+  @IsUUID() supplier_id!: string;
+}
+
+export class StockMovementReportQueryDto extends PeriodReportQueryDto {
+  @IsOptional() @IsUUID() warehouse_id?: string;
+  @IsOptional() @IsUUID() variant_id?: string;
+}
+
+export class ExpenseReportQueryDto extends PeriodReportQueryDto {
+  @IsOptional()
+  @IsIn(['category', 'payee', 'month'])
+  group_by?: 'category' | 'payee' | 'month';
+  @IsOptional() @IsUUID() category_id?: string;
+  @IsOptional() @IsString() @MaxLength(200) payee?: string;
+}
+
 export class CreateReportExportDto {
   @IsIn([
     'sales',
@@ -76,6 +112,10 @@ export class CreateReportExportDto {
     'delivery_custody',
     'liabilities',
     'inventory_valuation',
+    'purchases',
+    'supplier_statement',
+    'stock_movement',
+    'expenses',
   ])
   report_type!:
     | 'sales'
@@ -86,7 +126,11 @@ export class CreateReportExportDto {
     | 'cash'
     | 'delivery_custody'
     | 'liabilities'
-    | 'inventory_valuation';
+    | 'inventory_valuation'
+    | 'purchases'
+    | 'supplier_statement'
+    | 'stock_movement'
+    | 'expenses';
 
   @IsIn(['csv', 'xlsx']) format!: 'csv' | 'xlsx';
   @IsOptional() @IsIn(['ar', 'en']) language?: 'ar' | 'en';
@@ -94,8 +138,8 @@ export class CreateReportExportDto {
   @IsOptional() @Matches(DATE) to?: string;
   @IsOptional() @Matches(DATE) as_of?: string;
   @IsOptional()
-  @IsIn(SALES_GROUPS)
-  group_by?: (typeof SALES_GROUPS)[number];
+  @IsIn([...SALES_GROUPS, 'period', 'supplier', 'payee'])
+  group_by?: (typeof SALES_GROUPS)[number] | 'period' | 'supplier' | 'payee';
 
   @IsOptional()
   @Type(() => Number)
@@ -103,6 +147,12 @@ export class CreateReportExportDto {
   @Min(1)
   @Max(3650)
   slow_days?: number;
+
+  @IsOptional() @IsUUID() supplier_id?: string;
+  @IsOptional() @IsUUID() variant_id?: string;
+  @IsOptional() @IsUUID() category_id?: string;
+  @IsOptional() @IsUUID() warehouse_id?: string;
+  @IsOptional() @IsString() @MaxLength(200) payee?: string;
 }
 
 export type SalesGroup = NonNullable<SalesReportQueryDto['group_by']>;

@@ -22,13 +22,18 @@ import {
   AsOfReportQueryDto,
   CreateReportExportDto,
   InventoryValuationQueryDto,
+  ExpenseReportQueryDto,
   PeriodReportQueryDto,
   ProfitabilityReportQueryDto,
   ProfitLossQueryDto,
+  PurchasesReportQueryDto,
   SalesReportQueryDto,
+  StockMovementReportQueryDto,
+  SupplierStatementQueryDto,
 } from './reports.dto';
 import { ReportsService } from './reports.service';
 import { ReportsPart2Service } from './reports-part2.service';
+import { ReportsPart3Service } from './reports-part3.service';
 
 type AdminRequest = Request & { user: AuthenticatedRequestUser };
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: 422 });
@@ -38,8 +43,45 @@ export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
     private readonly reportsPart2: ReportsPart2Service,
+    private readonly reportsPart3: ReportsPart3Service,
     private readonly exports: ReportExportService,
   ) {}
+
+  @Get('purchases')
+  @AdminPolicy('reports.purchases.read', 'cost.view')
+  purchases(
+    @Req() request: AdminRequest,
+    @Query() query: PurchasesReportQueryDto,
+  ) {
+    return this.reportsPart3.purchases(request.user, query);
+  }
+
+  @Get('supplier-statement')
+  @AdminPolicy('reports.suppliers.read')
+  supplierStatement(
+    @Req() request: AdminRequest,
+    @Query() query: SupplierStatementQueryDto,
+  ) {
+    return this.reportsPart3.supplierStatement(request.user, query);
+  }
+
+  @Get('stock-movement')
+  @AdminPolicy('reports.stock.read', 'cost.view')
+  stockMovement(
+    @Req() request: AdminRequest,
+    @Query() query: StockMovementReportQueryDto,
+  ) {
+    return this.reportsPart3.stockMovement(request.user, query);
+  }
+
+  @Get('expenses')
+  @AdminPolicy('reports.expenses.read')
+  expenses(
+    @Req() request: AdminRequest,
+    @Query() query: ExpenseReportQueryDto,
+  ) {
+    return this.reportsPart3.expenses(request.user, query);
+  }
 
   @Get('cash')
   @AdminPolicy('reports.cash.read')
@@ -82,6 +124,10 @@ export class ReportsController {
     'reports.cash.read',
     'reports.liabilities.read',
     'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.suppliers.read',
+    'reports.stock.read',
+    'reports.expenses.read',
   )
   dashboard(@Req() request: AdminRequest) {
     return this.reportsPart2.dashboard(request.user);
@@ -135,6 +181,10 @@ export class ReportsController {
     'reports.cash.read',
     'reports.liabilities.read',
     'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.suppliers.read',
+    'reports.stock.read',
+    'reports.expenses.read',
   )
   createExport(
     @Req() request: AdminRequest,
@@ -151,6 +201,10 @@ export class ReportsController {
     'reports.cash.read',
     'reports.liabilities.read',
     'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.suppliers.read',
+    'reports.stock.read',
+    'reports.expenses.read',
   )
   exportProgress(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
     return this.exports.progress(id, request.user);

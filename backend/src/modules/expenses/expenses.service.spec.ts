@@ -1,5 +1,10 @@
 import { Prisma } from '../../generated/prisma/client';
-import { expenseIdempotencyKey, expensePostingLines } from './expense-rules';
+import {
+  expenseIdempotencyKey,
+  expensePostingLines,
+  monthlyBusinessDates,
+  splitScheduleAmount,
+} from './expense-rules';
 
 describe('ExpensesService accounting rules', () => {
   it('requires an Idempotency-Key', () => {
@@ -48,5 +53,24 @@ describe('ExpensesService accounting rules', () => {
         exchangeRate: '1310',
       },
     ]);
+  });
+
+  it('clamps monthly prepaid dates and allocates the exact final remainder', () => {
+    expect(
+      monthlyBusinessDates('2026-01-31', 3).map((date) =>
+        date.toISOString().slice(0, 10),
+      ),
+    ).toEqual(['2026-01-31', '2026-02-28', '2026-03-31']);
+    const shares = splitScheduleAmount(new Prisma.Decimal('100'), 3);
+    expect(shares.map((share) => share.toFixed(12))).toEqual([
+      '33.333333333333',
+      '33.333333333333',
+      '33.333333333334',
+    ]);
+    expect(
+      shares
+        .reduce((sum, share) => sum.plus(share), new Prisma.Decimal(0))
+        .toString(),
+    ).toBe('100');
   });
 });

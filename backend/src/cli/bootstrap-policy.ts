@@ -24,6 +24,7 @@ export const REFERENCE_SETTINGS = [
   ['timezone', 'Asia/Baghdad'],
   ['sale_rounding_multiple', '0'],
   ['separation_of_duties_level', 'standard'],
+  ['return_window_days', '14'],
 ] as const;
 
 /** What the migrations seed and the bootstrap only checks. */
