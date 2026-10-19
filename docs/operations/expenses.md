@@ -1,7 +1,7 @@
 # Expenses (phase 11)
 
-Contract: API 17.1.0. These routes are Web Admin-only; no customer or mobile
-shape changed.
+Introduced in API 17.1.0 and extended in 17.6.0. These routes are Web
+Admin-only; no customer or mobile expense shape changed.
 
 ## Accounting model
 
@@ -24,6 +24,29 @@ All four document writes require `Idempotency-Key`. Reusing a key with the same
 actor, route and payload returns the saved result; using it for a different
 payload is refused. Business and accounting dates use the Asia/Baghdad helper,
 the configured 90-day back-dating window and closed-period enforcement.
+
+## Prepaid schedules
+
+A paid-now expense can use `recognition_mode=prepaid` with a start date and
+2-120 monthly periods. Posting debits prepaid-expense asset `1060` and credits
+the selected cash account. The worker divides the exact IQD amount across the
+periods, places any decimal remainder in the last period, and posts each due
+portion from `1060` to the category expense account.
+
+Installments use stable operation ids and row locks, so worker retries and
+downtime catch-up cannot post a month twice. A due month in a closed period is
+marked blocked and is never silently shifted. Cancelling a schedule creates a
+correction that credits prepaid expense and restores the unrecognised balance
+to the original cash account; already recognised months remain immutable.
+
+## Owner money
+
+Owner capital deposits and drawings use the same date, currency, audit,
+idempotency and separation-of-duties rules as expenses. Deposits debit cash and
+credit owner capital (`3000`); drawings debit owner drawings (`3010`) and credit
+cash. Posted documents can only be reversed. Transfers between cash accounts
+continue to use the existing phase-3 cash-transfer endpoints rather than a
+second implementation.
 
 ## Categories and permissions
 

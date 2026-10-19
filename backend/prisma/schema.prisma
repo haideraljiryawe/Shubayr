@@ -67,17 +67,17 @@ model DiscountTier {
 }
 
 model Currency {
-  code               String           @id(map: "currencies_pkey") @db.Char(3)
-  name_ar            String           @db.VarChar(120)
-  name_en            String           @db.VarChar(120)
-  symbol             String           @db.VarChar(20)
+  code               String             @id(map: "currencies_pkey") @db.Char(3)
+  name_ar            String             @db.VarChar(120)
+  name_en            String             @db.VarChar(120)
+  symbol             String             @db.VarChar(20)
   display_precision  Int
-  is_base            Boolean          @default(false)
-  enabled            Boolean          @default(true)
-  created_at         DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime         @default(now()) @db.Timestamptz(6)
+  is_base            Boolean            @default(false)
+  enabled            Boolean            @default(true)
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime           @default(now()) @db.Timestamptz(6)
   exchange_rates     ExchangeRate[]
-  reference_variants ProductVariant[] @relation("VariantReferenceCurrency")
+  reference_variants ProductVariant[]   @relation("VariantReferenceCurrency")
   journal_lines      JournalLine[]
   cash_accounts      CashAccount[]
   expenses           Expense[]
@@ -143,68 +143,68 @@ model DocumentDraft {
 }
 
 model LedgerAccount {
-  id            String        @id(map: "ledger_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code          String        @unique(map: "ledger_accounts_code_key") @db.VarChar(40)
-  name_ar       String        @db.VarChar(160)
-  name_en       String        @db.VarChar(160)
-  type          String        @db.VarChar(24)
-  normal_side   String        @db.VarChar(6)
-  is_system     Boolean       @default(true)
-  enabled       Boolean       @default(true)
-  created_at    DateTime      @default(now()) @db.Timestamptz(6)
-  journal_lines JournalLine[]
-  cash_account  CashAccount?
+  id                 String            @id(map: "ledger_accounts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code               String            @unique(map: "ledger_accounts_code_key") @db.VarChar(40)
+  name_ar            String            @db.VarChar(160)
+  name_en            String            @db.VarChar(160)
+  type               String            @db.VarChar(24)
+  normal_side        String            @db.VarChar(6)
+  is_system          Boolean           @default(true)
+  enabled            Boolean           @default(true)
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  journal_lines      JournalLine[]
+  cash_account       CashAccount?
   expense_categories ExpenseCategory[]
 
   @@map("ledger_accounts")
 }
 
 model JournalEntry {
-  id                                 String                           @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number                    String                           @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
-  source_type                        String                           @db.VarChar(60)
-  source_id                          String                           @db.Uuid
-  event                              String                           @db.VarChar(60)
-  document_date                      DateTime                         @db.Date
-  accounting_date                    DateTime                         @db.Date
-  description                        String?                          @db.VarChar(500)
-  created_by                         String                           @db.Uuid
-  posted_at                          DateTime                         @default(now()) @db.Timestamptz(6)
-  reverses_id                        String?                          @unique(map: "journal_entries_reverses_id_key") @db.Uuid
-  reverses                           JournalEntry?                    @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
-  reversals                          JournalEntry[]                   @relation("JournalReversals")
-  lines                              JournalLine[]
-  cash_transfers                     CashTransfer[]
-  opening_balances                   CashOpeningBalance[]
-  inventory_opening                  InventoryOpening?
-  stock_count                        StockCount?
-  write_down                         InventoryWriteDown?
-  purchase_invoice                   PurchaseInvoice?
-  supplier_opening                   SupplierOpeningBalance?
-  supplier_payment                   SupplierPayment?
-  supplier_return                    SupplierReturn?
-  cost_correction                    PurchaseCostCorrection?
-  retrieval                          Retrieval?
-  delivery_collection_initial        DeliveryCollection?              @relation("DeliveryCollectionInitialJournal")
-  delivery_collection_confirmation   DeliveryCollection?              @relation("DeliveryCollectionConfirmationJournal")
-  cash_receipt                       CashReceiptVoucher?              @relation("CashReceiptJournal")
-  cash_receipt_reversal              CashReceiptReversal?             @relation("CashReceiptReversalJournal")
-  custody_exception_posting          CustodyExceptionPosting?
-  custody_exception_reversal_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionReversalJournal")
-  reversed_custody_exception_posting CustodyExceptionReversalPosting? @relation("CustodyExceptionOriginalJournal")
-  return_posting                     ReturnPosting?
-  return_refund_payment              ReturnRefundPayment?
-  trip_fare_accrual                  ExternalDriverTrip?              @relation("ExternalDriverTripFareAccrual")
-  trip_fare_payment                  ExternalDriverTrip?              @relation("ExternalDriverTripFarePayment")
-  trip_fare_netting                  ExternalDriverTrip?              @relation("ExternalDriverTripFareNetting")
-  expense                            Expense?                         @relation("ExpenseJournal")
-  expense_payment                    ExpensePayment?                  @relation("ExpensePaymentJournal")
-  expense_correction_posting         ExpenseCorrectionPosting?       @relation("ExpenseCorrectionJournal")
-  reversed_expense_correction_posting ExpenseCorrectionPosting?      @relation("ExpenseCorrectionOriginalJournal")
-  expense_schedule_installment       ExpenseScheduleInstallment?     @relation("ExpenseScheduleInstallmentJournal")
-  expense_schedule_cancellation      ExpenseSchedule?                @relation("ExpenseScheduleCancellationJournal")
-  owner_transaction                  OwnerTransaction?                @relation("OwnerTransactionJournal")
-  owner_transaction_reversal         OwnerTransaction?                @relation("OwnerTransactionReversalJournal")
+  id                                  String                           @id(map: "journal_entries_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number                     String                           @unique(map: "journal_entries_document_number_key") @db.VarChar(40)
+  source_type                         String                           @db.VarChar(60)
+  source_id                           String                           @db.Uuid
+  event                               String                           @db.VarChar(60)
+  document_date                       DateTime                         @db.Date
+  accounting_date                     DateTime                         @db.Date
+  description                         String?                          @db.VarChar(500)
+  created_by                          String                           @db.Uuid
+  posted_at                           DateTime                         @default(now()) @db.Timestamptz(6)
+  reverses_id                         String?                          @unique(map: "journal_entries_reverses_id_key") @db.Uuid
+  reverses                            JournalEntry?                    @relation("JournalReversals", fields: [reverses_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "journal_entries_reverses_id_fkey")
+  reversals                           JournalEntry[]                   @relation("JournalReversals")
+  lines                               JournalLine[]
+  cash_transfers                      CashTransfer[]
+  opening_balances                    CashOpeningBalance[]
+  inventory_opening                   InventoryOpening?
+  stock_count                         StockCount?
+  write_down                          InventoryWriteDown?
+  purchase_invoice                    PurchaseInvoice?
+  supplier_opening                    SupplierOpeningBalance?
+  supplier_payment                    SupplierPayment?
+  supplier_return                     SupplierReturn?
+  cost_correction                     PurchaseCostCorrection?
+  retrieval                           Retrieval?
+  delivery_collection_initial         DeliveryCollection?              @relation("DeliveryCollectionInitialJournal")
+  delivery_collection_confirmation    DeliveryCollection?              @relation("DeliveryCollectionConfirmationJournal")
+  cash_receipt                        CashReceiptVoucher?              @relation("CashReceiptJournal")
+  cash_receipt_reversal               CashReceiptReversal?             @relation("CashReceiptReversalJournal")
+  custody_exception_posting           CustodyExceptionPosting?
+  custody_exception_reversal_posting  CustodyExceptionReversalPosting? @relation("CustodyExceptionReversalJournal")
+  reversed_custody_exception_posting  CustodyExceptionReversalPosting? @relation("CustodyExceptionOriginalJournal")
+  return_posting                      ReturnPosting?
+  return_refund_payment               ReturnRefundPayment?
+  trip_fare_accrual                   ExternalDriverTrip?              @relation("ExternalDriverTripFareAccrual")
+  trip_fare_payment                   ExternalDriverTrip?              @relation("ExternalDriverTripFarePayment")
+  trip_fare_netting                   ExternalDriverTrip?              @relation("ExternalDriverTripFareNetting")
+  expense                             Expense?                         @relation("ExpenseJournal")
+  expense_payment                     ExpensePayment?                  @relation("ExpensePaymentJournal")
+  expense_correction_posting          ExpenseCorrectionPosting?        @relation("ExpenseCorrectionJournal")
+  reversed_expense_correction_posting ExpenseCorrectionPosting?        @relation("ExpenseCorrectionOriginalJournal")
+  expense_schedule_installment        ExpenseScheduleInstallment?      @relation("ExpenseScheduleInstallmentJournal")
+  expense_schedule_cancellation       ExpenseSchedule?                 @relation("ExpenseScheduleCancellationJournal")
+  owner_transaction                   OwnerTransaction?                @relation("OwnerTransactionJournal")
+  owner_transaction_reversal          OwnerTransaction?                @relation("OwnerTransactionReversalJournal")
 
   @@unique([source_type, source_id, event], map: "journal_entries_source_event_key")
   @@index([accounting_date, id], map: "idx_journal_entries_accounting_date")
@@ -470,7 +470,7 @@ model User {
   created_owner_transactions           OwnerTransaction[]              @relation("OwnerTransactionCreator")
   posted_owner_transactions            OwnerTransaction[]              @relation("OwnerTransactionPoster")
   reversed_owner_transactions          OwnerTransaction[]              @relation("OwnerTransactionReverser")
-  report_exports                       ReportExport[]                   @relation("ReportExportCreator")
+  report_exports                       ReportExport[]                  @relation("ReportExportCreator")
 
   @@map("users")
 }
@@ -599,15 +599,15 @@ model DeliveryParty {
 }
 
 model MediaObject {
-  id          String   @id(map: "media_objects_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  object_key  String   @unique(map: "media_objects_object_key_key") @db.VarChar(512)
-  public_url  String   @unique(map: "media_objects_public_url_key") @db.Text
-  mime_type   String   @db.VarChar(80)
+  id          String    @id(map: "media_objects_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  object_key  String    @unique(map: "media_objects_object_key_key") @db.VarChar(512)
+  public_url  String    @unique(map: "media_objects_public_url_key") @db.Text
+  mime_type   String    @db.VarChar(80)
   size_bytes  Int
-  checksum    String   @db.VarChar(64)
-  uploaded_by String?  @db.Uuid
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  uploader    User?    @relation("MediaUploadedBy", fields: [uploaded_by], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "media_objects_uploaded_by_fkey")
+  checksum    String    @db.VarChar(64)
+  uploaded_by String?   @db.Uuid
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  uploader    User?     @relation("MediaUploadedBy", fields: [uploaded_by], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "media_objects_uploaded_by_fkey")
   expenses    Expense[]
 
   @@index([uploaded_by], map: "idx_media_objects_uploader")
@@ -1122,6 +1122,7 @@ model PurchaseInvoiceItem {
   correction_lines        PurchaseCostCorrectionLine[]
 
   @@index([invoice_id], map: "idx_purchase_invoice_items_invoice")
+  @@index([invoice_id, variant_id, product_id], map: "idx_purchase_items_report_dimensions")
   @@map("purchase_invoice_items")
 }
 
@@ -1327,6 +1328,7 @@ model SupplierReturnLine {
   location         WarehouseLocation   @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "supplier_return_lines_location_id_fkey")
 
   @@index([return_id], map: "idx_supplier_return_lines_return")
+  @@index([return_id, purchase_item_id], map: "idx_supplier_return_lines_report_dimensions")
   @@map("supplier_return_lines")
 }
 
@@ -1508,6 +1510,7 @@ model StockMovement {
   @@index([source_type, source_id], map: "idx_movements_source")
   @@index([created_at, id], map: "idx_movements_posted")
   @@index([custody_party_id, created_at], map: "idx_stock_movements_custody_report_asof")
+  @@index([created_at, batch_id, from_location, to_location, type], map: "idx_stock_movements_report_dimensions")
   @@map("stock_movements")
 }
 
@@ -2652,44 +2655,44 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id                 String              @id(map: "expenses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number    String              @unique(map: "expenses_document_number_key") @db.VarChar(40)
-  status             String              @default("draft") @db.VarChar(16)
-  category_id        String              @db.Uuid
-  amount_currency    Decimal             @db.Decimal(20, 6)
-  currency_code      String              @db.Char(3)
-  exchange_rate      Decimal?            @db.Decimal(24, 10)
-  amount_iqd         Decimal?            @db.Decimal(30, 12)
-  paid_currency      Decimal             @default(0) @db.Decimal(20, 6)
-  balance_currency   Decimal             @db.Decimal(20, 6)
-  payment_mode       String              @db.VarChar(16)
-  recognition_mode   String              @default("immediate") @db.VarChar(16)
-  cash_account_id    String?             @db.Uuid
-  supplier_id        String?             @db.Uuid
-  payee              String?             @db.VarChar(200)
-  description        String              @db.VarChar(2000)
-  reference_number   String?             @db.VarChar(160)
-  receipt_media_id   String?             @db.Uuid
-  document_date      DateTime            @db.Date
-  accounting_date    DateTime            @db.Date
-  backdate_reason    String?             @db.VarChar(500)
-  created_by         String              @db.Uuid
-  posted_by          String?             @db.Uuid
-  posted_at          DateTime?           @db.Timestamptz(6)
-  journal_entry_id   String?             @unique(map: "expenses_journal_entry_id_key") @db.Uuid
-  created_at         DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime            @default(now()) @db.Timestamptz(6)
-  category           ExpenseCategory     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_category_id_fkey")
-  currency           Currency            @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "expenses_currency_code_fkey")
-  cash_account       CashAccount?        @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_cash_account_id_fkey")
-  supplier           Supplier?           @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_supplier_id_fkey")
-  receipt            MediaObject?        @relation(fields: [receipt_media_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_receipt_media_id_fkey")
-  creator            User                @relation("ExpenseCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_created_by_fkey")
-  poster             User?               @relation("ExpensePoster", fields: [posted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_posted_by_fkey")
-  journal_entry      JournalEntry?       @relation("ExpenseJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_journal_entry_id_fkey")
-  payments           ExpensePayment[]
-  corrections        ExpenseCorrection[]
-  schedule           ExpenseSchedule?
+  id               String              @id(map: "expenses_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number  String              @unique(map: "expenses_document_number_key") @db.VarChar(40)
+  status           String              @default("draft") @db.VarChar(16)
+  category_id      String              @db.Uuid
+  amount_currency  Decimal             @db.Decimal(20, 6)
+  currency_code    String              @db.Char(3)
+  exchange_rate    Decimal?            @db.Decimal(24, 10)
+  amount_iqd       Decimal?            @db.Decimal(30, 12)
+  paid_currency    Decimal             @default(0) @db.Decimal(20, 6)
+  balance_currency Decimal             @db.Decimal(20, 6)
+  payment_mode     String              @db.VarChar(16)
+  recognition_mode String              @default("immediate") @db.VarChar(16)
+  cash_account_id  String?             @db.Uuid
+  supplier_id      String?             @db.Uuid
+  payee            String?             @db.VarChar(200)
+  description      String              @db.VarChar(2000)
+  reference_number String?             @db.VarChar(160)
+  receipt_media_id String?             @db.Uuid
+  document_date    DateTime            @db.Date
+  accounting_date  DateTime            @db.Date
+  backdate_reason  String?             @db.VarChar(500)
+  created_by       String              @db.Uuid
+  posted_by        String?             @db.Uuid
+  posted_at        DateTime?           @db.Timestamptz(6)
+  journal_entry_id String?             @unique(map: "expenses_journal_entry_id_key") @db.Uuid
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime            @default(now()) @db.Timestamptz(6)
+  category         ExpenseCategory     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_category_id_fkey")
+  currency         Currency            @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "expenses_currency_code_fkey")
+  cash_account     CashAccount?        @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_cash_account_id_fkey")
+  supplier         Supplier?           @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_supplier_id_fkey")
+  receipt          MediaObject?        @relation(fields: [receipt_media_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_receipt_media_id_fkey")
+  creator          User                @relation("ExpenseCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_created_by_fkey")
+  poster           User?               @relation("ExpensePoster", fields: [posted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_posted_by_fkey")
+  journal_entry    JournalEntry?       @relation("ExpenseJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expenses_journal_entry_id_fkey")
+  payments         ExpensePayment[]
+  corrections      ExpenseCorrection[]
+  schedule         ExpenseSchedule?
 
   @@index([document_date(sort: Desc), id(sort: Desc)], map: "idx_expenses_document_date")
   @@index([category_id, document_date(sort: Desc)], map: "idx_expenses_category_date")
@@ -2700,28 +2703,28 @@ model Expense {
 }
 
 model ExpensePayment {
-  id               String       @id(map: "expense_payments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number  String       @unique(map: "expense_payments_document_number_key") @db.VarChar(40)
-  expense_id       String       @db.Uuid
-  cash_account_id  String       @db.Uuid
-  currency_code    String       @db.Char(3)
-  amount_currency  Decimal      @db.Decimal(20, 6)
-  exchange_rate    Decimal      @db.Decimal(24, 10)
-  amount_iqd       Decimal      @db.Decimal(30, 12)
-  document_date    DateTime     @db.Date
-  accounting_date  DateTime     @db.Date
-  backdate_reason  String?      @db.VarChar(500)
-  reference_number String?      @db.VarChar(160)
-  notes             String?      @db.VarChar(1000)
-  created_by        String       @db.Uuid
-  journal_entry_id  String       @unique(map: "expense_payments_journal_entry_id_key") @db.Uuid
-  created_at        DateTime     @default(now()) @db.Timestamptz(6)
-  expense           Expense      @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_expense_id_fkey")
-  cash_account      CashAccount  @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_cash_account_id_fkey")
-  currency          Currency     @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_currency_code_fkey")
-  creator           User         @relation("ExpensePaymentCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_created_by_fkey")
-  journal_entry     JournalEntry @relation("ExpensePaymentJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_journal_entry_id_fkey")
-  corrections       ExpenseCorrectionPosting[]
+  id               String                     @id(map: "expense_payments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number  String                     @unique(map: "expense_payments_document_number_key") @db.VarChar(40)
+  expense_id       String                     @db.Uuid
+  cash_account_id  String                     @db.Uuid
+  currency_code    String                     @db.Char(3)
+  amount_currency  Decimal                    @db.Decimal(20, 6)
+  exchange_rate    Decimal                    @db.Decimal(24, 10)
+  amount_iqd       Decimal                    @db.Decimal(30, 12)
+  document_date    DateTime                   @db.Date
+  accounting_date  DateTime                   @db.Date
+  backdate_reason  String?                    @db.VarChar(500)
+  reference_number String?                    @db.VarChar(160)
+  notes            String?                    @db.VarChar(1000)
+  created_by       String                     @db.Uuid
+  journal_entry_id String                     @unique(map: "expense_payments_journal_entry_id_key") @db.Uuid
+  created_at       DateTime                   @default(now()) @db.Timestamptz(6)
+  expense          Expense                    @relation(fields: [expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_expense_id_fkey")
+  cash_account     CashAccount                @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_cash_account_id_fkey")
+  currency         Currency                   @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_currency_code_fkey")
+  creator          User                       @relation("ExpensePaymentCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_created_by_fkey")
+  journal_entry    JournalEntry               @relation("ExpensePaymentJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_payments_journal_entry_id_fkey")
+  corrections      ExpenseCorrectionPosting[]
 
   @@index([expense_id, created_at, id], map: "idx_expense_payments_expense")
   @@index([accounting_date, expense_id], map: "idx_expense_payments_report_asof")
@@ -2799,7 +2802,7 @@ model ExpenseScheduleInstallment {
   last_error       String?         @db.VarChar(500)
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   schedule         ExpenseSchedule @relation(fields: [schedule_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_schedule_installments_schedule_id_fkey")
-  journal_entry    JournalEntry?    @relation("ExpenseScheduleInstallmentJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_schedule_installments_journal_entry_id_fkey")
+  journal_entry    JournalEntry?   @relation("ExpenseScheduleInstallmentJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "expense_schedule_installments_journal_entry_id_fkey")
 
   @@unique([schedule_id, sequence], map: "expense_schedule_installments_schedule_sequence_key")
   @@index([status, scheduled_date, schedule_id, sequence], map: "idx_expense_schedule_due")
@@ -2807,35 +2810,35 @@ model ExpenseScheduleInstallment {
 }
 
 model OwnerTransaction {
-  id                        String       @id(map: "owner_transactions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  document_number           String       @unique(map: "owner_transactions_document_number_key") @db.VarChar(40)
-  status                    String       @default("draft") @db.VarChar(16)
-  kind                      String       @db.VarChar(16)
-  cash_account_id           String       @db.Uuid
-  currency_code             String       @db.Char(3)
-  amount_currency           Decimal      @db.Decimal(20, 6)
-  exchange_rate             Decimal      @db.Decimal(24, 10)
-  amount_iqd                Decimal      @db.Decimal(30, 12)
-  document_date             DateTime     @db.Date
-  accounting_date           DateTime     @db.Date
-  backdate_reason           String?      @db.VarChar(500)
-  reason                    String       @db.VarChar(500)
-  reference_number          String?      @db.VarChar(160)
-  created_by                String       @db.Uuid
-  posted_by                 String?      @db.Uuid
-  posted_at                 DateTime?    @db.Timestamptz(6)
-  journal_entry_id          String?      @unique(map: "owner_transactions_journal_key") @db.Uuid
-  reversed_by               String?      @db.Uuid
-  reversed_at               DateTime?    @db.Timestamptz(6)
-  reversal_reason           String?      @db.VarChar(500)
-  reversal_journal_entry_id String?      @unique(map: "owner_transactions_reversal_journal_key") @db.Uuid
-  created_at                DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime     @default(now()) @db.Timestamptz(6)
-  cash_account              CashAccount  @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_cash_account_id_fkey")
-  currency                  Currency     @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_currency_code_fkey")
-  creator                   User         @relation("OwnerTransactionCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_created_by_fkey")
-  poster                    User?        @relation("OwnerTransactionPoster", fields: [posted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_posted_by_fkey")
-  reverser                  User?        @relation("OwnerTransactionReverser", fields: [reversed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_reversed_by_fkey")
+  id                        String        @id(map: "owner_transactions_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  document_number           String        @unique(map: "owner_transactions_document_number_key") @db.VarChar(40)
+  status                    String        @default("draft") @db.VarChar(16)
+  kind                      String        @db.VarChar(16)
+  cash_account_id           String        @db.Uuid
+  currency_code             String        @db.Char(3)
+  amount_currency           Decimal       @db.Decimal(20, 6)
+  exchange_rate             Decimal       @db.Decimal(24, 10)
+  amount_iqd                Decimal       @db.Decimal(30, 12)
+  document_date             DateTime      @db.Date
+  accounting_date           DateTime      @db.Date
+  backdate_reason           String?       @db.VarChar(500)
+  reason                    String        @db.VarChar(500)
+  reference_number          String?       @db.VarChar(160)
+  created_by                String        @db.Uuid
+  posted_by                 String?       @db.Uuid
+  posted_at                 DateTime?     @db.Timestamptz(6)
+  journal_entry_id          String?       @unique(map: "owner_transactions_journal_key") @db.Uuid
+  reversed_by               String?       @db.Uuid
+  reversed_at               DateTime?     @db.Timestamptz(6)
+  reversal_reason           String?       @db.VarChar(500)
+  reversal_journal_entry_id String?       @unique(map: "owner_transactions_reversal_journal_key") @db.Uuid
+  created_at                DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime      @default(now()) @db.Timestamptz(6)
+  cash_account              CashAccount   @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_cash_account_id_fkey")
+  currency                  Currency      @relation(fields: [currency_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_currency_code_fkey")
+  creator                   User          @relation("OwnerTransactionCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_created_by_fkey")
+  poster                    User?         @relation("OwnerTransactionPoster", fields: [posted_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_posted_by_fkey")
+  reverser                  User?         @relation("OwnerTransactionReverser", fields: [reversed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_reversed_by_fkey")
   journal_entry             JournalEntry? @relation("OwnerTransactionJournal", fields: [journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_journal_entry_id_fkey")
   reversal_journal_entry    JournalEntry? @relation("OwnerTransactionReversalJournal", fields: [reversal_journal_entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "owner_transactions_reversal_journal_entry_id_fkey")
 

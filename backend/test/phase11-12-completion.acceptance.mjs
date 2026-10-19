@@ -83,7 +83,38 @@ const publicSettings = await request('/settings');
 check(
   publicSettings.return_window_days,
   14,
-  'return window is required reference data',
+  'the existing seeded return window is published',
+);
+const clearedSettings = await request('/admin/settings', {
+  token: admin,
+  method: 'PUT',
+  body: { settings: { return_window_days: null } },
+});
+check(
+  clearedSettings.settings.return_window_days,
+  null,
+  'the Admin save accepts an unset optional return window',
+);
+check(
+  (await request('/settings')).return_window_days,
+  null,
+  'the public read returns null for the same unset return window',
+);
+await request('/admin/settings', {
+  token: admin,
+  method: 'PUT',
+  body: { settings: { return_window_days: '14' } },
+});
+
+// Earlier packs deliberately exercise period closing. This pack owns its
+// current-period fixtures and explicitly reopens that period before posting.
+await db.query(
+  `INSERT INTO accounting_periods (month,status)
+   VALUES ($1::date,'open')
+   ON CONFLICT (month) DO UPDATE SET
+     status='open',closed_at=NULL,closed_by=NULL,reopened_at=now(),
+     reopened_by=(SELECT id FROM users WHERE username='admin')`,
+  [`${today.slice(0, 7)}-01`],
 );
 
 await db.query(`
@@ -220,6 +251,7 @@ const cancelled = await request(
     token: admin,
     method: 'POST',
     key: key('cancel'),
+    expected: 201,
     body: { reason: 'Cancel unused prepaid service', document_date: today },
   },
 );
@@ -325,8 +357,8 @@ if (cashRows.rows.length === 2) {
     },
   });
   check(
-    transfer.status,
-    'posted',
+    transfer.document_type,
+    'cash_transfer',
     'existing balanced cash-transfer flow is reused',
   );
 }
@@ -363,6 +395,40 @@ for (let pass = 0; pass < 10; pass += 1) {
       ok(report.data[0].drilldown, 'report row exposes drill-down parameters');
   }
 }
+const purchaseReport = await request(reportPaths[0], { token: admin });
+const purchaseLedger = await db.query(
+  `
+  SELECT COALESCE(SUM(jl.debit_base-jl.credit_base),0)::text amount
+  FROM journal_entries je
+  JOIN journal_lines jl ON jl.entry_id=je.id
+  JOIN ledger_accounts account ON account.id=jl.account_id
+  WHERE account.code='1000'
+    AND je.source_type IN ('purchase_invoice','supplier_return')
+    AND je.accounting_date BETWEEN '2025-01-01' AND $1
+`,
+  [today],
+);
+check(
+  Number(purchaseReport.totals.net_cost_iqd),
+  Number(purchaseLedger.rows[0].amount),
+  'purchases net cost reconciles to purchase and supplier-return inventory postings',
+);
+const supplierStatement = await request(reportPaths[1], { token: admin });
+check(
+  Number(supplierStatement.reconciliation.difference_iqd),
+  0,
+  'supplier statement closing balance reconciles to accounts payable',
+);
+const stockReport = await request(reportPaths[2], { token: admin });
+const inventoryValuation = await request(
+  `/admin/reports/inventory-valuation?as_of=${today}&per_page=100`,
+  { token: admin },
+);
+check(
+  Number(stockReport.totals.closing_value_iqd),
+  Number(inventoryValuation.totals.value),
+  'stock movement closing value reconciles to inventory valuation',
+);
 const expenseReport = await request(
   `/admin/reports/expenses?from=2025-01-01&to=${today}&group_by=category&per_page=100`,
   { token: admin },
@@ -371,19 +437,14 @@ ok(
   Number(expenseReport.totals.prepaid_amortisation_iqd) >= 4000,
   'expense report includes posted prepaid amortisation',
 );
-const recognizedLedger = await db.query(
-  `
-  SELECT COALESCE(SUM(jl.debit_base-jl.credit_base),0)::text amount
-  FROM journal_entries je JOIN journal_lines jl ON jl.entry_id=je.id
-  JOIN expense_categories ec ON ec.ledger_account_id=jl.account_id
-  WHERE je.accounting_date BETWEEN '2025-01-01' AND $1
-`,
-  [today],
+const profitLoss = await request(
+  `/admin/reports/profit-loss?from=2025-01-01&to=${today}`,
+  { token: admin },
 );
 check(
   Number(expenseReport.totals.total_iqd),
-  Number(recognizedLedger.rows[0].amount),
-  'expense report reconciles to posted expense-account ledger lines',
+  Number(profitLoss.current.operating_expenses),
+  'expense report reconciles to the P&L expense lines',
 );
 
 const queued = await request('/admin/reports/exports', {

@@ -1,10 +1,6 @@
 -- C15 completes the remaining phase 11 owner/prepaid scope and adds the
 -- covering indexes/permissions used by the remaining phase 12 reports.
 
-INSERT INTO "store_settings" ("key", "value")
-VALUES ('return_window_days', '14')
-ON CONFLICT ("key") DO NOTHING;
-
 INSERT INTO "ledger_accounts" ("code", "name_ar", "name_en", "type", "normal_side")
 VALUES ('1060', 'مصاريف مدفوعة مقدماً', 'Prepaid expenses', 'asset', 'debit')
 ON CONFLICT ("code") DO NOTHING;

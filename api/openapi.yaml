@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.5.0
+  version: 17.6.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -4762,7 +4762,7 @@ paths:
         settings.markup_alert_percent: [percentage]
         settings.acceptance_alert_timeout_minutes: [required, positive_integer]
         settings.backdating_window_days: [required, positive_integer]
-        settings.return_window_days: [required, positive_integer]
+        settings.return_window_days: [positive_integer]
         settings.auto_cancel_enabled: [boolean]
         settings.discount_tier_coupon_stacking_enabled: [boolean]
         settings.separation_of_duties_level: [enum]
@@ -6062,7 +6062,7 @@ paths:
       parameters: [{ $ref: "#/components/parameters/PathId" }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ExpenseReverseInput" } } } }
       responses:
-        "200": { description: Expense with canceled remaining schedule, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
+        "201": { description: Expense with canceled remaining schedule and new correction, content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -11317,7 +11317,6 @@ components:
     StoreSettings:
       type: object
       additionalProperties: false
-      required: [return_window_days]
       properties:
         store_name: { type: string }
         logo_url: { type: string }
@@ -11337,7 +11336,7 @@ components:
         support_hours_en: { type: [string, "null"], minLength: 1, maxLength: 500 }
         refund_days: { type: [integer, "null"], minimum: 0 }
         policy_effective_date: { type: [string, "null"], format: date }
-        return_window_days: { type: integer, minimum: 1, description: Required reference setting, seeded to 14 and never null; no duplicate policy key is introduced. }
+        return_window_days: { type: [integer, "null"], minimum: 1, description: Optional existing return-window setting; null means the owner has not published a value. }
 
     ExactDecimal:
       oneOf:
@@ -12362,7 +12361,7 @@ components:
         amount: { type: string, pattern: '^\d+(?:\.\d{1,6})?$' }
         currency_code: { type: string, pattern: '^[A-Z]{3}$' }
         payment_mode: { type: string, enum: [paid_now, owed] }
-        recognition_mode: { type: string, enum: [immediate, prepaid], default: immediate }
+        recognition_mode: { type: string, enum: [immediate, prepaid], description: Omit for the existing immediate-expense behavior. }
         prepaid_schedule: { $ref: "#/components/schemas/PrepaidExpenseScheduleInput" }
         cash_account_id: { type: string, format: uuid, description: Required for paid_now and forbidden for owed. }
         supplier_id: { type: string, format: uuid }
@@ -12742,7 +12741,6 @@ components:
       properties:
         settings:
           type: object
-          required: [return_window_days]
           properties:
             separation_of_duties_level: { type: [string, "null"], enum: [standard, strict, null], default: standard }
             store_legal_name_ar: { type: [string, "null"], minLength: 1, maxLength: 160 }
@@ -12757,7 +12755,7 @@ components:
             support_hours_en: { type: [string, "null"], minLength: 1, maxLength: 500 }
             refund_days: { type: [string, "null"], pattern: '^\d+$' }
             policy_effective_date: { type: [string, "null"], format: date }
-            return_window_days: { type: string, pattern: '^[1-9]\d*$' }
+            return_window_days: { type: [string, "null"], pattern: '^[1-9]\d*$' }
           additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHours" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDay" } }
@@ -12783,7 +12781,7 @@ components:
             support_hours_en: { type: [string, "null"], minLength: 1, maxLength: 500 }
             refund_days: { type: [string, "null"], pattern: '^\d+$' }
             policy_effective_date: { type: [string, "null"], format: date }
-            return_window_days: { type: string, pattern: '^[1-9]\d*$' }
+            return_window_days: { type: [string, "null"], pattern: '^[1-9]\d*$' }
           additionalProperties: { type: [string, "null"] }
         business_hours: { type: array, items: { $ref: "#/components/schemas/BusinessHoursInput" } }
         closed_days: { type: array, items: { $ref: "#/components/schemas/ClosedDayInput" } }

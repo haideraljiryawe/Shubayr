@@ -1,5 +1,4 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {

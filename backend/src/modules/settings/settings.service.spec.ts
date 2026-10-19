@@ -8,7 +8,6 @@ describe('SettingsService public settings', () => {
       { key: 'store_name', value: 'Shubayr' },
       { key: 'default_low_stock_threshold', value: '5' },
       { key: 'sale_rounding_multiple', value: '250' },
-      { key: 'return_window_days', value: '14' },
     ]);
     const service = new SettingsService(
       { storeSetting: { findMany } } as never,
@@ -31,7 +30,7 @@ describe('SettingsService public settings', () => {
       support_hours_en: null,
       refund_days: null,
       policy_effective_date: null,
-      return_window_days: 14,
+      return_window_days: null,
     });
     expect(findMany).toHaveBeenCalledWith({
       where: {
@@ -47,16 +46,6 @@ describe('SettingsService public settings', () => {
           ]) as string[],
         },
       },
-    });
-  });
-
-  it('refuses to invent a return-window default when reference data is missing', async () => {
-    const service = new SettingsService(
-      { storeSetting: { findMany: jest.fn().mockResolvedValue([]) } } as never,
-      {} as never,
-    );
-    await expect(service.getPublicSettings()).rejects.toMatchObject({
-      response: expect.objectContaining({ code: 'REFERENCE_DATA_MISSING' }),
     });
   });
 });

@@ -5777,6 +5777,188 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/reports/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Purchase quantities and landed costs, including supplier returns */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    group_by?: "period" | "supplier" | "sku" | "category";
+                    supplier_id?: string;
+                    variant_id?: string;
+                    category_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Purchases report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchasesReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/supplier-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier statement and accounts-payable reconciliation as of a date */
+        get: {
+            parameters: {
+                query: {
+                    supplier_id: string;
+                    as_of: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Supplier statement */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierStatementReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/stock-movement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quantity and value movement by SKU and warehouse */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    warehouse_id?: string;
+                    variant_id?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stock movement report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StockMovementReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recognized expense report including prepaid amortisation */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    to: string;
+                    group_by?: "category" | "payee" | "month";
+                    category_id?: string;
+                    payee?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Expenses report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExpensesReport"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reports/dashboard": {
         parameters: {
             query?: never;
@@ -10520,6 +10702,217 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/owner-transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List owner capital deposits and drawings */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                    kind?: "capital_deposit" | "drawing";
+                    status?: "draft" | "posted" | "reversed";
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Owner transaction page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerTransactionPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a draft owner capital deposit or drawing */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OwnerTransactionCreateInput"];
+                };
+            };
+            responses: {
+                /** @description Draft owner transaction */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerTransaction"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/owner-transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an owner transaction and its journal entries */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Owner transaction */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerTransaction"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/owner-transactions/{id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post an owner transaction to cash and equity */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OwnerTransactionPostInput"];
+                };
+            };
+            responses: {
+                /** @description Posted owner transaction */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerTransaction"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/owner-transactions/{id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse a posted owner transaction through a correction journal */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OwnerTransactionReverseInput"];
+                };
+            };
+            responses: {
+                /** @description Reversed owner transaction */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnerTransaction"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/cash-receipts": {
         parameters: {
             query?: never;
@@ -12854,6 +13247,54 @@ export interface paths {
             };
             responses: {
                 /** @description Reversed expense */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Expense"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/expenses/{id}/prepaid-schedule/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel the remaining prepaid schedule with a correction posting */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExpenseReverseInput"];
+                };
+            };
+            responses: {
+                /** @description Expense with canceled remaining schedule and new correction */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -16799,9 +17240,210 @@ export interface components {
             }[];
             payables_due_next_7_days?: components["schemas"]["ExactDecimal"];
         };
+        PurchasesReportAmounts: {
+            purchased_quantity: components["schemas"]["QuantityDecimal"];
+            returned_quantity: components["schemas"]["QuantityDecimal"];
+            net_quantity: components["schemas"]["QuantityDecimal"];
+            goods_cost_iqd: components["schemas"]["ExactDecimal"];
+            landed_cost_iqd: components["schemas"]["ExactDecimal"];
+            purchase_cost_iqd: components["schemas"]["ExactDecimal"];
+            returns_iqd: components["schemas"]["ExactDecimal"];
+            net_cost_iqd: components["schemas"]["ExactDecimal"];
+            document_count: number;
+        };
+        PurchasesReportRow: {
+            group_id: string;
+            name_ar: string;
+            name_en: string;
+            purchased_quantity: components["schemas"]["QuantityDecimal"];
+            returned_quantity: components["schemas"]["QuantityDecimal"];
+            net_quantity: components["schemas"]["QuantityDecimal"];
+            goods_cost_iqd: components["schemas"]["ExactDecimal"];
+            landed_cost_iqd: components["schemas"]["ExactDecimal"];
+            purchase_cost_iqd: components["schemas"]["ExactDecimal"];
+            returns_iqd: components["schemas"]["ExactDecimal"];
+            net_cost_iqd: components["schemas"]["ExactDecimal"];
+            document_count: number;
+            drilldown: {
+                /** @constant */
+                report: "purchases";
+                /** @enum {string} */
+                group_by: "period" | "supplier" | "sku" | "category";
+                group_id: string;
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+            };
+        };
+        PurchasesReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            group_by: "period" | "supplier" | "sku" | "category";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["PurchasesReportAmounts"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["PurchasesReportRow"][];
+        };
+        SupplierStatementReport: {
+            /** Format: date */
+            as_of: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            supplier: components["schemas"]["ExpensePartyLink"];
+            totals: {
+                opening_balance: components["schemas"]["ExactDecimal"];
+                invoices: components["schemas"]["ExactDecimal"];
+                payments: components["schemas"]["ExactDecimal"];
+                credits: components["schemas"]["ExactDecimal"];
+                fx_differences: components["schemas"]["ExactDecimal"];
+                returns: components["schemas"]["ExactDecimal"];
+                closing_balance: components["schemas"]["ExactDecimal"];
+            };
+            reconciliation: {
+                supplier_subledger_iqd: components["schemas"]["ExactDecimal"];
+                accounts_payable_iqd: components["schemas"]["ExactDecimal"];
+                difference_iqd: components["schemas"]["ExactDecimal"];
+            };
+            pagination: components["schemas"]["ReportPagination"];
+            data: {
+                /** Format: uuid */
+                id: string;
+                source_type: string;
+                /** Format: uuid */
+                source_id: string;
+                document_number: string;
+                /** Format: date-time */
+                document_date: string;
+                /** Format: date-time */
+                accounting_date: string;
+                currency: string;
+                debit_currency: components["schemas"]["ExactDecimal"];
+                credit_currency: components["schemas"]["ExactDecimal"];
+                debit_iqd: components["schemas"]["ExactDecimal"];
+                credit_iqd: components["schemas"]["ExactDecimal"];
+                drilldown: {
+                    resource: string;
+                    /** Format: uuid */
+                    id: string;
+                };
+            }[];
+        };
+        StockMovementAmounts: {
+            opening_quantity: components["schemas"]["QuantityDecimal"];
+            opening_value_iqd: components["schemas"]["ExactDecimal"];
+            receipts_quantity: components["schemas"]["QuantityDecimal"];
+            receipts_value_iqd: components["schemas"]["ExactDecimal"];
+            sales_quantity: components["schemas"]["QuantityDecimal"];
+            sales_value_iqd: components["schemas"]["ExactDecimal"];
+            returns_quantity: components["schemas"]["QuantityDecimal"];
+            returns_value_iqd: components["schemas"]["ExactDecimal"];
+            transfers_quantity: components["schemas"]["QuantityDecimal"];
+            transfers_value_iqd: components["schemas"]["ExactDecimal"];
+            counts_write_downs_quantity: components["schemas"]["QuantityDecimal"];
+            counts_write_downs_value_iqd: components["schemas"]["ExactDecimal"];
+            closing_quantity: components["schemas"]["QuantityDecimal"];
+            closing_value_iqd: components["schemas"]["ExactDecimal"];
+        };
+        StockMovementReportRow: {
+            /** Format: uuid */
+            variant_id: string;
+            sku: string;
+            product: {
+                name_ar: string;
+                name_en: string;
+            };
+            warehouse: components["schemas"]["ExpensePartyLink"];
+            opening_quantity: components["schemas"]["QuantityDecimal"];
+            opening_value_iqd: components["schemas"]["ExactDecimal"];
+            receipts_quantity: components["schemas"]["QuantityDecimal"];
+            receipts_value_iqd: components["schemas"]["ExactDecimal"];
+            sales_quantity: components["schemas"]["QuantityDecimal"];
+            sales_value_iqd: components["schemas"]["ExactDecimal"];
+            returns_quantity: components["schemas"]["QuantityDecimal"];
+            returns_value_iqd: components["schemas"]["ExactDecimal"];
+            transfers_quantity: components["schemas"]["QuantityDecimal"];
+            transfers_value_iqd: components["schemas"]["ExactDecimal"];
+            counts_write_downs_quantity: components["schemas"]["QuantityDecimal"];
+            counts_write_downs_value_iqd: components["schemas"]["ExactDecimal"];
+            closing_quantity: components["schemas"]["QuantityDecimal"];
+            closing_value_iqd: components["schemas"]["ExactDecimal"];
+            drilldown: {
+                /** @constant */
+                resource: "stock_movements";
+                /** Format: uuid */
+                variant_id: string;
+                /** Format: uuid */
+                warehouse_id: string;
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+            };
+        };
+        StockMovementReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["StockMovementAmounts"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["StockMovementReportRow"][];
+        };
+        ExpensesReportAmounts: {
+            immediate_iqd: components["schemas"]["ExactDecimal"];
+            prepaid_amortisation_iqd: components["schemas"]["ExactDecimal"];
+            corrections_iqd: components["schemas"]["ExactDecimal"];
+            total_iqd: components["schemas"]["ExactDecimal"];
+            document_count: number;
+        };
+        ExpensesReportRow: {
+            group_id: string;
+            name_ar: string;
+            name_en: string;
+            immediate_iqd: components["schemas"]["ExactDecimal"];
+            prepaid_amortisation_iqd: components["schemas"]["ExactDecimal"];
+            corrections_iqd: components["schemas"]["ExactDecimal"];
+            total_iqd: components["schemas"]["ExactDecimal"];
+            document_count: number;
+            drilldown: {
+                /** @constant */
+                resource: "expenses";
+                /** @enum {string} */
+                group_by: "category" | "payee" | "month";
+                group_id: string;
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+            };
+        };
+        ExpensesReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            group_by: "category" | "payee" | "month";
+            /** @constant */
+            currency: "IQD";
+            touches_open_period: boolean;
+            totals: components["schemas"]["ExpensesReportAmounts"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["ExpensesReportRow"][];
+        };
         ReportExportInput: {
             /** @enum {string} */
-            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation" | "purchases" | "supplier_statement" | "stock_movement" | "expenses";
             /** @enum {string} */
             format: "csv" | "xlsx";
             /**
@@ -16816,14 +17458,23 @@ export interface components {
             /** Format: date */
             as_of?: string;
             /** @enum {string} */
-            group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku";
+            group_by?: "day" | "week" | "month" | "department" | "category" | "brand" | "product" | "sku" | "period" | "supplier" | "payee";
             slow_days?: number;
+            /** Format: uuid */
+            supplier_id?: string;
+            /** Format: uuid */
+            variant_id?: string;
+            /** Format: uuid */
+            category_id?: string;
+            /** Format: uuid */
+            warehouse_id?: string;
+            payee?: string;
         };
         ReportExportProgress: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation";
+            report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation" | "purchases" | "supplier_statement" | "stock_movement" | "expenses";
             /** @enum {string} */
             format: "csv" | "xlsx";
             /** @enum {string} */
@@ -16865,7 +17516,7 @@ export interface components {
             refund_days?: number | null;
             /** Format: date */
             policy_effective_date?: string | null;
-            /** @description Existing operational return-window setting; no duplicate policy key is introduced. */
+            /** @description Optional existing return-window setting; null means the owner has not published a value. */
             return_window_days?: number | null;
         };
         ExactDecimal: string | number;
@@ -17618,6 +18269,77 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        OwnerTransactionCreateInput: {
+            /** @enum {string} */
+            kind: "capital_deposit" | "drawing";
+            /** Format: uuid */
+            cash_account_id: string;
+            currency_code: string;
+            amount: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+            reason: string;
+            reference_number?: string;
+        };
+        OwnerTransactionPostInput: {
+            note?: string;
+        };
+        OwnerTransactionReverseInput: {
+            reason: string;
+            /** Format: date */
+            document_date: string;
+            /** Format: date */
+            accounting_date?: string;
+            backdate_reason?: string;
+        };
+        OwnerTransaction: {
+            /** Format: uuid */
+            id: string;
+            document_number: string;
+            /** @enum {string} */
+            status: "draft" | "posted" | "reversed";
+            /** @enum {string} */
+            kind: "capital_deposit" | "drawing";
+            cash_account: components["schemas"]["ExpenseCashAccountLink"];
+            currency_code: string;
+            amount_currency: components["schemas"]["ExactDecimal"];
+            exchange_rate: components["schemas"]["ExactDecimal"];
+            amount_iqd: components["schemas"]["ExactDecimal"];
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            accounting_date: string;
+            backdate_reason: string | null;
+            reason: string;
+            reference_number: string | null;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            posted_by: string | null;
+            /** Format: date-time */
+            posted_at: string | null;
+            /** Format: uuid */
+            reversed_by: string | null;
+            /** Format: date-time */
+            reversed_at: string | null;
+            reversal_reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            poster: components["schemas"]["ExpenseActor"] | null;
+            reverser: components["schemas"]["ExpenseActor"] | null;
+            journal_entry: components["schemas"]["JournalEntry"] | null;
+            reversal_journal_entry: components["schemas"]["JournalEntry"] | null;
+        };
+        OwnerTransactionPage: {
+            data: components["schemas"]["OwnerTransaction"][];
+            pagination: components["schemas"]["ReportPagination"];
+        };
         ExpenseCategoryInput: {
             name_ar: string;
             name_en: string;
@@ -17666,6 +18388,12 @@ export interface components {
             /** @enum {string} */
             payment_mode: "paid_now" | "owed";
             /**
+             * @description Omit for the existing immediate-expense behavior.
+             * @enum {string}
+             */
+            recognition_mode?: "immediate" | "prepaid";
+            prepaid_schedule?: components["schemas"]["PrepaidExpenseScheduleInput"];
+            /**
              * Format: uuid
              * @description Required for paid_now and forbidden for owed.
              */
@@ -17690,6 +18418,9 @@ export interface components {
             currency_code?: string;
             /** @enum {string} */
             payment_mode?: "paid_now" | "owed";
+            /** @enum {string} */
+            recognition_mode?: "immediate" | "prepaid";
+            prepaid_schedule?: components["schemas"]["PrepaidExpenseScheduleInput"] | null;
             /**
              * Format: uuid
              * @description Required for paid_now and forbidden for owed.
@@ -17716,6 +18447,11 @@ export interface components {
             suppliers: components["schemas"]["ExpensePartyLink"][];
             rate_preview: components["schemas"]["ExpenseRatePreview"];
             backdating_window_days: number;
+        };
+        PrepaidExpenseScheduleInput: {
+            /** Format: date */
+            start_date: string;
+            periods: number;
         };
         ExpenseFormCurrencyOption: {
             code: string;
@@ -17877,6 +18613,8 @@ export interface components {
             balance_iqd: number | null;
             /** @enum {string} */
             payment_mode: "paid_now" | "owed";
+            /** @enum {string} */
+            recognition_mode: "immediate" | "prepaid";
             cash_account: components["schemas"]["ExpenseCashAccountLink"] | null;
             supplier: components["schemas"]["ExpensePartyLink"] | null;
             payee: string | null;
@@ -17903,6 +18641,48 @@ export interface components {
             journal_entry: components["schemas"]["JournalEntry"] | null;
             payments: components["schemas"]["ExpensePayment"][];
             corrections: components["schemas"]["ExpenseCorrection"][];
+            prepaid_schedule: components["schemas"]["PrepaidExpenseSchedule"] | null;
+        };
+        PrepaidExpenseScheduleInstallment: {
+            /** Format: uuid */
+            id: string;
+            sequence: number;
+            /** Format: date-time */
+            scheduled_date: string;
+            amount_iqd: number;
+            /** @enum {string} */
+            status: "pending" | "posted" | "blocked" | "cancelled";
+            /** Format: date-time */
+            posted_at: string | null;
+            last_error: string | null;
+            journal_entry: components["schemas"]["JournalEntry"] | null;
+        };
+        PrepaidExpenseSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "active" | "blocked" | "completed" | "cancelled" | "reversed";
+            /** Format: date-time */
+            start_date: string;
+            periods: number;
+            amount_iqd: number;
+            recognized_iqd: number;
+            cancelled_iqd: number;
+            /** Format: uuid */
+            created_by: string;
+            /** Format: uuid */
+            cancelled_by: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+            cancel_reason: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            creator: components["schemas"]["ExpenseActor"];
+            canceller: components["schemas"]["ExpenseActor"] | null;
+            cancellation_journal_entry: components["schemas"]["JournalEntry"] | null;
+            installments: components["schemas"]["PrepaidExpenseScheduleInstallment"][];
         };
         ExpenseSummary: {
             /** Format: uuid */
@@ -17918,6 +18698,8 @@ export interface components {
             currency_code: string;
             /** @enum {string} */
             payment_mode: "paid_now" | "owed";
+            /** @enum {string} */
+            recognition_mode: "immediate" | "prepaid";
             payee: string | null;
             supplier: components["schemas"]["ExpensePartyLink"] | null;
             cash_account: components["schemas"]["ExpenseCashAccountSummary"] | null;

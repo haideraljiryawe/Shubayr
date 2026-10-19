@@ -224,9 +224,14 @@ export class ReportsPart3Service {
         SELECT COALESCE(SUM(jl.credit_base-jl.debit_base),0) amount
         FROM journal_entries je JOIN journal_lines jl ON jl.entry_id=je.id
         JOIN ledger_accounts account ON account.id=jl.account_id AND account.code='2000'
-        WHERE je.accounting_date<=${asOf} AND je.source_id IN (
-          SELECT source_id FROM supplier_account_entries
-          WHERE supplier_id=${query.supplier_id}::uuid AND accounting_date<=${asOf}
+        WHERE je.accounting_date<=${asOf} AND (
+          je.source_id IN (
+            SELECT source_id FROM supplier_account_entries
+            WHERE supplier_id=${query.supplier_id}::uuid AND accounting_date<=${asOf}
+          ) OR je.source_id IN (
+            SELECT id FROM supplier_payments
+            WHERE supplier_id=${query.supplier_id}::uuid AND accounting_date<=${asOf}
+          )
         )`),
     ]);
     const totals = summary[0];
@@ -411,14 +416,17 @@ export class ReportsPart3Service {
           COALESCE(direct.id,scheduled.id,corrected.id) expense_id,
           COALESCE(direct.payee,scheduled.payee,corrected.payee,'') payee
         FROM journal_entries je JOIN journal_lines jl ON jl.entry_id=je.id
-        JOIN expense_categories ec ON ec.ledger_account_id=jl.account_id
         LEFT JOIN expenses direct ON je.source_type='expense' AND direct.id=je.source_id
         LEFT JOIN expense_schedule_installments installment ON installment.journal_entry_id=je.id
         LEFT JOIN expense_schedules schedule ON schedule.id=installment.schedule_id
         LEFT JOIN expenses scheduled ON scheduled.id=schedule.expense_id
-        LEFT JOIN expense_correction_postings posting ON posting.reversal_journal_entry_id=je.id
+        LEFT JOIN expense_correction_postings posting
+          ON posting.reversal_journal_entry_id=je.id AND posting.role='expense'
         LEFT JOIN expense_corrections correction ON correction.id=posting.correction_id
         LEFT JOIN expenses corrected ON corrected.id=correction.expense_id
+        JOIN expense_categories ec
+          ON ec.id=COALESCE(direct.category_id,scheduled.category_id,corrected.category_id)
+         AND ec.ledger_account_id=jl.account_id
         WHERE je.accounting_date BETWEEN ${range.from} AND ${range.to}
           AND COALESCE(direct.id,scheduled.id,corrected.id) IS NOT NULL
           AND (${query.category_id ?? null}::uuid IS NULL OR ec.id=${query.category_id ?? null}::uuid)
