@@ -240,6 +240,19 @@ export class OrdersService {
         old_price_version: string;
         new_price_version: string;
       }> = [];
+      const cartQuantityByProduct = new Map<string, number>();
+      for (const item of cart.items) {
+        cartQuantityByProduct.set(
+          item.product_id,
+          Number(
+            (
+              (cartQuantityByProduct.get(item.product_id) ?? 0) +
+              Number(item.quantity)
+            ).toFixed(3),
+          ),
+        );
+      }
+      const checkedProductLimits = new Set<string>();
       for (const item of cart.items) {
         const requestedQuantity = Number(item.quantity);
         if (
@@ -271,6 +284,28 @@ export class OrdersService {
             'CART_PRODUCT_UNAVAILABLE',
             'A cart product is unavailable',
           );
+        if (
+          !checkedProductLimits.has(product.id) &&
+          product.purchase_limit_enabled &&
+          product.purchase_limit_max_quantity !== null
+        ) {
+          const requested = cartQuantityByProduct.get(product.id) ?? 0;
+          const allowed = Number(product.purchase_limit_max_quantity);
+          if (requested > allowed) {
+            throw new ConflictException({
+              status: 409,
+              code: 'PRODUCT_ORDER_LIMIT_EXCEEDED',
+              message: 'Requested quantity exceeds this product order limit',
+              errors: [],
+              details: {
+                product_id: product.id,
+                allowed_quantity: allowed,
+                requested_quantity: requested,
+              },
+            });
+          }
+          checkedProductLimits.add(product.id);
+        }
         const variant = item.variant_id
           ? product.variants.find((entry) => entry.id === item.variant_id)
           : null;

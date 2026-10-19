@@ -273,23 +273,39 @@ export class MediaService {
   async remove(id: string): Promise<void> {
     const media = await this.prisma.mediaObject.findUnique({ where: { id } });
     if (!media) throw new NotFoundException('Media not found');
-    const [category, productImage, banner] = await this.prisma.$transaction([
-      this.prisma.category.findFirst({
-        where: { image_url: media.public_url },
-      }),
-      this.prisma.productImage.findFirst({
-        where: { url: media.public_url },
-      }),
-      this.prisma.banner.findFirst({
-        where: { image_url: media.public_url },
-      }),
-    ]);
-    const expense = this.prisma.expense
-      ? await this.prisma.expense.findFirst({ where: { receipt_media_id: id } })
-      : null;
-    if (category || productImage || banner || expense) {
+    const [category, productImage, brand, banner, orderItem, setting, expense] =
+      await this.prisma.$transaction([
+        this.prisma.category.findFirst({
+          where: { image_url: media.public_url },
+        }),
+        this.prisma.productImage.findFirst({
+          where: { url: media.public_url },
+        }),
+        this.prisma.brand.findFirst({
+          where: { logo_url: media.public_url },
+        }),
+        this.prisma.banner.findFirst({
+          where: { image_url: media.public_url },
+        }),
+        this.prisma.orderItem.findFirst({
+          where: { image_url: media.public_url },
+        }),
+        this.prisma.storeSetting.findFirst({
+          where: { key: 'logo_url', value: media.public_url },
+        }),
+        this.prisma.expense.findFirst({ where: { receipt_media_id: id } }),
+      ]);
+    if (
+      category ||
+      productImage ||
+      brand ||
+      banner ||
+      orderItem ||
+      setting ||
+      expense
+    ) {
       throw new ConflictException(
-        'Media is still associated with catalog data',
+        'Media is still associated with application data',
       );
     }
     await this.prisma.mediaObject.delete({ where: { id } });

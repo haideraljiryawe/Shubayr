@@ -259,6 +259,9 @@ async function main(): Promise<void> {
     ['logo_url', ''],
     ['sale_rounding_multiple', '0'],
     ['separation_of_duties_level', 'standard'],
+    ['recently_added_enabled', 'false'],
+    ['recently_added_max_count', '10'],
+    ['recently_added_window_days', '30'],
   ] as const) {
     await prisma.storeSetting.upsert({
       where: { key },

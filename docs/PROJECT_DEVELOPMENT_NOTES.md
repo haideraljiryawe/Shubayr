@@ -2,7 +2,7 @@
 
 **Status:** Draft / Pending Team Review — not final. Completed Flutter work was separately authorized; remaining requirements and recommendations are pending review.
 **Created:** 2026-10-18
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-19
 **Primary audience:** Backend, Web Admin, Web Store, and Flutter teams.
 
 ## Executive summary — team review handoff
@@ -15,8 +15,8 @@ Priorities below are a proposed implementation order, not new requirements or re
 
 | Owner | Remaining work | Priority and dependency |
 |---|---|---|
-| Backend/API | Define account-persistent order/notification hiding, ownership, terminal/after-sales eligibility, bulk scope and badge behavior (NOTE-005). Define and enforce product purchase quotas atomically across orders/devices, including returns/cancellation policy (NOTE-011). | P1; Backend contract and agreed policies first, then Flutter; quota controls also require Web Admin and Web Store integration. No local-only substitute. |
-| Backend/API | Add managed Recently Added configuration and public creation-window/sellable-availability selection before limiting results (NOTE-004). Agree banner action types, managed defaults, text visibility/localization, and any justified artwork variants (NOTE-001). Existing banner CRUD, scheduling, and upload already work. | P2; new feed/settings and banner semantics precede dependent client features. Existing-API Admin editor work can proceed independently. |
+| Backend/API | Define account-persistent order/notification hiding, ownership, terminal/after-sales eligibility, bulk scope and badge behavior (NOTE-005). The per-order portion of NOTE-011 is delivered in contract 17.7.0; rolling quotas remain deferred. | P1; Backend contract and agreed policies first, then clients. No local-only substitute. |
+| Backend/API | NOTE-001 structured banners/default composition and NOTE-004 managed Recently Added selection are delivered in contract 17.7.0. Platform-specific artwork variants remain intentionally excluded. | Client teams may now adopt the additive contract; existing banner CRUD/media are reused. |
 | Backend/API | Add country-aware validation with safe legacy-identity handling (NOTE-007). Supply more specific documented error codes only where current codes cannot express actionable business failures (NOTE-012). | P1 review; neither blocks current Flutter phone input nor ordinary web error localization. No account rewrite or new localization API is implied. |
 | Backend/API | Delivery summaries/search, invoice/payment/remaining-collection semantics, governorate/contact semantics, and action eligibility (NOTE-002). | P1 correctness **if the future delivery add-on is approved**; release scope must be resolved first. Existing `amount_due` is not a remaining balance. |
 | Web Admin | Add category description fields and soft editorial guidance/previews (NOTE-003/008); upload/crop/preview/replace/remove category images (NOTE-006). | P2; existing category/media API is sufficient. Treat NOTE-003/008 as one editor task. No current category icon picker was found to remove. |
@@ -32,14 +32,14 @@ Priorities below are a proposed implementation order, not new requirements or re
 - **NOTE-003/006/008:** real category descriptions, two-line responsive presentation, API images across category levels and Flutter category-icon cleanup are implemented. Admin description/image editing and editorial previews remain pending. Legacy `icon_key` storage/serialization is retained safely.
 - **NOTE-007:** integrated international phone input, country-aware E.164 conversion, centralized readable LTR display, primary/alternate address contact handling and shared form/helper/radio spacing are implemented. Locale-aligned phone labels are fixed. The typography audit found no unintended Arabic/English size mismatch; no blanket English enlargement was made.
 - **NOTE-010:** the Flutter bulk-read action uses the existing persistent account-wide API and refreshes inbox/badges. Web Admin/Web Store already support bulk read. This is complete current-API work, **not** the hiding feature in NOTE-005.
-- **NOTE-001/004/005/009/011/012:** their requested new capabilities remain pending except for existing facilities explicitly listed in each baseline. Existing banner scheduling, catalog sorting, media upload, fonts/assets, and localization infrastructure must be reused rather than rebuilt.
+- **NOTE-001/004/011:** the additive Backend/API contract is delivered in 17.7.0; Web Admin/Web Store/Flutter adoption remains. NOTE-011 rolling-window quotas are deferred. **NOTE-005/009/012** remain pending as described below.
 - The same handoff also preserves the previously authorized API 17.4.0 Flutter migration: Returns v2 statuses/detail/reason codes and durable operation identifiers, order/pricing/discount presentation, store information and notification destinations. These compatibility changes are not additional numbered requirements.
 
 **Overlap resolution:** NOTE-003 owns category description editing/display; NOTE-008 adds soft editorial guidance to that same editor. Its proposed 24-character name/60-character description guidance supersedes the earlier six-word/36-character helper as an editorial recommendation, not a storage limit. NOTE-006 owns category artwork, while NOTE-001 owns banner artwork. NOTE-007 defines phone behavior and NOTE-012 defines web localization; share their controls/error translations. NOTE-009 changes Web Store typography only; NOTE-012 does not implicitly authorize a Web Admin font replacement.
 
 **Release-scope decision:** `docs/decisions/2026-10-12.md` and `2026-10-17.md` defer the delivery-agent application to a future add-on. NOTE-002 preserves the owner's subsequently authorized Flutter work and findings, but does not silently amend those product decisions or approve a delivery-app release. The team/owner must reconcile the release scope before scheduling its remaining Backend work. No agent-wage feature is added here.
 
-**Other decisions still open:** banner artwork/default selection/localization/failure policy; Recently Added window/count/defaults; hiding eligibility/restore/bulk and badge semantics; quota counting/window/returns/guest policy; category artwork targets and whether variants are justified; and web official-branding/configuration precedence. Keep the proposals in their notes as proposals until agreed.
+**Other decisions still open:** hiding eligibility/restore/bulk and badge semantics; rolling-quota counting/window/returns policy; category artwork targets and whether variants are justified; and web official-branding/configuration precedence. Contract 17.7.0 resolves the launch banner, Recently Added and per-order-only choices without approving rolling quotas or platform artwork variants.
 
 ### Verification and handoff limits
 
@@ -64,20 +64,29 @@ This document is the ongoing collection of the project owner's development notes
 
 | ID | Subject | Status |
 |---|---|---|
-| NOTE-001 | Home Page Banner Management | Draft requirements; design decisions pending |
+| NOTE-001 | Home Page Banner Management | Backend/API contract delivered in 17.7.0; client UI adoption pending |
 | NOTE-002 | Delivery Agent – Order Management Improvements | Current-API Flutter improvements implemented; Backend/API pending; future-add-on release scope needs agreement |
 | NOTE-003 | Main Categories – Description | Flutter display implemented; Web Admin editing required; see NOTE-008 |
-| NOTE-004 | Recently Added Products | Draft; existing catalog reads reusable, Backend/API settings and filtering required |
+| NOTE-004 | Recently Added Products | Backend/API contract delivered in 17.7.0; Admin/Flutter adoption pending |
 | NOTE-005 | Customer Order History and Notifications – Hide Functionality | Draft; account-level Backend/API support required before client implementation |
 | NOTE-006 | Category Images and Icon System Migration | Current-API Flutter migration implemented; Web Admin image workflow and editorial decisions pending |
 | NOTE-007 | International Phone Input, OTP Display, and Delivery Contacts | Flutter implemented; deeper Backend validation and web input alignment pending |
 | NOTE-008 | Category Name and Description Editorial Guidance | Flutter display supported; Web Admin soft guidance/preview required |
 | NOTE-009 | Zain Font for Web Store | Asset review complete; Web Store implementation pending |
 | NOTE-010 | Mark All Notifications as Read | Flutter implemented using existing bulk API |
-| NOTE-011 | Product Purchase Quantity Limits | Backend/API and Web Admin requirements; policy decisions pending |
+| NOTE-011 | Product Purchase Quantity Limits | Per-order Backend/API delivered in 17.7.0; client adoption pending; rolling quota deferred |
 | NOTE-012 | Web Applications – Branding and Localization Improvements | Source audit complete; Web Admin/Web Store requirements; conditional Backend error-code follow-up |
 
 ## NOTE-001 — Home Page Banner Management
+
+**Implementation update (2026-10-19):** contract 17.7.0 delivers the additive
+Backend/API portion: bilingual text with server fallback, `show_text`, internal
+names, structured actions, resolved target availability, prioritized protected
+defaults, 0/1/2+ feed composition, computed status and atomic full reorder.
+Legacy fields remain. Single-boundary schedules remain valid. A failed feed is
+not treated as an empty feed; clients must not fabricate or revive expired
+campaigns. A failed image may be omitted while the rest of Home remains usable.
+Client screens/artwork are separate follow-up work.
 
 ### 1. Objective and scope
 
@@ -429,6 +438,12 @@ Show a localized description below each main category name in Flutter, using the
 
 ## NOTE-004 — Recently Added Products
 
+**Implementation update (2026-10-19):** contract 17.7.0 delivers managed
+enabled/max-count/rolling-day settings and `GET /products/recently-added`.
+Defaults are disabled/10/30 with bounds 1–50 and 1–365 days. The server filters
+positive sellable availability before the cap and pagination and orders by
+stored `created_at DESC, id DESC`. Client UI remains follow-up work.
+
 ### 1. Objective and verified baseline
 
 Add a Recently Added section to Flutter Home, controlled by the store administrator. Product creation time determines recency; a later edit, price change, or republication must not make an old product newly created.
@@ -723,6 +738,13 @@ Automated coverage checks the request method/path/body, coalescing, failure reco
 
 ## NOTE-011 — Product Purchase Quantity Limits
 
+**Implementation update (2026-10-19):** contract 17.7.0 delivers the agreed
+per-order-only policy. It sums every variant/line for the product, enforces the
+maximum under cart and checkout locks, preserves idempotent replays, exposes the
+policy on product reads and returns `PRODUCT_ORDER_LIMIT_EXCEEDED` with product,
+allowed and requested quantities. The suggested 10 is editor-only. Rolling
+quotas and their cancellation/return policy remain deferred after launch.
+
 ### Verified current behavior
 
 The current API, product schemas, Backend and Web Admin product editor do not expose per-product purchase-limit settings or per-customer rolling-window usage. The existing cart rules enforce quantity precision up to 0.001, `whole_units_only`, sellable stock and a general maximum of **99 per cart line**. Coupon usage restrictions and stock reservations have different purposes; they are not customer purchase quotas. Flutter already respects these supported quantity/stock rules. No arbitrary limit of 10 was introduced.
@@ -836,3 +858,4 @@ States below describe each historical step; the executive summary records the cu
 | 2026-10-18 | Added NOTE-007–011 after current API, Flutter, Backend, Web Admin and Web Store review. Implemented shared international phone input, LTR OTP display and existing bulk notification read in Flutter; documented other-team requirements and open policy decisions. | Working draft; changes uncommitted; no Backend/Admin/Web Store changes. |
 | 2026-10-18 | Added NOTE-012 after reviewing Web Admin/Web Store login branding, official artwork, browser metadata, translation catalogs, locale switching and error presentation. Distinguished existing localization from raw-message and branding gaps; assigned implementation ownership. | Working draft; documentation only; no application or asset changes. |
 | 2026-10-18 | Reconciled all 12 notes against current code and API 17.4.0, added team ownership/priorities/dependencies, corrected superseded category and notification findings, recorded phone direction/radio/typography completion, and flagged delivery add-on release scope without removing requirements. | Draft / Pending Team Review; owner-authorized mobile handoff; remaining requirements unapproved. |
+| 2026-10-19 | Delivered the additive 17.7.0 Backend/API contract for NOTE-001 structured/default banners, NOTE-004 Recently Added, and NOTE-011 per-order limits; documented compatibility and deferred rolling quotas/client adoption. | Backend complete for C16; client UI work remains. |

@@ -242,6 +242,7 @@ try {
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   await run('test/c13-settings.acceptance.mjs', [], acceptanceEnv);
+  await run('test/notes-contract-c16.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
   // Reports seed 20,001 immutable posted order lines across three months and

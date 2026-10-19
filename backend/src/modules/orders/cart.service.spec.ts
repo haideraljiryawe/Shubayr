@@ -279,6 +279,63 @@ describe('CartService', () => {
     expect(tx.cartItem.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a product limit using the sum already present across variants', async () => {
+    const tx = {
+      $queryRaw: jest.fn(),
+      cartItem: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { quantity: 2 } }),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+    };
+    const prisma = {
+      cart: { upsert: jest.fn().mockResolvedValue({ id: 'cart-1' }) },
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const products = {
+      getPublic: jest.fn().mockResolvedValue({
+        ...product,
+        purchase_limit_enabled: true,
+        purchase_limit_max_quantity: 3,
+        variants: [
+          {
+            id: 'variant-1',
+            effective_price: 1000,
+            whole_units_only: true,
+          },
+        ],
+      }),
+      availability: jest.fn().mockResolvedValue({
+        variants: [{ variant_id: 'variant-1', available_qty: 20 }],
+      }),
+    };
+    const service = new CartService(
+      prisma as never,
+      products as never,
+      pricing() as never,
+    );
+
+    await expect(
+      service.add('user-1', {
+        product_id: 'product-1',
+        variant_id: 'variant-1',
+        quantity: 2,
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'PRODUCT_ORDER_LIMIT_EXCEEDED',
+        details: {
+          product_id: 'product-1',
+          allowed_quantity: 3,
+          requested_quantity: 4,
+        },
+      },
+    });
+    expect(tx.cartItem.create).not.toHaveBeenCalled();
+  });
+
   it('scopes deletion to the authenticated owner', async () => {
     const prisma = {
       cartItem: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },

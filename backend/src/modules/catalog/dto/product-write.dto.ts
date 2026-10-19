@@ -5,6 +5,7 @@ import {
   IsDate,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -169,6 +170,15 @@ export class ProductWriteDto extends BilingualNameDto {
   @IsDefinedIfPresent()
   @IsBoolean()
   tracks_expiry?: boolean;
+
+  @IsDefinedIfPresent()
+  @IsBoolean()
+  purchase_limit_enabled?: boolean;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  purchase_limit_max_quantity?: number | null;
 
   @IsDefinedIfPresent()
   @IsIn(['active', 'hidden', 'archived'])

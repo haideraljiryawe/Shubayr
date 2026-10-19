@@ -68,6 +68,19 @@ describe('CategoriesService', () => {
     const result = await service.list({}, true);
     expect(result.map(({ id }) => id)).toEqual(['root-visible', 'root-hidden']);
     expect(result[1].children.map(({ id }) => id)).toEqual(['child-visible']);
+    expect(result[0].description_ar).toBeNull();
+  });
+
+  it('keeps public description fallback while admin reads stay raw', async () => {
+    const service = new CategoriesService(
+      { category: { findMany: jest.fn().mockResolvedValue(rows) } } as never,
+      {} as never,
+      {} as never,
+    );
+    const [publicCategory] = await service.list({}, false);
+    const [adminCategory] = await service.list({}, true);
+    expect(publicCategory.description_ar).toBe('Visible description');
+    expect(adminCategory.description_ar).toBeNull();
   });
 
   it('rejects reparenting a category below its descendant', async () => {
@@ -89,6 +102,7 @@ describe('CategoriesService', () => {
         count: jest.fn().mockResolvedValue(0),
       },
       product: { count: jest.fn().mockResolvedValue(1) },
+      banner: { count: jest.fn().mockResolvedValue(0) },
       $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
         Promise.all(operations),
       ),

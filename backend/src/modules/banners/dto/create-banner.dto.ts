@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsISO8601,
   IsNotEmpty,
@@ -10,6 +11,7 @@ import {
   MaxLength,
   Matches,
   Min,
+  IsUUID,
 } from 'class-validator';
 
 const emptyToNull = ({ value }: { value: unknown }): unknown =>
@@ -25,7 +27,35 @@ export class CreateBannerDto {
   @IsOptional()
   @Transform(emptyToNull)
   @IsString()
+  @MaxLength(200)
+  internal_name?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
+  @MaxLength(200)
+  title_ar?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
+  @MaxLength(200)
+  title_en?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
   subtitle?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
+  subtitle_ar?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
+  subtitle_en?: string | null;
 
   @IsUrl({
     protocols: ['http', 'https'],
@@ -42,12 +72,46 @@ export class CreateBannerDto {
 
   @IsOptional()
   @Transform(emptyToNull)
+  @IsString()
+  @MaxLength(120)
+  cta_label_ar?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsString()
+  @MaxLength(120)
+  cta_label_en?: string | null;
+
+  @IsOptional()
+  @Transform(emptyToNull)
   @IsUrl({
     protocols: ['http', 'https'],
     require_protocol: true,
     require_tld: false,
   })
   link_url?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  show_text?: boolean;
+
+  @IsOptional()
+  @IsIn(['none', 'url', 'product', 'category', 'offers'])
+  action_type?: 'none' | 'url' | 'product' | 'category' | 'offers';
+
+  @IsOptional()
+  @Transform(emptyToNull)
+  @IsUUID()
+  action_target_id?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  is_default?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  default_priority?: number;
 
   @IsOptional()
   @IsInt()

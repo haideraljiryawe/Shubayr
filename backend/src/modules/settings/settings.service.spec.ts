@@ -31,6 +31,9 @@ describe('SettingsService public settings', () => {
       refund_days: null,
       policy_effective_date: null,
       return_window_days: null,
+      recently_added_enabled: false,
+      recently_added_max_count: 10,
+      recently_added_window_days: 30,
     });
     expect(findMany).toHaveBeenCalledWith({
       where: {
@@ -43,6 +46,9 @@ describe('SettingsService public settings', () => {
             'refund_days',
             'policy_effective_date',
             'return_window_days',
+            'recently_added_enabled',
+            'recently_added_max_count',
+            'recently_added_window_days',
           ]) as string[],
         },
       },

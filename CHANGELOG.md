@@ -1,5 +1,27 @@
 # Changelog
 
+## 17.7.0 - 2026-10-19
+
+### Added
+
+- Backward-compatible structured banner actions, bilingual display copy,
+  image-only presentation, server-computed status, atomic ordering and managed
+  default-feed composition.
+- Managed Recently Added settings and a public, server-filtered feed that
+  applies rolling recency and sellable-stock eligibility before its configured
+  maximum and pagination.
+- Optional per-product, per-order quantity limits across every SKU/line, with
+  atomic cart and checkout enforcement and structured refusal quantities.
+
+### Changed
+
+- Admin category reads preserve stored description translations while public
+  reads retain language fallback.
+- Orphan media can be removed after a failed save; every known live catalog,
+  order, setting or expense reference protects the object from deletion.
+- The API contract is version 17.7.0. All public/mobile changes are additive;
+  legacy banner text and `link_url` fields remain supported.
+
 ## 17.6.0 - 2026-10-19
 
 ### Added

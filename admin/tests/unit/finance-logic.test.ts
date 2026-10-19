@@ -31,6 +31,9 @@ const SETTINGS: AdminSettings = {
     backdating_window_days: "90",
     markup_alert_percent: null,
     separation_of_duties_level: "standard",
+    recently_added_enabled: "false",
+    recently_added_max_count: "10",
+    recently_added_window_days: "30",
   },
   business_hours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
     weekday,

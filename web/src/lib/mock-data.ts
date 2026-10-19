@@ -38,6 +38,9 @@ export const mockSettings: StoreSettings = {
   return_window_days: 14,
   refund_days: 5,
   policy_effective_date: "2026-10-17",
+  recently_added_enabled: false,
+  recently_added_max_count: 10,
+  recently_added_window_days: 30,
 };
 
 /**

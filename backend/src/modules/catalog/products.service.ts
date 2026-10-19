@@ -7,10 +7,14 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { conflict } from '../../common/http/api-error';
+import { conflict, invalid } from '../../common/http/api-error';
 import { AuditService } from '../audit/audit.service';
 import { MediaService } from '../media/media.service';
-import { AdminProductQueryDto, ProductQueryDto } from './dto/catalog-query.dto';
+import {
+  AdminProductQueryDto,
+  ProductQueryDto,
+  RecentlyAddedQueryDto,
+} from './dto/catalog-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import {
   ProductMediaOperationDto,
@@ -86,6 +90,96 @@ export class ProductsService {
 
   listAdmin(query: AdminProductQueryDto) {
     return this.listAdminPaged(query);
+  }
+
+  async listRecentlyAdded(query: RecentlyAddedQueryDto, at = new Date()) {
+    const settingRows = await this.prisma.storeSetting.findMany({
+      where: {
+        key: {
+          in: [
+            'recently_added_enabled',
+            'recently_added_max_count',
+            'recently_added_window_days',
+          ],
+        },
+      },
+      select: { key: true, value: true },
+    });
+    const settings = new Map(
+      settingRows.map(({ key, value }) => [key, value ?? '']),
+    );
+    const page = query.page ?? 1;
+    const configuredMax = Math.min(
+      50,
+      Math.max(1, Number(settings.get('recently_added_max_count')) || 10),
+    );
+    const per_page = Math.min(query.per_page ?? configuredMax, configuredMax);
+    if (settings.get('recently_added_enabled') !== 'true') {
+      return { page, per_page, total: 0, data: [], facets: { brands: [] } };
+    }
+    const windowDays = Math.min(
+      365,
+      Math.max(1, Number(settings.get('recently_added_window_days')) || 30),
+    );
+    const cutoff = new Date(at.getTime() - windowDays * 86_400_000);
+    const offset = (page - 1) * per_page;
+    const limit = Math.max(0, Math.min(per_page, configuredMax - offset));
+    const stockDate = businessDate(at);
+    const eligible = Prisma.sql`
+      FROM products p
+      JOIN categories c ON c.id = p.category_id
+      LEFT JOIN categories parent ON parent.id = c.parent_id
+      WHERE p.status = 'active'
+        AND p.published_at IS NOT NULL
+        AND p.created_at >= ${cutoff}
+        AND c.is_visible = TRUE
+        AND (parent.id IS NULL OR parent.is_visible = TRUE)
+        AND EXISTS (
+          SELECT 1
+          FROM product_variants pv
+          JOIN inventory_batches ib ON ib.variant_id = pv.id
+          JOIN batch_stock bs ON bs.batch_id = ib.id
+          JOIN warehouse_locations wl ON wl.id = bs.location_id
+          JOIN warehouses w ON w.id = wl.warehouse_id
+          WHERE pv.product_id = p.id
+            AND (ib.expiry_date IS NULL OR ib.expiry_date >= ${stockDate})
+            AND wl.is_active = TRUE
+            AND wl.is_sellable = TRUE
+            AND w.is_active = TRUE
+          GROUP BY pv.product_id
+          HAVING SUM(bs.quantity - bs.reserved) > 0
+        )`;
+    const [countRows, idRows] = await this.prisma.$transaction([
+      this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+        SELECT LEAST(COUNT(*), ${configuredMax})::bigint AS total
+        ${eligible}`),
+      this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT p.id
+        ${eligible}
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT ${limit} OFFSET ${offset}`),
+    ]);
+    const ids = idRows.map(({ id }) => id);
+    const rows = ids.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: ids } },
+          include: productInclude,
+        })
+      : [];
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const data = await Promise.all(
+      ids.flatMap((id) => {
+        const row = byId.get(id);
+        return row ? [this.toResponse(row, at)] : [];
+      }),
+    );
+    return {
+      page,
+      per_page,
+      total: Number(countRows[0]?.total ?? 0),
+      data,
+      facets: { brands: [] },
+    };
   }
 
   async bulk(
@@ -252,6 +346,7 @@ export class ProductsService {
     await this.validateManagedUrls((input.images ?? []).map(({ url }) => url));
     await this.ensureSkusAvailable(input.variants ?? []);
     this.validatePricing(input);
+    this.validatePurchaseLimit(input);
     if (!input.variants?.length) {
       throw new UnprocessableEntityException({
         status: 422,
@@ -380,6 +475,7 @@ export class ProductsService {
 
     const mergedPricing = mergeProductPricingPatch(current, input);
     this.validatePricing(mergedPricing);
+    this.validatePurchaseLimit(input, current);
     const data = this.productPatchData(input);
     const productPrice = input.price ?? Number(current.price);
     const preparedVariants = input.variants
@@ -1113,6 +1209,10 @@ export class ProductsService {
       discount_value:
         product.discount_value === null ? null : Number(product.discount_value),
       rating_avg: Number(product.rating_avg),
+      purchase_limit_max_quantity:
+        product.purchase_limit_max_quantity === null
+          ? null
+          : Number(product.purchase_limit_max_quantity),
       ...productPricing,
       effective_price: effectivePrices.length
         ? Math.min(...effectivePrices)
@@ -1544,6 +1644,8 @@ export class ProductsService {
       'discount_starts_at',
       'discount_ends_at',
       'tracks_expiry',
+      'purchase_limit_enabled',
+      'purchase_limit_max_quantity',
       'status',
     ] as const;
     const data: Record<string, unknown> = {};
@@ -1561,6 +1663,30 @@ export class ProductsService {
     }
     if (input.price !== undefined) data.price_approved_at = new Date();
     return data;
+  }
+
+  private validatePurchaseLimit(
+    input: {
+      purchase_limit_enabled?: boolean;
+      purchase_limit_max_quantity?: number | null;
+    },
+    current?: {
+      purchase_limit_enabled: boolean;
+      purchase_limit_max_quantity: Prisma.Decimal | null;
+    },
+  ) {
+    const enabled =
+      input.purchase_limit_enabled ?? current?.purchase_limit_enabled ?? false;
+    const maximum =
+      input.purchase_limit_max_quantity === undefined
+        ? current?.purchase_limit_max_quantity
+        : input.purchase_limit_max_quantity;
+    if (enabled && (maximum === null || maximum === undefined)) {
+      throw invalid(
+        'PRODUCT_PURCHASE_LIMIT_REQUIRED',
+        'An enabled purchase limit requires purchase_limit_max_quantity',
+      );
+    }
   }
 
   private variantRegularPrice(
