@@ -8,9 +8,9 @@ commit messages in English.
 
 ## Scope and decisions
 
-- Authorized repository collaborators may request and perform Mobile changes
-  through Codex. Approval is not reserved to any named developer; task-specific
-  Git approvals follow the rules below.
+- Flutter is maintained by Ahmed on `main`. Agents edit `mobile/` only when
+  Ahmed explicitly requests the task, as required by root `AGENTS.md`. Follow
+  the shared short-lived-branch and Pull Request workflow below.
 - Work inside `mobile/`; changes outside it require authorization from the
   responsible project owner. Read the authoritative API contract as described
   below; never silently edit Backend, Web Admin, web or API contracts. Those are
@@ -272,36 +272,36 @@ ApiClient**. Features stay shallow; introduce only the types/layers they need.
 
 ## Git and handoff
 
-- The standing Flutter/Mobile policy in root `AGENTS.md` takes precedence over
-  conflicting general Git/handoff rules. `mobile` is the default branch for all
-  Flutter tasks. Make requested edits directly in the collaborator's existing
-  checkout and leave them there for the requesting team member to run and inspect.
-- Do not create a branch, clone, worktree or PR without an explicit request from
-  the requesting authorized team member.
-  Do not use isolation as an automatic safety workaround. The workflow used
-  for PR #99 is not the default for Mobile.
-- Do not switch to or work on `main` unless explicitly requested. If the checkout
-  is on another branch, stop and ask before switching or starting edits.
-- Check for conflicting uncommitted changes, unfinished merge/rebase operations,
-  Git conflicts and any other risk to existing work before editing. If unsafe,
-  stop, explain the issue briefly and wait for the requesting team member's
-  decision. Preserve unrelated local changes and never overwrite another
-  developer's work. Do not create a branch/worktree or move, stash or discard
-  work to bypass the issue.
-- At task start and before committing/pushing, `git fetch origin main` and inspect
-  `git log mobile..origin/main`. Report new team changes and their relevance to
-  Mobile/contracts. A failed fetch is an incomplete check, not proof of currency.
-- Do not merge, squash or rebase without explicit approval from the requesting
-  authorized team member; cherry-picking main also requires authorization.
-  Never force-push without explicit authorization for that action. Respect
-  GitHub repository permissions and branch protection rules; task approval does
-  not authorize bypassing them. Root/team history does not authorize changing
-  another independently owned project.
-- Present changes and verification for review and leave edits uncommitted unless
-  the requesting authorized team member explicitly requests a commit or a clear
-  earlier instruction for the current task already requires one. That team member
-  may authorize commits and pushes for their own task. Implementation approval
-  alone does not authorize committing or pushing. Push only with explicit
-  authorization for the task, and include only task files in any authorized commit.
-- End with a concise report of changes, evidence and actual limitations in the
-  requesting team member's preferred language.
+- Root `AGENTS.md` defines the shared workflow for every project, including
+  Flutter. Since merge `46a80e9`, `mobile/` on `main` is the maintained app,
+  not a stale snapshot. Mobile CI must remain green on every PR.
+- Start new work on a short-lived `codex/` branch from freshly fetched
+  `origin/main`, with one agent per clone/worktree. The old `mobile` and
+  `codex/mobile-*` branches are historical; do not base new work on them or
+  push to them. Do not delete historical branches as part of routine setup.
+- Check the working tree, unfinished merge/rebase operations and conflicts
+  before editing or switching branches. If existing work could be put at risk,
+  stop and ask; never stash, move, discard or overwrite another developer's
+  changes as a workaround.
+- At task start and before committing/pushing, run `git fetch origin main`
+  and inspect `git log HEAD..origin/main`. Report new team changes and their
+  relevance to Mobile/contracts. A failed fetch is an incomplete check, not
+  proof of currency. Preserve the contract-review procedure above.
+- Commit scoped, verified changes on the task branch. Open a DRAFT PR into
+  `main` as soon as the first commit exists, and push after each locally green
+  step so another session can continue. Follow any narrower instructions the
+  user gives for the current task; do not push implementation directly to
+  `main` or revive the old long-lived Mobile workflow.
+- Squash-merge only when all real GitHub CI checks are green, including Mobile,
+  and the merge is authorized for the task. Never force-push or bypass branch
+  protection. After merging, update the shared checkout to `main`; remove a
+  task branch only after its unique work is proven retained on the remote.
+- Keep the PR description's task checklist and Handoff section current: last
+  verified commit, work in progress, exact next step, and verification commands.
+  Report contract version, applicable migration/test results and remaining
+  work; use N/A for unrelated checks rather than claiming they passed.
+- Preserve the user's separate concrete-approval requirements for sensitive
+  operations. This Git workflow does not authorize database writes/migrations,
+  deployments, access/security changes, remote service changes or reboots.
+- End with a concise report in the requesting team member's preferred language,
+  linking the PR and stating the actual branch, verification and merge state.
