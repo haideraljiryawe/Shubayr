@@ -8,6 +8,36 @@
   [`2026-10-17`](docs/decisions/2026-10-17.md). Shubayr has no delivery-agent
   app; delivery-agent app work, including agent wages, is a future add-on.
 
+## Ahmed's responsibility — local development only (mandatory)
+
+- Ahmed's work and responsibility are limited to local development, local
+  testing, and reviewing the resulting source changes. He is not responsible
+  for modifying, deploying, operating, or maintaining the production environment.
+  Production changes belong to the designated production/operations team;
+  do not assign their execution, operational approval, or accountability to Ahmed.
+- For tasks requested by Ahmed, agents must not modify production services,
+  databases or data, infrastructure, DNS/TLS, credentials, access controls,
+  secrets, backups, or production-specific configuration and deployment/release
+  automation. Preparing production-specific changes in a local checkout does
+  not bring those changes into Ahmed's scope.
+- Do not connect to production, run production commands or migrations, deploy
+  or publish releases, restart production services, or restore production data
+  as part of Ahmed's local tasks. Local testing must target explicitly verified
+  development/test services and data; never infer the environment from a script
+  name or from the fact that a command runs on his computer.
+- Authorized commits, pushes, PRs, merges, and isolated non-production CI remain
+  part of source collaboration. They are not authorization for a production
+  deployment or release. If an action would trigger production automation,
+  stop that action and hand it to the production owner rather than executing it.
+- When local work depends on a production change, document the dependency and
+  hand it off to the responsible team. Continue independent local work; do not
+  work around this boundary, request production credentials from Ahmed, or
+  treat his implementation/Git approval as production approval.
+- This boundary takes precedence over general workflow and handoff instructions
+  for Ahmed's tasks. Local sensitive operations still require the user's
+  separate concrete approval; "local only" is not permission to destroy data,
+  change access/security settings, run migrations, or reboot local machines.
+
 ## Git workflow
 
 ### Flutter / Mobile — `mobile/` lives on `main`
