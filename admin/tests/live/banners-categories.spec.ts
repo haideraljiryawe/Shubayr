@@ -172,13 +172,14 @@ test("category: description saved and cleared, picture cropped, replaced, kept o
     expect(stored.description_en).toBe("Kitchen tools");
     expect(stored.image_url).toBe(second);
 
-    // 4. Clearing English: the API fills it from Arabic on read, and the form says so.
+    // 4. Clearing English: admin reads preserve the missing translation, while
+    // the form explains that the public catalog will use its fallback.
     form = await open();
     await form.getByTestId("category-description-en").fill("");
     await form.getByTestId("dialog-submit").click();
     await expect(page.getByTestId("category-form")).toBeHidden();
     stored = await read();
-    expect(stored.description_en).toBe(longDescription);
+    expect(stored.description_en).toBeNull();
     form = await open();
     await expect(form.getByTestId("category-description-fallback")).toContainText("قد تكون إحداهما غير محفوظة");
     // Clearing Arabic too leaves no description at all.
