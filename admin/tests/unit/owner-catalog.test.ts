@@ -86,6 +86,10 @@ describe("admin modules (ADMIN_MODULES)", () => {
     expect(isRouteEnabled("/delivery-parties", launch)).toBe(true);
     expect(isRouteEnabled("/finance/cash-receipts", launch)).toBe(true);
     expect(isRouteEnabled("/deliveries/trips", launch)).toBe(false);
+    expect(isRouteEnabled("/deliveries/trips/abc", launch)).toBe(false);
+    // Confirming a delivery's cash later is part of orders, on at launch.
+    expect(isRouteEnabled("/deliveries/unconfirmed", launch)).toBe(true);
+    expect(isRouteEnabled("/deliveries/unconfirmed", parseModules("orders"))).toBe(true);
     expect(isRouteEnabled("/finance/custody-exceptions", launch)).toBe(false);
     expect(isRouteEnabled("/", launch)).toBe(true);
     expect(isRouteEnabled("/module-disabled", launch)).toBe(true);

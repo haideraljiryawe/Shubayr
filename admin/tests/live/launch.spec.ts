@@ -98,6 +98,10 @@ test("the launch menu: purchasing, delivery parties and cash receipts are on; tr
   for (const key of ["trips", "custodyExceptions"]) await expect(nav.getByTestId(`nav-${key}`), key).toHaveCount(0);
   await page.goto("/deliveries/trips");
   await expect(page.getByTestId("module-disabled")).toBeVisible();
+  // Confirming a delivery's cash later (the Orders "collections" tab) is on.
+  await page.goto("/deliveries/unconfirmed");
+  await expect(page.getByTestId("module-disabled")).toHaveCount(0);
+  await expect(page.getByTestId("orders-tab-collections")).toBeVisible();
   await page.goto("/purchasing/invoices/new");
   await expect(page.getByTestId("invoice-form")).toBeVisible();
 });
@@ -172,13 +176,12 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
 
   expect(await onHand(request, product.red.id)).toBe(9);
   expect(await onHand(request, product.black.id)).toBe(5);
-  // The invoice is fully paid from the till.
-  const invoices = await api(request, "GET", "/admin/purchase-invoices?per_page=5");
-  const invoice = (invoices.body.data as Array<{ id: string; supplier?: { name: string }; settlement_status?: string; remaining_currency?: number }>).find(
-    (row) => row.supplier?.name === `Basra Textiles ${run}`,
-  );
-  expect(invoice, "the restock invoice").toBeTruthy();
-  const detail = await api(request, "GET", `/admin/purchase-invoices/${invoice!.id}`);
+  // The invoice (linked from the result) is from the new supplier and fully paid from the till.
+  const href = (await result.getByTestId("restock-open-invoice").getAttribute("href")) ?? "";
+  const invoiceId = href.split("/").pop() ?? "";
+  const detail = await api(request, "GET", `/admin/purchase-invoices/${invoiceId}`);
+  expect(detail.status, href).toBe(200);
+  expect(detail.body.supplier?.name).toBe(`Basra Textiles ${run}`);
   expect(detail.body.settlement_status).toBe("paid");
   expect(Number(detail.body.remaining_currency)).toBe(0);
 
@@ -249,7 +252,13 @@ test("delivery at launch: the first delivery party, hand over, deliver with the 
   await driverForm.getByTestId("driver-name").fill(driverName);
   await driverForm.getByTestId("driver-phone").fill(randomWorkPhone());
   await driverForm.getByTestId("driver-submit").click();
-  await expect(page.getByText(driverName).first()).toBeVisible();
+  // Saved (the list is paginated, and other specs add drivers too: ask the API).
+  await expect
+    .poll(async () => {
+      const found = await api(request, "GET", `/admin/delivery-parties?q=${encodeURIComponent(driverName)}&per_page=5`);
+      return (found.body.data as Array<{ name: string }>).some((row) => row.name === driverName);
+    })
+    .toBe(true);
 
   // Hand over to that driver, then deliver with the whole amount collected.
   await page.goto(`/orders/${order.id}`);

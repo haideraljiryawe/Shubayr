@@ -71,7 +71,7 @@ async function firstDayFacts(api: Api, permissions: readonly string[]) {
     has("inventory.view") ? load(api.GET("/admin/inventory/openings", { params: { query: { per_page: 1 } } })) : null,
     has("inventory.view") ? load(api.GET("/admin/inventory/warehouses")) : null,
     has("suppliers.view") ? load(api.GET("/admin/suppliers", { params: { query: { per_page: 1 } } })) : null,
-    has("drivers.manage") ? load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 1 } } })) : null,
+    has("drivers.manage") ? load(api.GET("/admin/delivery-parties", { params: { query: { per_page: 1, active: true } } })) : null,
   ]);
   return {
     subcategoryCount: tree?.ok

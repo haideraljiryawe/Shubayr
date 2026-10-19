@@ -88,7 +88,10 @@ const ROUTES: ReadonlyArray<[prefix: string, owner: ModuleKey]> = [
   ["/finance/cash-receipts", "cashReceipts"],
   ["/finance/price-approvals", "catalog"],
   ["/finance", "finance"],
-  ["/deliveries", "trips"],
+  // The unconfirmed-collections queue is an Orders tab: confirming later the
+  // cash of a delivery marked delivered is part of delivering, not of trips.
+  ["/deliveries/unconfirmed", "orders"],
+  ["/deliveries/trips", "trips"],
   ["/delivery-parties", "deliveryParties"],
   ["/catalog", "catalog"],
   ["/inventory", "stock"],
