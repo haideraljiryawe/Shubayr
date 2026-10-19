@@ -416,7 +416,10 @@ export class BannersService {
   }
 
   private async lockDefaults(tx: Prisma.TransactionClient) {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('banners.defaults'))`;
+    // $executeRaw deliberately discards the SELECT result. PostgreSQL's
+    // advisory-lock function returns void, which Prisma cannot deserialize
+    // through $queryRaw even though the lock itself succeeds.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('banners.defaults'))`;
   }
 
   private visibleCategoryIds(

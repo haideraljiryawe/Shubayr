@@ -273,7 +273,7 @@ describe('BannersService', () => {
   it('refuses disabling one of two usable defaults', async () => {
     const stored = banner({ is_default: true });
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       banner: {
         findUnique: jest.fn().mockResolvedValue(stored),
         count: jest.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(1),
