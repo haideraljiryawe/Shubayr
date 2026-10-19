@@ -71,15 +71,32 @@ Select the profile and press **F5**. Start the selected simulator or connect the
 physical device first. Device IDs remain pinned in the two launch files; check
 `flutter devices` if replacing a device. VS Code's extension-provided entries
 such as “Node.js…” and “Add Configuration…” are commands, not project profiles.
-Select **Web Admin** and press F5 to run the current compatible admin at
-`http://localhost:3200`. Its shared `tool/run_web_admin.mjs` launcher exports the
-pinned main revision `fd6a3bc` into `$HOME/.config/shubayr/web-admin/<revision>/`,
-installs its locked dependencies once with Node 22.12+ (Node 22), and starts it
-against the same local Docker API/database. No branch switch or changes to the
-older `admin/` checkout are needed. Repeated F5 reuses that admin if already
-running; another program on port 3200 is left untouched. Stop the originating
-terminal/debug session to stop the server. No database setup runs automatically.
+Select **Web Admin** and press F5 to run the latest fetched `origin/main` admin at
+`http://localhost:3200`. Its shared `tool/run_web_admin.mjs` launcher fetches main
+on each invocation and exports that exact revision into
+`$HOME/.config/shubayr/web-admin/<revision>/`, installs its locked dependencies
+once with Node 22.12+ (Node 22), and starts it against the same local Docker
+API/database. No branch switch or changes to the local `admin/` checkout are
+needed. A failed fetch blocks launch rather than silently using stale code.
+Repeated F5 reuses the same revision if already running; an older Admin or another
+program on port 3200 is left untouched. Stop the originating terminal/debug
+session before launching a newer revision. No database setup, migrations or
+permission synchronization runs automatically. Existing Docker data and connection
+settings are preserved. The source commit and API contract version are recorded
+in the cached distribution's `SOURCE.json`.
 Mobile profiles never start Web Admin as a side effect.
+
+For the local Web Store, run `./run-website.sh` from the repository root (or
+`node tool/run_web_store.mjs` from `mobile/`). It fetches and runs the latest
+`origin/main` storefront at `http://localhost:3000`, using a separate
+`$HOME/.config/shubayr/web-store/<revision>/` cache. It reuses the existing
+local API at `http://localhost:8000/api/v1` with all domains live and mocks
+disabled. No Docker services are started, rebuilt or restarted, and no migrations,
+seeds or permission synchronization run. `./run-website.sh --check` verifies
+Node, the existing local development API and the remote source without starting
+or installing the storefront. An occupied port belonging to another revision or
+application is left untouched. The Windows `run-website.cmd` remains a separate
+full-stack launcher; it is not used by this local macOS workflow.
 
 `tool/check_debug_environment.mjs` is the single preparation entry point. It:
 
