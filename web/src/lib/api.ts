@@ -64,6 +64,7 @@ import {
   type Banner,
 } from "./mock-data";
 import { twoLevelTree } from "./category-tree";
+import { bannerFromApi } from "./banners";
 
 /* ---------------------------------------------------------------------------
  * Types come straight from api/openapi.yaml via `npm run gen:api`. Never hand-
@@ -682,17 +683,7 @@ export const api = {
   async getBanners(init?: RequestInit): Promise<Banner[]> {
     if (!isLive("banners")) return mockBanners;
     const banners = await request<Schemas["Banner"][]>("/banners", init);
-    return banners.map((banner, index) => ({
-      id: banner.id ?? `banner-${index}`,
-      title_ar: banner.title ?? "",
-      title_en: banner.title ?? "",
-      subtitle_ar: banner.subtitle ?? "",
-      subtitle_en: banner.subtitle ?? "",
-      cta_ar: banner.cta_text ?? "تسوق الآن",
-      cta_en: banner.cta_text ?? "Shop now",
-      href: banner.link_url ?? "/categories",
-      image_url: banner.image_url ?? null,
-    }));
+    return banners.map(bannerFromApi);
   },
 
   /** Discounted products use the same typed endpoint as catalog filters. */

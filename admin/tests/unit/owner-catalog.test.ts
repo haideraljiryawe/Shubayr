@@ -95,6 +95,7 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "products",
       "categories",
       "brands",
+      "banners",
       "catalogImport",
       "catalogImages",
       "stock",

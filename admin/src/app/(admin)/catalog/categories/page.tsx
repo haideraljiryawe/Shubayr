@@ -32,6 +32,7 @@ export default async function CategoriesPage() {
       <CategoriesView
         tree={tree.data}
         canConvert={permissions.includes("catalog.brands")}
+        canUploadImages={permissions.includes("catalog.products")}
       />
     </>
   );

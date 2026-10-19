@@ -10,56 +10,30 @@
 
 ## Git workflow
 
-### Flutter / Mobile — standing policy
+### Flutter / Mobile — `mobile/` lives on `main`
 
-- Authorized repository collaborators may request and perform Mobile changes
-  through Codex. The requesting authorized team member may approve actions for
-  their own task; approval is not reserved to any named developer.
-- The default branch for all Flutter/Mobile work is `mobile`. Make requested
-  changes directly in the collaborator's existing project checkout on `mobile`,
-  and leave them there for the team member to run and inspect.
-- Do not create a branch, clone, worktree or Pull Request unless the requesting
-  authorized team member explicitly requests it. An isolated branch/worktree is
-  not an automatic safety measure.
-- Do not merge, squash or rebase without explicit approval from the requesting
-  authorized team member. Do not switch to or work on `main` unless explicitly
-  requested by that team member. If the checkout is on another branch, stop and
-  ask before switching or starting edits.
-- Before editing, check the working tree and Git operation state. If conflicting
-  uncommitted changes, an unfinished merge/rebase, Git conflicts or another
-  condition could put existing work at risk, stop, explain the issue briefly,
-  and wait for the requesting team member's decision. Preserve unrelated local
-  changes and never overwrite another developer's work. Do not create a
-  branch/worktree or move, stash or discard existing work as an automatic
-  workaround.
-- Leave changes uncommitted unless the requesting authorized team member
-  explicitly requests a commit or a clear earlier instruction for the current
-  task already requires one. Approval of the implementation alone is not an
-  instruction to commit or push; pushing
-  also requires explicit authorization for the task.
-- Never force-push without explicit authorization for that action. Respect GitHub
-  repository permissions and branch protection rules; task approval does not
-  authorize bypassing them.
-- Changes outside `mobile/` require authorization from the responsible project
-  owner; authorization for Mobile work alone does not extend to other projects.
-- This policy supersedes conflicting Git/handoff rules for Mobile, including
-  the former prohibition on working on `mobile`, automatic branching from
-  `origin/main`, automatic PRs/pushes and returning the checkout to `main`.
-  The branch/worktree/PR workflow used for PR #99 is not the Mobile default.
+- Since merge `46a80e9`, `mobile/` on `main` is the real Flutter app,
+  maintained by Ahmed. It is not a snapshot: its CI checks (Mobile (Flutter))
+  must stay green on every PR, whatever the PR is about.
+- Ahmed works like everyone else: short-lived branches off `origin/main` and
+  PRs into `main`, under the workflow below. There is no long-lived `mobile`
+  branch any more; the old `origin/mobile` (and `codex/mobile-*`) branches are
+  history — don't base new work on them or push to them.
+- Agents (Codex, Claude Code) do not edit `mobile/` unless Ahmed explicitly asks
+  for that task. Authorization for other work never extends to `mobile/`, and a
+  Mobile task never extends to the other projects.
+- Before editing a shared checkout, check the working tree and Git operation
+  state. If uncommitted changes, an unfinished merge/rebase or conflicts could
+  put someone's work at risk, stop and ask; never stash, move or discard another
+  developer's work as a workaround.
 
-### Other projects
-
-The following workflow applies outside Flutter/Mobile. It does not override
-the Mobile policy above.
+### Workflow for all projects
 
 - One agent per clone/worktree. Branch off current `origin/main`.
 - Open a DRAFT PR as soon as the first commit exists; push after every locally green step so another session can continue.
 - Never force-push. Never delete a branch, worktree or folder whose unique commits aren't proven on the remote.
-- Squash-merge only when ALL real GitHub CI checks are green; then delete the branch (local + remote).
+- Squash-merge only when ALL real GitHub CI checks are green — the Mobile checks included; then delete the branch (local + remote).
 - After every merge, leave the shared checkout (`Desktop\Shubayr`) on an up-to-date `main` — never on a deleted feature branch.
-- For non-Mobile tasks, do not modify the `mobile` or
-  `codex/mobile-app-access-v6` branches. Authorized Mobile tasks follow the
-  Flutter/Mobile policy above.
 - Don't rename shipped vocabulary (statuses, enum values, field names) and don't go outside the task's scope.
 
 ## Contract
@@ -72,7 +46,8 @@ the Mobile policy above.
 - Strict response validation (types + no undeclared properties) must pass.
 - Bump the version per semver and state in the PR description what is breaking (if anything).
 - Declare every new error code on every affected route.
-- web/ and admin/ live suites must pass before a breaking change merges. mobile/ on main is a stale snapshot of the app: do not block on it — instead document every mobile-affecting change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. Backend/web/admin contract work does not authorize edits to mobile/ or the mobile branches; authorized Mobile work follows the Flutter/Mobile policy above.
+- web/ and admin/ live suites must pass before a breaking change merges, and the Mobile CI checks must stay green.
+- Document every mobile-facing contract change in docs/mobile/contract-changes-<from>-to-<to>.md in the same PR. A BREAKING mobile-facing change needs Ahmed's OK before it merges. Backend/web/admin contract work does not authorize edits to mobile/ — the app adopts the change in its own PR.
 - Delivery-pricing changes may merge only after the checkout → confirmation → delivery → receipt acceptance flow proves that the order total, collection amount, revenue posting, receipt, and exact return allocation reconcile.
 - Catalog imports may merge only when preview is proven read-only for catalog/inventory data, every committed row is durably idempotent and restart-resumable, failed batches report exactly what was retained, Stock rows create exactly one phase-5 opening document after product rows succeed, costs remain gated by `cost.view`, and the 5,000-row limit is covered.
 - Returns changes may merge only after acceptance proves immutable net-paid shares across successive piece and decimal-quantity returns, delivered-minus-returned eligibility, original-issue-cost inspection, delivery-fee caps, loyalty reversal/restoration, custody and cash refund sources, idempotency, separation of duties, and inventory/custody/cash/loyalty/GL reconciliation.
@@ -92,11 +67,7 @@ the Mobile policy above.
 
 ## Handoff (for switching sessions/accounts)
 
-- For Flutter/Mobile, report changed files, verification and remaining work in
-  the conversation; keep the edits in the usual checkout on `mobile`. Do not
-  create a PR or commit merely to satisfy handoff requirements. The PR-based
-  requirements below apply only when a PR workflow is authorized for the task.
 - The PR description keeps:
   - a checklist of the task's numbered items, ticked as they are done;
   - a "Handoff" section updated before you stop for any reason: last green commit, what is in progress, the exact next step, commands to verify.
-- For an authorized PR workflow, the final report starts with: PR link, merge commit (and merge method), contract version, migration count, test counts (Jest, strict-schema, acceptance packs/assertions), anything not done. Report fields that do not apply as N/A; do not merge merely to fill them in.
+- The final report starts with: PR link, merge commit (and merge method), contract version, migration count, test counts (Jest, strict-schema, acceptance packs/assertions), anything not done. Report fields that do not apply as N/A; do not merge merely to fill them in.
