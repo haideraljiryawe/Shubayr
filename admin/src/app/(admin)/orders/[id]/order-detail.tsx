@@ -78,10 +78,13 @@ export function OrderDetailView({
   order: initial,
   permissions,
   currency,
+  addPartyHref = null,
 }: {
   order: AdminOrder;
   permissions: string[];
   currency: string;
+  /** The delivery-party screen, when this person may add one (drivers.manage, module on). */
+  addPartyHref?: string | null;
 }) {
   const t = useTranslations("orders");
   const locale = useLocale();
@@ -696,6 +699,7 @@ export function OrderDetailView({
                     <PartyPicker
                       value={partyId}
                       onChange={(picked) => setPartyId(picked?.id ?? "")}
+                      addPartyHref={addPartyHref}
                     />
                     <FormError kind={assignError} />
                     <Button

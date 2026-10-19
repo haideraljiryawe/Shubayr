@@ -15,6 +15,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { storeDay } from "@/lib/finance/dates";
 import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, quantityRule, toMilli, type LocationInfo, type Opening } from "@/lib/inventory";
+import { isBlankQuantity, linesToPost } from "@/lib/restock";
 
 /** The location new lines start with: the only sellable one, if there is exactly one. */
 function defaultLocationId(locations: readonly LocationInfo[]): string {
@@ -42,6 +43,10 @@ type LineErrors = Partial<Record<"sku" | "location" | "quantity" | "unitCost" | 
  *
  * Review, then confirm: the operation id is fixed when the person reviews,
  * so a double click, or a retry after a lost answer, posts one document.
+ *
+ * A line left without a quantity is not part of the document: it is skipped
+ * (and can be removed in one click), never refused, and the review lists only
+ * the lines that will be posted.
  */
 export function OpeningForm({
   locations,
@@ -80,7 +85,7 @@ export function OpeningForm({
   const [backdateReason, setBackdateReason] = useState("");
   const [errors, setErrors] = useState<Record<number, LineErrors>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [review, setReview] = useState<{ operationId: string } | null>(null);
+  const [review, setReview] = useState<{ operationId: string; keys: number[]; skipped: number } | null>(null);
   const posted = posting.state.phase === "posted";
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";
 
@@ -89,10 +94,13 @@ export function OpeningForm({
     setErrors((current) => ({ ...current, [key]: {} }));
   }
 
+  const blankCount = lines.filter((line) => isBlankQuantity(line.quantity)).length;
+
   function toReview() {
     const found: Record<number, LineErrors> = {};
     let value = 0;
-    for (const line of lines) {
+    const { posted, skipped } = linesToPost(lines, (line) => line.quantity);
+    for (const line of posted) {
       const e: LineErrors = {};
       if (!line.sku) e.sku = t("errors.sku");
       if (!line.locationId) e.location = t("errors.location");
@@ -107,13 +115,17 @@ export function OpeningForm({
     let problem: string | null = null;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) problem = t("errors.date");
     else if (date > storeDay()) problem = t("errors.future");
+    else if (posted.length === 0) problem = t("errors.noQuantities");
     else if (Object.keys(found).length === 0 && !(value > 0)) problem = t("errors.openingValue");
     setFormError(problem);
     if (Object.keys(found).length || problem) return;
     posting.reset();
     // The document's identity is fixed here, before anything is sent.
-    setReview({ operationId: newOperationId() });
+    setReview({ operationId: newOperationId(), keys: posted.map((line) => line.key), skipped });
   }
+
+  /** The lines the review covers, in the order they were typed. */
+  const reviewed = review ? lines.filter((line) => review.keys.includes(line.key)) : [];
 
   async function confirm() {
     if (!review) return;
@@ -124,7 +136,7 @@ export function OpeningForm({
             operation_id: review.operationId,
             document_date: date,
             ...(backdateReason.trim() ? { backdate_reason: backdateReason.trim() } : {}),
-            lines: lines.map((line) => ({
+            lines: reviewed.map((line) => ({
               variant_id: line.sku!.variantId,
               location_id: line.locationId,
               quantity: line.quantity!,
@@ -162,8 +174,8 @@ export function OpeningForm({
             </tr>
           </thead>
           <tbody>
-            {lines.map((line) => (
-              <tr key={line.key} className="border-t border-border" data-testid="opening-preview-line">
+            {reviewed.map((line) => (
+              <tr key={line.key} className="border-t border-border" data-testid="opening-preview-line" data-sku={line.sku?.sku}>
                 <td className="px-3 py-2 font-semibold" dir="ltr">{line.sku?.sku}</td>
                 <td className="px-3 py-2" dir="ltr">{locationLabel(byId.get(line.locationId))}</td>
                 <td className="px-3 py-2" dir="ltr">
@@ -180,12 +192,17 @@ export function OpeningForm({
           {t("opening.value")}{" "}
           <span className="font-bold" dir="ltr" data-testid="opening-preview-value">
             {formatCost(
-              fromMilli(lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitCost) * 1000), 0)),
+              fromMilli(reviewed.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitCost) * 1000), 0)),
               locale,
             )}
           </span>
           <span className="text-text-muted"> · {t("documentDateIs", { date })}</span>
         </p>
+        {review.skipped ? (
+          <p className="text-xs text-text-muted" data-testid="opening-preview-skipped">
+            {t("opening.skipped", { count: review.skipped })}
+          </p>
+        ) : null}
         <InventoryPostingStatus state={posting.state} type="opening" onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
         <div className="flex justify-end gap-2">
           {posted ? (
@@ -234,9 +251,16 @@ export function OpeningForm({
       {lines.map((line, index) => {
         const e = errors[line.key] ?? {};
         return (
-          <Card key={line.key} className="flex flex-col gap-4" data-testid="opening-line">
+          <Card key={line.key} className="flex flex-col gap-4" data-testid="opening-line" data-blank={isBlankQuantity(line.quantity) ? "true" : "false"}>
             <div className="flex items-center justify-between">
-              <h2 className="font-bold">{t("lineNumber", { number: index + 1 })}</h2>
+              <h2 className="font-bold">
+                {t("lineNumber", { number: index + 1 })}
+                {isBlankQuantity(line.quantity) ? (
+                  <span className="ms-2 text-xs font-normal text-text-muted" data-testid="opening-line-skipped">
+                    {t("opening.lineSkipped")}
+                  </span>
+                ) : null}
+              </h2>
               {lines.length > 1 ? (
                 <Button size="sm" variant="ghost" onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))} aria-label={t("removeLine")}>
                   <Trash2 className="size-4" aria-hidden />
@@ -291,7 +315,7 @@ export function OpeningForm({
           </Card>
         );
       })}
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
           onClick={() => {
@@ -303,6 +327,16 @@ export function OpeningForm({
           <Plus className="size-4" aria-hidden />
           {t("addLine")}
         </Button>
+        {blankCount && blankCount < lines.length ? (
+          <Button
+            variant="ghost"
+            onClick={() => setLines((current) => current.filter((line) => !isBlankQuantity(line.quantity)))}
+            data-testid="opening-remove-empty"
+          >
+            <Trash2 className="size-4" aria-hidden />
+            {t("opening.removeEmpty", { count: blankCount })}
+          </Button>
+        ) : null}
       </div>
       <Card className="grid gap-4 md:grid-cols-2">
         <Field label={t("columns.documentDate")} name="document_date">

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+import { Alert, PageHeader } from "@/components/ui";
+import { ADMIN_MODULES } from "@/lib/config";
+import { parseModules } from "@/lib/modules";
 import { PageError } from "@/components/shell/page-error";
 import type { PickedSku } from "@/components/inventory/sku-picker";
 import { loadPermissions, loadWarehouses } from "@/lib/api/inventory-server";
@@ -55,6 +57,10 @@ export default async function NewOpeningPage({ searchParams }: { searchParams: P
       )
     : [];
   const productHref = product?.ok ? `/catalog/products/${product.data.id}` : undefined;
+  // Opening stock is the first day's balances (against opening equity); later
+  // stock is bought from a supplier: Restock, through purchasing.
+  const canRestock = parseModules(ADMIN_MODULES).includes("purchasing") && permissions.includes("purchases.create");
+  const restockHref = product?.ok ? `/purchasing/invoices/new?restock=${product.data.id}` : "/purchasing/invoices/new";
 
   return (
     <>
@@ -66,6 +72,16 @@ export default async function NewOpeningPage({ searchParams }: { searchParams: P
         title={t("newDocument.opening")}
         description={product?.ok ? t("opening.forProduct", { name: productName }) : t("opening.description")}
       />
+      <Alert tone="info" className="mb-4" data-testid="opening-first-time">
+        {t("opening.firstTimeOnly")}{" "}
+        {canRestock ? (
+          <Link href={restockHref} className="font-semibold underline" data-testid="opening-to-restock">
+            {t("opening.useRestock")}
+          </Link>
+        ) : (
+          t("opening.restockLater")
+        )}
+      </Alert>
       <OpeningForm
         locations={[...locations.values()].filter((info) => info.active)}
         canSearchSku={permissions.includes("catalog.products")}

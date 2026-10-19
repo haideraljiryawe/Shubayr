@@ -202,7 +202,7 @@
     "noSections": "Your current permissions don't open any sections yet.",
     "firstDay": {
       "title": "Set up your store",
-      "body": "Four steps to prepare the catalog and get your products into the store. You can come back to any step later.",
+      "body": "A few steps to prepare the store: the catalog and its stock, who you buy from, and who delivers. You can come back to any step later.",
       "progress": "{done} of {total}",
       "stepNumber": "{number}.",
       "optional": "(optional)",
@@ -222,8 +222,16 @@
           "body": "Name, category, price and pictures, and the product's variants (sizes or colours), each with its own code."
         },
         "stock": {
-          "title": "Enter opening stock",
-          "body": "How much of each variant you have now and what it cost, so the product shows as available."
+          "title": "Enter opening stock (first time only)",
+          "body": "How much of each variant you have on your first day and what it cost. Stock you buy later is added with Restock."
+        },
+        "supplier": {
+          "title": "Add your first supplier",
+          "body": "Who you buy from. Restocking a product is a purchase from a supplier."
+        },
+        "delivery": {
+          "title": "Add your delivery party",
+          "body": "Your own driver or a courier company. An order can't be handed over for delivery without one."
         }
       }
     }
@@ -288,7 +296,8 @@
         "name": "Use 2–160 characters.",
         "terms": "Enter 0–3650 days.",
         "email": "Enter a valid email or leave it empty."
-      }
+      },
+      "quickHint": "Saved with IQD and 30-day terms; you can change them on the supplier's page later."
     },
     "supplier": {
       "back": "Suppliers",
@@ -459,7 +468,8 @@
         "amount": "Enter an amount greater than zero.",
         "zeroBase": "Nothing to allocate over: the lines have no value or quantity yet.",
         "manualMismatch": "Manual shares must add up exactly to the landed costs.",
-        "manualNeedsRate": "Manual shares need every landed cost's IQD value; the rate can't be read here."
+        "manualNeedsRate": "Manual shares need every landed cost's IQD value; the rate can't be read here.",
+        "noQuantities": "Enter a quantity on at least one line."
       },
       "detailTitle": "Purchase invoice",
       "detailDescription": "Posted and read-only. Later changes are their own documents.",
@@ -495,7 +505,53 @@
       "noSettlements": "Nothing yet.",
       "pay": "Pay",
       "returnGoods": "Return to supplier",
-      "correct": "Correct cost"
+      "correct": "Correct cost",
+      "suppliersRecent": "Bought from recently",
+      "suppliersOthers": "Other suppliers",
+      "suppliersAll": "Suppliers",
+      "newSupplier": "New supplier",
+      "skippedLines": "{count, plural, one {# line without a quantity is} other {# lines without a quantity are}} left out.",
+      "blankLine": "Not on this invoice (no quantity)",
+      "openInvoice": "Open the invoice",
+      "payNow": {
+        "title": "Payment",
+        "owed": "Owed — pay later",
+        "owedHint": "The amount is added to what you owe this supplier; pay it later from Supplier payments.",
+        "now": "Paid now from a cash account",
+        "nowHint": "Right after the stock is added, the whole invoice is paid from the cash account you choose.",
+        "account": "Cash account",
+        "pickAccount": "Choose a cash account",
+        "noAccount": "No active cash account in {currency}. Add one under Finance → Cash accounts, or record it as owed.",
+        "reviewPaid": "Paid now from “{account}” once posted.",
+        "reviewOwed": "Recorded as owed to the supplier.",
+        "paying": "Recording the payment…",
+        "paid": "Paid {amount} to the supplier.",
+        "failed": "The stock was added and the invoice is posted, but the payment wasn't recorded, so the invoice is still owed.",
+        "retry": "Try the payment again",
+        "payLater": "Pay it from Supplier payments",
+        "errors": {
+          "account": "Choose the cash account it is paid from."
+        }
+      },
+      "restock": {
+        "title": "Restock",
+        "titleFor": "Restock “{name}”",
+        "description": "A purchase from your supplier: enter only the quantities you received. Lines left empty aren't posted, so you can restock a single colour or size.",
+        "backToProduct": "Back to the product",
+        "intro": "Each variant of “{name}” has a line, starting at what you last paid. Enter the quantity you received on the lines you restock and leave the others empty.",
+        "otherDraft": "You also have an unfinished purchase invoice (saved {at}). Posting this restock will discard that draft — finish it first if you still need it.",
+        "openDraft": "Open the draft",
+        "lastCost": "Last paid: {cost} {currency}",
+        "doneTitle": "Stock added",
+        "doneBody": "What “{name}” holds now, per variant:",
+        "columns": {
+          "sku": "SKU",
+          "added": "Added",
+          "onHand": "On hand",
+          "available": "Available"
+        },
+        "openInvoice": "Purchase invoice {number}"
+      }
     },
     "invoices": {
       "title": "Purchase invoices",
@@ -990,7 +1046,10 @@
       "kinds": {
         "internal_agent": "Agent",
         "external_driver": "External driver"
-      }
+      },
+      "noPartiesYet": "There is no delivery party yet: add your own driver or a courier company to hand orders over.",
+      "addFirstParty": "Add a delivery party",
+      "askToAddParty": "Ask a manager who can manage drivers to add one."
     },
     "done": "Order updated",
     "conflict": "This order changed before your action was saved — it is now “{status}”. The page has been refreshed to show what you can do now.",
@@ -1843,7 +1902,7 @@
     "noImage": "No picture",
     "duplicate": "Duplicate",
     "duplicateNamed": "Duplicate “{name}”",
-    "openingStock": "Opening stock",
+    "openingStock": "Opening stock (first time only)",
     "filters": {
       "allStatuses": "All statuses",
       "allStock": "All stock states",
@@ -1910,10 +1969,12 @@
       "title": "Product created. What next?",
       "published": "The product is in the store and can be ordered once it has stock.",
       "hidden": "The product is hidden for now. Show it under “Visibility in the store” below when it is ready.",
-      "openingStock": "Enter opening stock",
+      "openingStock": "Enter opening stock (first time only)",
       "another": "Add another product in the same category",
       "duplicate": "Duplicate this product"
-    }
+    },
+    "restock": "Restock",
+    "openingStockHint": "For the stock you had on your first day only. To add stock you bought, use Restock."
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -2046,7 +2107,7 @@
       "write_down": "Write-downs remove damaged or expired stock from a non-sellable location and post the loss."
     },
     "newDocument": {
-      "opening": "New opening stock",
+      "opening": "Opening stock (first time only)",
       "transfer": "New transfer",
       "count": "New count",
       "write_down": "New write-down"
@@ -2067,7 +2128,8 @@
       "noLines": "Add at least one line.",
       "reason": "Enter a reason of at least 3 characters.",
       "quarantine": "Choose a non-sellable location to move it to first.",
-      "scope": "Choose what to count."
+      "scope": "Choose what to count.",
+      "noQuantities": "Enter a quantity on at least one line."
     },
     "stock": {
       "title": "Stock",
@@ -2178,7 +2240,13 @@
       "description": "Bring existing stock into the system: each line creates a lot at a unit cost and the whole document posts once.",
       "value": "Total value:",
       "post": "Post opening stock",
-      "forProduct": "The quantities of “{name}” you have now, with their unit cost. The whole document posts at once."
+      "forProduct": "The quantities of “{name}” you have now, with their unit cost. The whole document posts at once.",
+      "skipped": "{count, plural, one {# empty line is} other {# empty lines are}} skipped.",
+      "lineSkipped": "(no quantity — skipped)",
+      "removeEmpty": "{count, plural, one {Remove the empty line} other {Remove # empty lines}}",
+      "firstTimeOnly": "Opening stock is only for the stock you have on your first day.",
+      "useRestock": "To add stock you bought, use Restock.",
+      "restockLater": "Stock you buy later is added with a purchase invoice (Restock)."
     },
     "reviewTitle": "Review before posting",
     "lotAutomatic": "(no lot number)",
@@ -2271,7 +2339,8 @@
       "body": "Read-only. Stock changes only through inventory documents — opening stock, transfers, counts and write-downs.",
       "view": "Stock view"
     },
-    "backToProduct": "Back to the product"
+    "backToProduct": "Back to the product",
+    "restock": "Restock"
   },
   "retrievals": {
     "title": "Retrieval",

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Badge } from "@/components/ui";
+import { Truck } from "lucide-react";
+import { Badge, buttonClasses } from "@/components/ui";
+import { restockHref } from "../stock-view";
 import { DataTable, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import type { Product } from "@/lib/catalog";
 import { availabilityTone, formatQuantity, stockHref } from "@/lib/inventory";
 import { useUnitName } from "@/components/catalog/unit-name";
 
-export function SkusView({ rows, state }: { rows: Product[]; state: TableState }) {
+export function SkusView({ rows, state, canRestock = false }: { rows: Product[]; state: TableState; canRestock?: boolean }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
   const unitName = useUnitName();
@@ -20,9 +22,17 @@ export function SkusView({ rows, state }: { rows: Product[]; state: TableState }
       key: "product",
       header: t("columns.product"),
       cell: (product) => (
-        <Link href={`/catalog/products/${product.id}`} className="font-semibold text-primary-dark hover:underline">
-          {nameOf(product)}
-        </Link>
+        <div className="flex flex-col items-start gap-2">
+          <Link href={`/catalog/products/${product.id}`} className="font-semibold text-primary-dark hover:underline">
+            {nameOf(product)}
+          </Link>
+          {canRestock && product.id ? (
+            <Link href={restockHref(product.id)} className={buttonClasses({ size: "sm", variant: "secondary" })} data-testid="skus-restock" data-product-id={product.id}>
+            <Truck className="size-4" aria-hidden />
+            {t("restock")}
+          </Link>
+          ) : null}
+        </div>
       ),
     },
     {

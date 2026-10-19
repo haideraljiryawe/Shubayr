@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, UserPlus } from "lucide-react";
 import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -12,8 +13,13 @@ import { SkuPicker, type PickedSku } from "@/components/inventory/sku-picker";
 import { DocumentDateFields, documentDateError, type DocumentDateValue } from "@/components/purchasing/document-date";
 import { PurchasingPostingStatus } from "@/components/purchasing/posting-status";
 import { useCentralRate } from "@/components/purchasing/use-central-rate";
+import { SupplierDialog } from "@/components/purchasing/supplier-dialog";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { FormError } from "@/components/forms/form-error";
+import { linesToPost, orderSuppliers, startingCost, type LastCost } from "@/lib/restock";
+import type { CashAccountOption } from "@/lib/api/purchasing-server";
+import { RestockResult } from "./restock-result";
 import { newOperationId } from "@/lib/finance/operations";
 import { locationLabel, type LocationInfo } from "@/lib/inventory";
 import {
@@ -45,6 +51,8 @@ interface Line {
   lot: string;
   expiry: string;
   manual: string;
+  /** Restock: what was last paid for this SKU (shown; used when the currency matches). */
+  lastCost?: LastCost | null;
 }
 
 interface Landed {
@@ -69,7 +77,25 @@ interface FormState {
   method: AllocationMethod;
   lines: Line[];
   landed: Landed[];
+  /** Owed (paid later from Supplier payments) or paid now from a cash account. */
+  payment: "owed" | "now";
+  cashAccountId: string;
 }
+
+/** Restock from one product: a line per variant and the starting choices. */
+export interface RestockPrefill {
+  productId: string;
+  productName: string;
+  supplierId: string;
+  locationId: string;
+  lines: Array<{ sku: PickedSku; lastCost: LastCost | null }>;
+}
+
+type Payment =
+  | { phase: "idle" }
+  | { phase: "paying" }
+  | { phase: "paid"; amount: number; currency: CurrencyCode }
+  | { phase: "failed"; kind: ErrorKind; detail: string | null };
 
 const DRAFT_TYPE = "purchase_invoice";
 const DRAFT_VERSION = 1;
@@ -78,20 +104,26 @@ function blankLine(key: number): Line {
   return { key, sku: null, packs: "", packSize: "1", cost: "", locationId: "", lot: "", expiry: "", manual: "" };
 }
 
-function initialState(supplier: Supplier | undefined, today: string, defaultLocationId: string): FormState {
+function initialState(supplier: Supplier | undefined, today: string, defaultLocationId: string, restock?: RestockPrefill | null): FormState {
+  const currency = supplier?.default_currency ?? "IQD";
+  const lines = restock?.lines.length
+    ? restock.lines.map((line, index) => ({ ...blankLine(index + 1), sku: line.sku, cost: startingCost(line.lastCost, currency), lastCost: line.lastCost }))
+    : [blankLine(1)];
   return {
-    nextKey: 2,
+    nextKey: lines.length + 1,
     supplierId: supplier?.id ?? "",
     invoiceNumber: "",
     date: { date: today, backdateReason: "" },
-    currency: supplier?.default_currency ?? "IQD",
+    currency,
     rate: "",
-    defaultLocationId,
+    defaultLocationId: restock?.locationId || defaultLocationId,
     dueDate: "",
     notes: "",
     method: "value",
-    lines: [blankLine(1)],
+    lines,
     landed: [],
+    payment: "owed",
+    cashAccountId: "",
   };
 }
 
@@ -107,6 +139,9 @@ export function InvoiceForm({
   today,
   windowDays,
   permissions,
+  restock = null,
+  recentSupplierIds = [],
+  cashAccounts = null,
 }: {
   suppliers: Supplier[];
   suppliersComplete: boolean;
@@ -115,6 +150,12 @@ export function InvoiceForm({
   today: string;
   windowDays: number;
   permissions: string[];
+  /** Restock (إعادة تعبئة المخزون): prefilled from one product; drafts are left alone. */
+  restock?: RestockPrefill | null;
+  /** Suppliers bought from recently, newest first: offered first. */
+  recentSupplierIds?: string[];
+  /** Cash accounts for "paid now"; null when the person can't pay suppliers here. */
+  cashAccounts?: CashAccountOption[] | null;
 }) {
   const t = useTranslations("purchasing.invoice");
   const locale = useLocale();
@@ -123,8 +164,19 @@ export function InvoiceForm({
   const posting = usePosting<PurchaseInvoice>();
   const can = (key: string) => permissions.includes(key);
   const canCost = can("cost.view");
+  const [supplierList, setSupplierList] = useState<Supplier[]>(suppliers);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [payment, setPayment] = useState<Payment>({ phase: "idle" });
+  const [postedInvoice, setPostedInvoice] = useState<PurchaseInvoice | null>(null);
+  /** Restock: when the person also has an unfinished invoice draft (posting discards it). */
+  const [otherDraftAt, setOtherDraftAt] = useState<string | null>(null);
   const [initial] = useState<FormState>(() =>
-    initialState(suppliers.find((supplier) => supplier.id === presetSupplierId), today, locations.find((info) => info.sellable)?.id ?? locations[0]?.id ?? ""),
+    initialState(
+      suppliers.find((supplier) => supplier.id === (presetSupplierId || restock?.supplierId)),
+      today,
+      locations.find((info) => info.sellable)?.id ?? locations[0]?.id ?? "",
+      restock,
+    ),
   );
   const [state, setState] = useState<FormState>(initial);
   /** Bumped when a draft is restored or discarded, so uncontrolled inputs remount. */
@@ -133,7 +185,7 @@ export function InvoiceForm({
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [saved, setSaved] = useState<Saved>({ status: "idle" });
   const [showErrors, setShowErrors] = useState(false);
-  const [review, setReview] = useState<{ operationId: string } | null>(null);
+  const [review, setReview] = useState<{ operationId: string; paymentOperationId: string } | null>(null);
   const posted = posting.state.phase === "posted";
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";
   /** What the server holds (the restored, initial or last saved form), as JSON. */
@@ -148,11 +200,17 @@ export function InvoiceForm({
   /* ------------------------------------------------------------ drafts */
 
   // Restore the caller's own draft once (drafts are per user on the server).
+  // A restock never restores or saves one: it only says that one exists,
+  // because posting any purchase invoice discards it (one draft per user).
   useEffect(() => {
     let cancelled = false;
     unwrap(browserApi.GET("/admin/drafts/{documentType}", { params: { path: { documentType: DRAFT_TYPE } } })).then(
       (draft) => {
         if (cancelled) return;
+        if (restock) {
+          setOtherDraftAt(draft.updated_at);
+          return;
+        }
         const payload = draft.payload as { version?: number; state?: FormState };
         if (payload.version === DRAFT_VERSION && payload.state) {
           baseline.current = JSON.stringify(payload.state);
@@ -170,12 +228,12 @@ export function InvoiceForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [restock]);
 
   // Save as it is typed (debounced), once the stored draft has been read —
   // whenever the form differs from what the server last held.
   useEffect(() => {
-    if (!draftReady || posted) return;
+    if (!draftReady || posted || restock) return;
     const snapshot = JSON.stringify(state);
     // Untouched since it opened: nothing to save.
     if (baseline.current === null) baseline.current = JSON.stringify(initial);
@@ -196,7 +254,7 @@ export function InvoiceForm({
       );
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [state, draftReady, posted, initial]);
+  }, [state, draftReady, posted, initial, restock]);
 
   async function discardDraft() {
     try {
@@ -232,8 +290,12 @@ export function InvoiceForm({
 
   /* ------------------------------------------------------------ preview */
 
+  // Lines left empty (or at 0) are not part of the invoice: restocking one
+  // colour of a product is one quantity, the other lines just stay blank.
+  const { posted: postedLines, skipped } = useMemo(() => linesToPost(state.lines, (line) => line.packs), [state.lines]);
+
   const preview = useMemo(() => {
-    const lines = state.lines.map((line) => {
+    const lines = postedLines.map((line) => {
       const conversion = packConversion(line.packs || "0", line.packSize || "1", line.cost || "0");
       return { line, ...conversion, unitError: line.sku ? baseQuantityError(conversion.baseQuantity, line.sku.wholeUnitsOnly) : null };
     });
@@ -261,7 +323,7 @@ export function InvoiceForm({
     return { lines, subtotal, landedIqd, allocation, shown, rateFixed, totalIqd };
     // landedRate reads state/rates already listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, rate, usdCentral]);
+  }, [state, postedLines, rate, usdCentral]);
 
   /* --------------------------------------------------------- validation */
 
@@ -274,11 +336,12 @@ export function InvoiceForm({
       if (!overridden && central.status === "missing") found.rate = t("errors.noCentralRate");
     }
     if (!state.defaultLocationId) found.location = t("errors.location");
-    if (state.lines.length === 0) found.lines = t("errors.noLines");
+    if (postedLines.length === 0) found.lines = state.lines.length ? t("errors.noQuantities") : t("errors.noLines");
+    if (state.payment === "now" && !state.cashAccountId) found.cashAccount = t("payNow.errors.account");
     for (const row of preview.lines) {
       const k = `line-${row.line.key}`;
       if (!row.line.sku) found[`${k}-sku`] = t("errors.sku");
-      if (toFixed(row.line.packs || "0") <= 0n) found[`${k}-packs`] = t("errors.packs");
+      if (toFixed(row.line.packs || "0") < 0n) found[`${k}-packs`] = t("errors.packs");
       if (toFixed(row.line.packSize || "0") <= 0n) found[`${k}-packSize`] = t("errors.packSize");
       if (row.unitError) found[`${k}-packs`] = t(`errors.${row.unitError}`);
       if (toFixed(row.line.cost || "0") <= 0n) found[`${k}-cost`] = t("errors.cost");
@@ -291,14 +354,14 @@ export function InvoiceForm({
     if (state.landed.length && preview.landedIqd === null && state.method === "manual") found.allocation = t("errors.manualNeedsRate");
     return found;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, preview, central, overridden, today, windowDays]);
+  }, [state, postedLines, preview, central, overridden, today, windowDays]);
 
   function toReview() {
     setShowErrors(true);
     if (Object.keys(problems).length) return;
     posting.reset();
     // The document's identity is fixed here: a double click or a retry posts it once.
-    setReview({ operationId: newOperationId() });
+    setReview({ operationId: newOperationId(), paymentOperationId: newOperationId() });
   }
 
   async function confirm() {
@@ -318,7 +381,7 @@ export function InvoiceForm({
             allocation_method: state.method,
             ...(state.dueDate ? { due_date: state.dueDate } : {}),
             ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
-            lines: state.lines.map((line) => ({
+            lines: postedLines.map((line) => ({
               variant_id: line.sku!.variantId,
               ...(line.locationId ? { location_id: line.locationId } : {}),
               quantity: line.packs,
@@ -342,13 +405,73 @@ export function InvoiceForm({
         }),
       )) as unknown as PurchaseInvoice,
     );
+    if (result?.phase !== "posted") return;
     // Posted: the draft is gone on the server; the invoice is read-only now.
-    if (result?.phase === "posted") router.push(`/purchasing/invoices/${result.document.id}`);
+    setPostedInvoice(result.document);
+    if (state.payment === "now") await payNow(result.document.id, review.paymentOperationId);
+    if (!restock && state.payment !== "now") router.push(`/purchasing/invoices/${result.document.id}`);
+  }
+
+  /**
+   * "Paid now": the existing supplier payment, allocated in full to this
+   * invoice, from a cash account in its currency — a second posting with its
+   * own operation id, so a retry pays once. If it fails, the invoice stays
+   * posted and owed, and the person can pay it from Supplier payments.
+   */
+  async function payNow(invoiceId: string, operationId: string) {
+    const account = (cashAccounts ?? []).find((row) => row.id === state.cashAccountId);
+    if (!account) return;
+    setPayment({ phase: "paying" });
+    try {
+      const fresh = (await unwrap(browserApi.GET("/admin/purchase-invoices/{id}", { params: { path: { id: invoiceId } } }))) as unknown as PurchaseInvoice;
+      const remaining = fresh.remaining_currency ?? 0;
+      if (remaining > 0) {
+        const amount = String(remaining);
+        await unwrap(
+          browserApi.POST("/admin/supplier-payments", {
+            body: {
+              operation_id: operationId,
+              document_date: state.date.date,
+              ...(state.date.backdateReason.trim() ? { backdate_reason: state.date.backdateReason.trim() } : {}),
+              supplier_id: state.supplierId,
+              cash_account_id: account.id,
+              currency_code: account.currency_code,
+              amount,
+              allocations: [{ invoice_id: invoiceId, amount }],
+            },
+          }),
+        );
+      }
+      setPayment({ phase: "paid", amount: remaining, currency: account.currency_code });
+    } catch (cause) {
+      setPayment({ phase: "failed", kind: errorKind(cause), detail: cause instanceof Error ? cause.message : null });
+    }
+  }
+
+  /** Choosing a supplier sets the invoice currency to theirs (and re-reads the costs). */
+  function chooseSupplier(next: Supplier | undefined, id: string) {
+    setState((current) => {
+      const currency = next?.default_currency ?? current.currency;
+      return {
+        ...current,
+        supplierId: id,
+        ...(next ? { currency, rate: "" } : {}),
+        // A restock line still at its starting cost follows the new currency.
+        lines: current.lines.map((line) =>
+          line.lastCost !== undefined && (line.cost === "" || line.cost === startingCost(line.lastCost ?? null, current.currency))
+            ? { ...line, cost: startingCost(line.lastCost ?? null, currency) }
+            : line,
+        ),
+        cashAccountId: "",
+      };
+    });
   }
 
   /* ------------------------------------------------------------- render */
 
-  const supplier = suppliers.find((row) => row.id === state.supplierId);
+  const supplier = supplierList.find((row) => row.id === state.supplierId);
+  const supplierGroups = orderSuppliers(supplierList, recentSupplierIds);
+  const payable = (cashAccounts ?? []).filter((account) => account.is_active && account.currency_code === state.currency);
   const precision = precisionOf(state.currency);
   const money = (value: bigint | null, currency: string) =>
     value === null ? t("atPosting") : moneyText(value, currency, precisionOf(currency), locale);
@@ -356,33 +479,65 @@ export function InvoiceForm({
   const locked = review !== null;
 
   return (
-    <div className="flex flex-col gap-6" data-testid="invoice-form">
-      <DraftBar
-        restoredAt={restoredAt}
-        saved={saved}
-        onDiscard={() => void discardDraft()}
-        when={(iso) => format.dateTime(new Date(iso), { timeStyle: "short", dateStyle: "short", numberingSystem: "latn" })}
-      />
+    <div className="flex flex-col gap-6" data-testid="invoice-form" data-mode={restock ? "restock" : "invoice"}>
+      {restock ? (
+        <>
+          <Alert tone="info" data-testid="restock-intro">
+            {t("restock.intro", { name: restock.productName })}
+          </Alert>
+          {otherDraftAt ? (
+            <Alert data-testid="restock-other-draft">
+              {t("restock.otherDraft", { at: format.dateTime(new Date(otherDraftAt), { timeStyle: "short", dateStyle: "short", numberingSystem: "latn" }) })}{" "}
+              <Link className="font-semibold underline" href="/purchasing/invoices/new">
+                {t("restock.openDraft")}
+              </Link>
+            </Alert>
+          ) : null}
+        </>
+      ) : (
+        <DraftBar
+          restoredAt={restoredAt}
+          saved={saved}
+          onDiscard={() => void discardDraft()}
+          when={(iso) => format.dateTime(new Date(iso), { timeStyle: "short", dateStyle: "short", numberingSystem: "latn" })}
+        />
+      )}
+      {restock && posted && postedInvoice ? <RestockResult invoice={postedInvoice} restock={restock} /> : null}
 
       {/* ------------------------------------------------------- header */}
       <Card className="grid gap-4 md:grid-cols-3">
         <Field label={t("supplier")} name="supplier_id" error={err("supplier")} hint={suppliersComplete ? undefined : t("suppliersPartial")}>
-          <Select
-            value={state.supplierId}
-            disabled={locked}
-            onChange={(event) => {
-              const next = suppliers.find((row) => row.id === event.target.value);
-              set({ supplierId: event.target.value, ...(next ? { currency: next.default_currency, rate: "" } : {}) });
-            }}
-            data-testid="invoice-supplier"
-          >
-            <option value="">{t("pickSupplier")}</option>
-            {suppliers.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.name} · {row.default_currency}
-              </option>
-            ))}
-          </Select>
+          <div className="flex gap-2">
+            <Select
+              value={state.supplierId}
+              disabled={locked}
+              onChange={(event) => chooseSupplier(supplierList.find((row) => row.id === event.target.value), event.target.value)}
+              data-testid="invoice-supplier"
+            >
+              <option value="">{t("pickSupplier")}</option>
+              {supplierGroups.recent.length ? (
+                <optgroup label={t("suppliersRecent")}>
+                  {supplierGroups.recent.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name} · {row.default_currency}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              <optgroup label={supplierGroups.recent.length ? t("suppliersOthers") : t("suppliersAll")}>
+                {supplierGroups.others.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name} · {row.default_currency}
+                  </option>
+                ))}
+              </optgroup>
+            </Select>
+            {can("suppliers.manage") && !locked ? (
+              <Button variant="secondary" onClick={() => setCreatingSupplier(true)} aria-label={t("newSupplier")} title={t("newSupplier")} data-testid="invoice-new-supplier">
+                <UserPlus className="size-4" aria-hidden />
+              </Button>
+            ) : null}
+          </div>
         </Field>
         <Field label={t("invoiceNumber")} name="supplier_invoice_number" hint={t("invoiceNumberHint")}>
           <Input value={state.invoiceNumber} maxLength={80} dir="ltr" disabled={locked} onChange={(event) => set({ invoiceNumber: event.target.value })} data-testid="invoice-number" />
@@ -451,19 +606,37 @@ export function InvoiceForm({
       <Card className="flex flex-col gap-4">
         <h2 className="text-lg font-bold">{t("lines")}</h2>
         {err("lines") ? <Alert>{err("lines")}</Alert> : null}
-        {preview.lines.map((row, index) => {
+        {state.lines.map((line, index) => {
+          // A line without a quantity stays where it is, but isn't part of the
+          // invoice, its totals or its checks.
+          const at = postedLines.indexOf(line);
+          const blank = at < 0;
+          const row = blank ? { line, ...packConversion("0", line.packSize || "1", line.cost || "0"), unitError: null } : preview.lines[at];
           const k = `line-${row.line.key}`;
-          const share = preview.shown?.[index] ?? null;
-          const exactShare = preview.allocation?.shares[index] ?? null;
+          const share = blank ? null : (preview.shown?.[at] ?? null);
+          const exactShare = blank ? null : (preview.allocation?.shares[at] ?? null);
           const landedUnit =
             preview.rateFixed !== null && exactShare !== null && row.baseQuantity > 0n
               ? landedUnitCostIqd(row.baseUnitCost, preview.rateFixed, exactShare, row.baseQuantity)
               : null;
           const unit = row.line.sku?.baseUnit ?? "";
           return (
-            <div key={row.line.key} className="flex flex-col gap-3 rounded-md border border-border p-4" data-testid="invoice-line">
+            <div
+              key={row.line.key}
+              className={`flex flex-col gap-3 rounded-md border p-4 ${blank ? "border-dashed border-border" : "border-border"}`}
+              data-testid="invoice-line"
+              data-blank={blank ? "true" : "false"}
+              data-sku={row.line.sku?.sku ?? ""}
+            >
               <div className="flex items-center justify-between">
-                <span className="font-semibold">{t("lineNumber", { number: index + 1 })}</span>
+                <span className="font-semibold">
+                  {t("lineNumber", { number: index + 1 })}
+                  {blank ? (
+                    <Badge tone="neutral" className="ms-2" data-testid="line-blank-badge">
+                      {t("blankLine")}
+                    </Badge>
+                  ) : null}
+                </span>
                 {state.lines.length > 1 && !locked ? (
                   <Button size="sm" variant="ghost" onClick={() => set({ lines: state.lines.filter((line) => line.key !== row.line.key) })} aria-label={t("removeLine")}>
                     <Trash2 className="size-4" aria-hidden />
@@ -484,7 +657,13 @@ export function InvoiceForm({
                 <Field key={`size-${generation}`} label={t("packSize", { unit: unit || t("baseUnits") })} name="pack_size" error={err(`${k}-packSize`)}>
                   <DecimalInput value={row.line.packSize} parse={{ maxDecimals: 3 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { packSize: text.trim() })} data-testid="line-pack-size" />
                 </Field>
-                <Field key={`cost-${generation}`} label={t("costPerPack", { currency: state.currency })} name="unit_cost" error={err(`${k}-cost`)}>
+                <Field
+                  key={`cost-${generation}`}
+                  label={t("costPerPack", { currency: state.currency })}
+                  name="unit_cost"
+                  error={err(`${k}-cost`)}
+                  hint={row.line.lastCost ? t("restock.lastCost", { cost: row.line.lastCost.value, currency: row.line.lastCost.currency }) : undefined}
+                >
                   <DecimalInput value={row.line.cost} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { cost: text.trim() })} data-testid="line-cost" />
                 </Field>
                 <Field label={t("lineLocation")} name="location_id">
@@ -648,6 +827,51 @@ export function InvoiceForm({
         {canCost ? null : <p className="text-xs text-text-muted">{t("costHiddenAfter")}</p>}
       </Card>
 
+      {cashAccounts ? (
+        <Card className="flex flex-col gap-3" data-testid="invoice-payment">
+          <h2 className="text-lg font-bold">{t("payNow.title")}</h2>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="radio" name="invoice-payment" className="mt-1" checked={state.payment === "owed"} disabled={locked} onChange={() => set({ payment: "owed" })} data-testid="invoice-payment-owed" />
+            <span>
+              <span className="font-semibold">{t("payNow.owed")}</span>
+              <span className="block text-text-muted">{t("payNow.owedHint")}</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="radio" name="invoice-payment" className="mt-1" checked={state.payment === "now"} disabled={locked} onChange={() => set({ payment: "now" })} data-testid="invoice-payment-now" />
+            <span>
+              <span className="font-semibold">{t("payNow.now")}</span>
+              <span className="block text-text-muted">{t("payNow.nowHint")}</span>
+            </span>
+          </label>
+          {state.payment === "now" ? (
+            <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount", { currency: state.currency })}>
+              <Select value={state.cashAccountId} disabled={locked} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="invoice-cash-account">
+                <option value="">{t("payNow.pickAccount")}</option>
+                {payable.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} · {account.currency_code}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {creatingSupplier ? (
+        <SupplierDialog
+          supplier={null}
+          quick
+          onClose={() => setCreatingSupplier(false)}
+          onSaved={(created) => {
+            setSupplierList((current) => [...current, created]);
+            chooseSupplier(created, created.id);
+            setCreatingSupplier(false);
+          }}
+        />
+      ) : null}
+
       <Field label={t("notes")} name="notes">
         <Textarea value={state.notes} maxLength={2000} disabled={locked} onChange={(event) => set({ notes: event.target.value })} />
       </Field>
@@ -655,7 +879,32 @@ export function InvoiceForm({
       {/* --------------------------------------------------------- submit */}
       {review ? (
         <Card className="flex flex-col gap-3" data-testid="invoice-review">
-          <p className="text-sm">{t("reviewBody", { lines: state.lines.length, total: money(preview.totalIqd, "IQD") })}</p>
+          <p className="text-sm">{t("reviewBody", { lines: postedLines.length, total: money(preview.totalIqd, "IQD") })}</p>
+          <ul className="flex flex-col gap-1 text-sm" data-testid="invoice-review-lines">
+            {postedLines.map((line) => (
+              <li key={line.key} data-testid="invoice-review-line" data-sku={line.sku?.sku}>
+                <span className="font-semibold" dir="ltr">{line.sku?.sku}</span> ·{" "}
+                <span dir="ltr">
+                  {line.packs}
+                  {line.packSize && line.packSize !== "1" ? ` × ${line.packSize}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {skipped ? (
+            <p className="text-xs text-text-muted" data-testid="invoice-review-skipped">
+              {t("skippedLines", { count: skipped })}
+            </p>
+          ) : null}
+          {state.payment === "now" ? (
+            <p className="text-sm" data-testid="invoice-review-payment">
+              {t("payNow.reviewPaid", { account: payable.find((row) => row.id === state.cashAccountId)?.name ?? "" })}
+            </p>
+          ) : (
+            <p className="text-sm" data-testid="invoice-review-payment">
+              {t("payNow.reviewOwed")}
+            </p>
+          )}
           <PurchasingPostingStatus
             state={posting.state}
             href={(document) => `/purchasing/invoices/${document.id}`}
@@ -680,6 +929,31 @@ export function InvoiceForm({
             )}
           </div>
           {posting.state.phase === "error" ? <Alert tone="info">{t("fixAndReview")}</Alert> : null}
+          {payment.phase === "paying" ? <p className="text-sm text-text-muted">{t("payNow.paying")}</p> : null}
+          {payment.phase === "paid" ? (
+            <Alert tone="success" data-testid="invoice-paid-now">
+              {t("payNow.paid", { amount: moneyText(toFixed(String(payment.amount)), payment.currency, precisionOf(payment.currency), locale) })}
+            </Alert>
+          ) : null}
+          {payment.phase === "failed" && postedInvoice ? (
+            <div className="flex flex-col gap-2" data-testid="invoice-pay-failed">
+              <Alert>{t("payNow.failed")}</Alert>
+              <FormError kind={payment.kind} detail={payment.detail} />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" onClick={() => void payNow(postedInvoice.id, review.paymentOperationId)} data-testid="invoice-pay-retry">
+                  {t("payNow.retry")}
+                </Button>
+                <Link className="text-sm font-semibold text-primary-dark hover:underline" href={`/purchasing/payments/new?supplier_id=${state.supplierId}`}>
+                  {t("payNow.payLater")}
+                </Link>
+              </div>
+            </div>
+          ) : null}
+          {posted && postedInvoice && !restock && payment.phase === "paid" ? (
+            <Link className="text-sm font-semibold text-primary-dark hover:underline" href={`/purchasing/invoices/${postedInvoice.id}`} data-testid="invoice-open">
+              {t("openInvoice")}
+            </Link>
+          ) : null}
         </Card>
       ) : (
         <div className="flex justify-end">

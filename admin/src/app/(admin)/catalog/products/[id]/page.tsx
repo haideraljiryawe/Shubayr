@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowRight, Copy, PackagePlus, Plus } from "lucide-react";
+import { ArrowRight, Copy, PackagePlus, Plus, Truck } from "lucide-react";
 import { buttonClasses, Card, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadAllBrands, loadCategoryTree, loadPricingContext } from "@/lib/api/catalog-server";
@@ -46,9 +46,16 @@ export default async function ProductPage({
   const name = product.data.name_ar || product.data.name_en;
   const variants = product.data.variants ?? [];
   const totals = permissions.includes("inventory.view") ? await variantTotals(api, variants.map((variant) => variant.id ?? "")) : null;
-  const stockEnabled = parseModules(ADMIN_MODULES).includes("stock");
-  const canOpenStock = stockEnabled && permissions.includes("inventory.manage");
+  const modules = parseModules(ADMIN_MODULES);
+  const canOpenStock = modules.includes("stock") && permissions.includes("inventory.manage");
   const openingHref = `/inventory/openings/new?product=${product.data.id}`;
+  // Restock (إعادة تعبئة المخزون) is a purchase from a supplier; opening stock
+  // is for the first day's balances only. Once the product holds stock,
+  // Restock leads and opening stock steps back.
+  const canRestock = modules.includes("purchasing") && permissions.includes("purchases.create");
+  const restockHref = `/purchasing/invoices/new?restock=${product.data.id}`;
+  const hasStock = totals !== null && Object.values(totals).some((row) => row.onHand > 0);
+  const restockFirst = canRestock && (hasStock || !canOpenStock);
 
   return (
     <>
@@ -64,8 +71,25 @@ export default async function ProductPage({
         description={t("editDescription")}
         actions={
           <>
+            {canRestock ? (
+              <Link
+                href={restockHref}
+                className={buttonClasses({ variant: restockFirst ? "primary" : "secondary" })}
+                data-testid="product-restock"
+                data-primary={restockFirst ? "true" : "false"}
+              >
+                <Truck className="size-4" aria-hidden />
+                {t("restock")}
+              </Link>
+            ) : null}
             {canOpenStock ? (
-              <Link href={openingHref} className={buttonClasses({ variant: "secondary" })} data-testid="product-opening-stock">
+              <Link
+                href={openingHref}
+                className={buttonClasses({ variant: restockFirst ? "ghost" : "secondary" })}
+                data-testid="product-opening-stock"
+                data-primary={restockFirst ? "false" : "true"}
+                title={t("openingStockHint")}
+              >
                 <PackagePlus className="size-4" aria-hidden />
                 {t("openingStock")}
               </Link>

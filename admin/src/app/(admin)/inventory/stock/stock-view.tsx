@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useUnitName } from "@/components/catalog/unit-name";
-import { X } from "lucide-react";
-import { Badge, Card } from "@/components/ui";
+import { Truck, X } from "lucide-react";
+import { Badge, buttonClasses, Card } from "@/components/ui";
 import { DataTable, TableFilter, useTableUrl, type Column, type TableState } from "@/components/table/data-table";
 import {
   availabilityTone,
@@ -45,6 +45,7 @@ export function StockView({
   filters,
   summary,
   today,
+  canRestock = false,
 }: {
   rows: Balance[];
   state: TableState;
@@ -53,6 +54,8 @@ export function StockView({
   filters: Record<string, string>;
   summary: SkuSummary | null;
   today: string;
+  /** Restock (a purchase invoice) is offered per row: purchasing on, purchases.create held. */
+  canRestock?: boolean;
 }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
@@ -134,6 +137,21 @@ export function StockView({
       className: "text-end",
       cell: (row) => <span dir="ltr" className="text-text-muted" data-testid="stock-custody">{qty(row.custody)}</span>,
     },
+    ...(canRestock
+      ? [
+          {
+            key: "restock",
+            header: <span className="sr-only">{t("restock")}</span>,
+            className: "text-end",
+            cell: (row: Balance) => (
+              <Link href={restockHref(row.product_id)} className={buttonClasses({ size: "sm", variant: "secondary" })} data-testid="stock-restock">
+            <Truck className="size-4" aria-hidden />
+            {t("restock")}
+          </Link>
+            ),
+          } satisfies Column<Balance>,
+        ]
+      : []),
   ];
 
   const chips: Array<{ key: string; label: string }> = [];
@@ -145,7 +163,7 @@ export function StockView({
 
   return (
     <div className="flex flex-col gap-6">
-      {summary ? <SummaryCard summary={summary} /> : null}
+      {summary ? <SummaryCard summary={summary} canRestock={canRestock} /> : null}
       <DataTable
         rows={rows}
         columns={columns}
@@ -194,7 +212,7 @@ export function StockView({
   );
 }
 
-function SummaryCard({ summary }: { summary: SkuSummary }) {
+function SummaryCard({ summary, canRestock }: { summary: SkuSummary; canRestock: boolean }) {
   const t = useTranslations("inventory");
   const locale = useLocale();
   const unitName = useUnitName();
@@ -219,6 +237,12 @@ function SummaryCard({ summary }: { summary: SkuSummary }) {
             </Link>
           ) : null}
         </div>
+        {canRestock && catalog ? (
+          <Link href={restockHref(catalog.productId)} className={buttonClasses({ size: "sm", variant: "secondary" })} data-testid="sku-summary-restock">
+            <Truck className="size-4" aria-hidden />
+            {t("restock")}
+          </Link>
+        ) : null}
         {catalog?.availability ? (
           <div className="flex flex-col items-end gap-1">
             <Badge tone={availabilityTone(catalog.availability)} data-testid="sku-availability" data-state={catalog.availability}>
@@ -250,4 +274,9 @@ function SummaryCard({ summary }: { summary: SkuSummary }) {
       {summary.complete ? null : <p className="text-xs text-warning-dark">{t("stock.partial")}</p>}
     </Card>
   );
+}
+
+/** Restock: a purchase invoice prefilled with the product's variants. */
+export function restockHref(productId: string): string {
+  return `/purchasing/invoices/new?restock=${productId}`;
 }

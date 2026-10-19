@@ -5,6 +5,9 @@ import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { parseTableParams, type RawSearchParams } from "@/lib/table-params";
+import { loadPermissions } from "@/lib/api/inventory-server";
+import { ADMIN_MODULES } from "@/lib/config";
+import { parseModules } from "@/lib/modules";
 import { StockTabs } from "../stock-tabs";
 import { SkusView } from "./skus-view";
 
@@ -29,6 +32,7 @@ export default async function StockBySkuPage({ searchParams }: { searchParams: P
     products = await load(api.GET("/admin/products", { params: { query: query(lastPage(products.data.total, params.perPage)) } }));
   }
   if (!products.ok) return <PageError error={products.error} />;
+  const permissions = await loadPermissions(api);
 
   return (
     <>
@@ -37,6 +41,7 @@ export default async function StockBySkuPage({ searchParams }: { searchParams: P
       <SkusView
         rows={products.data.data}
         state={{ page: products.data.page, perPage: params.perPage, total: products.data.total, sort: "newest", dir: "desc" }}
+        canRestock={parseModules(ADMIN_MODULES).includes("purchasing") && permissions.includes("purchases.create")}
       />
     </>
   );

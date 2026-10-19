@@ -82,7 +82,7 @@ export function DriverForm({
   }
 
   return (
-    <Card>
+    <Card id={initial ? undefined : "driver-form"} className="scroll-mt-20">
       <form
         noValidate
         className="flex flex-col gap-4"
