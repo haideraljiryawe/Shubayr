@@ -181,7 +181,9 @@ test("category: description saved and cleared, picture cropped, replaced, kept o
     stored = await read();
     expect(stored.description_en).toBeNull();
     form = await open();
-    await expect(form.getByTestId("category-description-fallback")).toContainText("قد تكون إحداهما غير محفوظة");
+    await expect(form.getByTestId("category-description-fallback")).toContainText(
+      "إذا تُركت لغة فارغة يعرض المتجر وصف اللغة الأخرى مكانه",
+    );
     // Clearing Arabic too leaves no description at all.
     await form.getByTestId("category-description-ar").fill("");
     await form.getByTestId("category-description-en").fill("");
