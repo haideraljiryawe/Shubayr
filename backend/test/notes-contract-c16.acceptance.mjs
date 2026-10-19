@@ -406,6 +406,10 @@ try {
     'public window is numeric',
   );
 
+  // This pack creates products for the banner scenarios above. Move those
+  // fixtures outside the rolling window so the Recently Added assertions only
+  // measure the four purpose-built rows below.
+  await db.query(`UPDATE products SET created_at = now() - interval '31 days'`);
   const recentLow = await createProduct(admin, `${suffix}-low`, category.id);
   const recentIn = await createProduct(admin, `${suffix}-in`, category.id);
   const recentOut = await createProduct(admin, `${suffix}-out`, category.id);
@@ -583,7 +587,7 @@ try {
   );
 
   const served = (await request('/governorates')).find(
-    ({ served: isServed }) => isServed,
+    ({ is_served: isServed }) => isServed,
   );
   assert.ok(served, 'the D1 acceptance setup must leave a served governorate');
   assertions += 1;
