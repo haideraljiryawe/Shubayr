@@ -100,7 +100,7 @@ abstract final class AppLayout {
   /// Two department cards fit the reading region without changing order grids.
   static const categoryCardMinWidth = 280.0;
 
-  /// Main category artwork's share of the available card width.
+  /// Maximum share of card width for square main-category artwork.
   static const categoryCardImageFraction = 0.42;
   static const subcategoryMinWidth = 150.0;
   static const categoryIconSize = 32.0;
