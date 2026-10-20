@@ -11,12 +11,13 @@ export function InvoicesTable({
   rows,
   state,
   suppliers,
-  canViewCost,
+  canViewTotals,
 }: {
   rows: PurchaseInvoice[];
   state: TableState;
   suppliers: Array<{ id: string; name: string }>;
-  canViewCost: boolean;
+  /** Invoice totals: cost.view, purchases.create or supplier_payments.record (canViewSettlement). */
+  canViewTotals: boolean;
 }) {
   const t = useTranslations("purchasing.invoices");
   const ti = useTranslations("purchasing.invoice");
@@ -50,8 +51,8 @@ export function InvoicesTable({
         </div>
       ),
     },
-    ...(canViewCost
-      ? [{ key: "total", header: t("columns.total"), className: "text-end", cell: (invoice: PurchaseInvoice) => <span dir="ltr">{money(invoice.total_cost, invoice.currency_code)}</span> }]
+    ...(canViewTotals
+      ? [{ key: "total", header: t("columns.total"), className: "text-end", cell: (invoice: PurchaseInvoice) => <span dir="ltr" data-testid="invoice-row-total">{money(invoice.total_cost, invoice.currency_code)}</span> }]
       : []),
     {
       key: "remaining",

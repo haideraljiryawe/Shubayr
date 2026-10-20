@@ -7,7 +7,7 @@ import { DateFilter } from "@/components/finance/date-filter";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { DataTable, type Column, type TableState } from "@/components/table/data-table";
-import { isIssue, type CashActivity, type HeldOrder, type PartyCustody, type StatementEntry } from "@/lib/delivery-parties";
+import { PARTY_TONE, isIssue, type CashActivity, type HeldOrder, type PartyCustody, type StatementEntry } from "@/lib/delivery-parties";
 import { receiptHref } from "@/lib/finance/cash-receipts";
 import { tripHref } from "@/lib/trips";
 import type { components } from "@/types/api";
@@ -118,7 +118,7 @@ export function PartyView({
   return (
     <div className="flex flex-col gap-6" data-testid="party-view" data-party={party.id}>
       <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-        <Badge tone={party.kind === "external_driver" ? "warning" : "info"} data-testid="party-kind" data-kind={party.kind}>
+        <Badge tone={PARTY_TONE[party.kind]} data-testid="party-kind" data-kind={party.kind}>
           {t(`kinds.${party.kind}`)}
         </Badge>
         <Badge tone={party.is_active ? "success" : "neutral"} data-testid="party-status" data-active={String(party.is_active)}>

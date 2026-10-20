@@ -9,16 +9,18 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { DataTable, TableFilter, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { PARTY_KINDS, type DeliveryParty } from "@/lib/delivery-parties";
+import { MANAGED_KINDS, PARTY_KINDS, PARTY_TONE, managedPartyPath, type DeliveryParty, type ManagedKind } from "@/lib/delivery-parties";
+import { CourierForm } from "./courier-form";
 import { DriverForm } from "./driver-form";
 
 type Pending = { party: DeliveryParty; action: "deactivate" | "activate" | "remove" };
 
 /**
- * The parties table. External drivers can be created, edited, deactivated
- * or reactivated (drivers.manage). "Remove" deletes a driver nobody has used
- * yet; once a driver has any delivery, custody or retrieval the API keeps
- * the record and deactivates it instead, and the page says which happened.
+ * The parties table. External drivers and courier companies can be created,
+ * edited, deactivated or reactivated (drivers.manage). "Remove" deletes one
+ * nobody has used yet; once it has any delivery, custody or retrieval the
+ * API keeps the record and deactivates it instead, and the page says which
+ * happened.
  */
 export function PartiesView({
   rows,
@@ -36,6 +38,8 @@ export function PartiesView({
   const toast = useToast();
   const formRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<DeliveryParty | null>(null);
+  /** Which kind the "add" form creates. */
+  const [creating, setCreating] = useState<ManagedKind>("external_driver");
   // A new key empties the form after each save.
   const [saves, setSaves] = useState(0);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -55,10 +59,15 @@ export function PartiesView({
         ),
     },
     {
+      key: "contact",
+      header: t("columns.contact"),
+      cell: (party) => (party.contact_person ? <span data-testid="party-contact">{party.contact_person}</span> : "—"),
+    },
+    {
       key: "kind",
       header: t("columns.kind"),
       cell: (party) => (
-        <Badge tone={party.kind === "external_driver" ? "warning" : "info"} data-testid="party-kind" data-kind={party.kind}>
+        <Badge tone={PARTY_TONE[party.kind]} data-testid="party-kind" data-kind={party.kind}>
           {t(`kinds.${party.kind}`)}
         </Badge>
       ),
@@ -85,7 +94,7 @@ export function PartiesView({
               {t("viewCustody")}
             </Link>
           ) : null}
-          {canManageDrivers && party.kind === "external_driver" ? (
+          {canManageDrivers && party.kind !== "internal_agent" ? (
             <>
               <Button
                 size="sm"
@@ -112,22 +121,35 @@ export function PartiesView({
     },
   ];
 
+  const formKind: ManagedKind = editing ? (editing.kind === "courier_company" ? "courier_company" : "external_driver") : creating;
+  const done = (saved: { name: string; duplicate_phone_warning: boolean }, created: boolean) => {
+    setEditing(null);
+    setSaves((count) => count + 1);
+    setNotice(saved.duplicate_phone_warning ? { kind: "duplicatePhone", name: saved.name } : null);
+    toast(created ? t("created") : t("updated"));
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {canManageDrivers ? (
-        <div ref={formRef}>
-          <DriverForm
-            key={`${editing?.id ?? "new"}:${saves}`}
-            initial={editing}
-            onDone={(saved, created) => {
-              setEditing(null);
-              setSaves((count) => count + 1);
-              setNotice(saved.duplicate_phone_warning ? { kind: "duplicatePhone", name: saved.name } : null);
-              toast(created ? t("created") : t("updated"));
-              router.refresh();
-            }}
-            onCancel={editing ? () => setEditing(null) : undefined}
-          />
+        <div ref={formRef} className="flex flex-col gap-3">
+          {editing ? null : (
+            <div className="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label={t("addKind")} data-testid="party-add-kind">
+              <span className="font-semibold">{t("addKind")}</span>
+              {MANAGED_KINDS.map((kind) => (
+                <label key={kind} className="flex items-center gap-2">
+                  <input type="radio" name="party-add-kind" checked={creating === kind} onChange={() => setCreating(kind)} data-testid={`party-add-${kind}`} />
+                  {t(`kinds.${kind}`)}
+                </label>
+              ))}
+            </div>
+          )}
+          {formKind === "courier_company" ? (
+            <CourierForm key={`${editing?.id ?? "new"}:${saves}`} initial={editing} onDone={done} onCancel={editing ? () => setEditing(null) : undefined} />
+          ) : (
+            <DriverForm key={`${editing?.id ?? "new"}:${saves}`} initial={editing} onDone={done} onCancel={editing ? () => setEditing(null) : undefined} />
+          )}
         </div>
       ) : null}
 
@@ -177,12 +199,13 @@ export function PartiesView({
         onConfirm={async () => {
           if (!pending) return;
           const { party, action } = pending;
+          const path = managedPartyPath(party.kind === "courier_company" ? "courier_company" : "external_driver");
           if (action === "remove") {
-            const removed = await unwrap(browserApi.DELETE("/admin/external-drivers/{id}", { params: { path: { id: party.id } } }));
+            const removed = await unwrap(browserApi.DELETE(path, { params: { path: { id: party.id } } }));
             setNotice({ kind: removed.disposition, name: party.name });
           } else {
             await unwrap(
-              browserApi.PATCH("/admin/external-drivers/{id}", {
+              browserApi.PATCH(path, {
                 params: { path: { id: party.id } },
                 body: { is_active: action === "activate" },
               }),

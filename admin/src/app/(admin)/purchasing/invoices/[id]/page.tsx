@@ -97,11 +97,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             <Item label={t("remaining")}>
               <span dir="ltr" data-testid="invoice-remaining">{money(doc.remaining_currency, currency)}</span>
             </Item>
+            {doc.total_cost !== undefined ? (
+              <Item label={t("total")}><span dir="ltr" data-testid="invoice-total">{money(doc.total_cost, currency)}</span></Item>
+            ) : null}
             {canCost ? (
               <>
                 <Item label={t("subtotal")}><span dir="ltr">{money(doc.subtotal_currency, currency)}</span></Item>
                 <Item label={t("landedInCurrency", { currency })}><span dir="ltr">{money(doc.landed_cost_currency, currency)}</span></Item>
-                <Item label={t("total")}><span dir="ltr" data-testid="invoice-total">{money(doc.total_cost, currency)}</span></Item>
                 <Item label={t("totalIqd")}><span dir="ltr" data-testid="invoice-total-iqd-value">{money(doc.total_iqd, "IQD")}</span></Item>
               </>
             ) : null}

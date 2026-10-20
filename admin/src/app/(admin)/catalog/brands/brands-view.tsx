@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
@@ -18,6 +18,7 @@ import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors
 import { ImageManager } from "@/components/catalog/image-manager";
 import { englishOrArabic, SLUG_PATTERN, slugFor, type Brand } from "@/lib/catalog";
 import { imagesSettled, type ImageDraft } from "@/lib/product-images";
+import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 
 type Dialog = { kind: "form"; brand: Brand | null } | { kind: "delete"; brand: Brand } | null;
 
@@ -200,6 +201,9 @@ function BrandForm({
   const [advanced, setAdvanced] = useState(false);
   const suggested = slugFor(nameEn, nameAr);
   const logoState = imagesSettled(logo);
+  // Logos uploaded here that the saved brand doesn't use are deleted again.
+  const uploads = useRef<string[]>([]);
+  const settledForm = useRef(false);
 
   async function submit() {
     const typed = slug.trim();
@@ -244,7 +248,18 @@ function BrandForm({
         }
       }
     });
-    if (saved) onSaved(saved, !brand);
+    if (!saved) return;
+    settledForm.current = true;
+    void discardUploads(orphanedUploads(uploads.current, [saved.logo_url, brand?.logo_url]));
+    onSaved(saved, !brand);
+  }
+
+  function close() {
+    if (!settledForm.current) {
+      settledForm.current = true;
+      void discardUploads(orphanedUploads(uploads.current, [brand?.logo_url]));
+    }
+    onClose();
   }
 
   const error = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;
@@ -256,7 +271,7 @@ function BrandForm({
       submitLabel={brand ? t("save") : t("create")}
       pending={api.pending}
       onSubmit={() => void submit()}
-      onClose={onClose}
+      onClose={close}
       testId="brand-form"
     >
       <div className="grid gap-4 md:grid-cols-2">
@@ -270,7 +285,7 @@ function BrandForm({
       <div className="flex flex-col gap-1.5" data-field="logo_url">
         <p className="text-sm font-semibold">{t("fields.logo")}</p>
         <p className="text-xs text-text-muted">{t("fields.logoHint")}</p>
-        <ImageManager images={logo} onChange={setLogo} single testId="brand-logo" />
+        <ImageManager images={logo} onChange={setLogo} onUploaded={(url) => uploads.current.push(url)} single testId="brand-logo" />
         {error("logo_url") ? (
           <p className="text-xs font-semibold text-error-dark" data-testid="error-logo_url">
             {error("logo_url")}

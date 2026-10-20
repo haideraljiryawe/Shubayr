@@ -16,10 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Every delivery party (contract 11.2): internal agents and external
- * drivers, searched, filtered and paged by the server. External drivers are
- * created and edited here (drivers.manage); a party's custody is on its own
- * page (deliveries.manage).
+ * Every delivery party (contract 11.2, 17.8.0): internal agents, external
+ * drivers and courier companies, searched, filtered and paged by the server.
+ * External drivers and courier companies are created and edited here
+ * (drivers.manage); a party's custody is on its own page (deliveries.manage).
  */
 export default async function DeliveryPartiesPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const t = await getTranslations("parties");

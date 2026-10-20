@@ -1,5 +1,6 @@
+import type { components } from "@/types/api";
 import type { LocationInfo } from "@/lib/inventory";
-import type { CurrencyCode, Supplier } from "@/lib/purchasing";
+import { fixedText, toFixed, type CurrencyCode } from "@/lib/purchasing";
 
 /* ---------------------------------------------------------------------------
  * Restock (إعادة تعبئة المخزون): a purchase invoice prefilled from one
@@ -7,12 +8,13 @@ import type { CurrencyCode, Supplier } from "@/lib/purchasing";
  *
  * - Every variant gets a line; a line left empty or at 0 is simply not part
  *   of the invoice, so restocking only the second colour is one quantity.
- * - The cost starts at what was last paid for that SKU: the supplier's unit
- *   cost on the invoice its newest lot came from (in that invoice's currency),
- *   or, for stock entered as opening stock, that lot's cost in IQD.
- * - The location starts where the product's newest stock went (if that
- *   location is still active), else the store's only — or only sellable —
- *   location.
+ * - The cost starts at what was last paid for that SKU: the API's latest
+ *   posted purchase cost (GET /admin/purchase-costs/variants/{id}/last,
+ *   cost.view), in that invoice's currency; for a SKU never purchased but
+ *   entered as opening stock, that lot's cost in IQD.
+ * - The location starts where the product's newest stock went (lots read
+ *   newest-first from the API), if that location is still active, else the
+ *   store's only — or only sellable — location.
  * - The supplier starts as the one the product was last bought from.
  * ------------------------------------------------------------------------- */
 
@@ -29,13 +31,8 @@ export interface LotFacts {
   batch_stock?: ReadonlyArray<{ location_id: string }>;
 }
 
-/** One line of a purchase invoice, as GET /admin/purchase-invoices/{id} lists it. */
-export interface InvoiceItemFacts {
-  id: string;
-  variant_id: string | null;
-  base_unit_cost_currency?: number;
-  currency_code?: CurrencyCode;
-}
+/** GET /admin/purchase-costs/variants/{id}/last (null: never purchased). */
+export type LastPurchase = components["schemas"]["LastVariantPurchaseCost"];
 
 export interface LastCost {
   value: string;
@@ -56,17 +53,23 @@ const decimal = (value: number) => {
   return /e/i.test(text) ? value.toFixed(6).replace(/\.?0+$/, "") : text;
 };
 
-/** What was last paid for the SKU of `lot`, or null when the cost can't be read. */
-export function lastCostOf(lot: LotFacts | null, items: readonly InvoiceItemFacts[]): LastCost | null {
-  if (!lot) return null;
-  if (lot.source_type === "purchase_invoice") {
-    const item = items.find((row) => row.id === lot.po_item_id) ?? items.find((row) => row.variant_id === lot.variant_id);
-    if (item?.base_unit_cost_currency !== undefined && item.base_unit_cost_currency > 0 && item.currency_code) {
-      return { value: decimal(item.base_unit_cost_currency), currency: item.currency_code };
-    }
-    return null;
+/**
+ * What was last paid for a SKU: its latest posted purchase, else (never
+ * purchased) the cost of its newest lot when that lot is opening stock.
+ */
+export function restockCost(last: LastPurchase | null, newest: LotFacts | null): LastCost | null {
+  if (last && last.unit_cost > 0) return { value: decimal(last.unit_cost), currency: last.currency_code };
+  if (newest && newest.source_type !== "purchase_invoice" && newest.purchase_cost !== undefined && newest.purchase_cost > 0) {
+    return { value: decimal(newest.purchase_cost), currency: "IQD" };
   }
-  return lot.purchase_cost !== undefined && lot.purchase_cost > 0 ? { value: decimal(lot.purchase_cost), currency: "IQD" } : null;
+  return null;
+}
+
+/** The supplier the product was last bought from: the latest of its SKUs' last purchases. */
+export function lastSupplierId(purchases: ReadonlyArray<LastPurchase | null>, newest: LotFacts | null): string {
+  let best: LastPurchase | null = null;
+  for (const row of purchases) if (row && (!best || row.received_at > best.received_at)) best = row;
+  return best?.supplier.id ?? newest?.supplier_id ?? "";
 }
 
 /** The location new stock goes to, given the product's newest lot. */
@@ -78,31 +81,6 @@ export function restockLocation(newest: LotFacts | null, locations: readonly Loc
   if (sellable.length === 1) return sellable[0].id;
   if (active.length === 1) return active[0].id;
   return sellable[0]?.id ?? active[0]?.id ?? "";
-}
-
-/**
- * Suppliers for the picker: those bought from recently first (newest first,
- * once each, active only), then everyone else by name.
- */
-export function orderSuppliers(suppliers: readonly Supplier[], recentIds: readonly string[]): { recent: Supplier[]; others: Supplier[] } {
-  const active = suppliers.filter((supplier) => supplier.is_active);
-  const byId = new Map(active.map((supplier) => [supplier.id, supplier]));
-  const recent: Supplier[] = [];
-  for (const id of recentIds) {
-    const supplier = byId.get(id);
-    if (supplier && !recent.includes(supplier)) recent.push(supplier);
-  }
-  const others = active.filter((supplier) => !recent.includes(supplier)).sort((a, b) => a.name.localeCompare(b.name));
-  return { recent, others };
-}
-
-/** Supplier ids from invoices listed newest first, each once. */
-export function recentSupplierIds(invoices: ReadonlyArray<{ supplier_id?: string | null }>): string[] {
-  const ids: string[] = [];
-  for (const invoice of invoices) {
-    if (invoice.supplier_id && !ids.includes(invoice.supplier_id)) ids.push(invoice.supplier_id);
-  }
-  return ids;
 }
 
 /* --------------------------------------------------------------- lines */
@@ -124,4 +102,24 @@ export function linesToPost<T>(lines: readonly T[], quantity: (line: T) => strin
 /** The cost a prefilled line starts with: the last cost, when it is in the invoice's currency. */
 export function startingCost(last: LastCost | null, currency: CurrencyCode): string {
   return last && last.currency === currency ? last.value : "";
+}
+
+/* ------------------------------------------------------------- paid now */
+
+/**
+ * The amount "paid now" settles: the invoice total in its own currency (lines
+ * plus landed costs), which the API requires exactly. Only when every landed
+ * cost is in the invoice's currency can it be known exactly before posting;
+ * otherwise null, and the invoice is recorded as owed and paid afterwards.
+ */
+export function paidNowAmount(
+  lineTotals: readonly bigint[],
+  landed: ReadonlyArray<{ currency: CurrencyCode; amount: string }>,
+  currency: CurrencyCode,
+): string | null {
+  if (landed.some((cost) => cost.currency !== currency)) return null;
+  const total = [...lineTotals, ...landed.map((cost) => toFixed(cost.amount || "0"))].reduce((sum, value) => sum + value, 0n);
+  // The API takes at most six decimals and rounds the same way.
+  const amount = fixedText(total, 6);
+  return toFixed(amount) > 0n ? amount : null;
 }

@@ -95,3 +95,19 @@ export async function loadBackdatingWindow(api: Api): Promise<number> {
   const days = Number(raw);
   return Number.isFinite(days) && days > 0 ? days : 90;
 }
+
+/**
+ * The supplier picker's first view: active suppliers bought from most
+ * recently first (sort_by=recent_purchase; never-used ones last). Searching
+ * beyond these happens on the server as the person types. A supplier the page
+ * must preselect is added when it isn't among them.
+ */
+export async function loadRecentSuppliers(api: Api, include?: string): Promise<Supplier[]> {
+  const result = await load(api.GET("/admin/suppliers", { params: { query: { sort_by: "recent_purchase", per_page: 20 } } }));
+  const suppliers: Supplier[] = result.ok ? result.data.data : [];
+  if (include && !suppliers.some((supplier) => supplier.id === include)) {
+    const one = await load(api.GET("/admin/suppliers/{id}", { params: { path: { id: include } } }));
+    if (one.ok) suppliers.push(one.data as Supplier);
+  }
+  return suppliers;
+}

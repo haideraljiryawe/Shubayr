@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
-import { sortBanners, type Banner } from "@/lib/banners";
+import { categoryOptions, sortBanners, type Banner } from "@/lib/banners";
 import { BannersView } from "./banners-view";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,9 +15,11 @@ const PER_PAGE = 100;
 
 /**
  * Home banners (catalog.products, like the API's banner routes): every banner,
- * disabled and expired ones included, in the order the store shows them.
- * There are only ever a handful, so all pages are read and the status filter
- * runs on the page.
+ * disabled and expired ones included, in the order the store shows them, each
+ * with the API's computed status. There are only ever a handful, so all pages
+ * are read and the status filter runs on the page. The category tree feeds
+ * the "opens a category" picker: the admin tree when the person may read it
+ * (catalog.categories), otherwise the customer-visible one.
  */
 export default async function BannersPage() {
   const t = await getTranslations("banners");
@@ -29,11 +31,13 @@ export default async function BannersPage() {
     banners.push(...result.data.data);
     if (result.data.data.length < PER_PAGE || banners.length >= result.data.total) break;
   }
+  let tree = await load(api.GET("/admin/categories"));
+  if (!tree.ok) tree = await load(api.GET("/categories"));
 
   return (
     <>
       <PageHeader title={t("title")} description={t("description")} />
-      <BannersView banners={sortBanners(banners)} now={new Date().toISOString()} />
+      <BannersView banners={sortBanners(banners)} categories={tree.ok ? categoryOptions(tree.data) : []} />
     </>
   );
 }

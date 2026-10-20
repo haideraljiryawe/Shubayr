@@ -8,9 +8,10 @@ import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./he
  * - categories (NOTE-003/006/008): descriptions saved and cleared without
  *   touching other fields, a picture cropped and uploaded, replaced, kept
  *   when a replacement upload fails (and retried), then removed;
- * - home banners (NOTE-001): create → schedule (Baghdad time) → disable →
- *   duplicate → reorder → delete, plus an expired banner reused and a
- *   one-date banner shown as saved.
+ * - home banners (NOTE-001, contract 17.7.0): create with Arabic/English text
+ *   and a web-link action → schedule (Baghdad time) → disable → duplicate →
+ *   reorder (one atomic call) → delete, plus an expired banner reused and a
+ *   one-date banner shown as saved, statuses as the server computes them.
  * Fixtures carry a per-run suffix and are removed at the end.
  */
 
@@ -212,13 +213,24 @@ test("category: description saved and cleared, picture cropped, replaced, kept o
 
 /* ------------------------------------------------------------ banners */
 
+/** A row by its internal name (the admin's name for a banner). */
 async function bannerRow(page: Page, title: string) {
   return page.getByTestId("banner-row").filter({ has: page.getByTestId("banner-row-title").getByText(title, { exact: true }) });
 }
 
 async function allBanners(request: APIRequestContext) {
   const page = await api(request, "GET", "/admin/banners?per_page=100");
-  return page.body.data as Array<{ id: string; title: string; sort_order: number; is_active: boolean; starts_at: string | null; ends_at: string | null; created_at: string }>;
+  return page.body.data as Array<{
+    id: string;
+    title: string;
+    internal_name: string;
+    sort_order: number;
+    is_active: boolean;
+    starts_at: string | null;
+    ends_at: string | null;
+    created_at: string;
+    effective_status: string;
+  }>;
 }
 
 test("banner: create → schedule → disable → duplicate → reorder → delete", async ({ page, request }) => {
@@ -231,31 +243,38 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await page.getByTestId("banner-new").click();
     const form = page.getByTestId("banner-form");
     await form.getByTestId("dialog-submit").click();
-    await expect(form).toContainText("أدخل العنوان.");
+    await expect(form).toContainText("أدخل الاسم الداخلي.");
+    await expect(form).toContainText("أدخل عنوانًا بالعربية أو الإنجليزية");
     await expect(form.getByTestId("banner-image-required")).toBeVisible();
-    await form.getByTestId("banner-title").fill(title);
+    await form.getByTestId("banner-internal-name").fill(title);
+    await form.getByTestId("banner-title-ar").fill(title);
+    await form.getByTestId("banner-title-en").fill(`Season offers ${run}`);
     await pickAndCrop(page, "banner-image", "season.png", png(2400, 1600, [30, 90, 60]), "1600 × 800");
     await expect(form.getByTestId("banner-preview-phone")).toBeVisible();
     await expect(form.getByTestId("banner-preview-desktop")).toBeVisible();
-    await expect(form.getByTestId("banner-preview-action")).toContainText("لا يوجد رابط");
-    await expect(form.getByTestId("banner-actions-later")).toContainText("التحديث القادم");
+    await expect(form.getByTestId("banner-preview-action")).toContainText("بلا إجراء");
+    await form.getByTestId("banner-action").selectOption("url");
     await form.getByTestId("banner-link").fill("/offers");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toContainText("أدخل عنوان ويب كاملًا");
     await form.getByTestId("banner-link").fill(`https://example.com/offers/${run}`);
-    await form.getByTestId("banner-cta").fill("تسوق العروض");
+    await form.getByTestId("banner-cta-ar").fill("تسوق العروض");
     await expect(form.getByTestId("banner-preview-cta")).toHaveText("تسوق العروض");
+    // The English preview falls back to the Arabic button label, like the API.
+    await form.getByTestId("banner-preview-en").check();
+    await expect(form.getByTestId("banner-preview-cta")).toHaveText("تسوق العروض");
+    await expect(form.getByTestId("banner-preview")).toContainText(`Season offers ${run}`);
     await form.getByTestId("banner-enabled").check();
-    await expect(form.getByTestId("banner-outcome")).toHaveAttribute("data-status", "active");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toBeHidden();
     let row = await bannerRow(page, title);
     await expect(row).toHaveAttribute("data-status", "active");
     await expect(row.getByTestId("banner-schedule-text")).toHaveText("دائم");
     await expect(row.getByTestId("banner-link-text")).toContainText(`https://example.com/offers/${run}`);
-    let mine = (await allBanners(request)).find((banner) => banner.title === title)!;
+    let mine = (await allBanners(request)).find((banner) => banner.internal_name === title)!;
     createdBanners.push(mine.id);
     expect(mine.is_active).toBe(true);
+    expect(mine).toMatchObject({ title, effective_status: "active" });
 
     // Schedule it from tomorrow for two days, in Baghdad time.
     const starts = baghdadLocal(1);
@@ -267,7 +286,7 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await form.getByTestId("dialog-submit").click();
     await expect(form).toContainText("يجب أن يكون الانتهاء بعد البدء.");
     await form.getByTestId("banner-ends").fill(ends);
-    await expect(form.getByTestId("banner-outcome")).toHaveAttribute("data-status", "scheduled");
+    await expect(form.getByTestId("banner-current-status")).toHaveAttribute("data-status", "active");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toBeHidden();
     row = await bannerRow(page, title);
@@ -298,7 +317,7 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await expect(page.getByTestId("banner-row").filter({ hasText: title })).toHaveCount(2);
     const list = await allBanners(request);
     expect(list).toHaveLength(before + 1);
-    const copy = list.filter((banner) => banner.title === title && banner.id !== mine.id)[0];
+    const copy = list.filter((banner) => banner.internal_name === title && banner.id !== mine.id)[0];
     createdBanners.push(copy.id);
     expect(copy.is_active).toBe(false);
     expect(copy.sort_order).toBe(Math.max(...list.map((banner) => banner.sort_order)));
@@ -307,8 +326,16 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await expect(lastRow.getByTestId("banner-down")).toBeDisabled();
 
     // Reorder: the copy moves up one place, in the API's order too.
+    const writes: string[] = [];
+    const watch = (sent: { method(): string; url(): string }) => {
+      if (/\/api\/proxy\/admin\/banners/.test(sent.url()) && sent.method() !== "GET") writes.push(`${sent.method()} ${new URL(sent.url()).pathname}`);
+    };
+    page.on("request", watch);
     await lastRow.getByTestId("banner-up").click();
     await expect(page.getByTestId("banner-row").last()).not.toHaveAttribute("data-banner-id", copy.id);
+    page.off("request", watch);
+    // One atomic call with the complete order — never per-banner sort_order patches.
+    expect(writes).toEqual(["PUT /api/proxy/admin/banners/order"]);
     const rows = page.getByTestId("banner-row");
     const count = await rows.count();
     await expect(rows.nth(count - 2)).toHaveAttribute("data-banner-id", copy.id);
@@ -381,9 +408,9 @@ test("an expired banner stays editable and is reused; a one-date banner is shown
     const old = await bannerRow(page, expiredTitle);
     await expect(old).toHaveAttribute("data-status", "expired");
     await old.getByTestId("banner-edit").click();
+    await expect(form.getByTestId("banner-current-status")).toHaveAttribute("data-status", "expired");
     await form.getByTestId("banner-mode-permanent").check();
     await expect(form.getByTestId("banner-schedule-drops")).toContainText("تاريخ الانتهاء");
-    await expect(form.getByTestId("banner-outcome")).toHaveAttribute("data-status", "active");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toBeHidden();
     await expect(await bannerRow(page, expiredTitle)).toHaveAttribute("data-status", "active");

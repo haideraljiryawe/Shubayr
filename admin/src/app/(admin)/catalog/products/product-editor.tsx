@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Clock, Plus, Sparkles, Trash2, X } from "lucide-react";
@@ -47,6 +47,8 @@ import {
   type ImageDraft,
 } from "@/lib/product-images";
 import { decimalPlaces, formatAmount, formatRate } from "@/lib/finance/money";
+import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
+import { limitBody, limitDraft, limitPatch, switchLimit, validateLimit, type PurchaseLimitDraft } from "@/lib/purchase-limit";
 import { parseLocalizedDecimal } from "@/lib/number";
 
 type Status = "active" | "hidden" | "archived";
@@ -147,6 +149,19 @@ export function ProductEditor({
         ? copiedDrafts(template)
         : [emptyDraft(pricing.foreign[0]?.code ?? "", "new-0")],
   );
+  // Per-order limit for the whole product; a copy starts with its template's.
+  const [limit, setLimit] = useState<PurchaseLimitDraft>(() => limitDraft(source));
+  // Pictures uploaded in this editor since the last save: whatever the saved
+  // product doesn't keep (a removed tile) is deleted on save, and everything
+  // still unsaved when the editor is left (DELETE /media/{id}; the API keeps
+  // anything still referenced).
+  const uploads = useRef<string[]>([]);
+  useEffect(
+    () => () => {
+      void discardUploads(orphanedUploads(uploads.current, (product?.images ?? []).map((image) => image.url)));
+    },
+    [product],
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [variantErrors, setVariantErrors] = useState<Record<string, FieldMessages>>({});
   const [imageProblem, setImageProblem] = useState<"busy" | "failed" | null>(null);
@@ -175,6 +190,8 @@ export function ProductEditor({
     if (!nameAr.trim()) found.name_ar = t("errors.nameAr");
     if (!categoryId) found.category_id = t("errors.category");
     if (price === null || price < 0 || !Number.isInteger(price)) found.price = t("errors.price");
+    const limitProblem = validateLimit(limit, { wholeUnitsOnly: drafts.every((draft) => draft.whole_units_only) });
+    if (limitProblem) found.purchase_limit_max_quantity = t(`limit.problems.${limitProblem}`);
 
     const perVariant: Record<string, FieldMessages> = {};
     const variants: ProductVariantInput[] = [];
@@ -224,7 +241,7 @@ export function ProductEditor({
           return await unwrap(
             browserApi.PATCH("/admin/products/{id}", {
               params: { path: { id: product.id } },
-              body: { ...body, ...(operations.length ? { media_operations: operations } : {}) },
+              body: { ...body, ...limitPatch(product, limit), ...(operations.length ? { media_operations: operations } : {}) },
             }),
           );
         }
@@ -236,6 +253,7 @@ export function ProductEditor({
               ...body,
               discount_type: null,
               tracks_expiry: template?.tracks_expiry ?? false,
+              ...limitBody(limit),
               images: creationImages(images),
             },
           }),
@@ -257,6 +275,9 @@ export function ProductEditor({
       }
     });
     if (!saved) return;
+    // Saved: keep what the product now uses, delete the rest of this editor's uploads.
+    void discardUploads(orphanedUploads(uploads.current, [...(saved.images ?? []).map((image) => image.url), ...(product?.images ?? []).map((image) => image.url)]));
+    uploads.current = [];
     if (saved.price_update_status === "pending_approval" && saved.price_approval_request_id) {
       setPendingApprovalId(saved.price_approval_request_id);
       toast(t("approvalPendingToast"));
@@ -277,6 +298,14 @@ export function ProductEditor({
   }
 
   const error = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;
+  const clearLimitError = () => {
+    setErrors((current) => {
+      const rest = { ...current };
+      delete rest.purchase_limit_max_quantity;
+      return rest;
+    });
+    api.clearField("purchase_limit_max_quantity");
+  };
   const missingSkus = drafts.some((draft) => !draft.sku.trim());
 
   return (
@@ -365,7 +394,7 @@ export function ProductEditor({
             <h2 className="text-lg font-bold">{t("sections.images")}</h2>
             <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
           </div>
-          <ImageManager images={images} onChange={setImages} testId="product-images" />
+          <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} testId="product-images" />
           {imageProblem && settled !== "ready" ? (
             <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
           ) : null}
@@ -408,6 +437,39 @@ export function ProductEditor({
               onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
             />
           ))}
+        </Card>
+
+        <Card className="flex flex-col gap-3" data-testid="purchase-limit-section">
+          <h2 className="text-lg font-bold">{t("limit.title")}</h2>
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={limit.enabled}
+              onChange={(e) => {
+                setLimit((current) => switchLimit(current, e.target.checked));
+                clearLimitError();
+              }}
+              data-testid="purchase-limit-enabled"
+            />
+            {t("limit.enabled")}
+          </label>
+          <p className="-mt-1 text-xs text-text-muted">{t("limit.hint")}</p>
+          {limit.enabled ? (
+            <Field label={t("limit.max")} name="purchase_limit_max_quantity" error={error("purchase_limit_max_quantity")} hint={t("limit.maxHint")}>
+              <Input
+                className="w-40"
+                inputMode="decimal"
+                dir="ltr"
+                value={limit.max}
+                onChange={(e) => {
+                  const max = e.target.value;
+                  setLimit((current) => ({ ...current, max }));
+                  clearLimitError();
+                }}
+                data-testid="purchase-limit-max"
+              />
+            </Field>
+          ) : null}
         </Card>
 
         <Card className="flex flex-col gap-3" data-testid="visibility-section">
