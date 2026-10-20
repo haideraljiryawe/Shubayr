@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -16,6 +17,7 @@ import type { AuthenticatedRequestUser } from '../../common/guards/permissions.g
 import {
   AllocateSupplierCreditDto,
   CreateCostCorrectionDto,
+  CreatePaidPurchaseInvoiceDto,
   CreatePurchaseInvoiceDto,
   CreateSupplierPaymentDto,
   CreateSupplierReturnDto,
@@ -23,6 +25,7 @@ import {
   StatementQueryDto,
   SupplierDto,
   SupplierOpeningBalanceDto,
+  SupplierListQueryDto,
   UpdateSupplierDto,
 } from './dto/purchasing.dto';
 import { PurchasingService } from './purchasing.service';
@@ -36,8 +39,8 @@ export class SuppliersController {
 
   @Get()
   @AdminPolicy('suppliers.view')
-  list(@Query() query: PurchasingQueryDto) {
-    return this.purchasing.listSuppliers(query.page, query.per_page);
+  list(@Query() query: SupplierListQueryDto) {
+    return this.purchasing.listSuppliers(query);
   }
 
   @Get('balances')
@@ -109,10 +112,7 @@ export class PurchaseInvoicesController {
   @Get()
   @AdminPolicy('suppliers.view')
   list(@Req() request: AdminRequest, @Query() query: PurchasingQueryDto) {
-    return this.purchasing.invoices(
-      query,
-      request.user.permissions.includes('cost.view'),
-    );
+    return this.purchasing.invoices(query, request.user.permissions);
   }
 
   @Post()
@@ -128,13 +128,36 @@ export class PurchaseInvoicesController {
     );
   }
 
+  @Post('paid-now')
+  @AdminPolicy('purchases.create', 'supplier_payments.record')
+  createPaidNow(
+    @Req() request: AdminRequest,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() input: CreatePaidPurchaseInvoiceDto,
+  ) {
+    return this.purchasing.createPaidInvoice(
+      request.user.id,
+      request.user.permissions,
+      key,
+      input,
+    );
+  }
+
   @Get(':id')
   @AdminPolicy('suppliers.view')
   get(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
-    return this.purchasing.invoice(
-      id,
-      request.user.permissions.includes('cost.view'),
-    );
+    return this.purchasing.invoice(id, request.user.permissions);
+  }
+}
+
+@Controller('admin/purchase-costs')
+export class PurchaseCostsController {
+  constructor(private readonly purchasing: PurchasingService) {}
+
+  @Get('variants/:id/last')
+  @AdminPolicy('cost.view')
+  lastVariantCost(@Param('id', uuid) id: string) {
+    return this.purchasing.lastVariantCost(id);
   }
 }
 

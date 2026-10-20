@@ -30,6 +30,7 @@ import {
 import {
   AllocateSupplierCreditDto,
   CreateCostCorrectionDto,
+  CreatePaidPurchaseInvoiceDto,
   CreatePurchaseInvoiceDto,
   CreateSupplierPaymentDto,
   CreateSupplierReturnDto,
@@ -37,8 +38,14 @@ import {
   StatementQueryDto,
   SupplierDto,
   SupplierOpeningBalanceDto,
+  SupplierListQueryDto,
+  SupplierListSort,
   UpdateSupplierDto,
 } from './dto/purchasing.dto';
+import {
+  paidNowDocumentOperationId,
+  purchaseIdempotencyKey,
+} from './purchasing-rules';
 
 type Tx = Prisma.TransactionClient;
 type DecimalInput = string | number | Prisma.Decimal;
@@ -57,14 +64,34 @@ export class PurchasingService {
     private readonly operations: OperationService,
   ) {}
 
-  async listSuppliers(page = 1, perPage = 50) {
+  async listSuppliers(query: SupplierListQueryDto) {
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 50;
+    const q = query.q?.trim();
+    const where: Prisma.SupplierWhereInput = q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+    const orderBy: Prisma.SupplierOrderByWithRelationInput[] =
+      query.sort_by === SupplierListSort.RecentPurchase
+        ? [
+            { last_purchase_at: { sort: 'desc', nulls: 'last' } },
+            { name: 'asc' },
+            { id: 'asc' },
+          ]
+        : [{ is_active: 'desc' }, { name: 'asc' }, { id: 'asc' }];
     const [data, total] = await Promise.all([
       this.prisma.supplier.findMany({
-        orderBy: [{ is_active: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+        where,
+        orderBy,
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      this.prisma.supplier.count(),
+      this.prisma.supplier.count({ where }),
     ]);
     return { page, per_page: perPage, total, data };
   }
@@ -554,13 +581,23 @@ export class PurchasingService {
         credit_iqd: totalIqd,
       },
     });
-    await tx.documentDraft.deleteMany({
-      where: { user_id: actorId, document_type: 'purchase_invoice' },
+    await tx.supplier.update({
+      where: { id: supplier.id },
+      data: { last_purchase_at: new Date() },
     });
-    return this.invoiceTx(tx, id, permissions.includes('cost.view'));
+    if (input.draft_id) {
+      await tx.documentDraft.deleteMany({
+        where: {
+          id: input.draft_id,
+          user_id: actorId,
+          document_type: 'purchase_invoice',
+        },
+      });
+    }
+    return this.invoiceTx(tx, id, permissions);
   }
 
-  async invoices(query: PurchasingQueryDto, canViewCost: boolean) {
+  async invoices(query: PurchasingQueryDto, permissions: string[]) {
     const page = query.page ?? 1;
     const perPage = query.per_page ?? 20;
     const where: Prisma.PurchaseInvoiceWhereInput = {
@@ -596,12 +633,132 @@ export class PurchasingService {
       page,
       per_page: perPage,
       total,
-      data: rows.map((row) => this.presentInvoice(row, canViewCost)),
+      data: rows.map((row) => this.presentInvoice(row, permissions)),
     };
   }
 
-  async invoice(id: string, canViewCost: boolean) {
-    return this.invoiceTx(this.prisma, id, canViewCost);
+  async invoice(id: string, permissions: string[]) {
+    return this.invoiceTx(this.prisma, id, permissions);
+  }
+
+  async createPaidInvoice(
+    actorId: string,
+    permissions: string[],
+    key: string | undefined,
+    input: CreatePaidPurchaseInvoiceDto,
+  ) {
+    const operationId = purchaseIdempotencyKey(key);
+    if (!input.invoice.lines.length) {
+      throw new UnprocessableEntityException(
+        'At least one purchase line is required',
+      );
+    }
+    const dates = await this.dates.validate({
+      documentDate: input.invoice.document_date,
+      accountingDate: input.invoice.accounting_date,
+      backdateReason: input.invoice.backdate_reason,
+      permissions,
+    });
+    const rate = await this.transactionRate(
+      input.invoice.currency_code,
+      dates.documentDate,
+      input.invoice.exchange_rate,
+      permissions,
+    );
+    const invoiceInput: CreatePurchaseInvoiceDto = {
+      ...input.invoice,
+      operation_id: paidNowDocumentOperationId(operationId, 'invoice'),
+    };
+    return this.operations.execute({
+      userId: actorId,
+      operationId,
+      endpoint: 'POST /admin/purchase-invoices/paid-now',
+      payload: input,
+      responseStatus: 201,
+      work: async (tx) => {
+        const posted = (await this.postInvoice(
+          tx,
+          actorId,
+          permissions,
+          invoiceInput,
+          dates,
+          rate,
+        )) as { id: string };
+        const paymentInput: CreateSupplierPaymentDto = {
+          operation_id: paidNowDocumentOperationId(operationId, 'payment'),
+          document_date: input.invoice.document_date,
+          ...(input.invoice.accounting_date
+            ? { accounting_date: input.invoice.accounting_date }
+            : {}),
+          ...(input.invoice.backdate_reason
+            ? { backdate_reason: input.invoice.backdate_reason }
+            : {}),
+          supplier_id: input.invoice.supplier_id,
+          cash_account_id: input.payment.cash_account_id,
+          currency_code: input.payment.currency_code,
+          amount: input.payment.amount,
+          ...(input.payment.exchange_rate
+            ? { exchange_rate: input.payment.exchange_rate }
+            : {}),
+          ...(input.payment.reference
+            ? { reference: input.payment.reference }
+            : {}),
+          ...(input.payment.notes ? { notes: input.payment.notes } : {}),
+          allocations: [
+            { invoice_id: posted.id, amount: input.payment.amount },
+          ],
+        };
+        const payment = await this.postPaidNowPayment(
+          tx,
+          actorId,
+          permissions,
+          paymentInput,
+          dates,
+        );
+        return {
+          invoice: await this.invoiceTx(tx, posted.id, permissions),
+          payment,
+        };
+      },
+    });
+  }
+
+  async lastVariantCost(variantId: string) {
+    const variant = await this.prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: { id: true },
+    });
+    if (!variant) throw new NotFoundException('Product variant not found');
+    const item = await this.prisma.purchaseInvoiceItem.findFirst({
+      where: { variant_id: variantId, invoice: { status: 'posted' } },
+      select: {
+        base_unit_cost_currency: true,
+        currency_code: true,
+        invoice_id: true,
+        invoice: {
+          select: {
+            document_date: true,
+            received_at: true,
+            supplier: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: [
+        { invoice: { received_at: 'desc' } },
+        { invoice_id: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+    if (!item) return null;
+    return {
+      variant_id: variantId,
+      unit_cost: item.base_unit_cost_currency,
+      currency_code: item.currency_code,
+      document_date: item.invoice.document_date,
+      received_at: item.invoice.received_at,
+      supplier: item.invoice.supplier,
+      invoice_id: item.invoice_id,
+    };
   }
 
   async payment(
@@ -872,6 +1029,170 @@ export class PurchasingService {
           .then((row) => this.presentPayment(row));
       },
     });
+  }
+
+  private async postPaidNowPayment(
+    tx: Tx,
+    actorId: string,
+    permissions: string[],
+    input: CreateSupplierPaymentDto,
+    dates: {
+      documentDate: Date;
+      accountingDate: Date;
+      backdateReason?: string;
+    },
+  ) {
+    await this.requireActiveSupplier(tx, input.supplier_id);
+    const cash = await tx.cashAccount.findUnique({
+      where: { id: input.cash_account_id },
+    });
+    if (!cash?.is_active) {
+      throw conflict('CASH_ACCOUNT_INACTIVE', 'Cash account is inactive');
+    }
+    if (cash.currency_code !== input.currency_code) {
+      throw new UnprocessableEntityException(
+        'Payment currency must match the cash account',
+      );
+    }
+    const amount = this.positive(input.amount, 'amount');
+    const allocation = input.allocations[0];
+    const invoice = await tx.purchaseInvoice.findUnique({
+      where: { id: allocation.invoice_id },
+    });
+    if (!invoice || invoice.supplier_id !== input.supplier_id) {
+      throw new NotFoundException('Supplier invoice not found');
+    }
+    await assertPurchaseCreatorSeparation(
+      tx,
+      actorId,
+      invoice.created_by,
+      'payment',
+      'A purchase creator cannot approve its supplier payment',
+    );
+    const foreignCurrencies = new Set(
+      [input.currency_code, invoice.currency_code].filter(
+        (currency) => currency !== 'IQD',
+      ),
+    );
+    if (foreignCurrencies.size > 1) {
+      throw new UnprocessableEntityException(
+        'A supplier payment can use only one foreign currency',
+      );
+    }
+    const settlementCurrency = foreignCurrencies.values().next().value ?? 'IQD';
+    const settlementRate = await this.transactionRate(
+      settlementCurrency,
+      dates.documentDate,
+      input.exchange_rate,
+      permissions,
+    );
+    const cashRate = input.currency_code === 'IQD' ? D(1) : settlementRate;
+    const invoiceRate = invoice.currency_code === 'IQD' ? D(1) : settlementRate;
+    const paidIqd = amount.times(cashRate);
+    const applied = paidIqd
+      .div(invoiceRate)
+      .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+    if (!applied.equals(invoice.total_cost)) {
+      throw conflict(
+        'PAID_NOW_AMOUNT_MISMATCH',
+        'Paid-now amount must settle the purchase invoice exactly',
+      );
+    }
+    const carryingIqd = applied.times(invoice.exchange_rate);
+    const fx = paidIqd.minus(carryingIqd);
+    const id = randomUUID();
+    const lines: PostingLine[] = [
+      this.line('2000', 'debit', carryingIqd, 'IQD', carryingIqd, D(1)),
+      this.line(
+        cash.ledger_account_id
+          ? await this.accountCode(tx, cash.ledger_account_id)
+          : '1050',
+        'credit',
+        paidIqd,
+        input.currency_code,
+        amount,
+        cashRate,
+      ),
+    ];
+    if (fx.gt(0)) {
+      lines.push(this.line('5030', 'debit', fx, 'IQD', fx, D(1)));
+    }
+    if (fx.lt(0)) {
+      lines.push(this.line('4020', 'credit', fx.abs(), 'IQD', fx.abs(), D(1)));
+    }
+    const entry = await this.ledger.post(tx, {
+      sourceType: 'supplier_payment',
+      sourceId: id,
+      event: 'post',
+      documentDate: dates.documentDate,
+      accountingDate: dates.accountingDate,
+      createdBy: actorId,
+      description: 'Supplier payment',
+      lines,
+    });
+    const documentNumber = await this.numbers.issue(
+      tx,
+      'supplier_payment',
+      'SUP-PAY',
+      dates.documentDate,
+    );
+    const payment = await tx.supplierPayment.create({
+      data: {
+        id,
+        document_number: documentNumber,
+        operation_id: input.operation_id,
+        supplier_id: input.supplier_id,
+        cash_account_id: cash.id,
+        currency_code: input.currency_code,
+        amount_currency: amount,
+        exchange_rate: cashRate,
+        amount_iqd: paidIqd,
+        allocated_currency: amount,
+        unallocated_currency: 0,
+        document_date: dates.documentDate,
+        accounting_date: dates.accountingDate,
+        reference: input.reference?.trim() || null,
+        notes: input.notes?.trim() || null,
+        created_by: actorId,
+        journal_entry_id: entry.id,
+      },
+    });
+    const created = await tx.supplierPaymentAllocation.create({
+      data: {
+        payment_id: id,
+        invoice_id: invoice.id,
+        amount_payment_currency: amount,
+        amount_invoice_currency: applied,
+        invoice_carrying_iqd: carryingIqd,
+        payment_iqd: paidIqd,
+        fx_difference_iqd: fx,
+      },
+    });
+    await tx.supplierAccountEntry.create({
+      data: {
+        supplier_id: input.supplier_id,
+        source_type: 'payment_allocation',
+        source_id: created.id,
+        payment_id: id,
+        document_number: documentNumber,
+        document_date: dates.documentDate,
+        accounting_date: dates.accountingDate,
+        currency_code: invoice.currency_code,
+        debit_currency: applied,
+        debit_iqd: carryingIqd,
+      },
+    });
+    return tx.supplierPayment
+      .findUniqueOrThrow({
+        where: { id: payment.id },
+        include: {
+          creator: { select: actorSelect },
+          allocations: true,
+          credits: true,
+          journal_entry: true,
+        },
+      })
+      .then((row) => this.presentPayment(row));
   }
 
   async supplierReturn(
@@ -1742,7 +2063,7 @@ export class PurchasingService {
   private async invoiceTx(
     tx: Tx | PrismaService,
     id: string,
-    canViewCost: boolean,
+    permissions: string[],
   ) {
     const row = await tx.purchaseInvoice.findUnique({
       where: { id },
@@ -1760,13 +2081,18 @@ export class PurchasingService {
       },
     });
     if (!row) throw new NotFoundException('Purchase invoice not found');
-    return this.presentInvoice(row, canViewCost);
+    return this.presentInvoice(row, permissions);
   }
 
   private presentInvoice<T extends object>(
     row: T,
-    canViewCost: boolean,
+    permissions: string[],
   ): T | Record<string, unknown> {
+    const canViewCost = permissions.includes('cost.view');
+    const canViewSettlement =
+      canViewCost ||
+      permissions.includes('purchases.create') ||
+      permissions.includes('supplier_payments.record');
     const source = row as T & {
       creator?: ActorNameSource;
       total_cost?: Prisma.Decimal;
@@ -1813,12 +2139,16 @@ export class PurchasingService {
       'exchange_rate',
       'subtotal_currency',
       'landed_cost_currency',
-      'total_cost',
       'total_iqd',
       'landed_costs',
       'corrections',
     ])
       delete result[key];
+    if (!canViewSettlement) {
+      delete result.total_cost;
+      delete result.remaining_currency;
+      delete result.settlement_status;
+    }
     if (Array.isArray(result.items)) {
       result.items = result.items.map((item) => {
         const value = { ...(item as Record<string, unknown>) };

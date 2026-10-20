@@ -208,6 +208,7 @@ export function getMockCustody(): DeliveryCustody {
       user_id: "work-+9647700000005",
       name: "Development Delivery",
       phone: "+9647700000005",
+      contact_person: null,
       vehicle_number: null,
       description: null,
       notes: null,

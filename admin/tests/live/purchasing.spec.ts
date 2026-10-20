@@ -1183,7 +1183,7 @@ test("a return is blocked on reserved quantity and allowed for the rest", async 
 
 /* ---------------------------------------------------- reports and costs */
 
-test("statement, balances and aging; without cost.view the costs are hidden", async ({
+test("statement, balances and aging; operators see settlement totals but not unit costs", async ({
   page,
   request,
 }) => {
@@ -1233,6 +1233,8 @@ test("statement, balances and aging; without cost.view the costs are hidden", as
     undefined,
     token,
   );
-  expect(read.body).not.toHaveProperty("total_cost");
+  expect(read.body).toHaveProperty("total_cost", 200000);
+  expect(read.body).toHaveProperty("remaining_currency");
+  expect(read.body).toHaveProperty("settlement_status");
   expect(read.body.items[0]).not.toHaveProperty("unit_cost");
 });

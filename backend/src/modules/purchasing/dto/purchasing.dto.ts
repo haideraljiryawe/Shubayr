@@ -1,4 +1,5 @@
 import { Type } from 'class-transformer';
+import { OmitType } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
@@ -88,6 +89,7 @@ export class LandedCostDto {
 }
 
 export class CreatePurchaseInvoiceDto extends PostingDocumentDto {
+  @IsOptional() @IsUUID('4') draft_id?: string;
   @IsUUID('4') supplier_id!: string;
   @IsOptional() @IsString() @MaxLength(80) supplier_invoice_number?: string;
   @Matches(CURRENCY) currency_code!: 'IQD' | 'USD';
@@ -108,6 +110,32 @@ export class CreatePurchaseInvoiceDto extends PostingDocumentDto {
   @ValidateNested({ each: true })
   @Type(() => LandedCostDto)
   landed_costs?: LandedCostDto[];
+}
+
+export class PaidNowPurchaseInvoiceDto extends OmitType(
+  CreatePurchaseInvoiceDto,
+  ['operation_id'] as const,
+) {}
+
+export class PaidNowSupplierPaymentDto {
+  @IsUUID('4') cash_account_id!: string;
+  @Matches(CURRENCY) currency_code!: 'IQD' | 'USD';
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false }) amount!: string;
+  @IsOptional()
+  @IsDecimal({ decimal_digits: '0,10', force_decimal: false })
+  exchange_rate?: string;
+  @IsOptional() @IsString() @MaxLength(160) reference?: string;
+  @IsOptional() @IsString() @MaxLength(2000) notes?: string;
+}
+
+export class CreatePaidPurchaseInvoiceDto {
+  @ValidateNested()
+  @Type(() => PaidNowPurchaseInvoiceDto)
+  invoice!: PaidNowPurchaseInvoiceDto;
+
+  @ValidateNested()
+  @Type(() => PaidNowSupplierPaymentDto)
+  payment!: PaidNowSupplierPaymentDto;
 }
 
 export class PaymentAllocationDto {
@@ -187,6 +215,18 @@ export class PurchasingQueryDto {
   @IsOptional() @Matches(DATE) to?: string;
   @IsOptional() @IsString() @MaxLength(30) status?: string;
   @IsOptional() @Matches(CURRENCY) currency?: 'IQD' | 'USD';
+}
+
+export enum SupplierListSort {
+  Name = 'name',
+  RecentPurchase = 'recent_purchase',
+}
+
+export class SupplierListQueryDto extends PurchasingQueryDto {
+  @IsOptional() @IsString() @MaxLength(160) q?: string;
+  @IsOptional()
+  @IsIn(Object.values(SupplierListSort))
+  sort_by: SupplierListSort = SupplierListSort.Name;
 }
 
 export class StatementQueryDto {

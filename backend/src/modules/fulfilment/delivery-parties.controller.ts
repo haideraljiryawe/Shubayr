@@ -21,12 +21,14 @@ import { DeliveryPartiesService } from './delivery-parties.service';
 import { DeliveriesService } from './deliveries.service';
 import { PartyCollectionsQueryDto } from './dto/delivery.dto';
 import {
+  CreateCourierCompanyDto,
   CreateExternalDriverDto,
   CustodyOverviewQueryDto,
   DeliveryPartyKind,
   DeliveryPartyQueryDto,
   PartyCashActivityQueryDto,
   PartyStatementQueryDto,
+  UpdateCourierCompanyDto,
   UpdateExternalDriverDto,
 } from './dto/delivery-party.dto';
 
@@ -166,5 +168,41 @@ export class ExternalDriversController {
   @AdminPolicy('drivers.manage')
   remove(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
     return this.parties.removeExternal(request.user.id, id);
+  }
+}
+
+@Controller('admin/courier-companies')
+export class CourierCompaniesController {
+  constructor(private readonly parties: DeliveryPartiesService) {}
+
+  @Get()
+  @AdminPolicy('drivers.manage')
+  list(@Req() request: AdminRequest, @Query() query: DeliveryPartyQueryDto) {
+    return this.parties.list(
+      { ...query, kind: DeliveryPartyKind.CourierCompany },
+      request.user.permissions.includes('cost.view'),
+    );
+  }
+
+  @Post()
+  @AdminPolicy('drivers.manage')
+  create(@Req() request: AdminRequest, @Body() input: CreateCourierCompanyDto) {
+    return this.parties.createCourier(request.user.id, input);
+  }
+
+  @Patch(':id')
+  @AdminPolicy('drivers.manage')
+  update(
+    @Req() request: AdminRequest,
+    @Param('id', uuid) id: string,
+    @Body() input: UpdateCourierCompanyDto,
+  ) {
+    return this.parties.updateCourier(request.user.id, id, input);
+  }
+
+  @Delete(':id')
+  @AdminPolicy('drivers.manage')
+  remove(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
+    return this.parties.removeCourier(request.user.id, id);
   }
 }

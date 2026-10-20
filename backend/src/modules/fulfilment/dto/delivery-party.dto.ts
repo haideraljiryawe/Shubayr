@@ -16,6 +16,7 @@ import {
 export enum DeliveryPartyKind {
   InternalAgent = 'internal_agent',
   ExternalDriver = 'external_driver',
+  CourierCompany = 'courier_company',
 }
 
 export class DeliveryPartyQueryDto {
@@ -121,6 +122,56 @@ export class UpdateExternalDriverDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}
+
+export class CreateCourierCompanyDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  company_name!: string;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(32)
+  phone!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  contact_person?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+}
+
+export class UpdateCourierCompanyDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  company_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(32)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  contact_person?: string;
 
   @IsOptional()
   @IsString()

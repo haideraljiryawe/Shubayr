@@ -9,6 +9,7 @@ import { LoyaltyModule } from '../loyalty/loyalty.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import {
   AgentCustodyController,
+  CourierCompaniesController,
   DeliveryPartiesController,
   ExternalDriversController,
 } from './delivery-parties.controller';
@@ -30,6 +31,7 @@ import { ExternalDriverTripHistoryService } from './external-driver-trip-history
     DeliveryAgentsController,
     DeliveryPartiesController,
     ExternalDriversController,
+    CourierCompaniesController,
     CustodyExceptionsController,
     ExternalDriverTripsController,
   ],

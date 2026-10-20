@@ -16,6 +16,7 @@ import {
   businessDateText,
 } from '../finance/business-date';
 import {
+  CreateCourierCompanyDto,
   CreateExternalDriverDto,
   CustodyOverviewQueryDto,
   CustodyOverviewSort,
@@ -24,6 +25,7 @@ import {
   PartyCashActivityQueryDto,
   PartyStatementQueryDto,
   SortDirection,
+  UpdateCourierCompanyDto,
   UpdateExternalDriverDto,
 } from './dto/delivery-party.dto';
 
@@ -33,6 +35,7 @@ const partySelect = {
   user_id: true,
   name: true,
   phone: true,
+  contact_person: true,
   vehicle_number: true,
   description: true,
   notes: true,
@@ -162,6 +165,90 @@ export class DeliveryPartiesService {
       });
       return { ...party, duplicate_phone_warning: duplicate > 0 };
     });
+  }
+
+  async createCourier(actorId: string, input: CreateCourierCompanyDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const duplicate = await tx.deliveryParty.count({
+        where: { phone: input.phone.trim() },
+      });
+      const party = await tx.deliveryParty.create({
+        data: {
+          kind: DeliveryPartyKind.CourierCompany,
+          name: input.company_name.trim(),
+          phone: input.phone.trim(),
+          contact_person: input.contact_person?.trim() || null,
+          notes: input.notes?.trim() || null,
+        },
+        select: partySelect,
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'courier_company.create',
+        entityType: 'delivery_party',
+        entityId: party.id,
+        after: party,
+      });
+      return { ...party, duplicate_phone_warning: duplicate > 0 };
+    });
+  }
+
+  async updateCourier(
+    actorId: string,
+    id: string,
+    input: UpdateCourierCompanyDto,
+  ) {
+    if (!Object.keys(input).length) {
+      throw new UnprocessableEntityException(
+        'At least one courier company field is required',
+      );
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.deliveryParty.findUnique({ where: { id } });
+      this.assertCourier(existing);
+      const phone = input.phone?.trim();
+      const duplicate = phone
+        ? await tx.deliveryParty.count({ where: { phone, id: { not: id } } })
+        : 0;
+      const party = await tx.deliveryParty.update({
+        where: { id },
+        data: {
+          ...(input.company_name === undefined
+            ? {}
+            : { name: input.company_name.trim() }),
+          ...(phone === undefined ? {} : { phone }),
+          ...(input.contact_person === undefined
+            ? {}
+            : { contact_person: input.contact_person.trim() || null }),
+          ...(input.notes === undefined
+            ? {}
+            : { notes: input.notes.trim() || null }),
+          ...(input.is_active === undefined
+            ? {}
+            : { is_active: input.is_active }),
+          updated_at: new Date(),
+        },
+        select: partySelect,
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'courier_company.update',
+        entityType: 'delivery_party',
+        entityId: id,
+        before: existing,
+        after: party,
+      });
+      return { ...party, duplicate_phone_warning: duplicate > 0 };
+    });
+  }
+
+  async removeCourier(actorId: string, id: string) {
+    return this.removeManagedParty(
+      actorId,
+      id,
+      DeliveryPartyKind.CourierCompany,
+      'courier_company',
+    );
   }
 
   async updateExternal(
@@ -833,6 +920,7 @@ export class DeliveryPartiesService {
             OR: [
               { name: { contains: q, mode: 'insensitive' } },
               { phone: { contains: q } },
+              { contact_person: { contains: q, mode: 'insensitive' } },
               { vehicle_number: { contains: q, mode: 'insensitive' } },
             ],
           }
@@ -1063,5 +1151,55 @@ export class DeliveryPartiesService {
     if (!party || party.kind !== 'external_driver') {
       throw new NotFoundException('External driver not found');
     }
+  }
+
+  private assertCourier(
+    party: DeliveryParty | null,
+  ): asserts party is DeliveryParty {
+    if (!party || party.kind !== 'courier_company') {
+      throw new NotFoundException('Courier company not found');
+    }
+  }
+
+  private async removeManagedParty(
+    actorId: string,
+    id: string,
+    kind: string,
+    auditPrefix: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.deliveryParty.findUnique({ where: { id } });
+      if (!existing || existing.kind !== kind) {
+        throw new NotFoundException('Delivery party not found');
+      }
+      const [deliveries, movements, holdings, attempts, retrievals, trips] =
+        await Promise.all([
+          tx.delivery.count({ where: { agent_id: id } }),
+          tx.stockMovement.count({ where: { custody_party_id: id } }),
+          tx.custodyHolding.count({ where: { custody_party_id: id } }),
+          tx.deliveryAttempt.count({ where: { party_id: id } }),
+          tx.retrieval.count({ where: { custody_party_id: id } }),
+          tx.externalDriverTrip.count({ where: { driver_party_id: id } }),
+        ]);
+      const used =
+        deliveries + movements + holdings + attempts + retrievals + trips > 0;
+      if (used) {
+        await tx.deliveryParty.update({
+          where: { id },
+          data: { is_active: false, updated_at: new Date() },
+        });
+      } else {
+        await tx.deliveryParty.delete({ where: { id } });
+      }
+      await this.audit.record(tx, {
+        actorId,
+        action: `${auditPrefix}.${used ? 'deactivate' : 'delete'}`,
+        entityType: 'delivery_party',
+        entityId: id,
+        before: existing,
+        after: used ? { is_active: false } : undefined,
+      });
+      return { id, disposition: used ? 'deactivated' : 'deleted' };
+    });
   }
 }
