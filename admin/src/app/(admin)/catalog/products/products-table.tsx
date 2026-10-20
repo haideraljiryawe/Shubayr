@@ -8,7 +8,7 @@ import { CheckCircle2, Copy, EyeOff, ImageOff, ListChecks, Send, X, XCircle } fr
 import { Alert, Badge, Button, Select } from "@/components/ui";
 import { DataTable, TableFilter, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, describeError } from "@/lib/api/errors";
 import { flattenTree, subcategories, type Brand, type Category, type Product } from "@/lib/catalog";
 import { OperationKey } from "@/lib/finance/cash-receipts";
 import { formatAmount } from "@/lib/finance/money";
@@ -59,6 +59,7 @@ export function ProductsTable({
   canBulkEdit: boolean;
 }) {
   const t = useTranslations("products");
+  const tErrors = useTranslations("errors");
   const locale = useLocale();
   const router = useRouter();
   const nameOf = (item: { name_ar?: string; name_en?: string }) =>
@@ -111,7 +112,7 @@ export function ProductsTable({
       setMatching({ key: queryKey, products });
       setSelected(new Set(products.map((product) => product.id ?? "").filter(Boolean)));
     } catch (cause) {
-      setProblem(cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"));
+      setProblem(cause instanceof ApiError ? describeError(tErrors, cause) : t("bulk.failedUnknown"));
     } finally {
       setLoadingAll(false);
     }
@@ -142,7 +143,7 @@ export function ProductsTable({
           const product = known.get(id);
           return product ? nameOf(product) : id;
         },
-        t("bulk.failedUnknown"),
+        (code) => (code && tErrors.has(`codes.${code}`) ? tErrors(`codes.${code}`) : t("bulk.failedUnknown")),
       );
       setOutcome(report);
       setSelected(new Set(report.lines.filter((line) => !line.ok).map((line) => line.id)));
@@ -150,7 +151,7 @@ export function ProductsTable({
       router.refresh();
     } catch (cause) {
       // Nothing was applied (one transaction); the same click retries the same operation.
-      setProblem(cause instanceof ApiError ? cause.message : t("bulk.failedUnknown"));
+      setProblem(cause instanceof ApiError ? describeError(tErrors, cause) : t("bulk.failedUnknown"));
     } finally {
       setRunning(false);
     }

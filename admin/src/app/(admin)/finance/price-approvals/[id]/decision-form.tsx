@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Card, Textarea } from "@/components/ui";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ApiError, errorCode, errorKind, type ErrorKind } from "@/lib/api/errors";
 import type { components } from "@/types/api";
 
 type Approval = components["schemas"]["PricePublishApproval"];
@@ -32,19 +32,20 @@ export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: str
   const [decided, setDecided] = useState<Approval | null>(approval.status === "pending" ? null : approval);
   const [own, setOwn] = useState(false);
   const [problem, setProblem] = useState<ErrorKind | null>(null);
-  const [detail, setDetail] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [reasonMissing, setReasonMissing] = useState(false);
   const number = (value: number | undefined) =>
     value === undefined ? "—" : new Intl.NumberFormat(locale === "ar" ? "ar-IQ" : "en-US", { numberingSystem: "latn", maximumFractionDigits: 2 }).format(value);
 
   async function decide(decision: "approve" | "reject") {
     if (reason.trim().length < 3) {
-      setProblem("validation");
-      setDetail(t("reasonRequired"));
+      setReasonMissing(true);
       return;
     }
     setBusy(decision);
     setProblem(null);
-    setDetail(null);
+    setCode(null);
+    setReasonMissing(false);
     try {
       const result = await unwrap(
         browserApi.POST("/admin/price-publish-approvals/{id}/decision", {
@@ -57,7 +58,7 @@ export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: str
       if (isOwnRequest(cause)) setOwn(true);
       else {
         setProblem(errorKind(cause));
-        setDetail(cause instanceof ApiError ? cause.message : null);
+        setCode(errorCode(cause) ?? null);
       }
     } finally {
       setBusy(null);
@@ -133,10 +134,10 @@ export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: str
         <Alert data-testid="price-approval-own">{t("ownRequest")}</Alert>
       ) : (
         <>
-          <Field label={t("reason")} name="reason">
+          <Field label={t("reason")} name="reason" error={reasonMissing ? t("reasonRequired") : null}>
             <Textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={3} data-testid="price-approval-reason" />
           </Field>
-          {problem ? <FormError kind={problem} detail={detail} /> : null}
+          {problem ? <FormError kind={problem} code={code} /> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={() => void decide("reject")} pending={busy === "reject"} disabled={busy !== null} data-testid="price-approval-reject">
               {t("reject")}

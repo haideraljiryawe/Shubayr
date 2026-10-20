@@ -24,6 +24,7 @@ import {
   type BelowCostBreach,
   type CancellationResolution,
 } from "@/lib/orders";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type Done = (order: AdminOrder) => void;
 type Refused = (cause: unknown) => Promise<void>;
@@ -63,7 +64,7 @@ export function AttentionPanel({
   const { shortLines, proposal } = attention(order);
   const [action, setAction] = useState<ShortageAction | null>(null);
   const [quantity, setQuantity] = useState<string | null>(null);
-  const [quantityError, setQuantityError] = useState<string | null>(null);
+  const [quantityError, setQuantityError] = useLocaleScopedState<string | null>(null);
   const canAct = canResolveShortage(order, permissions);
   if (!order.inventory_attention_required && !proposal) return null;
 

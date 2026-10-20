@@ -69,7 +69,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       {form.formError === "unauthorized" ? (
         <Alert>{t("currentWrong")}</Alert>
       ) : (
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
       )}
 
       <Field

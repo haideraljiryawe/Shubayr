@@ -142,8 +142,10 @@ export function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
         cause instanceof ApiError &&
         cause.status === 422
       ) {
-        // The amount was refused (above what is due, for one): say why, keep the step.
-        setAmountError(cause.message);
+        // The amount was refused (outside zero…due, or below a fare the
+        // customer paid): say so in the page's language, keep the step. The
+        // API sends only a generic code here, never its English text.
+        setAmountError(t("collection.amountRefused"));
         return;
       }
       setConfirming(null);

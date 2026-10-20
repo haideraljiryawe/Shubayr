@@ -14,7 +14,7 @@ import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { DataTable, TableSearch, type Column, type TableState } from "@/components/table/data-table";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { ImageManager } from "@/components/catalog/image-manager";
 import { englishOrArabic, SLUG_PATTERN, slugFor, type Brand } from "@/lib/catalog";
 import { imagesSettled, type ImageDraft } from "@/lib/product-images";
@@ -28,7 +28,7 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
   const toast = useToast();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toggling, setToggling] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; detail: string } | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; errorCode: string | null } | null>(null);
   const close = () => setDialog(null);
   const nameOf = (brand: Brand) => (locale === "ar" ? brand.name_ar : brand.name_en);
 
@@ -45,7 +45,7 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
       toast(brand.is_visible ? t("hiddenToast", { name: nameOf(brand) }) : t("shownToast", { name: nameOf(brand) }));
       router.refresh();
     } catch (cause) {
-      setRowError({ id: brand.id, kind: errorKind(cause), detail: cause instanceof Error ? cause.message : "" });
+      setRowError({ id: brand.id, kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
     } finally {
       setToggling(null);
     }
@@ -112,7 +112,7 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
               {t("delete")}
             </Button>
           </div>
-          {rowError?.id === brand.id ? <FormError kind={rowError.kind} detail={rowError.detail} /> : null}
+          {rowError?.id === brand.id ? <FormError kind={rowError.kind} code={rowError.errorCode} /> : null}
         </div>
       ),
       className: "text-end",
@@ -297,7 +297,7 @@ function BrandForm({
           </Field>
         </div>
       </details>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

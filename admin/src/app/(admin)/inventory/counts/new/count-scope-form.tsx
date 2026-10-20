@@ -123,7 +123,7 @@ export function CountScopeForm({
         <Field label={t("columns.reason")} name="reason" error={errors.reason ?? api.fieldErrors.reason}>
           <Textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} data-testid="count-reason" />
         </Field>
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end">
           <Button type="submit" pending={api.pending} data-testid="count-create">
             {t("count.snapshot")}

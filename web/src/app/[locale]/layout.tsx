@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { cairoVariables } from "@/fonts/cairo";
+import { zainVariables } from "@/fonts/zain";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
@@ -81,7 +81,7 @@ export default async function LocaleLayout({
   if (gate === "closed") {
     // No shell, sign-in, cart or inbox: there is nothing to use yet.
     return (
-      <html lang={locale} dir={localeDirection[locale as Locale]} className={cairoVariables} suppressHydrationWarning>
+      <html lang={locale} dir={localeDirection[locale as Locale]} className={zainVariables} suppressHydrationWarning>
         <body>
           <NextIntlClientProvider messages={messages}>
             <ThemeProvider settings={settings}>{children}</ThemeProvider>
@@ -95,7 +95,7 @@ export default async function LocaleLayout({
     // Sign-in (for account deletion), but no cart, inbox or store navigation:
     // everything behind them is still the "opening soon" page.
     return (
-      <html lang={locale} dir={localeDirection[locale as Locale]} className={cairoVariables} suppressHydrationWarning>
+      <html lang={locale} dir={localeDirection[locale as Locale]} className={zainVariables} suppressHydrationWarning>
         <body>
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
@@ -113,7 +113,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={localeDirection[locale as Locale]}
-      className={cairoVariables}
+      className={zainVariables}
       suppressHydrationWarning
     >
       <body>

@@ -104,7 +104,7 @@ test.describe("security headers", () => {
     await expect(page.getByTestId("cart-badge")).toHaveText("1");
   });
 
-  test("Cairo is self-hosted: the fonts load from this origin, never from Google", async ({ page }) => {
+  test("Zain is self-hosted: its real faces load from this origin, never from Google", async ({ page }) => {
     const external: string[] = [];
     page.on("request", (sent) => {
       if (/fonts\.(googleapis|gstatic)\.com/.test(sent.url())) external.push(sent.url());
@@ -114,11 +114,22 @@ test.describe("security headers", () => {
       await document.fonts.ready;
       return [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family.replace(/["']/g, ""));
     });
-    // The Arabic page uses the Arabic and Latin subsets (numbers, prices).
-    expect(loaded).toContain("cairoArabic");
-    expect(loaded).toContain("cairoLatin");
+    // NOTE-009: Zain regular and bold, from this origin; no Cairo in the store.
+    expect(loaded).toContain("zain");
+    expect(loaded.some((family) => /cairo/i.test(family))).toBe(false);
     expect(external).toEqual([]);
     expect(violations).toEqual([]);
+    // Only the faces every page shows above the fold are preloaded (400, 700).
+    const preloads = await page.locator('link[rel="preload"][as="font"]').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(preloads).toHaveLength(2);
+    expect(preloads.every((href) => /zain_(400|700)/.test(href ?? ""))).toBe(true);
+    // Real weights only: what the page asks for is 400 or 700, never synthesised.
+    const body = await page.evaluate(() => {
+      const style = getComputedStyle(document.body);
+      return { family: style.fontFamily, synthesis: style.getPropertyValue("font-synthesis-weight") };
+    });
+    expect(body.family).toMatch(/zain/);
+    expect(body.synthesis).toBe("none");
   });
 
   test("no source maps are served", async ({ request }) => {

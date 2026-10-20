@@ -37,6 +37,7 @@ const slot = Number(process.env.TEST_PARALLEL_INDEX ?? "0");
 export default defineConfig({
   testDir: "./tests",
   testMatch: [
+    "**/live-catalog.spec.ts",
     "**/live-funnel.spec.ts",
     "**/live-catalog-v2.spec.ts",
     "**/live-checkout.spec.ts",
@@ -50,6 +51,7 @@ export default defineConfig({
     "**/live-account-deletion.spec.ts",
     "**/live-returns.spec.ts",
     "**/live-store-info.spec.ts",
+    "**/live-localized.spec.ts",
   ],
   timeout: 90000,
   use: {

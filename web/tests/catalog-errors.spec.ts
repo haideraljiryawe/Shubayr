@@ -1,4 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+/** The section's error card (Next's route announcer is a role="alert" too). */
+const sectionError = (page: Page) => page.getByRole("alert").filter({ hasText: "تعذّر تحميل هذا القسم" });
 for (const path of [
   "/categories",
   "/category/electronics",
@@ -6,14 +9,12 @@ for (const path of [
 ]) {
   test(`recoverable data error at ${path}`, async ({ page }) => {
     await page.goto(path);
-    await expect(page.getByRole("alert")).toContainText(
-      "تعذّر تحميل هذا القسم",
-    );
+    await expect(sectionError(page)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "حاول مرة أخرى" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "حاول مرة أخرى" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(sectionError(page)).toBeVisible();
     await expect(
       page.getByRole("search").filter({ visible: true }),
     ).toBeVisible();

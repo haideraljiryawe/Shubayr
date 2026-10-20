@@ -548,7 +548,7 @@ function CategoryForm({
         {t("fields.visible")}
       </label>
 
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }
@@ -689,7 +689,7 @@ function ConvertDialog({
             <li data-testid="convert-effect-delete">{t("convert.effectDelete", { source: nameOf(source, locale) })}</li>
             <li>{t("convert.effectAudit")}</li>
           </ul>
-          <FormError kind={api.formError} detail={api.formErrorDetail} />
+          <FormError kind={api.formError} code={api.formErrorCode} />
         </div>
       ) : (
         <>
@@ -724,7 +724,7 @@ function ConvertDialog({
             {t("fields.brandVisible")}
           </label>
           {countFailed ? <FormError kind="unknown" /> : null}
-          <FormError kind={api.formError} detail={api.formErrorDetail} />
+          <FormError kind={api.formError} code={api.formErrorCode} />
         </>
       )}
     </FormDialog>

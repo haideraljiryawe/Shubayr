@@ -302,7 +302,7 @@ export function SettingsForm({
           <Alert data-testid="settings-invalid">{t("fixErrors")}</Alert>
         ) : null}
         {unchanged ? <Alert tone="info">{t("noChanges")}</Alert> : null}
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end">
           <Button type="submit" pending={api.pending} data-testid="settings-save">
             {t("save")}

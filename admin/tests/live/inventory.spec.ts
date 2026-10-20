@@ -1,4 +1,5 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
+import ar from "../../src/messages/ar.json";
 import { expect, test } from "./fixtures";
 import {
   activateStaff,
@@ -668,7 +669,7 @@ test("write-down moves stock off the sellable shelf and posts the loss", async (
 
 /* -------------------------------------------- warehouses once used, reindex */
 
-test("a used location can't be deleted (the API's message shows) or deactivated while stocked", async ({
+test("a used location can't be deleted or deactivated while stocked, each said by its code", async ({
   page,
 }) => {
   await uiLoginAsAdmin(page);
@@ -683,12 +684,12 @@ test("a used location can't be deleted (the API's message shows) or deactivated 
   await page.getByTestId("confirm-submit").click();
   await expect(
     page.getByTestId("confirm-dialog").getByTestId("form-error"),
-  ).toContainText("deactivate it instead");
+  ).toContainText(ar.errors.codes.LOCATION_IN_USE);
   await page.getByTestId("confirm-dialog").getByRole("button").first().click();
 
   await sell.getByTestId("location-toggle").click();
   await expect(sell.getByTestId("location-toggle-error")).toContainText(
-    "cannot be deactivated",
+    ar.errors.codes.LOCATION_HAS_STOCK,
   );
 
   // The emptied quarantine location can be deactivated instead.

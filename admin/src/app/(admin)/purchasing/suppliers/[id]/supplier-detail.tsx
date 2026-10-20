@@ -27,6 +27,7 @@ import {
   type Supplier,
   type SupplierCredit,
 } from "@/lib/purchasing";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 export function SupplierDetail({
   supplier,
@@ -333,7 +334,7 @@ function AllocateCredit({
   const [operationId] = useState(newOperationId);
   const [invoiceId, setInvoiceId] = useState(invoices[0]?.id ?? "");
   const [amount, setAmount] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useLocaleScopedState<string | null>(null);
   const invoice = invoices.find((row) => row.id === invoiceId);
   const limit = invoice ? (toFixed(invoice.remaining_currency ?? 0) < toFixed(credit.remaining_currency) ? invoice.remaining_currency ?? 0 : credit.remaining_currency) : 0;
 

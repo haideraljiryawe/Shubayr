@@ -63,12 +63,11 @@ const STATUS_SWATCHES: Swatch[] = [
   { name: "Info", hex: "#3B82F6", className: "bg-info" },
 ];
 
+/** Zain's real faces; font-light/medium read as Regular, font-semibold as Bold. */
 const WEIGHTS = [
-  { label: "Light", value: 300, className: "font-light" },
   { label: "Regular", value: 400, className: "font-normal" },
-  { label: "Medium", value: 500, className: "font-medium" },
-  { label: "SemiBold", value: 600, className: "font-semibold" },
   { label: "Bold", value: 700, className: "font-bold" },
+  { label: "ExtraBold", value: 800, className: "font-zain-extrabold font-extrabold" },
 ];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -178,7 +177,7 @@ export function StyleGuide() {
         <Card padding="lg">
           <div className="flex flex-wrap items-baseline justify-between gap-6">
             <div>
-              <p className="text-2xl font-bold text-text">Cairo</p>
+              <p className="text-2xl font-bold text-text">Zain</p>
               <p className="mt-2 text-xl text-text">أبجد هوز حطي كلمن</p>
               <p className="text-xl text-text">The quick brown fox</p>
             </div>

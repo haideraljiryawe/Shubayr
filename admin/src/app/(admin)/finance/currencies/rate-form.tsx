@@ -313,7 +313,7 @@ export function RateForm({
             </Button>
           </Alert>
         ) : (
-          <FormError kind={api.formError} detail={api.formErrorDetail} />
+          <FormError kind={api.formError} code={api.formErrorCode} />
         )}
 
         <div className="flex flex-wrap justify-end gap-2">

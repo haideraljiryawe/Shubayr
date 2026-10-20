@@ -8,7 +8,7 @@ import { Alert, Badge, Button, Card } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { FormError } from "@/components/forms/form-error";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { errorKind, type ErrorKind } from "@/lib/api/errors";
+import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { formatRate as rateText } from "@/lib/finance/money";
 import type { components } from "@/types/api";
 import { RateForm } from "./rate-form";
@@ -42,7 +42,7 @@ export function CurrenciesView({
   const foreign = currencies.filter((currency) => !currency.is_base && currency.enabled);
 
   const [toggling, setToggling] = useState<string | null>(null);
-  const [toggleError, setToggleError] = useState<{ code: string; kind: ErrorKind; detail: string } | null>(null);
+  const [toggleError, setToggleError] = useState<{ code: string; kind: ErrorKind; errorCode: string | null } | null>(null);
 
   async function toggle(currency: Currency) {
     setToggling(currency.code);
@@ -60,7 +60,7 @@ export function CurrenciesView({
       setToggleError({
         code: currency.code,
         kind: errorKind(cause),
-        detail: cause instanceof Error ? cause.message : "",
+        errorCode: errorCode(cause) ?? null,
       });
     } finally {
       setToggling(null);
@@ -130,7 +130,7 @@ export function CurrenciesView({
                     </div>
                   )}
                   {toggleError?.code === currency.code ? (
-                    <FormError kind={toggleError.kind} detail={toggleError.detail} />
+                    <FormError kind={toggleError.kind} code={toggleError.errorCode} />
                   ) : null}
                 </td>
               </tr>

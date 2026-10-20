@@ -567,3 +567,27 @@ for (const [name, width, height] of [
     await shoot("settings");
   });
 }
+
+test("switching the language mid-sign-in keeps the step, the number and the return destination", async ({ page }) => {
+  await page.goto("/login?next=%2Faccount%2Forders");
+  await page.getByTestId("auth-phone").fill(PHONE);
+  await page.getByTestId("auth-send-otp").click();
+  await expect(page.getByTestId("auth-code")).toBeVisible();
+  await page.getByTestId("auth-code").fill("000000");
+  await page.getByTestId("auth-verify").click();
+  await expect(page.getByText("الرمز غير صحيح أو منتهي الصلاحية")).toBeVisible();
+
+  await page.getByRole("button", { name: "تغيير اللغة" }).first().click();
+  await expect(page).toHaveURL(/\/en\/login\?next=%2Faccount%2Forders$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  // Still on the code step, for the same number, worded in English.
+  await expect(page.getByRole("heading", { name: "Enter the verification code" })).toBeVisible();
+  await expect(page.getByTestId("auth-code-phone")).toHaveText(PHONE);
+  await expect(page.getByTestId("auth-cooldown")).toBeVisible();
+
+  await page.getByTestId("auth-code").fill(OTP);
+  await page.getByTestId("auth-verify").click();
+  await expect(page).toHaveURL(/\/en\/account\/orders$/);
+  // Signed in: the kept progress is gone.
+  expect(await page.evaluate(() => window.sessionStorage.getItem("shubayr.otp.login"))).toBeNull();
+});

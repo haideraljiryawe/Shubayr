@@ -118,25 +118,32 @@ export type TripRefusal =
   | "nettingTooLarge"
   | "inactiveAccount";
 
-const MESSAGES: Array<[RegExp, TripRefusal]> = [
-  [/cannot approve and close their own trip/i, "ownTrip"],
-  [/customer_acceptance_note is required/i, "acceptanceNote"],
-  [/orders can be added only to an open trip|only an open trip can be started/i, "notOpen"],
-  [/only an in-progress trip can be closed/i, "notInProgress"],
-  [/a trip requires at least one order/i, "noOrders"],
-  [/fare shares must equal the one trip fare/i, "sharesMismatch"],
-  [/trip handover requires the current assigned delivery/i, "notAssigned"],
-  [/active external driver not found/i, "driverNotFound"],
-  [/cannot keep more fare than unsettled collected cash|could not be fully allocated/i, "nettingTooLarge"],
-  [/requires an active iqd cash account/i, "inactiveAccount"],
-];
+/**
+ * Refusals by the API's error code — never by its English message (NOTE-012).
+ * "driverNotFound" has no code of its own (a plain 404), so it falls back to
+ * the generic not-found message.
+ */
+const CODES: Record<string, TripRefusal> = {
+  TRIP_ORDERS_UNRESOLVED: "unresolved",
+  DOUBLE_DELIVERY_CHARGE: "doubleCharge",
+  SELF_TRIP_CLOSE_FORBIDDEN: "ownTrip",
+  CUSTOMER_ACCEPTANCE_NOTE_REQUIRED: "acceptanceNote",
+  TRIP_NOT_OPEN_FOR_ORDER: "notOpen",
+  TRIP_NOT_OPEN_FOR_START: "notOpen",
+  TRIP_NOT_IN_PROGRESS: "notInProgress",
+  TRIP_HAS_NO_ORDERS: "noOrders",
+  TRIP_FARE_SHARES_MISMATCH: "sharesMismatch",
+  TRIP_FARE_SHARE_MISMATCH: "sharesMismatch",
+  TRIP_ORDER_NOT_ASSIGNED: "notAssigned",
+  TRIP_FARE_EXCEEDS_UNSETTLED_CASH: "nettingTooLarge",
+  TRIP_FARE_NETTING_INCOMPLETE: "nettingTooLarge",
+  TRIP_FARE_ACCOUNT_INVALID: "inactiveAccount",
+  CASH_RECEIPT_REQUIRES_IQD_ACCOUNT: "inactiveAccount",
+};
 
 export function tripRefusal(error: unknown): TripRefusal | null {
-  if (!(error instanceof ApiError)) return null;
-  if (error.code === "TRIP_ORDERS_UNRESOLVED") return "unresolved";
-  if (error.code === "DOUBLE_DELIVERY_CHARGE") return "doubleCharge";
-  for (const [pattern, kind] of MESSAGES) if (pattern.test(error.message)) return kind;
-  return null;
+  if (!(error instanceof ApiError) || !error.code) return null;
+  return CODES[error.code] ?? null;
 }
 
 /** The order ids a TRIP_ORDERS_UNRESOLVED refusal names (`orders.<id>`). */

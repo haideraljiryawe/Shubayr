@@ -65,7 +65,7 @@ export function LoginForm({
       ) : form.formError === "unauthorized" ? (
         <Alert data-testid="login-error">{t("invalidCredentials")}</Alert>
       ) : (
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
       )}
 
       <Field

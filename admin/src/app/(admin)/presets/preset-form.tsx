@@ -74,7 +74,7 @@ export function PresetForm({
           void submit();
         }}
       >
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
         <Card className="grid gap-4 md:grid-cols-2">
           <Field
             label={t("fields.name")}

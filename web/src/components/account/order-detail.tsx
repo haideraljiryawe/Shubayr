@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Price } from "@/components/ui/price";
 import { Link } from "@/i18n/navigation";
@@ -138,6 +139,7 @@ function CancelOrder({
   const showToast = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
 
   return (
     <div className="flex flex-col gap-2">
@@ -163,8 +165,18 @@ function CancelOrder({
           )
         }
         className="text-error-dark"
-        onClick={async () => {
-          if (!window.confirm(t("cancelConfirm"))) return;
+        onClick={() => setAsking(true)}
+      >
+        {busy ? t("cancelling") : t("cancelOrder")}
+      </Button>
+      <ConfirmDialog
+        open={asking}
+        title={t("cancelConfirm")}
+        confirmLabel={t("cancelOrder")}
+        onCancel={() => setAsking(false)}
+        testId="order-cancel-dialog"
+        onConfirm={async () => {
+          setAsking(false);
           setBusy(true);
           setError(null);
           try {
@@ -184,9 +196,7 @@ function CancelOrder({
             setBusy(false);
           }
         }}
-      >
-        {busy ? t("cancelling") : t("cancelOrder")}
-      </Button>
+      />
     </div>
   );
 }

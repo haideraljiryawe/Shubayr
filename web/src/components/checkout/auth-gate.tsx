@@ -33,6 +33,7 @@ export function AuthGate({
       </div>
 
       <OtpForm
+        progressKey="checkout"
         defaultPhone={defaultPhone}
         onSignedIn={onSignedIn}
         onCancel={onBack}

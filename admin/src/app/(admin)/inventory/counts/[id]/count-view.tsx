@@ -34,6 +34,7 @@ import {
   type Count,
   type LocationInfo,
 } from "@/lib/inventory";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 export interface ScopeRow {
   sku: string;
@@ -102,7 +103,7 @@ export function CountView({
   const [date, setDate] = useState(storeDay());
   const [backdateReason, setBackdateReason] = useState("");
   const [review, setReview] = useState<{ operationId: string; released: Released } | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useLocaleScopedState<string | null>(null);
   const [recount, setRecount] = useState<{ pending: boolean; error: ErrorKind | null }>({ pending: false, error: null });
 
   // A re-snapshot of a stale count brings what was counted with it (once).

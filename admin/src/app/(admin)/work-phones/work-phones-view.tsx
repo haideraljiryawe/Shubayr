@@ -238,7 +238,7 @@ function RegisterForm({
         {form.formError === "customerPhone" ? (
           <FormError kind="customerPhone" />
         ) : (
-          <FormError kind={form.formError} detail={form.formErrorDetail} />
+          <FormError kind={form.formError} code={form.formErrorCode} />
         )}
         <div className="grid gap-4 md:grid-cols-3">
           <Field

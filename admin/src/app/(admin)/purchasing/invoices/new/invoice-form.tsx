@@ -15,7 +15,7 @@ import { PurchasingPostingStatus } from "@/components/purchasing/posting-status"
 import { useCentralRate } from "@/components/purchasing/use-central-rate";
 import { SupplierDialog } from "@/components/purchasing/supplier-dialog";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { FormError } from "@/components/forms/form-error";
 import { linesToPost, orderSuppliers, startingCost, type LastCost } from "@/lib/restock";
 import type { CashAccountOption } from "@/lib/api/purchasing-server";
@@ -95,7 +95,7 @@ type Payment =
   | { phase: "idle" }
   | { phase: "paying" }
   | { phase: "paid"; amount: number; currency: CurrencyCode }
-  | { phase: "failed"; kind: ErrorKind; detail: string | null };
+  | { phase: "failed"; kind: ErrorKind; errorCode: string | null };
 
 const DRAFT_TYPE = "purchase_invoice";
 const DRAFT_VERSION = 1;
@@ -444,7 +444,7 @@ export function InvoiceForm({
       }
       setPayment({ phase: "paid", amount: remaining, currency: account.currency_code });
     } catch (cause) {
-      setPayment({ phase: "failed", kind: errorKind(cause), detail: cause instanceof Error ? cause.message : null });
+      setPayment({ phase: "failed", kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
     }
   }
 
@@ -938,7 +938,7 @@ export function InvoiceForm({
           {payment.phase === "failed" && postedInvoice ? (
             <div className="flex flex-col gap-2" data-testid="invoice-pay-failed">
               <Alert>{t("payNow.failed")}</Alert>
-              <FormError kind={payment.kind} detail={payment.detail} />
+              <FormError kind={payment.kind} code={payment.errorCode} />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="secondary" onClick={() => void payNow(postedInvoice.id, review.paymentOperationId)} data-testid="invoice-pay-retry">
                   {t("payNow.retry")}
