@@ -92,7 +92,7 @@ async function till(request: APIRequestContext): Promise<string> {
 test("the launch menu: purchasing, delivery parties and cash receipts are on; trips and custody are off", async ({ page }) => {
   await uiLoginAsAdmin(page);
   const nav = page.getByTestId("sidebar-nav").first();
-  for (const key of ["purchasing", "suppliers", "deliveryParties", "cashReceipts", "returns", "expenses", "audit", "openings"]) {
+  for (const key of ["purchasing", "suppliers", "deliveryParties", "cashReceipts", "returns", "expenses", "reports", "audit", "openings"]) {
     await expect(nav.getByTestId(`nav-${key}`), key).toHaveCount(1);
   }
   for (const key of ["trips", "custodyExceptions"]) await expect(nav.getByTestId(`nav-${key}`), key).toHaveCount(0);
@@ -104,6 +104,8 @@ test("the launch menu: purchasing, delivery parties and cash receipts are on; tr
   await expect(page.getByTestId("orders-tab-collections")).toBeVisible();
   await page.goto("/purchasing/invoices/new");
   await expect(page.getByTestId("invoice-form")).toBeVisible();
+  await page.goto("/reports");
+  await expect(page.getByTestId("reports-hub")).toBeVisible();
 });
 
 test("restock one colour through purchasing: a new supplier made inline, paid now; only that colour goes up", async ({ page, request }) => {

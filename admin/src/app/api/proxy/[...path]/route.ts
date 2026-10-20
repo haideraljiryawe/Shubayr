@@ -6,7 +6,7 @@ import {
   isSameOrigin,
   respond,
 } from "@/lib/session/bff";
-import { isProxyablePath } from "@/lib/session/proxy-paths";
+import { isBinaryProxyPath, isProxyablePath } from "@/lib/session/proxy-paths";
 
 /**
  * /api/proxy/<api path> — the browser's only road to the API.
@@ -37,14 +37,17 @@ async function handle(
     request.method === "GET" || request.method === "DELETE"
       ? undefined
       : await request.text();
-  const result = await forward(request, {
+  const init = {
     method: request.method,
     path: `${apiPath}${request.nextUrl.search}`,
     body: body === "" ? undefined : body,
     // A write's Idempotency-Key (the expense routes require one) goes
     // through as the browser sent it; nothing else from the browser does.
     headers: idempotencyHeader(request),
-  });
+  };
+  const result = isBinaryProxyPath(apiPath, request.method)
+    ? await forward(request, { ...init, responseType: "arrayBuffer" })
+    : await forward(request, init);
   return respond(result);
 }
 

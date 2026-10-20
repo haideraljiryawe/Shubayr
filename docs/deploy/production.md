@@ -460,7 +460,7 @@ Before opening day, check each item on the running server.
 - [ ] `STORE_PUBLIC=false` until opening: `https://<domain>` shows the "opening soon" page, `robots.txt` disallows everything.
 - [ ] The owner filled in **Settings → Store info** in the Web Admin (legal name, address, contacts, hours, return and refund days, policy date) and the owner approved the policy drafts ([../launch/legal-pages.md](../launch/legal-pages.md)); `https://<domain>/privacy`, `/terms`, `/support` and `/account/delete` open even while closed ([../launch/store-urls.md](../launch/store-urls.md)).
 - [ ] `STORE_PREVIEW_TOKEN` was generated with `openssl rand -hex 24`; `https://<domain>/preview?t=<token>` shows the real store to the owner.
-- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit` — the launch menu:
+- [ ] `ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,reports,audit` — the launch menu:
   restocking through purchasing, the store's own delivery parties and their cash
   receipts, returns, expenses and the audit log. External-driver `trips` and
   `custody` exceptions stay off until they are needed.

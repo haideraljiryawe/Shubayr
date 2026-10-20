@@ -48,3 +48,8 @@ export function isProxyablePath(path: string, method = "GET"): boolean {
     (entry) => entry.method === upper && entry.pattern.test(path),
   );
 }
+
+/** Downloads are the only generic proxy response that must stay byte-for-byte. */
+export function isBinaryProxyPath(path: string, method = "GET"): boolean {
+  return method.toUpperCase() === "GET" && new RegExp(`^/admin/reports/exports/${UUID}/download$`).test(path);
+}

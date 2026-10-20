@@ -44,7 +44,8 @@
     "returns": "المرتجعات",
     "expenses": "المصروفات",
     "expenseCategories": "فئات المصروفات",
-    "banners": "بانرات الرئيسية"
+    "banners": "بانرات الرئيسية",
+    "reports": "التقارير"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -501,9 +502,24 @@
       "returns": "مراجعة مرتجعات العملاء: الموافقة والاستلام والفحص والاسترداد.",
       "expenses": "سجّل مصروفات المتجر، ورحّلها إلى الدفاتر، وادفع المستحق منها.",
       "expenseCategories": "أنواع المصروفات والحساب الذي يُرحَّل إليه كل نوع.",
-      "banners": "البانرات أعلى الصفحة الرئيسية للمتجر: الصورة والجدولة والترتيب والرابط."
+      "banners": "البانرات أعلى الصفحة الرئيسية للمتجر: الصورة والجدولة والترتيب والرابط.",
+      "reports": "تقارير المبيعات والربحية والنقد والمخزون والقوائم المالية من البيانات المُرحّلة."
     },
     "noSections": "لا توجد أقسام متاحة لصلاحياتك الحالية بعد.",
+    "summary": {
+      "title": "نظرة المالك",
+      "asOf": "تاريخ العمل {date}، بغداد",
+      "todaySales": "صافي مبيعات اليوم",
+      "monthSales": "صافي مبيعات الشهر حتى اليوم",
+      "monthProfit": "إجمالي ربح الشهر حتى اليوم",
+      "orders": "{count} طلب",
+      "waitingCalls": "بانتظار مكالمة التأكيد",
+      "lateOrders": "الطلبات المتأخرة",
+      "lowStock": "أصناف منخفضة المخزون",
+      "payablesDue": "مستحقات خلال 7 أيام",
+      "orderStatus": "الطلبات: {status}",
+      "cashAccount": "النقد المتاح: {name}"
+    },
     "firstDay": {
       "title": "ابدأ متجرك",
       "body": "خطوات قليلة لتجهيز المتجر: الكتالوج ومخزونه، ومن تشتري منه، ومن يوصّل الطلبات. يمكنك العودة إلى أي خطوة لاحقًا.",
@@ -4805,6 +4821,40 @@
       "minimum": "يجب ألا يقل عن {min}.",
       "maximum": "يجب ألا يزيد عن {max}.",
       "invalid": "هذه القيمة غير مقبولة."
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "description": "التقارير التشغيلية والمالية من البيانات المُرحّلة.",
+    "noPermission": "لا تتيح صلاحياتك الحالية أي تقرير.",
+    "empty": "لا توجد بيانات مُرحّلة تطابق عوامل التصفية.",
+    "tableCaption": "صفوف تفاصيل التقرير",
+    "from": "من", "to": "إلى", "asOf": "كما في", "groupBy": "تجميع حسب", "slowDays": "بطيء الحركة بعد (أيام)", "supplier": "المورد", "chooseSupplier": "اختر موردًا", "allSuppliers": "كل الموردين", "warehouse": "المستودع", "allWarehouses": "كل المستودعات", "category": "الفئة", "allCategories": "كل الفئات", "variantId": "معرّف الصنف", "categoryId": "معرّف الفئة", "payee": "يحتوي اسم المستفيد", "apply": "تطبيق التصفية",
+    "openPeriod": "يشمل النطاق فترة محاسبية مفتوحة. قد تتغير الإجماليات حتى إغلاقها.",
+    "totals": "إجماليات التقرير", "salesChart": "صافي المبيعات حسب اليوم", "expenseChart": "المصروفات حسب الفئة", "yes": "نعم", "no": "لا",
+    "names": {
+      "sales": "المبيعات", "profitability": "الربحية", "profit-loss": "الأرباح والخسائر", "trial-balance": "ميزان المراجعة", "balance-sheet": "الميزانية العمومية", "cash": "النقد", "delivery-custody": "عهدة التوصيل", "liabilities": "الالتزامات", "inventory-valuation": "تقييم المخزون", "purchases": "المشتريات", "supplier-statement": "كشف حساب المورد", "stock-movement": "حركة المخزون", "expenses": "المصروفات"
+    },
+    "descriptions": {
+      "sales": "المبيعات والخصومات والمرتجعات ورسوم التوصيل المُرحّلة.", "profitability": "صافي المبيعات وكلفة الإصدار وإجمالي الربح والهامش.", "profit-loss": "نتائج الفترة الحالية مقارنةً بالفترة السابقة.", "trial-balance": "مدين ودائن ورصيد كل حساب حتى تاريخ محدد.", "balance-sheet": "الأصول والالتزامات وحقوق الملكية حتى تاريخ محدد.", "cash": "الرصيد الافتتاحي والحركات والختامي لكل حساب نقدي.", "delivery-custody": "البضاعة والنقد الباقيان لدى كل جهة توصيل.", "liabilities": "التزامات الموردين والمصروفات والاستردادات والتعرضات التشغيلية.", "inventory-valuation": "كمية المخزون التاريخية وقيمته بمتوسط الكلفة المتحرك.", "purchases": "كميات الشراء والكلف المحملة ومرتجعات الموردين.", "supplier-statement": "حركات المورد ومطابقتها مع الذمم الدائنة.", "stock-movement": "الافتتاح والاستلام والإصدار والمرتجعات والتحويلات والختام.", "expenses": "المصروفات المعترف بها، بما فيها إطفاء المدفوع مقدمًا."
+    },
+    "groups": {
+      "day": "اليوم", "week": "الأسبوع", "month": "الشهر", "department": "القسم الرئيسي", "category": "القسم", "brand": "العلامة", "product": "المنتج", "sku": "رمز الصنف", "period": "الفترة", "supplier": "المورد", "payee": "المستفيد"
+    },
+    "export": { "csv": "تصدير CSV", "xlsx": "تصدير XLSX", "progress": "جارٍ تصدير {done} من {total}", "failed": "تعذر إكمال التصدير." },
+    "values": {
+      "asset": "أصل", "liability": "التزام", "equity": "حقوق ملكية", "in": "متوفر", "low": "منخفض", "out": "نفد", "supplier_payable": "ذمة مورد", "accrued_expense": "مصروف مستحق", "customer_refund": "استرداد عميل", "unallocated_receipt": "قبض غير موزع", "no_due_date": "بلا استحقاق", "current": "حالي", "1_30": "1–30 يومًا", "31_60": "31–60 يومًا", "61_90": "61–90 يومًا", "90_plus": "أكثر من 90 يومًا", "purchase_invoice": "فاتورة شراء", "supplier_payment": "دفعة مورد", "supplier_credit": "رصيد مورد", "supplier_return": "مرتجع مورد", "expense": "مصروف"
+    },
+    "fields": {
+      "group": "المجموعة", "line": "البند", "current": "الفترة الحالية", "previous": "الفترة السابقة", "account": "الحساب", "type": "النوع", "name": "الاسم", "party": "جهة التوصيل", "cash_account": "الحساب النقدي", "sku": "رمز الصنف", "product": "المنتج", "warehouse": "المستودع", "document_number": "المستند", "source_type": "المصدر", "document_date": "تاريخ المستند", "currency": "العملة", "due_date": "الاستحقاق", "age_days": "العمر (أيام)", "ageing_bucket": "التقادم", "stock_state": "حالة المخزون", "last_sale_date": "آخر بيع", "slow_moving": "بطيء الحركة",
+      "gross_sales": "إجمالي المبيعات", "tier_discounts": "خصومات الشرائح", "coupon_discounts": "خصومات القسائم", "other_discounts": "خصومات أخرى", "returns": "المرتجعات", "net_sales": "صافي المبيعات", "order_count": "الطلبات", "average_order_value": "متوسط الطلب", "original_delivery_fees": "رسوم التوصيل الأصلية", "charged_delivery_fees": "رسوم التوصيل المحصلة", "delivery_fee_adjustments": "تعديلات رسوم التوصيل", "delivery_fee_refunds": "مسترد رسوم التوصيل", "cancelled_count": "الملغاة", "rejected_count": "المرفوضة",
+      "cost_of_goods_sold": "كلفة البضاعة المباعة", "return_cost_reversals": "عكس كلفة المرتجعات", "gross_profit": "إجمالي الربح", "margin_percent": "الهامش", "inventory_write_downs": "شطب المخزون", "sales_revenue": "إيراد المبيعات", "delivery_revenue": "إيراد التوصيل", "sales_returns": "مرتجعات المبيعات", "net_revenue": "صافي الإيراد", "operating_expenses": "المصروفات التشغيلية", "other_income": "إيرادات أخرى", "other_costs": "كلف أخرى", "net_profit": "صافي الربح",
+      "debit": "مدين", "credit": "دائن", "balance": "الرصيد", "debit_total": "إجمالي المدين", "credit_total": "إجمالي الدائن", "balanced": "متوازن", "assets": "الأصول", "liabilities": "الالتزامات", "equity": "حقوق الملكية", "current_earnings": "أرباح الفترة", "liabilities_and_equity": "الالتزامات وحقوق الملكية",
+      "opening_balance": "الرصيد الافتتاحي", "inflows": "التدفقات الداخلة", "outflows": "التدفقات الخارجة", "closing_balance": "الرصيد الختامي", "goods_quantity": "كمية البضاعة", "goods_value": "قيمة البضاعة", "goods_ledger_balance": "رصيد البضاعة في الدفتر", "goods_reconciled": "البضاعة مطابقة", "cash_held": "النقد المحتفظ به", "cash_ledger_balance": "رصيد النقد في الدفتر", "cash_reconciled": "النقد مطابق", "oldest_goods_age_days": "أقدم بضاعة (أيام)", "oldest_cash_age_days": "أقدم نقد (أيام)",
+      "supplier_payables": "ذمم الموردين", "supplier_ledger_balance": "رصيد الموردين بالدفتر", "supplier_reconciled": "الموردون مطابقون", "accrued_expenses": "المصروفات المستحقة", "expense_ledger_balance": "رصيد المصروفات بالدفتر", "expenses_reconciled": "المصروفات مطابقة", "customer_refunds_owed": "استردادات العملاء المستحقة", "refund_ledger_balance": "رصيد الاستردادات بالدفتر", "refunds_reconciled": "الاستردادات مطابقة", "other_ledger_liabilities": "التزامات دفترية أخرى", "liability_ledger_total": "إجمالي الالتزامات بالدفتر", "unallocated_customer_receipts": "مقبوضات غير موزعة", "unallocated_receipts_ledger_valued": "المقبوضات مقيمة دفتريًا", "loyalty_accounts": "حسابات الولاء", "loyalty_points": "نقاط الولاء", "loyalty_value_iqd": "قيمة الولاء", "amount": "المبلغ",
+      "quantity": "الكمية", "moving_average_cost": "متوسط كلفة الوحدة", "value": "القيمة", "inventory_ledger_balance": "رصيد المخزون بالدفتر", "reconciled": "مطابق", "out_of_stock_count": "أصناف نافدة", "low_stock_count": "أصناف منخفضة", "slow_moving_count": "أصناف بطيئة الحركة",
+      "purchased_quantity": "الكمية المشتراة", "returned_quantity": "الكمية المرتجعة", "net_quantity": "صافي الكمية", "goods_cost_iqd": "كلفة البضاعة", "landed_cost_iqd": "الكلفة المحملة", "purchase_cost_iqd": "كلفة الشراء", "returns_iqd": "المرتجعات", "net_cost_iqd": "صافي الكلفة", "document_count": "المستندات", "payments": "الدفعات", "credits": "الأرصدة الدائنة", "fx_differences": "فروقات الصرف", "supplier_subledger_iqd": "دفتر المورد الفرعي", "accounts_payable_iqd": "الذمم الدائنة", "difference_iqd": "الفرق", "debit_currency": "مدين بعملة المستند", "credit_currency": "دائن بعملة المستند", "debit_iqd": "مدين د.ع", "credit_iqd": "دائن د.ع",
+      "opening_quantity": "كمية الافتتاح", "opening_value_iqd": "قيمة الافتتاح", "receipts_quantity": "كمية الاستلام", "receipts_value_iqd": "قيمة الاستلام", "sales_quantity": "كمية المبيعات", "sales_value_iqd": "قيمة إصدار المبيعات", "returns_quantity": "كمية المرتجعات", "returns_value_iqd": "قيمة المرتجعات", "transfers_quantity": "كمية التحويل", "transfers_value_iqd": "قيمة التحويل", "counts_write_downs_quantity": "كمية الجرد والشطب", "counts_write_downs_value_iqd": "قيمة الجرد والشطب", "closing_quantity": "كمية الختام", "closing_value_iqd": "قيمة الختام", "immediate_iqd": "مصروف فوري", "prepaid_amortisation_iqd": "إطفاء المدفوع مقدمًا", "corrections_iqd": "التصحيحات", "total_iqd": "إجمالي المصروف"
     }
   }
 }

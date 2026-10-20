@@ -133,8 +133,8 @@ Which areas this installation shows (`src/lib/modules.ts`). Unset or `all`
 shows everything; a comma-separated list shows only those modules:
 
 ```bash
-ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit   # the launch (LAUNCH_MODULES)
-ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit,trips,custody   # + external-driver trips and custody exceptions
+ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,reports,audit   # the launch (LAUNCH_MODULES)
+ADMIN_MODULES=catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,reports,audit,trips,custody   # + external-driver trips and custody exceptions
 ```
 
 Keys: `catalog`, `stock`, `orders`, `settings`, `users`, `returns`,
