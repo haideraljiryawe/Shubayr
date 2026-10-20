@@ -46,6 +46,7 @@ test("owner dashboard and every report use the live API", async ({ page, request
   const day = today();
   const summary = await adminGet(request, "/admin/reports/dashboard");
   const sales = await adminGet(request, `/admin/reports/sales?from=${monthStart(day)}&to=${day}&group_by=day&page=1&per_page=20`);
+  expect(Number(sales.totals.order_count), "the live report dataset has posted sales").toBeGreaterThan(0);
 
   await uiLoginAsAdmin(page);
   await expect(page.getByTestId("owner-dashboard-summary")).toBeVisible();
