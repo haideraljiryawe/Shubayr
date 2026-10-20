@@ -361,7 +361,8 @@ test("suppliers: create through the UI, then the invoice screen converts packs a
   await page
     .getByRole("link", { name: /فاتورة شراء جديدة|New purchase invoice/ })
     .click();
-  await expect(page.getByTestId("invoice-supplier")).toHaveValue(
+  await expect(page.getByTestId("invoice-supplier-picked")).toHaveAttribute(
+    "data-supplier-id",
     state.iqdSupplier.id,
   );
   await page.getByTestId("invoice-number").fill(`S-${run}-1`);
@@ -1222,7 +1223,9 @@ test("statement, balances and aging; operators see settlement totals but not uni
   await page.goto(`/purchasing/invoices/${invoiceId}`);
   await expect(page.getByTestId("invoice-detail")).toBeVisible();
   await expect(page.getByTestId("cost-column")).toHaveCount(0);
-  await expect(page.getByTestId("invoice-total")).toHaveCount(0);
+  // The invoice total is a settlement field (contract 17.8.0): shown to buyers.
+  await expect(page.getByTestId("invoice-total")).toContainText("200,000");
+  await expect(page.getByTestId("invoice-total-iqd-value")).toHaveCount(0);
   await expect(page.getByTestId("invoice-line-base-cost")).toHaveCount(0);
   const token = (await apiLogin(request, viewer.username, viewer.password)).body
     .access_token as string;

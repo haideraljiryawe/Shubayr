@@ -14,10 +14,10 @@ import { DocumentDateFields, documentDateError, type DocumentDateValue } from "@
 import { PurchasingPostingStatus } from "@/components/purchasing/posting-status";
 import { useCentralRate } from "@/components/purchasing/use-central-rate";
 import { SupplierDialog } from "@/components/purchasing/supplier-dialog";
+import { SupplierPicker } from "@/components/purchasing/supplier-picker";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
-import { FormError } from "@/components/forms/form-error";
-import { linesToPost, orderSuppliers, startingCost, type LastCost } from "@/lib/restock";
+import { ApiError } from "@/lib/api/errors";
+import { linesToPost, paidNowAmount, startingCost, type LastCost } from "@/lib/restock";
 import type { CashAccountOption } from "@/lib/api/purchasing-server";
 import { RestockResult } from "./restock-result";
 import { newOperationId } from "@/lib/finance/operations";
@@ -28,6 +28,7 @@ import {
   displayShares,
   fixedText,
   fx,
+  isSeparationOfDuties,
   landedUnitCostIqd,
   moneyText,
   packConversion,
@@ -91,11 +92,16 @@ export interface RestockPrefill {
   lines: Array<{ sku: PickedSku; lastCost: LastCost | null }>;
 }
 
-type Payment =
-  | { phase: "idle" }
-  | { phase: "paying" }
-  | { phase: "paid"; amount: number; currency: CurrencyCode }
-  | { phase: "failed"; kind: ErrorKind; errorCode: string | null };
+/** POST /admin/purchase-invoices/paid-now: the posted invoice and its payment, together. */
+interface PaidNowResult {
+  invoice: PurchaseInvoice;
+  payment: { id: string; document_number: string };
+}
+
+/** The posted invoice, whether the answer was an invoice or a paid-now result. */
+function postedInvoiceOf(document: PurchaseInvoice | PaidNowResult): PurchaseInvoice {
+  return "invoice" in document && typeof document.invoice === "object" ? document.invoice : (document as PurchaseInvoice);
+}
 
 const DRAFT_TYPE = "purchase_invoice";
 const DRAFT_VERSION = 1;
@@ -133,18 +139,16 @@ type Saved = { status: "idle" } | { status: "saving" } | { status: "saved"; at: 
 
 export function InvoiceForm({
   suppliers,
-  suppliersComplete,
   locations,
   presetSupplierId,
   today,
   windowDays,
   permissions,
   restock = null,
-  recentSupplierIds = [],
   cashAccounts = null,
 }: {
+  /** The picker's first view: suppliers in recent-purchase order (the API's sort). */
   suppliers: Supplier[];
-  suppliersComplete: boolean;
   locations: LocationInfo[];
   presetSupplierId: string;
   today: string;
@@ -152,8 +156,6 @@ export function InvoiceForm({
   permissions: string[];
   /** Restock (إعادة تعبئة المخزون): prefilled from one product; drafts are left alone. */
   restock?: RestockPrefill | null;
-  /** Suppliers bought from recently, newest first: offered first. */
-  recentSupplierIds?: string[];
   /** Cash accounts for "paid now"; null when the person can't pay suppliers here. */
   cashAccounts?: CashAccountOption[] | null;
 }) {
@@ -161,14 +163,15 @@ export function InvoiceForm({
   const locale = useLocale();
   const format = useFormatter();
   const router = useRouter();
-  const posting = usePosting<PurchaseInvoice>();
+  const posting = usePosting<PurchaseInvoice | PaidNowResult>();
   const can = (key: string) => permissions.includes(key);
   const canCost = can("cost.view");
   const [supplierList, setSupplierList] = useState<Supplier[]>(suppliers);
   const [creatingSupplier, setCreatingSupplier] = useState(false);
-  const [payment, setPayment] = useState<Payment>({ phase: "idle" });
   const [postedInvoice, setPostedInvoice] = useState<PurchaseInvoice | null>(null);
-  /** Restock: when the person also has an unfinished invoice draft (posting discards it). */
+  /** The caller's own draft, removed by the posting (draft_id) — never another one. */
+  const [draftId, setDraftId] = useState<string | null>(null);
+  /** Restock: when the person also has an unfinished invoice draft (posting leaves it alone). */
   const [otherDraftAt, setOtherDraftAt] = useState<string | null>(null);
   const [initial] = useState<FormState>(() =>
     initialState(
@@ -185,7 +188,7 @@ export function InvoiceForm({
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
   const [saved, setSaved] = useState<Saved>({ status: "idle" });
   const [showErrors, setShowErrors] = useState(false);
-  const [review, setReview] = useState<{ operationId: string; paymentOperationId: string } | null>(null);
+  const [review, setReview] = useState<{ operationId: string } | null>(null);
   const posted = posting.state.phase === "posted";
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";
   /** What the server holds (the restored, initial or last saved form), as JSON. */
@@ -200,8 +203,8 @@ export function InvoiceForm({
   /* ------------------------------------------------------------ drafts */
 
   // Restore the caller's own draft once (drafts are per user on the server).
-  // A restock never restores or saves one: it only says that one exists,
-  // because posting any purchase invoice discards it (one draft per user).
+  // A restock never restores, saves or removes one: it only says that one
+  // exists. Posting removes only the draft it names (draft_id).
   useEffect(() => {
     let cancelled = false;
     unwrap(browserApi.GET("/admin/drafts/{documentType}", { params: { path: { documentType: DRAFT_TYPE } } })).then(
@@ -211,6 +214,7 @@ export function InvoiceForm({
           setOtherDraftAt(draft.updated_at);
           return;
         }
+        setDraftId(draft.id);
         const payload = draft.payload as { version?: number; state?: FormState };
         if (payload.version === DRAFT_VERSION && payload.state) {
           baseline.current = JSON.stringify(payload.state);
@@ -248,6 +252,7 @@ export function InvoiceForm({
       ).then(
         (draft) => {
           baseline.current = snapshot;
+          setDraftId(draft.id);
           setSaved({ status: "saved", at: draft.updated_at });
         },
         () => setSaved({ status: "failed" }),
@@ -263,6 +268,7 @@ export function InvoiceForm({
       if (!(cause instanceof ApiError && cause.status === 404)) return;
     }
     const fresh = initialState(undefined, today, locations.find((info) => info.sellable)?.id ?? locations[0]?.id ?? "");
+    setDraftId(null);
     baseline.current = JSON.stringify(fresh);
     setState(fresh);
     setRestoredAt(null);
@@ -325,6 +331,12 @@ export function InvoiceForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, postedLines, rate, usdCentral]);
 
+  /** What "paid now" pays: the invoice total in its currency, or null when it can't be known exactly before posting. */
+  const paidAmount = useMemo(
+    () => paidNowAmount(preview.lines.map((row) => row.lineTotal), state.landed, state.currency),
+    [preview.lines, state.landed, state.currency],
+  );
+
   /* --------------------------------------------------------- validation */
 
   const problems = useMemo(() => {
@@ -338,6 +350,7 @@ export function InvoiceForm({
     if (!state.defaultLocationId) found.location = t("errors.location");
     if (postedLines.length === 0) found.lines = state.lines.length ? t("errors.noQuantities") : t("errors.noLines");
     if (state.payment === "now" && !state.cashAccountId) found.cashAccount = t("payNow.errors.account");
+    if (state.payment === "now" && paidAmount === null) found.cashAccount = t("payNow.errors.amountUnknown");
     for (const row of preview.lines) {
       const k = `line-${row.line.key}`;
       if (!row.line.sku) found[`${k}-sku`] = t("errors.sku");
@@ -354,98 +367,82 @@ export function InvoiceForm({
     if (state.landed.length && preview.landedIqd === null && state.method === "manual") found.allocation = t("errors.manualNeedsRate");
     return found;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, postedLines, preview, central, overridden, today, windowDays]);
+  }, [state, postedLines, preview, central, overridden, today, windowDays, paidAmount]);
 
   function toReview() {
     setShowErrors(true);
     if (Object.keys(problems).length) return;
     posting.reset();
     // The document's identity is fixed here: a double click or a retry posts it once.
-    setReview({ operationId: newOperationId(), paymentOperationId: newOperationId() });
+    setReview({ operationId: newOperationId() });
+  }
+
+  /** The invoice as both posting routes take it (the plain one adds operation_id). */
+  function invoiceBody() {
+    return {
+      document_date: state.date.date,
+      ...(state.date.backdateReason.trim() ? { backdate_reason: state.date.backdateReason.trim() } : {}),
+      // Posting removes this person's own draft only when it is this one.
+      ...(!restock && draftId ? { draft_id: draftId } : {}),
+      supplier_id: state.supplierId,
+      ...(state.invoiceNumber.trim() ? { supplier_invoice_number: state.invoiceNumber.trim() } : {}),
+      currency_code: state.currency,
+      ...(overridden ? { exchange_rate: state.rate.trim() } : {}),
+      default_location_id: state.defaultLocationId,
+      allocation_method: state.method,
+      ...(state.dueDate ? { due_date: state.dueDate } : {}),
+      ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
+      lines: postedLines.map((line) => ({
+        variant_id: line.sku!.variantId,
+        ...(line.locationId ? { location_id: line.locationId } : {}),
+        quantity: line.packs,
+        pack_size: line.packSize || "1",
+        unit_cost: line.cost,
+        ...(line.lot.trim() ? { lot_number: line.lot.trim() } : {}),
+        ...(line.expiry ? { expiry_date: line.expiry } : {}),
+        ...(state.method === "manual" ? { manual_landed_cost_iqd: line.manual || "0" } : {}),
+      })),
+      ...(state.landed.length
+        ? {
+            landed_costs: state.landed.map((cost) => ({
+              kind: cost.kind.trim(),
+              ...(cost.description.trim() ? { description: cost.description.trim() } : {}),
+              currency_code: cost.currency,
+              amount: cost.amount,
+            })),
+          }
+        : {}),
+    };
   }
 
   async function confirm() {
     if (!review) return;
-    const result = await posting.post(review.operationId, async () =>
-      (await unwrap(
-        browserApi.POST("/admin/purchase-invoices", {
-          body: {
-            operation_id: review.operationId,
-            document_date: state.date.date,
-            ...(state.date.backdateReason.trim() ? { backdate_reason: state.date.backdateReason.trim() } : {}),
-            supplier_id: state.supplierId,
-            ...(state.invoiceNumber.trim() ? { supplier_invoice_number: state.invoiceNumber.trim() } : {}),
-            currency_code: state.currency,
-            ...(overridden ? { exchange_rate: state.rate.trim() } : {}),
-            default_location_id: state.defaultLocationId,
-            allocation_method: state.method,
-            ...(state.dueDate ? { due_date: state.dueDate } : {}),
-            ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
-            lines: postedLines.map((line) => ({
-              variant_id: line.sku!.variantId,
-              ...(line.locationId ? { location_id: line.locationId } : {}),
-              quantity: line.packs,
-              pack_size: line.packSize || "1",
-              unit_cost: line.cost,
-              ...(line.lot.trim() ? { lot_number: line.lot.trim() } : {}),
-              ...(line.expiry ? { expiry_date: line.expiry } : {}),
-              ...(state.method === "manual" ? { manual_landed_cost_iqd: line.manual || "0" } : {}),
-            })),
-            ...(state.landed.length
-              ? {
-                  landed_costs: state.landed.map((cost) => ({
-                    kind: cost.kind.trim(),
-                    ...(cost.description.trim() ? { description: cost.description.trim() } : {}),
-                    currency_code: cost.currency,
-                    amount: cost.amount,
-                  })),
-                }
-              : {}),
-          },
-        }),
-      )) as unknown as PurchaseInvoice,
-    );
-    if (result?.phase !== "posted") return;
-    // Posted: the draft is gone on the server; the invoice is read-only now.
-    setPostedInvoice(result.document);
-    if (state.payment === "now") await payNow(result.document.id, review.paymentOperationId);
-    if (!restock && state.payment !== "now") router.push(`/purchasing/invoices/${result.document.id}`);
-  }
-
-  /**
-   * "Paid now": the existing supplier payment, allocated in full to this
-   * invoice, from a cash account in its currency — a second posting with its
-   * own operation id, so a retry pays once. If it fails, the invoice stays
-   * posted and owed, and the person can pay it from Supplier payments.
-   */
-  async function payNow(invoiceId: string, operationId: string) {
     const account = (cashAccounts ?? []).find((row) => row.id === state.cashAccountId);
-    if (!account) return;
-    setPayment({ phase: "paying" });
-    try {
-      const fresh = (await unwrap(browserApi.GET("/admin/purchase-invoices/{id}", { params: { path: { id: invoiceId } } }))) as unknown as PurchaseInvoice;
-      const remaining = fresh.remaining_currency ?? 0;
-      if (remaining > 0) {
-        const amount = String(remaining);
-        await unwrap(
-          browserApi.POST("/admin/supplier-payments", {
+    const payNow = state.payment === "now" && account && paidAmount !== null;
+    const result = await posting.post(review.operationId, async () => {
+      if (payNow) {
+        // One atomic call: invoice, stock, payment and allocation commit
+        // together or not at all; the review's id is the Idempotency-Key, so
+        // a retry (or a lost answer, checked by that id) pays exactly once.
+        return (await unwrap(
+          browserApi.POST("/admin/purchase-invoices/paid-now", {
+            params: { header: { "Idempotency-Key": review.operationId } },
             body: {
-              operation_id: operationId,
-              document_date: state.date.date,
-              ...(state.date.backdateReason.trim() ? { backdate_reason: state.date.backdateReason.trim() } : {}),
-              supplier_id: state.supplierId,
-              cash_account_id: account.id,
-              currency_code: account.currency_code,
-              amount,
-              allocations: [{ invoice_id: invoiceId, amount }],
+              invoice: invoiceBody(),
+              payment: { cash_account_id: account.id, currency_code: account.currency_code, amount: paidAmount },
             },
           }),
-        );
+        )) as unknown as PaidNowResult;
       }
-      setPayment({ phase: "paid", amount: remaining, currency: account.currency_code });
-    } catch (cause) {
-      setPayment({ phase: "failed", kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
-    }
+      return (await unwrap(
+        browserApi.POST("/admin/purchase-invoices", { body: { operation_id: review.operationId, ...invoiceBody() } }),
+      )) as unknown as PurchaseInvoice;
+    });
+    if (result?.phase !== "posted") return;
+    // Posted: the named draft is gone on the server; the invoice is read-only now.
+    const invoice = postedInvoiceOf(result.document);
+    setPostedInvoice(invoice);
+    if (!restock && !payNow) router.push(`/purchasing/invoices/${invoice.id}`);
   }
 
   /** Choosing a supplier sets the invoice currency to theirs (and re-reads the costs). */
@@ -470,7 +467,6 @@ export function InvoiceForm({
   /* ------------------------------------------------------------- render */
 
   const supplier = supplierList.find((row) => row.id === state.supplierId);
-  const supplierGroups = orderSuppliers(supplierList, recentSupplierIds);
   const payable = (cashAccounts ?? []).filter((account) => account.is_active && account.currency_code === state.currency);
   const precision = precisionOf(state.currency);
   const money = (value: bigint | null, currency: string) =>
@@ -506,32 +502,19 @@ export function InvoiceForm({
 
       {/* ------------------------------------------------------- header */}
       <Card className="grid gap-4 md:grid-cols-3">
-        <Field label={t("supplier")} name="supplier_id" error={err("supplier")} hint={suppliersComplete ? undefined : t("suppliersPartial")}>
-          <div className="flex gap-2">
-            <Select
-              value={state.supplierId}
-              disabled={locked}
-              onChange={(event) => chooseSupplier(supplierList.find((row) => row.id === event.target.value), event.target.value)}
-              data-testid="invoice-supplier"
-            >
-              <option value="">{t("pickSupplier")}</option>
-              {supplierGroups.recent.length ? (
-                <optgroup label={t("suppliersRecent")}>
-                  {supplierGroups.recent.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.name} · {row.default_currency}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              <optgroup label={supplierGroups.recent.length ? t("suppliersOthers") : t("suppliersAll")}>
-                {supplierGroups.others.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name} · {row.default_currency}
-                  </option>
-                ))}
-              </optgroup>
-            </Select>
+        <Field label={t("supplier")} name="supplier_id" error={err("supplier")}>
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <SupplierPicker
+                value={supplier ?? null}
+                recent={suppliers}
+                disabled={locked}
+                onChange={(picked) => {
+                  if (picked && !supplierList.some((row) => row.id === picked.id)) setSupplierList((current) => [...current, picked]);
+                  chooseSupplier(picked ?? undefined, picked?.id ?? "");
+                }}
+              />
+            </div>
             {can("suppliers.manage") && !locked ? (
               <Button variant="secondary" onClick={() => setCreatingSupplier(true)} aria-label={t("newSupplier")} title={t("newSupplier")} data-testid="invoice-new-supplier">
                 <UserPlus className="size-4" aria-hidden />
@@ -845,6 +828,13 @@ export function InvoiceForm({
             </span>
           </label>
           {state.payment === "now" ? (
+            <p className="text-sm" data-testid="invoice-paid-amount">
+              {paidAmount !== null
+                ? t("payNow.amount", { amount: moneyText(toFixed(paidAmount), state.currency, precision, locale) })
+                : t("payNow.amountUnknown")}
+            </p>
+          ) : null}
+          {state.payment === "now" ? (
             <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount", { currency: state.currency })}>
               <Select value={state.cashAccountId} disabled={locked} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="invoice-cash-account">
                 <option value="">{t("payNow.pickAccount")}</option>
@@ -906,7 +896,7 @@ export function InvoiceForm({
             </p>
           )}
           <PurchasingPostingStatus
-            state={posting.state}
+            state={posting.state.phase === "posted" ? { phase: "posted", document: postedInvoiceOf(posting.state.document) } : posting.state}
             href={(document) => `/purchasing/invoices/${document.id}`}
             onRetry={() => void confirm()}
             onCheck={() => void posting.check(review.operationId)}
@@ -929,27 +919,31 @@ export function InvoiceForm({
             )}
           </div>
           {posting.state.phase === "error" ? <Alert tone="info">{t("fixAndReview")}</Alert> : null}
-          {payment.phase === "paying" ? <p className="text-sm text-text-muted">{t("payNow.paying")}</p> : null}
-          {payment.phase === "paid" ? (
-            <Alert tone="success" data-testid="invoice-paid-now">
-              {t("payNow.paid", { amount: moneyText(toFixed(String(payment.amount)), payment.currency, precisionOf(payment.currency), locale) })}
+          {posting.state.phase === "error" && state.payment === "now" && isSeparationOfDuties(posting.state.error) ? (
+            <Alert tone="info" data-testid="invoice-paid-now-strict">
+              <p>{t("payNow.strictSeparation")}</p>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-2"
+                onClick={() => {
+                  setReview(null);
+                  set({ payment: "owed", cashAccountId: "" });
+                }}
+                data-testid="invoice-record-owed-instead"
+              >
+                {t("payNow.recordOwedInstead")}
+              </Button>
             </Alert>
           ) : null}
-          {payment.phase === "failed" && postedInvoice ? (
-            <div className="flex flex-col gap-2" data-testid="invoice-pay-failed">
-              <Alert>{t("payNow.failed")}</Alert>
-              <FormError kind={payment.kind} code={payment.errorCode} />
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" onClick={() => void payNow(postedInvoice.id, review.paymentOperationId)} data-testid="invoice-pay-retry">
-                  {t("payNow.retry")}
-                </Button>
-                <Link className="text-sm font-semibold text-primary-dark hover:underline" href={`/purchasing/payments/new?supplier_id=${state.supplierId}`}>
-                  {t("payNow.payLater")}
-                </Link>
-              </div>
-            </div>
+          {posted && postedInvoice && state.payment === "now" ? (
+            <Alert tone="success" data-testid="invoice-paid-now" data-settlement={postedInvoice.settlement_status ?? ""}>
+              {t("payNow.paid", {
+                amount: moneyText(toFixed(postedInvoice.total_cost ?? paidAmount ?? 0), postedInvoice.currency_code, precisionOf(postedInvoice.currency_code), locale),
+              })}
+            </Alert>
           ) : null}
-          {posted && postedInvoice && !restock && payment.phase === "paid" ? (
+          {posted && postedInvoice && !restock && state.payment === "now" ? (
             <Link className="text-sm font-semibold text-primary-dark hover:underline" href={`/purchasing/invoices/${postedInvoice.id}`} data-testid="invoice-open">
               {t("openInvoice")}
             </Link>

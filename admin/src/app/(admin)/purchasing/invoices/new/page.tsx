@@ -5,12 +5,12 @@ import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadPermissions, loadWarehouses } from "@/lib/api/inventory-server";
-import { loadBackdatingWindow, loadCashAccounts, loadSupplierOptions } from "@/lib/api/purchasing-server";
+import { loadBackdatingWindow, loadCashAccounts, loadRecentSuppliers } from "@/lib/api/purchasing-server";
 import { ApiError } from "@/lib/api/errors";
 import { load, serverApi } from "@/lib/api/server";
 import { storeDay } from "@/lib/finance/dates";
 import { UUID, type LocationInfo } from "@/lib/inventory";
-import { lastCostOf, newestLot, recentSupplierIds, restockLocation, type InvoiceItemFacts, type LotFacts } from "@/lib/restock";
+import { lastSupplierId, newestLot, restockCost, restockLocation, type LastPurchase, type LotFacts } from "@/lib/restock";
 import type { RawSearchParams } from "@/lib/table-params";
 import { InvoiceForm, type RestockPrefill } from "./invoice-form";
 
@@ -32,6 +32,10 @@ type Api = Awaited<ReturnType<typeof serverApi>>;
  * with one line per variant of that product, each starting at its last cost,
  * the location its newest stock went to, the supplier it was last bought
  * from, and today's business date. Lines left at 0 are not posted.
+ *
+ * "Paid now" posts the invoice and pays it in one atomic call
+ * (POST /admin/purchase-invoices/paid-now), so it needs both purchases.create
+ * and supplier_payments.record, plus the cash accounts to pay from.
  */
 export default async function NewInvoicePage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const t = await getTranslations("purchasing.invoice");
@@ -39,21 +43,15 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
   const api = await serverApi();
   const preset = typeof raw.supplier_id === "string" && UUID.test(raw.supplier_id) ? raw.supplier_id : "";
   const restockId = typeof raw.restock === "string" && UUID.test(raw.restock) ? raw.restock : null;
-  const [permissions, { suppliers, complete }, { locations }, windowDays, recent] = await Promise.all([
-    loadPermissions(api),
-    loadSupplierOptions(api, preset || undefined),
-    loadWarehouses(api),
-    loadBackdatingWindow(api),
-    load(api.GET("/admin/purchase-invoices", { params: { query: { per_page: 30 } } })),
-  ]);
+  const [permissions, { locations }, windowDays] = await Promise.all([loadPermissions(api), loadWarehouses(api), loadBackdatingWindow(api)]);
   if (!permissions.includes("purchases.create")) return <PageError error={new ApiError(403, "purchases.create required")} />;
   const active = [...locations.values()].filter((info) => info.active);
   const restock = restockId ? await loadRestock(api, restockId, active, permissions) : null;
   if (restockId && !restock) return <PageError error={new ApiError(404, "Product not found")} />;
-  // "Paid now" settles the invoice from a cash account right after posting:
-  // the existing supplier payment, so it needs that permission, the accounts
-  // and the invoice's amount (cost.view).
-  const canPayNow = ["supplier_payments.record", "cash_accounts.view", "cost.view"].every((key) => permissions.includes(key));
+  const suppliers = await loadRecentSuppliers(api, preset || restock?.supplierId || undefined);
+  // "Paid now" is one atomic invoice + payment (purchases.create and
+  // supplier_payments.record), paid from a cash account the person can see.
+  const canPayNow = ["supplier_payments.record", "cash_accounts.view"].every((key) => permissions.includes(key));
   const cashAccounts = canPayNow ? await loadCashAccounts(api) : null;
   const backHref = restock ? `/catalog/products/${restock.productId}` : "/purchasing/invoices";
 
@@ -68,15 +66,13 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
         description={restock ? t("restock.description") : t("newDescription")}
       />
       <InvoiceForm
-        suppliers={suppliers.filter((supplier) => supplier.is_active)}
-        suppliersComplete={complete}
+        suppliers={suppliers}
         locations={active}
         presetSupplierId={preset}
         today={storeDay()}
         windowDays={windowDays}
         permissions={permissions}
         restock={restock}
-        recentSupplierIds={recent.ok ? recentSupplierIds(recent.data.data) : []}
         cashAccounts={cashAccounts}
       />
     </>
@@ -93,30 +89,37 @@ async function loadRestock(api: Api, productId: string, locations: LocationInfo[
   const canLots = permissions.includes("inventory.view");
   const canCost = permissions.includes("cost.view");
 
-  // The newest lot of each SKU (a page of 100 lots each).
+  // The newest lot of each SKU, read newest-first from the API (one row each).
   const newest = new Map<string, LotFacts | null>();
   if (canLots) {
     await Promise.all(
       variants.map(async (variant) => {
-        const page = await load(api.GET("/admin/inventory/lots", { params: { query: { variant_id: variant.id!, per_page: 100 } } }));
-        newest.set(variant.id!, page.ok ? newestLot(page.data.data as unknown as LotFacts[]) : null);
+        const page = await load(
+          api.GET("/admin/inventory/lots", {
+            params: { query: { variant_id: variant.id!, sort_by: "entry_date", sort_direction: "desc", per_page: 1 } },
+          }),
+        );
+        newest.set(variant.id!, page.ok ? ((page.data.data[0] as unknown as LotFacts | undefined) ?? null) : null);
       }),
     );
   }
 
-  // The invoices those lots came from, read once each, for the supplier's unit cost.
-  const items: InvoiceItemFacts[] = [];
+  // The latest posted purchase cost of each SKU (cost.view): unit cost, currency and supplier.
+  const last = new Map<string, LastPurchase | null>();
   if (canCost) {
-    const invoiceIds = [...new Set([...newest.values()].flatMap((lot) => (lot?.source_type === "purchase_invoice" && lot.source_id ? [lot.source_id] : [])))];
-    const invoices = await Promise.all(invoiceIds.map((id) => load(api.GET("/admin/purchase-invoices/{id}", { params: { path: { id } } }))));
-    for (const invoice of invoices) if (invoice.ok) items.push(...((invoice.data.items ?? []) as unknown as InvoiceItemFacts[]));
+    await Promise.all(
+      variants.map(async (variant) => {
+        const result = await load(api.GET("/admin/purchase-costs/variants/{id}/last", { params: { path: { id: variant.id! } } }));
+        last.set(variant.id!, result.ok ? ((result.data as LastPurchase | null) ?? null) : null);
+      }),
+    );
   }
 
   const latest = newestLot([...newest.values()].filter((lot): lot is LotFacts => lot !== null));
   return {
     productId,
     productName: name,
-    supplierId: latest?.supplier_id ?? "",
+    supplierId: lastSupplierId([...last.values()], latest),
     locationId: restockLocation(latest, locations),
     lines: variants.map((variant) => ({
       sku: {
@@ -128,7 +131,7 @@ async function loadRestock(api: Api, productId: string, locations: LocationInfo[
         wholeUnitsOnly: variant.whole_units_only ?? true,
         tracksExpiry: product.data.tracks_expiry ?? false,
       },
-      lastCost: canCost ? lastCostOf(newest.get(variant.id!) ?? null, items) : null,
+      lastCost: canCost ? restockCost(last.get(variant.id!) ?? null, newest.get(variant.id!) ?? null) : null,
     })),
   };
 }

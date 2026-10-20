@@ -35,12 +35,15 @@ let tileCounter = 0;
 export function ImageManager({
   images,
   onChange,
+  onUploaded,
   disabled = false,
   single = false,
   testId = "image-manager",
 }: {
   images: ImageDraft[];
   onChange: Dispatch<SetStateAction<ImageDraft[]>>;
+  /** Each picture stored by the API, so the editor can delete it again if it ends up unused. */
+  onUploaded?: (url: string) => void;
   disabled?: boolean;
   single?: boolean;
   testId?: string;
@@ -68,6 +71,7 @@ export function ImageManager({
     patch(key, { phase: "uploading", progress: 0, failure: undefined, file: blob, name });
     try {
       const media = await uploadImage(blob, name, (progress) => patch(key, { progress }));
+      onUploaded?.(media.public_url);
       patch(key, { phase: "ready", progress: 100, url: media.public_url, file: undefined });
     } catch (cause) {
       const failure: ImageFailure =

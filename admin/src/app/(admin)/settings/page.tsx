@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { load, serverApi } from "@/lib/api/server";
+import { RecentlyAddedForm } from "./recently-added-form";
 import { SettingsForm, type SettingsAudit } from "./settings-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -56,6 +57,7 @@ export default async function SettingsPage() {
         basePrecision={base?.display_precision ?? 0}
         history={history}
       />
+      <RecentlyAddedForm settings={settings.data} />
     </>
   );
 }

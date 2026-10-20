@@ -4,16 +4,17 @@ import en from "@/messages/en.json";
 import { firstDayComplete, firstDaySteps, type FirstDayFacts } from "@/lib/first-day";
 import type { LocationInfo } from "@/lib/inventory";
 import { LAUNCH_MODULES, parseModules } from "@/lib/modules";
-import type { Supplier } from "@/lib/purchasing";
+import { activeSuppliers, canViewSettlement, toFixed, type Supplier } from "@/lib/purchasing";
 import {
   isBlankQuantity,
-  lastCostOf,
+  lastSupplierId,
   linesToPost,
   newestLot,
-  orderSuppliers,
-  recentSupplierIds,
+  paidNowAmount,
+  restockCost,
   restockLocation,
   startingCost,
+  type LastPurchase,
   type LotFacts,
 } from "@/lib/restock";
 
@@ -32,6 +33,17 @@ const lot = (over: Partial<LotFacts> = {}): LotFacts => ({
 
 const location = (over: Partial<LocationInfo>): LocationInfo =>
   ({ id: "loc", code: "A", warehouseId: "w", warehouseCode: "W", active: true, sellable: true, ...over }) as LocationInfo;
+
+const purchase = (over: Partial<LastPurchase> = {}): LastPurchase => ({
+  variant_id: "v-black",
+  unit_cost: 9000,
+  currency_code: "IQD",
+  document_date: "2026-10-01T00:00:00.000Z",
+  received_at: "2026-10-01T09:00:00.000Z",
+  supplier: { id: "s-1", name: "Zain Trading" },
+  invoice_id: "inv-1",
+  ...over,
+});
 
 const supplier = (id: string, name: string, active = true): Supplier =>
   ({ id, name, default_currency: "IQD", payment_terms_days: 30, is_active: active, created_at: "", updated_at: "" }) as Supplier;
@@ -73,22 +85,29 @@ describe("restock defaults", () => {
     expect(newestLot([])).toBeNull();
   });
 
-  it("last cost: the supplier's unit cost on the invoice the newest lot came from", () => {
-    const purchased = lot({ source_type: "purchase_invoice", source_id: "inv-1", po_item_id: "item-2", supplier_id: "s-1", purchase_cost: 9_750 });
-    const items = [
-      { id: "item-1", variant_id: "v-red", base_unit_cost_currency: 6, currency_code: "USD" as const },
-      { id: "item-2", variant_id: "v-black", base_unit_cost_currency: 9_000, currency_code: "IQD" as const },
-    ];
-    // Not the lot's landed cost (9,750): what the supplier charged.
-    expect(lastCostOf(purchased, items)).toEqual({ value: "9000", currency: "IQD" });
-    expect(lastCostOf({ ...purchased, po_item_id: "item-1", variant_id: "v-red" }, items)).toEqual({ value: "6", currency: "USD" });
+  it("last cost: the API's latest posted purchase cost, in its invoice currency", () => {
+    // What the supplier charged (not the lot's landed cost).
+    expect(restockCost(purchase({ unit_cost: 6, currency_code: "USD" }), lot({ source_type: "purchase_invoice", purchase_cost: 9_750 }))).toEqual({
+      value: "6",
+      currency: "USD",
+    });
+    expect(restockCost(purchase({ unit_cost: 0.125 }), null)).toEqual({ value: "0.125", currency: "IQD" });
   });
 
-  it("last cost of opening stock is that lot's IQD cost; unknown when costs are hidden", () => {
-    expect(lastCostOf(lot(), [])).toEqual({ value: "9000", currency: "IQD" });
-    expect(lastCostOf(lot({ purchase_cost: undefined }), [])).toBeNull();
-    expect(lastCostOf(lot({ source_type: "purchase_invoice", po_item_id: "gone" }), [])).toBeNull();
-    expect(lastCostOf(null, [])).toBeNull();
+  it("never purchased: opening stock's IQD cost; otherwise unknown", () => {
+    expect(restockCost(null, lot())).toEqual({ value: "9000", currency: "IQD" });
+    expect(restockCost(null, lot({ purchase_cost: undefined }))).toBeNull();
+    // A purchased lot without a readable last purchase gives no guess.
+    expect(restockCost(null, lot({ source_type: "purchase_invoice" }))).toBeNull();
+    expect(restockCost(null, null)).toBeNull();
+  });
+
+  it("supplier: the latest of the SKUs' last purchases, else the newest lot's", () => {
+    const early = purchase({ received_at: "2026-09-01T00:00:00Z", supplier: { id: "s-old", name: "Old" } });
+    const late = purchase({ received_at: "2026-10-01T00:00:00Z", supplier: { id: "s-new", name: "New" } });
+    expect(lastSupplierId([early, null, late], lot({ supplier_id: "s-lot" }))).toBe("s-new");
+    expect(lastSupplierId([null], lot({ supplier_id: "s-lot" }))).toBe("s-lot");
+    expect(lastSupplierId([], null)).toBe("");
   });
 
   it("a line starts at the last cost only in the same currency", () => {
@@ -107,13 +126,31 @@ describe("restock defaults", () => {
     expect(restockLocation(null, [])).toBe("");
   });
 
-  it("suppliers: recently bought from first (newest first, once, active only), the rest by name", () => {
-    const list = [supplier("s-a", "Zain Trading"), supplier("s-b", "Al Noor"), supplier("s-c", "Basra Goods"), supplier("s-d", "Old", false)];
-    const recent = recentSupplierIds([{ supplier_id: "s-c" }, { supplier_id: "s-a" }, { supplier_id: "s-c" }, { supplier_id: "s-d" }, { supplier_id: null }]);
-    expect(recent).toEqual(["s-c", "s-a", "s-d"]);
-    const ordered = orderSuppliers(list, recent);
-    expect(ordered.recent.map((row) => row.id)).toEqual(["s-c", "s-a"]);
-    expect(ordered.others.map((row) => row.name)).toEqual(["Al Noor"]);
+  it("suppliers: only active ones are offered, in the API's recent-purchase order", () => {
+    const list = [supplier("s-c", "Basra Goods"), supplier("s-d", "Old", false), supplier("s-a", "Zain Trading")];
+    expect(activeSuppliers(list).map((row) => row.id)).toEqual(["s-c", "s-a"]);
+  });
+});
+
+describe("paid now", () => {
+  it("pays the exact invoice total in its currency: lines plus same-currency landed costs", () => {
+    expect(paidNowAmount([toFixed("90000"), toFixed("15000")], [{ currency: "IQD", amount: "2500" }], "IQD")).toBe("107500");
+    expect(paidNowAmount([toFixed("12.5"), toFixed("0.125")], [], "USD")).toBe("12.625");
+    // Six decimals at most, rounded like the API.
+    expect(paidNowAmount([toFixed("0.0000004")], [], "USD")).toBeNull();
+    expect(paidNowAmount([toFixed("1.0000005")], [], "USD")).toBe("1.000001");
+  });
+
+  it("is not offered when a landed cost is in another currency, or nothing is owed", () => {
+    expect(paidNowAmount([toFixed("10")], [{ currency: "IQD", amount: "5000" }], "USD")).toBeNull();
+    expect(paidNowAmount([], [], "IQD")).toBeNull();
+  });
+
+  it("invoice totals and balances show to buyers and payers, not only cost.view", () => {
+    expect(canViewSettlement(["purchases.create"])).toBe(true);
+    expect(canViewSettlement(["supplier_payments.record"])).toBe(true);
+    expect(canViewSettlement(["cost.view"])).toBe(true);
+    expect(canViewSettlement(["suppliers.view"])).toBe(false);
   });
 });
 

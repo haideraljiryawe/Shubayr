@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui";
 import { DataTable, TableFilter, TableSearch, type Column, type TableState } from "@/components/table/data-table";
-import { PARTY_KINDS, type DeliveryParty } from "@/lib/delivery-parties";
+import { PARTY_KINDS, PARTY_TONE, type DeliveryParty } from "@/lib/delivery-parties";
 import { formatCost } from "@/lib/inventory";
 import { moneyText, toFixed } from "@/lib/purchasing";
 
@@ -40,7 +40,7 @@ export function CustodyView({
     {
       key: "kind",
       header: t("columns.kind"),
-      cell: (party) => <Badge tone={party.kind === "external_driver" ? "warning" : "info"}>{t(`kinds.${party.kind}`)}</Badge>,
+      cell: (party) => <Badge tone={PARTY_TONE[party.kind]}>{t(`kinds.${party.kind}`)}</Badge>,
     },
     {
       key: "cash",
