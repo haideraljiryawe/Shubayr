@@ -2,3 +2,23 @@
 /* Design tokens live in their own file so the Web Admin can import the same
    ones — see tokens.css. */
 @import "./tokens.css";
+
+/* The store's typeface is Zain (NOTE-009, web/src/fonts/zain); tokens.css,
+   shared with the Web Admin, keeps Cairo for the admin. Zain has real 400,
+   700 and 800 faces only, so the in-between weights are mapped on purpose —
+   300/500 read as regular, 600 as bold — and nothing is synthesised. */
+@theme {
+  --font-sans: var(--font-zain), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-zain-extrabold: var(--font-zain-800), var(--font-zain), ui-sans-serif, system-ui, sans-serif;
+  --font-weight-light: 400;
+  --font-weight-normal: 400;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 700;
+}
+
+@layer base {
+  body {
+    font-synthesis-weight: none;
+  }
+}

@@ -105,7 +105,8 @@
   --shadow-lg: var(--t-shadow-lg);
 
   /* Cairo is self-hosted (web/src/fonts/cairo): one face per subset, in
-     Google's order, then the metric-adjusted fallback on the last. */
+     Google's order, then the metric-adjusted fallback on the last. The Web
+     Admin uses it; the store overrides --font-sans with Zain in globals.css. */
   --font-sans: var(--font-cairo-arabic), var(--font-cairo-latin-ext), var(--font-cairo-latin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
 }
 

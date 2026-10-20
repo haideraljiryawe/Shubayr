@@ -3,8 +3,9 @@ import localFont from "next/font/local";
 /* ---------------------------------------------------------------------------
  * Cairo for the Web Admin: the same self-hosted files as the web store
  * (web/src/fonts/cairo, SIL Open Font License), declared here because
- * next/font needs literal options and the admin's own node_modules. Keep the
- * options in step with web/src/fonts/cairo/index.ts.
+ * next/font needs literal options and the admin's own node_modules. The store
+ * itself moved to Zain (web/src/fonts/zain); these Cairo files stay for the
+ * admin.
  * ------------------------------------------------------------------------- */
 
 export const cairoArabic = localFont({
