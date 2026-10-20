@@ -194,6 +194,13 @@ try {
   await run('test/wishlist.acceptance.mjs', [], acceptanceEnv);
   await run('test/order.acceptance.mjs', [], acceptanceEnv);
   await run('test/delivery-collection.acceptance.mjs', [], acceptanceEnv);
+  // C17 adds purchase/courier operator sessions to the shared sequence. On a
+  // fast runner those independent packs now reach the production admin-login
+  // limit before its one-minute window expires. Reset only the in-memory
+  // limiter; keep the database and all durable cross-pack state intact.
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/cash-receipts.acceptance.mjs', [], acceptanceEnv);
   // C7 adds two staff sessions to a sequence that already approaches the
   // production admin-login limit. Each acceptance pack models a separate
