@@ -2,7 +2,8 @@
   "brand": {
     "name": "Shubayr",
     "tagline": "Everything you need",
-    "strapline": "Modern · Simple · Everywhere"
+    "strapline": "Modern · Simple · Everywhere",
+    "officialName": "Shubayr"
   },
   "nav": {
     "home": "Home",

@@ -60,6 +60,7 @@ import { activeNavKey, visibleNav, type NavKey } from "@/lib/nav";
 import type { ModuleKey } from "@/lib/modules";
 import { NotificationBell } from "@/components/inbox/notification-bell";
 import { LocaleSwitch } from "./locale-switch";
+import { OfficialSymbol } from "./official-symbol";
 import { hardNavigate } from "@/lib/hard-navigate";
 
 type User = components["schemas"]["User"];
@@ -320,9 +321,7 @@ function Brand() {
       href="/"
       className="flex items-center gap-2 font-bold text-primary-dark"
     >
-      <span className="inline-flex size-9 items-center justify-center rounded-md bg-primary-dark text-on-primary">
-        ش
-      </span>
+      <OfficialSymbol size={36} />
       <span className="leading-tight">
         {t("name")}
         <span className="block text-xs font-semibold text-text-muted">

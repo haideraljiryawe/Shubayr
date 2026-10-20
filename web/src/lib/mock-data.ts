@@ -18,7 +18,7 @@ import type {
 /** Defaults are the Shubayr brand; a tenant overrides these via GET /settings. */
 export const mockSettings: StoreSettings = {
   store_name: "Shubayr",
-  logo_url: "/logo.svg",
+  logo_url: undefined,
   primary_color: "#558464",
   // The mockup prices read $89 / $299, so the demo tenant is USD. Real Iraqi
   // deployments set IQD here — nothing in the code assumes a currency.

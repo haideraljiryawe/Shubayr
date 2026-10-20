@@ -1,15 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Leaf } from "lucide-react";
+import { OfficialSymbol } from "@/components/brand/official-symbol";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
 /**
- * Leaf mark + wordmark + tagline. Both the name and the logo image are
- * white-label: a tenant that sets `logo_url` gets its own artwork, and the
- * fallback leaf is tinted with whatever primary_color it supplies.
+ * Mark + wordmark + tagline. Precedence for the mark: the store's own
+ * `logo_url` (Store settings) when it is set, otherwise Shubayr's official
+ * symbol. The name is the store's configured name either way.
  */
 export function Logo({
   showTagline = true,
@@ -26,7 +26,7 @@ export function Logo({
       href="/"
       className={cn("inline-flex items-center gap-2.5 shrink-0", className)}
     >
-      <span className="inline-flex size-10 items-center justify-center rounded-md bg-primary-light/30">
+      <span className="inline-flex size-10 items-center justify-center rounded-md">
         {logoUrl ? (
           // Tenant artwork is an arbitrary remote URL; skip the optimizer.
           // eslint-disable-next-line @next/next/no-img-element
@@ -36,7 +36,7 @@ export function Logo({
             className="size-7 object-contain"
           />
         ) : (
-          <Leaf className="size-6 text-primary-dark" aria-hidden />
+          <OfficialSymbol size={36} alt="" priority />
         )}
       </span>
 

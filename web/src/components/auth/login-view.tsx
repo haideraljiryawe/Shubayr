@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { OfficialSymbol } from "@/components/brand/official-symbol";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useRouter } from "@/i18n/navigation";
@@ -18,6 +19,7 @@ function safeNext(next: string | null): string {
 
 export function LoginView() {
   const t = useTranslations("auth");
+  const tBrand = useTranslations("brand");
   const { isAuthenticated, ready } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,6 +34,9 @@ export function LoginView() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 lg:py-12">
+      <div className="mb-4 flex justify-center" data-testid="login-brand">
+        <OfficialSymbol size={80} alt={tBrand("officialName")} priority />
+      </div>
       <h1 className="mb-5 text-center text-2xl font-bold text-text">
         {t("loginTitle")}
       </h1>
