@@ -7,8 +7,10 @@ import { defineConfig } from "@playwright/test";
  * than in the browser, so the flag has to be set here — before any spec is
  * imported — and not only on the dev server below. Without it those specs
  * would inherit the per-domain default (catalog live) and hit a real API that
- * may not be running. live-catalog.spec.ts is unaffected: it talks to the API
- * URL directly and skips itself when nothing answers.
+ * may not be running. Specs that need a real API live in the live suite.
+ *
+ * CI runs every mode here (the "Web store hermetic" job): the default list,
+ * CATALOG_ERROR_TESTS, CATALOG_STREAMING_TESTS and WORK_TESTS.
  */
 process.env.NEXT_PUBLIC_USE_MOCKS ??= "true";
 
@@ -45,9 +47,8 @@ export default defineConfig({
           "**/legal.spec.ts",
           "**/store-info-rules.spec.ts",
           "**/account-deletion-rules.spec.ts",
-          // Skips itself unless a real backend is reachable.
-          "**/live-catalog.spec.ts",
-          "**/live-checkout.spec.ts",
+          // live-catalog and live-checkout need a real API: they run in the
+          // live suite (playwright.live.config.ts), not skipped here.
         ],
   timeout: 60000,
   use: {
@@ -71,13 +72,13 @@ export default defineConfig({
       ...(work
         ? {
             // forwarding.spec.ts: the runner is the store's front proxy, with
-            // a trusted CDN hop at 192.0.2.10; no read cache, so every render
-            // reaches the scripted API and its headers can be checked.
+            // a trusted CDN hop at 192.0.2.10.
             TRUSTED_FRONT_PROXIES: "loopback,192.0.2.10",
-            STORE_CACHE_SHARED_SECONDS: "0",
-            STORE_CACHE_CATALOG_SECONDS: "0",
           }
         : {}),
+      // No read cache against a scripted API: every render must reach it
+      // (headers checked, requests held back while streaming is observed).
+      ...(work || streaming ? { STORE_CACHE_SHARED_SECONDS: "0", STORE_CACHE_CATALOG_SECONDS: "0" } : {}),
     },
   },
 });

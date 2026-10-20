@@ -22,7 +22,8 @@ test.beforeAll(async () => {
     else if (path === "/api/v1/categories") {
       body = [
         ...mockCategories,
-        { id: "inactive", slug: "inactive", is_active: false },
+        // A hidden category (contract: is_visible; the store answers 404 for it).
+        { id: "inactive", slug: "inactive", name_ar: "مخفي", name_en: "Hidden", is_visible: false },
       ];
     } else if (path === "/api/v1/products") {
       await products?.promise;
@@ -78,7 +79,11 @@ for (const prefix of ["", "/en"]) {
       await expect(page.getByTestId("product-grid")).toHaveCount(0);
 
       reviews.release();
-      await expect(page.getByTestId("product-grid")).toBeVisible();
+      // Streamed HTML arrives in a hidden copy that is then swapped in, so
+      // for a moment there are two grids: wait for the one visible grid, then
+      // for the hidden copy to be gone.
+      await expect(page.getByTestId("product-grid").filter({ visible: true })).toHaveCount(1);
+      await expect(page.getByTestId("product-grid")).toHaveCount(1);
       await expect(skeleton).toHaveCount(0);
     } finally {
       products.release();
