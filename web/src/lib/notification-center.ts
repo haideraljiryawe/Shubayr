@@ -179,16 +179,27 @@ async function connect(): Promise<void> {
   next.addEventListener("unread.count", (event) => {
     remember(event);
     const body = parse<{ unread_count: number }>(event);
-    if (body) setState({ unread: body.unread_count });
+    if (body) {
+      streamCounts += 1;
+      setState({ unread: body.unread_count });
+    }
   });
 }
+
+/**
+ * Counts the stream delivered. A fetched count is applied only if none
+ * arrived while it was in flight: an answer sent before a newer stream count
+ * (a notification arriving just after a read) must not overwrite it.
+ */
+let streamCounts = 0;
 
 /** Fetch the count from the server — on sign-in and whenever the tab returns. */
 async function refreshCount(): Promise<void> {
   const run = generation;
+  const seen = streamCounts;
   try {
     const unread = await api.getUnreadCount();
-    if (run === generation && userId) setState({ unread });
+    if (run === generation && userId && seen === streamCounts) setState({ unread });
   } catch {
     /* The bell simply keeps its last value; the stream will correct it. */
   }

@@ -62,14 +62,22 @@ function remember(event: MessageEvent): void {
   if (event.lastEventId) lastEventId = event.lastEventId;
 }
 
+/**
+ * Counts the stream delivered. A fetched count is applied only if none
+ * arrived while it was in flight, so an answer sent before a newer stream
+ * count (a notification arriving just after a read) can't overwrite it.
+ */
+let streamCounts = 0;
+
 async function refreshCount(): Promise<void> {
+  const seen = streamCounts;
   try {
     const response = await fetch("/api/proxy/me/notifications/unread-count", {
       cache: "no-store",
     });
     if (!response.ok) return;
     const body = (await response.json()) as { unread_count: number };
-    if (running) set({ unread: body.unread_count });
+    if (running && seen === streamCounts) set({ unread: body.unread_count });
   } catch {
     /* Keep the last count; the stream corrects it. */
   }
@@ -118,7 +126,10 @@ function open(): void {
   next.addEventListener("unread.count", (event) => {
     remember(event);
     const body = parse<{ unread_count: number }>(event);
-    if (body) set({ unread: body.unread_count });
+    if (body) {
+      streamCounts += 1;
+      set({ unread: body.unread_count });
+    }
   });
 }
 
