@@ -62,19 +62,20 @@ describe("refundCap", () => {
 });
 
 describe("exception refusals", () => {
-  const conflict = (message: string) => new ApiError(409, message, "CONFLICT");
-  it("names each refusal from the API's messages", () => {
-    expect(exceptionRefusal(conflict("Reverse the cash receipt that consumed this party liability first"))).toBe("receiptConsumed");
-    expect(exceptionRefusal(new ApiError(403, "A user cannot reverse their own custody exception", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("ownException");
-    expect(exceptionRefusal(new ApiError(403, "A delivery party cannot approve an exception in their own custody", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("ownCustody");
-    expect(exceptionRefusal(new ApiError(403, "Strict separation of duties requires another user to record the exception", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("strictRecorder");
-    expect(exceptionRefusal(conflict("Delivery-fee refund exceeds the amount originally charged"))).toBe("feeCap");
-    expect(exceptionRefusal(conflict("Delivery-fee refund exceeds the uncollected amount"))).toBe("noUncollected");
-    expect(exceptionRefusal(conflict("Return against uncollected requires a confirmed collection shortfall"))).toBe("noShortfall");
-    expect(exceptionRefusal(conflict("Goods loss requires an order with goods in delivery custody"))).toBe("notInCustody");
-    expect(exceptionRefusal(conflict("Only goods previously settled from custody can be returned"))).toBe("notSold");
-    expect(exceptionRefusal(conflict("Custody exception is already reversed"))).toBe("alreadyReversed");
-    expect(exceptionRefusal(conflict("Something else"))).toBeNull();
+  const refused = (code: string | undefined, message = "English text that must not matter") => new ApiError(409, message, code);
+  it("names each refusal from the API's code, never its message", () => {
+    expect(exceptionRefusal(refused("RECEIPT_REVERSAL_REQUIRED"))).toBe("receiptConsumed");
+    expect(exceptionRefusal(refused("SELF_REVERSAL_FORBIDDEN"))).toBe("ownException");
+    expect(exceptionRefusal(refused("SEPARATION_OF_DUTIES_VIOLATION"))).toBe("separation");
+    expect(exceptionRefusal(refused("DELIVERY_FEE_REFUND_EXCEEDS_CHARGE"))).toBe("feeCap");
+    expect(exceptionRefusal(refused("DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED"))).toBe("noUncollected");
+    expect(exceptionRefusal(refused("RETURN_REQUIRES_CONFIRMED_SHORTFALL"))).toBe("noShortfall");
+    expect(exceptionRefusal(refused("GOODS_NOT_IN_CUSTODY"))).toBe("notInCustody");
+    expect(exceptionRefusal(refused("RETURN_REQUIRES_SOLD_CUSTODY"))).toBe("notSold");
+    expect(exceptionRefusal(refused("CUSTODY_EXCEPTION_ALREADY_REVERSED"))).toBe("alreadyReversed");
+    expect(exceptionRefusal(refused("SOMETHING_ELSE"))).toBeNull();
+    // An English message alone no longer classifies anything.
+    expect(exceptionRefusal(refused(undefined, "Custody exception is already reversed"))).toBeNull();
   });
 
   it("builds the list query and drops an inverted date range", () => {
@@ -126,9 +127,10 @@ describe("trips", () => {
     const refused = new ApiError(409, "Every trip order must be delivered…", "TRIP_ORDERS_UNRESOLVED", [{ field: "orders.o-2", code: "unresolved", message: "x" }]);
     expect(tripRefusal(refused)).toBe("unresolved");
     expect(unresolvedOrderIds(refused)).toEqual(["o-2"]);
-    expect(tripRefusal(new ApiError(403, "A user cannot approve and close their own trip", "SEPARATION_OF_DUTIES_VIOLATION"))).toBe("ownTrip");
+    expect(tripRefusal(new ApiError(403, "x", "SELF_TRIP_CLOSE_FORBIDDEN"))).toBe("ownTrip");
     expect(tripRefusal(new ApiError(409, "x", "DOUBLE_DELIVERY_CHARGE"))).toBe("doubleCharge");
-    expect(tripRefusal(new ApiError(409, "Trip order fare shares must equal the one trip fare"))).toBe("sharesMismatch");
+    expect(tripRefusal(new ApiError(409, "x", "TRIP_FARE_SHARES_MISMATCH"))).toBe("sharesMismatch");
+    expect(tripRefusal(new ApiError(409, "Trip order fare shares must equal the one trip fare"))).toBeNull();
   });
 
   it("splits a fare and checks the shares", () => {

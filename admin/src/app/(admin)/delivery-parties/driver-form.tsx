@@ -96,7 +96,7 @@ export function DriverForm({
           <h2 className="text-lg font-bold">{initial ? t("form.editTitle", { name: initial.name }) : t("form.createTitle")}</h2>
           <p className="text-sm text-text-muted">{t("form.hint")}</p>
         </div>
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("form.name")} error={form.fieldErrors.name} name="name">
             <Input value={values.name} maxLength={120} data-testid="driver-name" onChange={set("name")} />

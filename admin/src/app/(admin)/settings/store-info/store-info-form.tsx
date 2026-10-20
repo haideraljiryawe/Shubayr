@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import {
   MAX_LENGTH,
   storeInfoApiProblems,
@@ -42,7 +42,7 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
   const [form, setForm] = useState(() => toStoreInfoForm(settings));
   const [problems, setProblems] = useState<Problems>({});
   const [pending, setPending] = useState(false);
-  const [formError, setFormError] = useState<{ kind: ErrorKind; detail: string | null } | null>(null);
+  const [formError, setFormError] = useState<{ kind: ErrorKind; errorCode: string | null } | null>(null);
   const [unchanged, setUnchanged] = useState(false);
 
   function set(key: StoreInfoKey, value: string) {
@@ -78,7 +78,7 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
     } catch (cause) {
       const fromApi = storeInfoApiProblems(cause);
       if (Object.keys(fromApi).length) setProblems(fromApi);
-      else setFormError({ kind: errorKind(cause), detail: cause instanceof ApiError ? cause.message : null });
+      else setFormError({ kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
     } finally {
       setPending(false);
     }
@@ -129,7 +129,7 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
         </Card>
       ))}
       {unchanged ? <Alert tone="info" data-testid="store-info-unchanged">{t("unchanged")}</Alert> : null}
-      {formError ? <FormError kind={formError.kind} detail={formError.detail} /> : null}
+      {formError ? <FormError kind={formError.kind} code={formError.errorCode} /> : null}
       <div className="flex justify-end">
         <Button type="submit" pending={pending} data-testid="store-info-save">
           {t("save")}

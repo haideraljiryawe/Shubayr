@@ -361,13 +361,14 @@ describe("product list filters and bulk actions", () => {
         ],
       },
       (id) => `Product ${id}`,
-      "Unknown",
+      // Worded from the code, never the API's English message.
+      (code) => (code === "PRODUCT_NOT_READY" ? "المنتج غير جاهز" : "تعذّر التحديث"),
     );
     expect(outcome.done).toBe(1);
     expect(outcome.failed).toBe(2);
     expect(outcome.lines).toEqual([
-      { id: "2", name: "Product 2", ok: false, message: "Needs an approved price" },
-      { id: "3", name: "Product 3", ok: false, message: "X" },
+      { id: "2", name: "Product 2", ok: false, message: "المنتج غير جاهز" },
+      { id: "3", name: "Product 3", ok: false, message: "تعذّر التحديث" },
       { id: "1", name: "Product 1", ok: true, message: null },
     ]);
   });

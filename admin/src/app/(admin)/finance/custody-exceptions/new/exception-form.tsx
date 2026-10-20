@@ -12,7 +12,7 @@ import { ExceptionPostingStatus } from "@/components/finance/exception-status";
 import { usePosting } from "@/components/finance/use-posting";
 import { DocumentDateFields, documentDateError, type DocumentDateValue } from "@/components/purchasing/document-date";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { errorKind } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import type { CashAccountOption } from "@/lib/api/purchasing-server";
 import type { DeliveryCollection } from "@/lib/collection";
 import {
@@ -482,7 +482,7 @@ function ReturnForm({
           ))}
         </ul>
       ) : null}
-      {delivery.state.phase === "error" ? <FormError kind={errorKind(delivery.state.error)} detail={delivery.state.error.message} /> : null}
+      {delivery.state.phase === "error" ? <FormError kind={errorKind(delivery.state.error)} code={errorCode(delivery.state.error)} /> : null}
       {delivered && !posted ? (
         <Alert tone="info" data-testid="exception-delivered">
           {t("deliveredFirst")}

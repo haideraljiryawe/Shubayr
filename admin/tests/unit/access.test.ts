@@ -150,9 +150,10 @@ describe("API errors", () => {
     });
     expect(error).toBeInstanceOf(ApiError);
     expect(error.code).toBe("VALIDATION_FAILED");
-    expect(fieldErrorMap(error.errors)).toEqual({
-      username: "bad username",
-      preset_ids: "bad preset",
+    const t = Object.assign((key: string) => key, { has: () => false });
+    expect(fieldErrorMap(error.errors, t)).toEqual({
+      username: "fields.format",
+      preset_ids: "fields.invalid",
     });
   });
 

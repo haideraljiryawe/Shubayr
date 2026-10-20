@@ -355,7 +355,8 @@ export function ProductDetail({
             onClick={addToCart}
             data-testid="pdp-add-to-cart"
             startIcon={<ShoppingCart className="size-5" aria-hidden />}
-            className="ms-auto flex-1"
+            // One line at phone width: the price beside it gives way first.
+            className="ms-auto flex-1 whitespace-nowrap"
           >
             {soldOut ? t("outOfStockLabel") : t("addToCart")}
           </Button>

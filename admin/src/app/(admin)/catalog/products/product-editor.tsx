@@ -16,7 +16,7 @@ import { belowCostBreaches, type BelowCostBreach } from "@/lib/orders";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, describeFieldError } from "@/lib/api/errors";
 import type { PricingContext } from "@/lib/api/catalog-server";
 import {
   BASE_UNITS,
@@ -103,6 +103,7 @@ export function ProductEditor({
   canCreateBrand?: boolean;
 }) {
   const t = useTranslations("products");
+  const tErrors = useTranslations("errors");
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
@@ -248,7 +249,7 @@ export function ProductEditor({
           for (const error of cause.errors) {
             const path = variantErrorPath(error.field);
             const draft = path ? drafts[path.index] : undefined;
-            if (draft && path) server[draft.key] = { ...server[draft.key], [path.field]: error.message };
+            if (draft && path) server[draft.key] = { ...server[draft.key], [path.field]: describeFieldError(tErrors, error) };
           }
           setVariantErrors(server);
         }
@@ -451,7 +452,7 @@ export function ProductEditor({
             note={t("belowCostNote")}
           />
         ) : (
-          <FormError kind={api.formError} detail={api.formErrorDetail} />
+          <FormError kind={api.formError} code={api.formErrorCode} />
         )}
 
         {/* The save row stays in reach on a long form and on a tablet. */}

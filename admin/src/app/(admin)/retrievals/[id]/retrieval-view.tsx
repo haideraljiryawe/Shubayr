@@ -14,6 +14,7 @@ import { entryHref } from "@/lib/finance/links";
 import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, toMilli, type LocationInfo } from "@/lib/inventory";
 import type { components } from "@/types/api";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type Retrieval = components["schemas"]["Retrieval"];
 type Line = components["schemas"]["RetrievalLine"];
@@ -48,7 +49,7 @@ export function RetrievalView({
     Object.fromEntries(open.map((line) => [line.id!, line.location_id ?? sellable[0]?.id ?? locations[0]?.id ?? ""])),
   );
   const [review, setReview] = useState<{ operationId: string } | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useLocaleScopedState<string | null>(null);
   /** Bumped to start a fresh receipt: remounts the (uncontrolled) quantity inputs. */
   const [round, setRound] = useState(0);
   const busy = posting.state.phase === "posting" || posting.state.phase === "checking";

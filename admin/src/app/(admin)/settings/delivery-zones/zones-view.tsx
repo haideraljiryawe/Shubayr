@@ -13,7 +13,7 @@ import { FormError } from "@/components/forms/form-error";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { englishOrArabic } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import {
@@ -41,7 +41,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
   const toast = useToast();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toggling, setToggling] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; detail: string } | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; errorCode: string | null } | null>(null);
   const unserved = unservedGovernorates(governorates);
   const money = (value: number) => formatAmount(value, "IQD", 0, locale);
   const close = () => setDialog(null);
@@ -59,7 +59,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
       toast(zone.is_active ? t("deactivated", { name: localName(zone, locale) }) : t("activated", { name: localName(zone, locale) }));
       router.refresh();
     } catch (cause) {
-      setRowError({ id: zone.id, kind: errorKind(cause), detail: cause instanceof Error ? cause.message : "" });
+      setRowError({ id: zone.id, kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
     } finally {
       setToggling(null);
     }
@@ -148,7 +148,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
                   {t("delete")}
                 </Button>
               </div>
-              {rowError?.id === zone.id ? <FormError kind={rowError.kind} detail={rowError.detail} /> : null}
+              {rowError?.id === zone.id ? <FormError kind={rowError.kind} code={rowError.errorCode} /> : null}
             </Card>
           </li>
         ))}
@@ -346,7 +346,7 @@ function ZoneForm({
       ) : refused ? (
         <Alert data-testid="zone-conflict">{t("conflictRefusedStale")}</Alert>
       ) : null}
-      {refused ? null : <FormError kind={api.formError} detail={api.formErrorDetail} />}
+      {refused ? null : <FormError kind={api.formError} code={api.formErrorCode} />}
     </FormDialog>
   );
 }

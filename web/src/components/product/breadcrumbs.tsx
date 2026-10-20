@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { ChevronLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
@@ -7,8 +8,9 @@ export function Breadcrumbs({
 }: {
   items: { label: string; href?: string }[];
 }) {
+  const t = useTranslations("product");
   return (
-    <nav aria-label="breadcrumb" className="hidden md:block">
+    <nav aria-label={t("breadcrumbLabel")} className="hidden md:block">
       <ol className="flex flex-wrap items-center gap-1 text-xs text-text-muted">
         {items.map((item, index) => (
           <li key={`${item.label}-${index}`} className="flex items-center gap-1">

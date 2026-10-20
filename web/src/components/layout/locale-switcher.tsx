@@ -7,7 +7,11 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { localeLabel, routing, type Locale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
 
-/** AR ⇄ EN. Swaps the locale while staying on the current path. */
+/**
+ * AR ⇄ EN. Swaps the locale while staying on the same page: the path, the
+ * query (filters, sort, a login's `?next=` destination) and the hash all
+ * carry over (NOTE-012).
+ */
 export function LocaleSwitcher({ className }: { className?: string }) {
   const t = useTranslations("header");
   const locale = useLocale() as Locale;
@@ -25,7 +29,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
       disabled={isPending}
       onClick={() =>
         startTransition(() => {
-          router.replace(pathname, { locale: next });
+          router.replace(`${pathname}${window.location.search}${window.location.hash}`, { locale: next });
         })
       }
       className={cn(

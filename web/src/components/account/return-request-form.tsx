@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
-  ApiError,
   api,
   type Order,
   type OrderItem,
@@ -27,6 +26,7 @@ import {
   type ReturnReasonCode,
 } from "@/lib/return-reasons";
 import { useResource } from "@/lib/use-resource";
+import { apiErrorText } from "@/lib/error-text";
 import { OrderItemLine } from "./order-item-line";
 import { AccountError, AccountSkeleton } from "./states";
 
@@ -108,6 +108,7 @@ function reservedByOrderItem(returns: Return[]): Map<string, number> {
  */
 export function ReturnRequestForm({ orderId }: { orderId: string }) {
   const t = useTranslations("returns");
+  const tApi = useTranslations("apiErrors");
   const tOrders = useTranslations("orders");
   const router = useRouter();
   const showToast = useToast();
@@ -262,15 +263,10 @@ export function ReturnRequestForm({ orderId }: { orderId: string }) {
       showToast(t("submitted"));
       router.push("/account/returns");
     } catch (cause) {
-      // The server is the authority on eligibility and says why in plain
-      // terms; relaying that beats "something went wrong" when the answer is
-      // "you already returned that one".
-      setError(
-        cause instanceof ApiError &&
-          (cause.status === 422 || cause.status === 409)
-          ? cause.message || t("errFailed")
-          : t("errFailed"),
-      );
+      // The server is the authority on eligibility; its documented code says
+      // why ("the return period has ended", "already returned"), worded in
+      // the page's language — never its English message.
+      setError(apiErrorText(tApi, cause, t("errFailed")));
     } finally {
       setSaving(false);
     }

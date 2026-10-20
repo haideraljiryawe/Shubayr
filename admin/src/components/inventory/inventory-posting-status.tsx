@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Alert, Button } from "@/components/ui";
 import { FormError } from "@/components/forms/form-error";
 import type { PostingState } from "@/components/finance/use-posting";
-import { errorKind } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import { entryHref } from "@/lib/finance/links";
 import { isClosedPeriod } from "@/lib/finance/operations";
 import { documentHref, isWholeUnitsError, type DocumentType } from "@/lib/inventory";
@@ -79,7 +79,7 @@ export function InventoryPostingStatus<T extends PostedDocument>({
     case "error":
       if (isClosedPeriod(state.error)) return <Alert data-testid="posting-period-closed">{t("periodClosed")}</Alert>;
       if (isWholeUnitsError(state.error)) return <Alert data-testid="posting-whole-units">{ti("errors.wholeUnits")}</Alert>;
-      return <FormError kind={errorKind(state.error)} detail={state.error.message} />;
+      return <FormError kind={errorKind(state.error)} code={errorCode(state.error)} />;
     default:
       return null;
   }

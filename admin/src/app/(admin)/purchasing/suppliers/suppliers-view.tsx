@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ApiError, describeError } from "@/lib/api/errors";
 import { Plus } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
@@ -15,6 +16,7 @@ import type { Supplier } from "@/lib/purchasing";
 
 export function SuppliersView({ rows, state, canManage }: { rows: Supplier[]; state: TableState; canManage: boolean }) {
   const t = useTranslations("purchasing.suppliers");
+  const tErrors = useTranslations("errors");
   const router = useRouter();
   const toast = useToast();
   const [editing, setEditing] = useState<Supplier | "new" | null>(null);
@@ -26,7 +28,7 @@ export function SuppliersView({ rows, state, canManage }: { rows: Supplier[]; st
       toast(t("reactivated"));
       router.refresh();
     } catch (cause) {
-      toast(cause instanceof Error ? cause.message : t("failed"));
+      toast(cause instanceof ApiError ? describeError(tErrors, cause) : t("failed"));
     }
   }
 

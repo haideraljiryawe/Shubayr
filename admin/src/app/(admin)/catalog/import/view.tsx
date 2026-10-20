@@ -40,6 +40,7 @@ import {
 } from "@/lib/catalog-import";
 import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 const PREVIEW_PAGE = 50;
 
@@ -92,13 +93,14 @@ function Progress({ value, label, testId }: { value: number; label: string; test
  */
 export function CatalogImportView({ initial, canPostStock }: { initial: CatalogImport | null; canPostStock: boolean }) {
   const t = useTranslations("catalogImport");
+  const tErrors = useTranslations("errors");
   const locale = useLocale();
   const router = useRouter();
   const [current, setCurrent] = useState<CatalogImport | null>(initial);
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(false);
   const [upload, setUpload] = useState<{ phase: "uploading" | "processing"; percent: number } | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useLocaleScopedState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const committingNow = useRef(false);
   const [result, setResult] = useState<CommitResult | null>(null);
@@ -171,7 +173,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     if (cause instanceof ApiError) {
       if (cause.code && t.has(`errors.${cause.code}`)) return t(`errors.${cause.code}`);
       if (cause.status === 413) return t("errors.tooLarge");
-      if (cause.message) return cause.message;
+      if (cause.code && tErrors.has(`codes.${cause.code}`)) return tErrors(`codes.${cause.code}`);
     }
     return t("errors.generic");
   }
@@ -415,7 +417,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                         <code dir="ltr" className="text-xs">
                           {row.sku ?? "—"}
                         </code>
-                        <span dir="auto">{row.commit_error?.message ?? row.commit_error?.code ?? ""}</span>
+                        <span>{row.commit_error?.code && tErrors.has(`codes.${row.commit_error.code}`) ? tErrors(`codes.${row.commit_error.code}`) : tErrors("codes.CATALOG_IMPORT_ROW_FAILED")}</span>
                       </li>
                     ))}
                   </ul>
@@ -575,7 +577,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                           <span className="text-text-muted">{t(`issues.${issue.code}.fix`)}</span>
                                         </>
                                       ) : (
-                                        <span dir="auto">{issue.message}</span>
+                                        <span>{tErrors("fields.invalid")}</span>
                                       )}
                                     </span>
                                   </li>

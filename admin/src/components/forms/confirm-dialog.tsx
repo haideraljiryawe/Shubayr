@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Textarea } from "@/components/ui";
-import { errorKind, type ErrorKind } from "@/lib/api/errors";
+import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { FormError } from "./form-error";
 import { Field } from "./field";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
  * Confirmation for destructive actions.
@@ -44,8 +45,8 @@ export function ConfirmDialog({
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ErrorKind | null>(null);
-  const [detail, setDetail] = useState<string | null>(null);
-  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [reasonError, setReasonError] = useLocaleScopedState<string | null>(null);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -57,7 +58,7 @@ export function ConfirmDialog({
       dialog.showModal();
     }
     if (!open && dialog.open) dialog.close();
-  }, [open]);
+  }, [open, setReasonError]);
 
   async function confirm() {
     const trimmed = reason.trim();
@@ -72,7 +73,7 @@ export function ConfirmDialog({
       onClose();
     } catch (cause) {
       setError(errorKind(cause));
-      setDetail(cause instanceof Error ? cause.message : null);
+      setCode(errorCode(cause) ?? null);
     } finally {
       setPending(false);
     }
@@ -113,7 +114,7 @@ export function ConfirmDialog({
             />
           </Field>
         ) : null}
-        <FormError kind={error} detail={detail} />
+        <FormError kind={error} code={code} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             {t("cancel")}

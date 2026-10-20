@@ -19,6 +19,7 @@ import { storeDay } from "@/lib/finance/dates";
 import { decimalPlaces, formatAmount, isPositive } from "@/lib/finance/money";
 import { newOperationId } from "@/lib/finance/operations";
 import type { components } from "@/types/api";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type CashAccount = components["schemas"]["CashAccount"];
 
@@ -147,7 +148,7 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"cash" | "bank">("cash");
   const [code, setCode] = useState(enabled.find((currency) => currency.isBase)?.code ?? enabled[0]?.code ?? "IQD");
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameError, setNameError] = useLocaleScopedState<string | null>(null);
 
   async function submit() {
     if (name.trim().length < 2) {
@@ -186,7 +187,7 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
             </Select>
           </Field>
         </div>
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end">
           <Button type="submit" pending={api.pending} data-testid="account-create-submit">
             <Plus className="size-4" aria-hidden />
@@ -232,7 +233,7 @@ function EditAccount({ account, onDone, onCancel }: { account: CashAccount; onDo
             {t("active")}
           </label>
         </div>
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>{t("cancel")}</Button>
           <Button type="submit" pending={api.pending} data-testid="account-edit-submit">{t("save")}</Button>
@@ -256,12 +257,13 @@ function OpeningBalance({
 }) {
   const t = useTranslations("cashAccounts");
   const posting = usePosting();
+  const tErrors = useTranslations("errors");
   const [operationId] = useState(newOperationId);
   const [amount, setAmount] = useState<string | null>(null);
   const [date, setDate] = useState(storeDay());
   const [backdateReason, setBackdateReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors) : {};
+  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors, tErrors) : {};
 
   async function submit() {
     const found: Record<string, string> = {};
@@ -336,6 +338,7 @@ function TransferPanel({
   const t = useTranslations("cashAccounts");
   const locale = useLocale();
   const posting = usePosting();
+  const tErrors = useTranslations("errors");
   const active = accounts.filter((account) => account.is_active);
   const [fromId, setFromId] = useState(active[0]?.id ?? "");
   const from = active.find((account) => account.id === fromId) ?? null;
@@ -350,7 +353,7 @@ function TransferPanel({
   const [review, setReview] = useState<{ operationId: string } | null>(null);
   const [generation, setGeneration] = useState(0);
   const precision = from ? precisionOf(currencies, from.currency_code) : 0;
-  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors) : {};
+  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors, tErrors) : {};
   const posted = posting.state.phase === "posted";
 
   if (active.length < 2) {

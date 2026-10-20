@@ -57,14 +57,11 @@ export function exceptionHref(id: string): string {
 
 /**
  * The API's refusals of an exception or its reversal, by kind. They share
- * HTTP codes (409, 403, 422), so the kind is read from the code where there
- * is one and otherwise from the message.
+ * HTTP codes (409, 403, 422), so the kind is read from the error code.
  */
 export type ExceptionRefusal =
   | "receiptConsumed"
   | "ownException"
-  | "ownCustody"
-  | "strictRecorder"
   | "alreadyReversed"
   | "notInCustody"
   | "noParty"
@@ -77,32 +74,41 @@ export type ExceptionRefusal =
   | "overCustody"
   | "noValue"
   | "inactiveAccount"
-  | "duplicateHolding";
+  | "duplicateHolding"
+  | "separation";
 
-const MESSAGES: Array<[RegExp, ExceptionRefusal]> = [
-  [/reverse the cash receipt that consumed this party liability first/i, "receiptConsumed"],
-  [/cannot reverse their own custody exception/i, "ownException"],
-  [/in their own custody/i, "ownCustody"],
-  [/strict separation of duties requires another user to record the exception/i, "strictRecorder"],
-  [/custody exception is already reversed/i, "alreadyReversed"],
-  [/goods loss requires an order with goods in delivery custody|goods are no longer in custody/i, "notInCustody"],
-  [/order has no delivery custody party/i, "noParty"],
-  [/requires a confirmed collection shortfall/i, "noShortfall"],
-  [/no uncollected amount available|refund exceeds the uncollected amount/i, "noUncollected"],
-  [/refund exceeds the amount originally charged/i, "feeCap"],
-  [/only after delivery revenue was posted/i, "notDelivered"],
-  [/only goods previously settled from custody can be returned/i, "notSold"],
-  [/does not belong to this order and party/i, "notInThisCustody"],
-  [/exception quantity exceeds goods custody/i, "overCustody"],
-  [/no refundable goods value|no original issue cost/i, "noValue"],
-  [/requires an active iqd cash account/i, "inactiveAccount"],
-  [/must not repeat/i, "duplicateHolding"],
-];
+/**
+ * Refusals by the API's error code — never by its English message (NOTE-012).
+ * Both "a party can't act on its own custody" and "strict separation needs
+ * another recorder" come as SEPARATION_OF_DUTIES_VIOLATION, so they share
+ * the "separation" message until the API tells them apart.
+ */
+const CODES: Record<string, ExceptionRefusal> = {
+  RECEIPT_REVERSAL_REQUIRED: "receiptConsumed",
+  SELF_REVERSAL_FORBIDDEN: "ownException",
+  SEPARATION_OF_DUTIES_VIOLATION: "separation",
+  CUSTODY_EXCEPTION_ALREADY_REVERSED: "alreadyReversed",
+  GOODS_NOT_IN_CUSTODY: "notInCustody",
+  GOODS_LOSS_STATUS_INVALID: "notInCustody",
+  ORDER_HAS_NO_CUSTODY_PARTY: "noParty",
+  RETURN_REQUIRES_CONFIRMED_SHORTFALL: "noShortfall",
+  RETURN_SHORTFALL_RESOLVED: "noUncollected",
+  DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED: "noUncollected",
+  DELIVERY_FEE_REFUND_EXCEEDS_CHARGE: "feeCap",
+  DELIVERY_REVENUE_NOT_POSTED: "notDelivered",
+  RETURN_REQUIRES_SOLD_CUSTODY: "notSold",
+  CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY: "notInThisCustody",
+  CUSTODY_EXCEPTION_EXCEEDS_GOODS: "overCustody",
+  RETURN_HAS_NO_REFUNDABLE_VALUE: "noValue",
+  CUSTODY_COST_UNAVAILABLE: "noValue",
+  REFUND_REQUIRES_ACTIVE_IQD_ACCOUNT: "inactiveAccount",
+  CASH_RECEIPT_REQUIRES_IQD_ACCOUNT: "inactiveAccount",
+  CUSTODY_HOLDING_DUPLICATED: "duplicateHolding",
+};
 
 export function exceptionRefusal(error: unknown): ExceptionRefusal | null {
-  if (!(error instanceof ApiError)) return null;
-  for (const [pattern, kind] of MESSAGES) if (pattern.test(error.message)) return kind;
-  return null;
+  if (!(error instanceof ApiError) || !error.code) return null;
+  return CODES[error.code] ?? null;
 }
 
 /** An order's open custody lines (what the party still holds for it), by holding. */

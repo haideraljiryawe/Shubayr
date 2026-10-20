@@ -1,4 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
+import ar from "../../src/messages/ar.json";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./helpers";
 
@@ -70,7 +71,7 @@ function toast(page: Page) {
 
 /* ----------------------------------------------------------- categories */
 
-test("categories stay two levels; re-parenting is blocked with the API's message", async ({ page, request }) => {
+test("categories stay two levels; re-parenting is blocked, worded by its code", async ({ page, request }) => {
   // The API itself refuses a third level, whatever a client sends.
   const shelf = await category(request, "Shelf");
   const sub = await category(request, "Sub", shelf.id);
@@ -124,8 +125,9 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   await form.getByRole("button", { name: "إلغاء" }).click();
 
   // A stale screen: a childless department is being moved under another one,
-  // while someone else gives it a subcategory. The API refuses and its own
-  // message is shown; the form keeps what was chosen.
+  // while someone else gives it a subcategory. The API refuses; the admin's
+  // wording for its code is shown (never the API's English), and the form
+  // keeps what was chosen.
   const loner = await category(request, "Loner");
   await page.reload();
   await page.getByTestId(`category-edit-${loner.slug}`).click();
@@ -134,7 +136,9 @@ test("categories stay two levels; re-parenting is blocked with the API's message
   await form.getByTestId("dialog-submit").click();
   const error = form.getByTestId("form-error");
   await expect(error).toHaveAttribute("data-kind", "validation");
-  await expect(error).toContainText("A category with children cannot become a child");
+  await expect(error).toHaveAttribute("data-code", "CATEGORY_MAX_DEPTH");
+  await expect(error).toContainText(ar.errors.codes.CATEGORY_MAX_DEPTH);
+  await expect(error).not.toContainText("A category with children cannot become a child");
   await expect(form.getByTestId("category-parent")).toHaveValue(shelf.id);
   const unchanged = await api(request, "GET", "/admin/categories");
   expect(

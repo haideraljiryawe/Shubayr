@@ -259,7 +259,7 @@ export function BannerFormDialog({
           {t("form.noChanges")}
         </Alert>
       ) : null}
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }
