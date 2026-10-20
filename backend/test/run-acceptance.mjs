@@ -257,6 +257,7 @@ try {
   await run('test/reports-part1.acceptance.mjs', [], acceptanceEnv);
   await run('test/reports-part2.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase11-12-completion.acceptance.mjs', [], acceptanceEnv);
+  await run('test/report-export-permissions.acceptance.mjs', [], acceptanceEnv);
 } finally {
   await stopApi();
   if (closingCreated) {

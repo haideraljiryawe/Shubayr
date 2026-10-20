@@ -1,5 +1,15 @@
 # Changelog
 
+## 17.8.1 - 2026-10-20
+
+### Fixed
+
+- Report export downloads now accept the same complete report-permission set
+  as export creation and progress polling, including the phase-12 purchases,
+  supplier, stock-movement and expenses permissions.
+- Dashboard and report-export OpenAPI permission metadata now matches the
+  runtime authorization policies. The change is additive and staff-only.
+
 ## 17.8.0 - 2026-10-20
 
 ### Added

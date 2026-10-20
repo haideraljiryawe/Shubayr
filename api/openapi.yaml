@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.8.0
+  version: 17.8.1
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -3089,7 +3089,7 @@ paths:
       tags: [Reports]
       summary: Permission-filtered fast owner/admin home-page summary
       x-surface: admin
-      x-any-permissions: [orders.view, reports.sales.read, reports.profit.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
+      x-any-permissions: [orders.view, reports.sales.read, reports.profit.read, reports.cash.read, reports.liabilities.read, reports.inventory.read, reports.purchases.read, reports.suppliers.read, reports.stock.read, reports.expenses.read]
       responses:
         "200": { description: Dashboard summary, content: { application/json: { schema: { $ref: "#/components/schemas/OwnerDashboard" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3098,7 +3098,7 @@ paths:
       tags: [Reports]
       summary: Queue a CSV or XLSX report export
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read, reports.purchases.read, reports.suppliers.read, reports.stock.read, reports.expenses.read]
       x-error-codes: [REPORT_EXPORT_PARAMETERS_INVALID, REPORT_EXPORT_QUEUE_UNAVAILABLE]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportInput" } } } }
       responses:
@@ -3111,7 +3111,7 @@ paths:
       tags: [Reports]
       summary: Poll report export progress without report rows
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read, reports.purchases.read, reports.suppliers.read, reports.stock.read, reports.expenses.read]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
         "200": { description: Export progress, content: { application/json: { schema: { $ref: "#/components/schemas/ReportExportProgress" } } } }
@@ -3122,7 +3122,7 @@ paths:
       tags: [Reports]
       summary: Download a completed report export
       x-surface: admin
-      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read]
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.financial.read, reports.cash.read, reports.liabilities.read, reports.inventory.read, reports.purchases.read, reports.suppliers.read, reports.stock.read, reports.expenses.read]
       x-error-codes: [REPORT_EXPORT_NOT_READY]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       responses:
