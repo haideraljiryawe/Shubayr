@@ -2828,7 +2828,7 @@ export interface paths {
                     per_page?: components["parameters"]["PerPage"];
                     /** @description Case-insensitive supplier name or phone search. */
                     q?: string;
-                    /** @description recent_purchase sorts the latest posted purchase first */
+                    /** @description recent_purchase sorts the latest posted purchase first, with never-used suppliers last. */
                     sort_by?: "name" | "recent_purchase";
                 };
                 header?: never;
@@ -6922,7 +6922,7 @@ export interface paths {
             parameters: {
                 query?: {
                     active?: boolean;
-                    /** @description Company name */
+                    /** @description Company name, phone or contact-person search. */
                     q?: string;
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];

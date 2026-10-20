@@ -3428,7 +3428,7 @@ paths:
       x-permission: drivers.manage
       parameters:
         - { name: active, in: query, schema: { type: boolean } }
-        - { name: q, in: query, schema: { type: string, maxLength: 120 }, description: Company name, phone or contact-person search. }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 }, description: "Company name, phone or contact-person search." }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
