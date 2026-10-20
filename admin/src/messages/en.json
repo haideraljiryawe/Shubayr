@@ -1965,7 +1965,6 @@
       "descriptionAr": "Arabic description (optional)",
       "descriptionEn": "English description (optional)",
       "descriptionFallback": "Shown under the name on the category card. Leave a language empty and the store shows the other language's description in its place; empty in both, the card shows no description line.",
-      "descriptionMaybeCopy": "Both languages read the same here — the API fills an empty translation from the other language, so one of them may not be stored. It is only saved if you change it.",
       "image": "Category image",
       "imageNeedsPermission": "Adding or changing the picture needs permission to upload catalog pictures (catalog.products)."
     },
@@ -2278,7 +2277,23 @@
       "duplicate": "Duplicate this product"
     },
     "restock": "Restock",
-    "openingStockHint": "For the stock you had on your first day only. To add stock you bought, use Restock."
+    "openingStockHint": "For the stock you had on your first day only. To add stock you bought, use Restock.",
+    "limit": {
+      "title": "Limit quantity per order",
+      "enabled": "Limit the quantity of this product in one order",
+      "hint": "One maximum for the whole product: all its variants (colours, sizes) and cart lines together count toward it. The store enforces it in the cart and again at checkout.",
+      "max": "Most per order",
+      "maxHint": "In the product's selling units, up to 3 decimals.",
+      "summaryOn": "Per-order limit: at most {max} of this product in one order (all variants together).",
+      "summaryOff": "No per-order limit.",
+      "problems": {
+        "required": "Enter the maximum per order.",
+        "invalid": "Enter a number.",
+        "positive": "The maximum must be more than 0.",
+        "precision": "Use at most 3 decimals.",
+        "wholeUnits": "Every variant sells whole units only, so enter a whole number."
+      }
+    }
   },
   "linkedPrices": {
     "preview": "Preview the price effect",
@@ -4542,7 +4557,7 @@
   },
   "banners": {
     "title": "Home banners",
-    "description": "The banners at the top of the home page in the app and the web store: picture, text, link, schedule and order.",
+    "description": "The banners at the top of the home page in the app and the web store: picture, Arabic and English text, what a tap opens, default banners, schedule and order.",
     "new": "New banner",
     "filter": {
       "label": "Status",
@@ -4554,7 +4569,7 @@
       "expired": "Expired",
       "disabled": "Disabled"
     },
-    "timeZoneNote": "Times are Baghdad time. A disabled banner is never shown, whatever its dates; an expired one stays here to edit and reuse.",
+    "timeZoneNote": "Times are Baghdad time. Status is worked out by the server from its clock. A disabled banner is never shown, whatever its dates; an expired one stays here to edit and reuse.",
     "empty": "No banners yet. Without banners the home page simply has no banner section.",
     "emptyFilter": "No banners with this status.",
     "position": "Place {number} of {total} (order {order})",
@@ -4574,7 +4589,7 @@
     "enable": "Enable",
     "duplicate": "Duplicate",
     "delete": "Delete",
-    "actionFailed": "That didn't go through. The list has been refreshed; please try again.",
+    "actionFailed": "The list has been refreshed; please try again.",
     "moved": "“{title}” moved.",
     "disabled": "“{title}” is disabled; its dates are kept.",
     "enabled": "“{title}” is enabled.",
@@ -4595,25 +4610,21 @@
     "preview": {
       "phone": "Phone (app)",
       "desktop": "Computer (web store)",
-      "actionButton": "Customers tap the button to open the link.",
-      "actionWhole": "Customers tap the banner to open the link (no button label set).",
-      "actionNone": "No link: the banner is shown without any button and isn't clickable."
+      "actionButton": "Customers tap the button to open: {destination}.",
+      "actionWhole": "Customers tap the banner to open: {destination} (no button label).",
+      "actionNone": "No action: the banner is shown without any button and isn't clickable.",
+      "imageOnly": "Image only: customers see the picture with no title, subtitle or button."
     },
     "form": {
       "newTitle": "New banner",
       "editTitle": "Edit “{title}”",
       "create": "Create banner",
       "save": "Save",
-      "title": "Title",
-      "subtitle": "Subtitle (optional)",
-      "oneLanguage": "The banner's text is stored once and shown as written in both languages (up to {max} characters for the title). Separate Arabic and English text come with the next update.",
       "image": "Banner picture",
       "onClick": "On click",
-      "actionsLater": "Today a banner can open a web address. Opening a product, a category or the offers page comes with the next update.",
-      "link": "Link (optional)",
-      "linkHint": "A full address starting with https://. Leave it empty for a banner that isn't clickable.",
-      "cta": "Button label (optional)",
-      "ctaHint": "Shown only with a link, up to {max} characters.",
+      "link": "Web address",
+      "linkHint": "A full address starting with https://.",
+      "ctaHint": "Shown only when a tap opens something, up to {max} characters.",
       "display": "Display",
       "enabled": "Show on the home page",
       "enabledHint": "Switching it off hides the banner but keeps its dates and everything else.",
@@ -4625,19 +4636,41 @@
       "baghdad": "Baghdad time",
       "dropsStart": "Saving removes the saved start date ({at}, Baghdad).",
       "dropsEnd": "Saving removes the saved end date ({at}, Baghdad).",
-      "outcome": "With these settings, right now it would be:",
-      "noChanges": "Nothing has changed."
+      "noChanges": "Nothing has changed.",
+      "internalName": "Internal name",
+      "internalNameHint": "Only staff see this name, in this list. Up to 200 characters.",
+      "text": "Text on the banner",
+      "showText": "Show text on the banner",
+      "showTextHint": "The title, subtitle and button label are drawn over the picture.",
+      "imageOnlyHint": "Image-only banner: the picture already carries its message, so no text is drawn. Text you type is kept for older app versions.",
+      "titleAr": "Title (Arabic)",
+      "titleEn": "Title (English)",
+      "subtitleAr": "Subtitle (Arabic, optional)",
+      "subtitleEn": "Subtitle (English, optional)",
+      "ctaAr": "Button label (Arabic, optional)",
+      "ctaEn": "Button label (English, optional)",
+      "fallback": "If one language is left empty, customers in that language see the other language's text; with both empty, the banner's older single text is used. Titles can have up to {max} characters.",
+      "previewLanguage": "Preview in",
+      "language": {
+        "ar": "Arabic",
+        "en": "English"
+      },
+      "action": "What a tap opens",
+      "defaultLegend": "Default banner",
+      "isDefault": "Use as a default banner",
+      "defaultRule": "Default banners stand in when there aren't enough regular campaigns. Keep at least two enabled and in date: once two exist, the API refuses a change or a delete that would leave fewer than two.",
+      "defaultPriority": "Priority",
+      "defaultPriorityHint": "A whole number, 0 or more. Lower numbers are used first.",
+      "currentStatus": "Saved status right now:",
+      "statusFromServer": "The status is worked out by the server from the saved settings and its own clock; it updates after you save."
     },
     "errors": {
       "title": {
-        "required": "Enter a title.",
-        "tooLong": "The title can be at most 200 characters."
-      },
-      "ctaText": {
-        "tooLong": "The button label can be at most 120 characters."
+        "required": "Enter a title in Arabic or English, or switch off “Show text on the banner”."
       },
       "linkUrl": {
-        "invalid": "Enter a full web address starting with http:// or https://."
+        "invalid": "Enter a full web address starting with http:// or https://.",
+        "required": "Enter the web address the banner opens."
       },
       "starts": {
         "required": "Enter the start date and time.",
@@ -4650,7 +4683,108 @@
       },
       "image": {
         "required": "Choose a picture for the banner."
+      },
+      "internalName": {
+        "required": "Enter an internal name.",
+        "tooLong": "The internal name can be at most 200 characters."
+      },
+      "titleAr": {
+        "tooLong": "The title can be at most 200 characters."
+      },
+      "titleEn": {
+        "tooLong": "The title can be at most 200 characters."
+      },
+      "ctaAr": {
+        "tooLong": "The button label can be at most 120 characters."
+      },
+      "ctaEn": {
+        "tooLong": "The button label can be at most 120 characters."
+      },
+      "target": {
+        "required": "Choose what the banner opens."
+      },
+      "defaultPriority": {
+        "invalid": "Enter a whole number, 0 or more."
       }
+    },
+    "imageOnly": "Image only",
+    "defaultRefused": "The API refused: at least two default banners must stay enabled and in date. Add or enable another default banner first, then try again.",
+    "opens": {
+      "product": "Opens the product “{name}”",
+      "category": "Opens the category “{name}”",
+      "offers": "Opens the offers page"
+    },
+    "actions": {
+      "none": "No action",
+      "url": "Web link",
+      "product": "Product",
+      "category": "Category",
+      "offers": "Offers page"
+    },
+    "actionHints": {
+      "none": "The banner is not clickable and shows no button.",
+      "url": "Opens a web address.",
+      "product": "Opens one product's page. The API checks that it exists.",
+      "category": "Opens one category. The API checks that it exists.",
+      "offers": "Opens the store's offers page."
+    },
+    "target": {
+      "label": {
+        "product": "Product",
+        "category": "Category"
+      },
+      "placeholder": {
+        "product": "Search products by name…",
+        "category": "Search categories…"
+      },
+      "none": "Nothing found.",
+      "forbidden": "You don't have permission to search here.",
+      "failed": "The search didn't work. Try again.",
+      "clear": "Choose another",
+      "available": "Visible to customers",
+      "unavailable": "Not visible to customers",
+      "hidden": "Hidden",
+      "checkedOnSave": "Customers' visibility is checked when you save.",
+      "notChosen": "(nothing chosen yet)",
+      "missing": "(no longer exists)",
+      "productStatus": {
+        "hidden": "Hidden",
+        "archived": "Archived",
+        "active": "Active"
+      },
+      "unavailableHint": {
+        "product": "Customers can't see this product right now (hidden, unpublished or in a hidden category). Tapping the banner opens nothing else instead.",
+        "category": "Customers can't see this category right now (it or a parent is hidden). Tapping the banner opens nothing else instead."
+      }
+    },
+    "defaults": {
+      "badge": "Default · priority {priority}",
+      "summary": "Default banners usable now: {usable} of {total}",
+      "rule": "Defaults fill the home page when campaigns are missing: with no regular banner running the store shows the first {count} defaults (lowest priority number first); with one regular banner it adds one default; with two or more it shows the regular banners only.",
+      "feed": "The defaults the store would use now: {names}",
+      "short": "Fewer than {count} default banners are enabled and in date. Add default banners so the home page never runs empty.",
+      "deleteNote": "This is a default banner: if at least two defaults are usable now, the API refuses a delete that would leave fewer than two."
+    }
+  },
+  "recentlyAdded": {
+    "title": "Recently Added",
+    "intro": "A row of the newest products on the home page of the app and the web store.",
+    "enabled": "Show Recently Added on the home page",
+    "maxCount": "Products at most",
+    "maxCountHint": "A whole number from {min} to {max}.",
+    "windowDays": "Added within the last (days)",
+    "windowDaysHint": "A whole number from {min} to {max} days, counted back from now.",
+    "rules": "The server picks the products: added within the window (by the time each product was created — editing or republishing doesn't make it new again), active, published, in a visible category and in stock (low stock counts, out of stock doesn't), newest first.",
+    "off": "Off: the row isn't shown. The count and window are kept for when you switch it on.",
+    "save": "Save Recently Added",
+    "saved": "Recently Added settings saved.",
+    "unchanged": "Nothing has changed.",
+    "problems": {
+      "required": "Enter a number.",
+      "wholeNumber": "Enter a whole number.",
+      "minimum": "It must be at least {min}.",
+      "maximum": "It can be at most {max}.",
+      "invalid": "This value isn't accepted."
     }
   }
 }

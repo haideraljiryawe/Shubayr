@@ -2,23 +2,26 @@ import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
 import {
-  bannerStatus,
+  categoryOptions,
   createBody,
+  defaultsInFeedOrder,
   duplicateBody,
   filterBanners,
   formFromBanner,
   modeChoices,
   nextSortOrder,
   patchBody,
-  reorderPatches,
+  reorderIds,
   scheduleModeOf,
   scheduleOf,
   sortBanners,
   switchMode,
+  usableDefaults,
   validateBanner,
   type Banner,
 } from "@/lib/banners";
-import { descriptionChanges, mayBeFallback } from "@/lib/category-content";
+import { mediaIdFromUrl, orphanedUploads } from "@/lib/media-cleanup";
+import { descriptionChanges, descriptionDraft } from "@/lib/category-content";
 import type { Category } from "@/lib/catalog";
 import { DESCRIPTION_GUIDE, NAME_GUIDE, editorialAdvice, graphemeCount, wordCount } from "@/lib/editorial";
 import {
@@ -64,41 +67,32 @@ const banner = (over: Partial<Banner> = {}): Banner => ({
   ...over,
 });
 
-describe("banner status — Disabled wins, an expired banner is never Active", () => {
-  // 2026-10-19 00:00 in Baghdad is 2026-10-18 21:00 UTC (no daylight saving).
-  const startsBaghdadMidnight = "2026-10-18T21:00:00.000Z";
-  const endsBaghdadMidnight = "2026-10-25T21:00:00.000Z";
-  const scheduled = banner({ starts_at: startsBaghdadMidnight, ends_at: endsBaghdadMidnight });
-
-  it("follows the public feed, both window ends inclusive", () => {
-    expect(bannerStatus(scheduled, new Date("2026-10-18T20:59:59.999Z"))).toBe("scheduled");
-    expect(bannerStatus(scheduled, new Date(startsBaghdadMidnight))).toBe("active");
-    expect(bannerStatus(scheduled, new Date(endsBaghdadMidnight))).toBe("active");
-    expect(bannerStatus(scheduled, new Date("2026-10-25T21:00:00.001Z"))).toBe("expired");
-  });
-
-  it("Disabled takes precedence over every window", () => {
-    for (const at of ["2026-10-01T00:00:00Z", "2026-10-20T00:00:00Z", "2026-11-30T00:00:00Z"]) {
-      expect(bannerStatus({ ...scheduled, is_active: false }, new Date(at))).toBe("disabled");
-    }
-  });
-
-  it("permanent and one-boundary records", () => {
-    const now = new Date("2026-10-20T12:00:00Z");
-    expect(bannerStatus(banner(), now)).toBe("active");
-    expect(bannerStatus(banner({ ends_at: "2026-10-09T21:00:00Z" }), now)).toBe("expired");
-    expect(bannerStatus(banner({ starts_at: "2026-11-01T00:00:00Z" }), now)).toBe("scheduled");
+describe("banner status comes from the server", () => {
+  it("filters by the API's effective_status, never by the local clock", () => {
+    const list = [
+      banner({ id: "a" }),
+      banner({ id: "b", is_active: false, effective_status: "disabled" }),
+      // The server says expired even though no end date is set here: it wins.
+      banner({ id: "c", effective_status: "expired" }),
+    ];
+    expect(filterBanners(list, "active").map((item) => item.id)).toEqual(["a"]);
+    expect(filterBanners(list, "disabled").map((item) => item.id)).toEqual(["b"]);
+    expect(filterBanners(list, "expired").map((item) => item.id)).toEqual(["c"]);
+    expect(filterBanners(list, "")).toHaveLength(3);
     expect(scheduleModeOf(banner({ starts_at: "2026-11-01T00:00:00Z" }))).toBe("startOnly");
     expect(scheduleModeOf(banner({ ends_at: "2026-11-01T00:00:00Z" }))).toBe("endOnly");
   });
 
-  it("filters by effective status", () => {
-    const now = new Date("2026-10-20T12:00:00Z");
-    const list = [banner({ id: "a" }), banner({ id: "b", is_active: false }), banner({ id: "c", ends_at: "2026-10-01T00:00:00Z" })];
-    expect(filterBanners(list, "active", now).map((item) => item.id)).toEqual(["a"]);
-    expect(filterBanners(list, "disabled", now).map((item) => item.id)).toEqual(["b"]);
-    expect(filterBanners(list, "expired", now).map((item) => item.id)).toEqual(["c"]);
-    expect(filterBanners(list, "", now)).toHaveLength(3);
+  it("usable defaults are enabled, in date, and taken by priority then place", () => {
+    const list = [
+      banner({ id: "r" }),
+      banner({ id: "d1", is_default: true, default_priority: 5, sort_order: 0 }),
+      banner({ id: "d2", is_default: true, default_priority: 1, sort_order: 3 }),
+      banner({ id: "d3", is_default: true, default_priority: 1, sort_order: 1 }),
+      banner({ id: "off", is_default: true, default_priority: 0, is_active: false, effective_status: "disabled" }),
+    ];
+    expect(usableDefaults(list).map((item) => item.id)).toEqual(["d1", "d2", "d3"]);
+    expect(defaultsInFeedOrder(list).map((item) => item.id)).toEqual(["d3", "d2", "d1"]);
   });
 });
 
@@ -143,15 +137,36 @@ describe("banner schedule in Baghdad time", () => {
 });
 
 describe("banner bodies", () => {
-  it("a new banner starts disabled; empty text becomes null", () => {
-    const form = { ...formFromBanner(null), title: "  وصل حديثًا ", subtitle: " ", linkUrl: "https://shubayr.com/offers" };
+  it("a new banner starts disabled, with text shown; empty text becomes null and legacy fields follow Arabic", () => {
+    const form = {
+      ...formFromBanner(null),
+      internalName: " Winter hero ",
+      titleAr: "  وصل حديثًا ",
+      titleEn: "Just in",
+      subtitleEn: "Fresh stock",
+      action: "url" as const,
+      linkUrl: "https://shubayr.com/offers",
+    };
     expect(form.isActive).toBe(false);
+    expect(form.showText).toBe(true);
     expect(createBody(form, "http://localhost:8000/api/v1/media/m-2", 3)).toEqual({
       title: "وصل حديثًا",
-      subtitle: null,
-      image_url: "http://localhost:8000/api/v1/media/m-2",
+      subtitle: "Fresh stock",
       cta_text: null,
+      internal_name: "Winter hero",
+      title_ar: "وصل حديثًا",
+      title_en: "Just in",
+      subtitle_ar: null,
+      subtitle_en: "Fresh stock",
+      cta_label_ar: null,
+      cta_label_en: null,
+      show_text: true,
+      image_url: "http://localhost:8000/api/v1/media/m-2",
+      action_type: "url",
+      action_target_id: null,
       link_url: "https://shubayr.com/offers",
+      is_default: false,
+      default_priority: 0,
       sort_order: 3,
       is_active: false,
       starts_at: null,
@@ -159,27 +174,98 @@ describe("banner bodies", () => {
     });
   });
 
+  it("an image-only banner needs no title; its legacy title falls back to the internal name", () => {
+    const form = { ...formFromBanner(null), internalName: "Eid artwork", showText: false };
+    expect(validateBanner(form, { hasImage: true })).toEqual([]);
+    expect(createBody(form, "http://x/media/m", 0)).toMatchObject({ title: "Eid artwork", show_text: false, title_ar: null, title_en: null });
+    expect(validateBanner({ ...form, showText: true }, { hasImage: true })).toEqual([{ field: "title", kind: "required" }]);
+  });
+
+  it("product and category actions need a target; url needs a valid address; offers and none need nothing", () => {
+    const base = { ...formFromBanner(null), internalName: "n", titleAr: "ع" };
+    const fields = (f: typeof base) => validateBanner(f, { hasImage: true }).map((p) => `${p.field}:${p.kind}`);
+    expect(fields({ ...base, action: "product" })).toEqual(["target:required"]);
+    expect(fields({ ...base, action: "category" })).toEqual(["target:required"]);
+    expect(fields({ ...base, action: "url" })).toEqual(["linkUrl:required"]);
+    expect(fields({ ...base, action: "url", linkUrl: "javascript:alert(1)" })).toEqual(["linkUrl:invalid"]);
+    expect(fields({ ...base, action: "offers" })).toEqual([]);
+    const product = { id: "p-1", name_ar: "حذاء", name_en: "Shoe", available: null };
+    const withProduct = { ...base, action: "product" as const, product };
+    expect(fields(withProduct)).toEqual([]);
+    expect(createBody(withProduct, "http://x/media/m", 0)).toMatchObject({ action_type: "product", action_target_id: "p-1", link_url: null });
+    // A typed link is not sent with another action.
+    expect(createBody({ ...base, action: "offers", linkUrl: "https://a.example" }, "http://x/media/m", 0)).toMatchObject({
+      action_type: "offers",
+      action_target_id: null,
+      link_url: null,
+    });
+  });
+
+  it("default banners carry a whole-number priority", () => {
+    const base = { ...formFromBanner(null), internalName: "n", titleAr: "ع", isDefault: true };
+    expect(validateBanner({ ...base, defaultPriority: "-1" }, { hasImage: true })).toEqual([{ field: "defaultPriority", kind: "invalid" }]);
+    expect(validateBanner({ ...base, defaultPriority: "1.5" }, { hasImage: true })).toEqual([{ field: "defaultPriority", kind: "invalid" }]);
+    expect(createBody({ ...base, defaultPriority: " 2 " }, "http://x/media/m", 0)).toMatchObject({ is_default: true, default_priority: 2 });
+  });
+
   it("an edit sends only what changed; disabling keeps the dates", () => {
     const original = banner({ starts_at: "2026-10-18T21:00:00.000Z", ends_at: "2026-10-25T21:00:00.000Z" });
     const form = { ...formFromBanner(original), isActive: false };
     expect(patchBody(form, original, original.image_url)).toEqual({ is_active: false });
+    expect(patchBody(formFromBanner(original), original, original.image_url)).toBeNull();
     expect(patchBody(formFromBanner(original), original, "http://localhost:8000/api/v1/media/new")).toEqual({
       image_url: "http://localhost:8000/api/v1/media/new",
     });
   });
 
-  it("validates link and lengths without touching the text", () => {
-    const form = { ...formFromBanner(null), title: "x", linkUrl: "/categories" };
-    expect(validateBanner(form, { hasImage: false }).map((p) => p.field)).toEqual(["linkUrl", "image"]);
-    expect(validateBanner({ ...form, linkUrl: "javascript:alert(1)" }, { hasImage: true }).map((p) => p.field)).toEqual(["linkUrl"]);
-    expect(validateBanner({ ...form, linkUrl: "https://example.com/a?b=1" }, { hasImage: true })).toEqual([]);
-    expect(validateBanner({ ...form, linkUrl: "", title: "a".repeat(201) }, { hasImage: true })).toEqual([{ field: "title", kind: "tooLong" }]);
+  it("changing the Arabic title also updates the legacy title; the English one alone does not", () => {
+    const original = banner();
+    expect(patchBody({ ...formFromBanner(original), titleAr: "عروض جديدة" }, original, original.image_url)).toEqual({
+      title_ar: "عروض جديدة",
+      title: "عروض جديدة",
+    });
+    expect(patchBody({ ...formFromBanner(original), titleEn: "New offers" }, original, original.image_url)).toEqual({ title_en: "New offers" });
   });
 
-  it("duplicates into a disabled copy placed last", () => {
+  it("a saved product action round-trips; switching to offers clears the target", () => {
+    const target = { id: "p-1", slug: null, name_ar: "حذاء", name_en: "Shoe", available: false };
+    const original = banner({ action_type: "product", action_target_id: "p-1", action: { type: "product", url: null, target } });
+    const form = formFromBanner(original);
+    expect(form.product).toEqual({ id: "p-1", name_ar: "حذاء", name_en: "Shoe", available: false });
+    expect(patchBody(form, original, original.image_url)).toBeNull();
+    expect(patchBody({ ...form, action: "offers" }, original, original.image_url)).toEqual({
+      action_type: "offers",
+      action_target_id: null,
+      link_url: null,
+    });
+    // A legacy link banner is a url action with the same address.
+    const legacy = banner({ link_url: "https://a.example/x", action_type: "url", action: { type: "url", url: "https://a.example/x", target: null } });
+    expect(formFromBanner(legacy)).toMatchObject({ action: "url", linkUrl: "https://a.example/x" });
+    expect(patchBody(formFromBanner(legacy), legacy, legacy.image_url)).toBeNull();
+  });
+
+  it("duplicates into a disabled regular copy placed last", () => {
     const list = [banner({ id: "a", sort_order: 0 }), banner({ id: "b", sort_order: 4 })];
-    const copy = duplicateBody(banner({ link_url: "https://example.com", cta_text: "تسوق" }), nextSortOrder(list));
-    expect(copy).toMatchObject({ is_active: false, sort_order: 5, link_url: "https://example.com", cta_text: "تسوق" });
+    const source = banner({
+      link_url: "https://example.com",
+      cta_text: "تسوق",
+      cta_label_ar: "تسوق",
+      action_type: "url",
+      action: { type: "url", url: "https://example.com", target: null },
+      is_default: true,
+      default_priority: 3,
+    });
+    const copy = duplicateBody(source, nextSortOrder(list));
+    expect(copy).toMatchObject({
+      is_active: false,
+      is_default: false,
+      default_priority: 0,
+      sort_order: 5,
+      action_type: "url",
+      link_url: "https://example.com",
+      cta_text: "تسوق",
+      title_en: "Winter offers",
+    });
     expect(nextSortOrder([])).toBe(0);
   });
 });
@@ -194,22 +280,42 @@ describe("banner order", () => {
     expect(list.map((item) => item.id)).toEqual(["a", "b", "c"]);
   });
 
-  it("distinct neighbours swap their numbers", () => {
-    const list = [banner({ id: "a", sort_order: 0 }), banner({ id: "b", sort_order: 5 }), banner({ id: "c", sort_order: 9 })];
-    expect(reorderPatches(list, 1, -1)).toEqual([
-      { id: "b", sort_order: 0 },
-      { id: "a", sort_order: 5 },
+  it("a move sends the complete new order once, every id exactly once", () => {
+    const list = [banner({ id: "a" }), banner({ id: "b" }), banner({ id: "c" })];
+    expect(reorderIds(list, 1, -1)).toEqual(["b", "a", "c"]);
+    expect(reorderIds(list, 1, 1)).toEqual(["a", "c", "b"]);
+    expect(reorderIds(list, 0, -1)).toBeNull();
+    expect(reorderIds(list, 2, 1)).toBeNull();
+  });
+});
+
+describe("category targets", () => {
+  it("lists the tree with paths, hidden parents hiding their children", () => {
+    const options = categoryOptions([
+      { id: "d", name_ar: "رجال", name_en: "Men", is_visible: false, children: [{ id: "c", name_ar: "أحذية", name_en: "Shoes", is_visible: true }] },
+      { id: "e", name_ar: "مطبخ", name_en: "Kitchen", is_visible: true },
     ]);
-    expect(reorderPatches(list, 0, -1)).toEqual([]);
-    expect(reorderPatches(list, 2, 1)).toEqual([]);
+    expect(options).toEqual([
+      { id: "d", name_ar: "رجال", name_en: "Men", path_ar: "رجال", path_en: "Men", visible: false },
+      { id: "c", name_ar: "أحذية", name_en: "Shoes", path_ar: "رجال › أحذية", path_en: "Men › Shoes", visible: false },
+      { id: "e", name_ar: "مطبخ", name_en: "Kitchen", path_ar: "مطبخ", path_en: "Kitchen", visible: true },
+    ]);
+  });
+});
+
+describe("orphan uploads", () => {
+  it("finds the media id in a stable media URL", () => {
+    const id = "0b7c9f7e-3c55-4f27-9c55-0d6c3c0d1a2b";
+    expect(mediaIdFromUrl(`http://localhost:8000/api/v1/media/${id}`)).toBe(id);
+    expect(mediaIdFromUrl(`https://cdn.example/media/${id}/`)).toBe(id);
+    expect(mediaIdFromUrl("https://example.com/picture.png")).toBeNull();
+    expect(mediaIdFromUrl(null)).toBeNull();
   });
 
-  it("ties are renumbered so the move holds", () => {
-    const list = [banner({ id: "a", sort_order: 0 }), banner({ id: "b", sort_order: 0 }), banner({ id: "c", sort_order: 0 })];
-    expect(reorderPatches(list, 2, -1)).toEqual([
-      { id: "c", sort_order: 1 },
-      { id: "b", sort_order: 2 },
-    ]);
+  it("deletes only what the saved record does not keep", () => {
+    expect(orphanedUploads(["u1", "u2", "u2"], ["u2", null])).toEqual(["u1"]);
+    expect(orphanedUploads(["u1"], [])).toEqual(["u1"]);
+    expect(orphanedUploads([], ["u1"])).toEqual([]);
   });
 });
 
@@ -285,15 +391,17 @@ describe("category descriptions are sent only when changed", () => {
     ...over,
   });
 
-  it("an unrelated edit never writes the fallback copy back", () => {
-    const original = category();
-    expect(mayBeFallback(original)).toBe(true);
-    expect(descriptionChanges(original, { ar: original.description_ar ?? "", en: original.description_en ?? "" })).toEqual({});
+  it("shows a missing translation as empty (admin reads are raw) and an unrelated edit sends nothing", () => {
+    const original = category({ description_en: null });
+    expect(descriptionDraft(original)).toEqual({ ar: "كل ما تحتاجه لمطبخك", en: "" });
+    expect(descriptionChanges(original, descriptionDraft(original))).toEqual({});
+    // Identical text in both languages is a real stored value, not a guess.
+    const same = category();
+    expect(descriptionChanges(same, descriptionDraft(same))).toEqual({});
   });
 
   it("clears with null and keeps the text exactly as typed", () => {
     const original = category({ description_en: "Everything for your kitchen" });
-    expect(mayBeFallback(original)).toBe(false);
     expect(descriptionChanges(original, { ar: "", en: "Everything for your kitchen" })).toEqual({ description_ar: null });
     expect(descriptionChanges(original, { ar: "  نص  بمسافات ", en: "Everything for your kitchen" })).toEqual({ description_ar: "  نص  بمسافات " });
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowLeftRight, FolderPlus, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
@@ -15,9 +15,10 @@ import { useApiForm } from "@/components/forms/use-api-form";
 import { EditorialHint } from "@/components/forms/editorial-hint";
 import { Artwork, CategoryCardPreview } from "@/components/catalog/category-card-preview";
 import { CroppedImageField, type ImageChoice } from "@/components/catalog/cropped-image-field";
-import { descriptionChanges, descriptionDraft, mayBeFallback, type DescriptionDraft } from "@/lib/category-content";
+import { descriptionChanges, descriptionDraft, type DescriptionDraft } from "@/lib/category-content";
 import { DESCRIPTION_GUIDE, NAME_GUIDE } from "@/lib/editorial";
 import { CATEGORY_CROP } from "@/lib/image-crop";
+import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 import { uploadImage } from "@/lib/media-upload";
 import { MAX_UPLOAD_BYTES } from "@/lib/product-images";
 import { browserApi, unwrap } from "@/lib/api/client";
@@ -289,6 +290,10 @@ function CategoryForm({
   const [image, setImage] = useState<ImageChoice>({ kind: "keep" });
   // An upload that succeeded but whose save failed: reused on retry, not sent twice.
   const [uploaded, setUploaded] = useState<{ blob: Blob; url: string } | null>(null);
+  // Every upload this dialog made; those the saved category doesn't use (or
+  // all of them, on cancel) are deleted again (DELETE /media/{id}).
+  const uploads = useRef<string[]>([]);
+  const settledForm = useRef(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [uploadFailed, setUploadFailed] = useState(false);
   const [slug, setSlug] = useState(editing?.slug ?? "");
@@ -315,6 +320,7 @@ function CategoryForm({
     setProgress(0);
     try {
       const media = await uploadImage(image.cropped.blob, image.cropped.name, setProgress);
+      uploads.current.push(media.public_url);
       setUploaded({ blob: image.cropped.blob, url: media.public_url });
       return media.public_url;
     } catch {
@@ -373,7 +379,18 @@ function CategoryForm({
             }),
           ),
     );
-    if (saved) onSaved(saved, !editing);
+    if (!saved) return;
+    settledForm.current = true;
+    void discardUploads(orphanedUploads(uploads.current, [saved.image_url, editing?.image_url]));
+    onSaved(saved, !editing);
+  }
+
+  function close() {
+    if (!settledForm.current) {
+      settledForm.current = true;
+      void discardUploads(orphanedUploads(uploads.current, [editing?.image_url]));
+    }
+    onClose();
   }
 
   const error = (name: string) => errors[name] ?? api.fieldErrors[name] ?? null;
@@ -386,7 +403,7 @@ function CategoryForm({
       submitLabel={editing ? t("save") : t("create")}
       pending={pending}
       onSubmit={() => void submit()}
-      onClose={onClose}
+      onClose={close}
       testId="category-form"
     >
       <div className="grid gap-4 md:grid-cols-2">
@@ -441,7 +458,6 @@ function CategoryForm({
       </div>
       <p className="-mt-2 text-xs text-text-muted" data-testid="category-description-fallback">
         {t("fields.descriptionFallback")}
-        {mayBeFallback(editing) ? <> {t("fields.descriptionMaybeCopy")}</> : null}
       </p>
 
       {canUploadImages ? (

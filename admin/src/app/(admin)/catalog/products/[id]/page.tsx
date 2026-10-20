@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowRight, Copy, PackagePlus, Plus, Truck } from "lucide-react";
+import { ArrowRight, Copy, PackagePlus, Plus, ShoppingCart, Truck } from "lucide-react";
 import { buttonClasses, Card, PageHeader } from "@/components/ui";
 import { PageError } from "@/components/shell/page-error";
 import { loadAllBrands, loadCategoryTree, loadPricingContext } from "@/lib/api/catalog-server";
@@ -130,6 +130,12 @@ export default async function ProductPage({
         </Card>
       ) : null}
       <VariantStock variants={variants} totals={totals} />
+      <p className="mb-6 flex items-center gap-2 text-sm" data-testid="product-limit-summary" data-enabled={String(product.data.purchase_limit_enabled ?? false)}>
+        <ShoppingCart className="size-4 text-text-muted" aria-hidden />
+        {product.data.purchase_limit_enabled && product.data.purchase_limit_max_quantity != null
+          ? t("limit.summaryOn", { max: product.data.purchase_limit_max_quantity })
+          : t("limit.summaryOff")}
+      </p>
       <ProductEditor
         // A save refreshes the page; remounting adopts what the server now
         // holds — including SKU prices a rate publish changed on its own.
