@@ -49,6 +49,10 @@ test("owner dashboard and every report use the live API", async ({ page, request
 
   await uiLoginAsAdmin(page);
   await expect(page.getByTestId("owner-dashboard-summary")).toBeVisible();
+  await expect(page.getByTestId("waiting-calls")).toHaveAttribute("href", "/orders?status=pending");
+  await expect(page.getByTestId("late-orders")).toHaveAttribute("href", "/orders?queue=late");
+  await expect(page.getByTestId("low-stock")).toHaveAttribute("href", "/catalog/products?stock_state=low");
+  await expect(page.getByTestId("payables-due")).toHaveAttribute("href", `/purchasing/reports?as_of=${summary.business_date}`);
   if (summary.sales) {
     expect(digits(await page.getByTestId("month-sales-value").textContent())).toBe(wholeIqd(summary.sales.month_to_date_net_sales));
   }

@@ -97,10 +97,10 @@ async function OwnerSummary({ summary }: { summary: OwnerDashboard }) {
             {summary.sales.month_to_date_gross_profit !== undefined ? <SummaryTile href={`/reports/profitability?from=${monthFrom}&to=${summary.business_date}`} label={t("monthProfit")} value={formatReportAmount(summary.sales.month_to_date_gross_profit, locale)} testId="month-profit" /> : null}
           </>
         ) : null}
-        {summary.orders_waiting_confirmation_call !== undefined ? <SummaryTile href="/orders?status=placed" label={t("waitingCalls")} value={String(summary.orders_waiting_confirmation_call)} testId="waiting-calls" /> : null}
-        {summary.late_orders !== undefined ? <SummaryTile href="/orders?late=true" label={t("lateOrders")} value={String(summary.late_orders)} testId="late-orders" /> : null}
-        {summary.low_stock_count !== undefined ? <SummaryTile href="/inventory/stock/skus?stock_state=low" label={t("lowStock")} value={String(summary.low_stock_count)} testId="low-stock" /> : null}
-        {summary.payables_due_next_7_days !== undefined ? <SummaryTile href="/purchasing/reports?unpaid=true" label={t("payablesDue")} value={formatReportAmount(summary.payables_due_next_7_days, locale)} testId="payables-due" /> : null}
+        {summary.orders_waiting_confirmation_call !== undefined ? <SummaryTile href="/orders?status=pending" label={t("waitingCalls")} value={String(summary.orders_waiting_confirmation_call)} testId="waiting-calls" /> : null}
+        {summary.late_orders !== undefined ? <SummaryTile href="/orders?queue=late" label={t("lateOrders")} value={String(summary.late_orders)} testId="late-orders" /> : null}
+        {summary.low_stock_count !== undefined ? <SummaryTile href="/catalog/products?stock_state=low" label={t("lowStock")} value={String(summary.low_stock_count)} testId="low-stock" /> : null}
+        {summary.payables_due_next_7_days !== undefined ? <SummaryTile href={`/purchasing/reports?as_of=${summary.business_date}`} label={t("payablesDue")} value={formatReportAmount(summary.payables_due_next_7_days, locale)} testId="payables-due" /> : null}
       </div>
       {summary.orders_by_status?.length ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
