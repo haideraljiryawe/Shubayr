@@ -71,7 +71,7 @@ export type ReportQuery = Record<string, string | number>;
 /** Contract-safe report query parameters from URL state. */
 export function reportQuery(id: ReportId, raw: RawSearchParams, today: string): ReportQuery {
   const definition = REPORTS[id];
-  const query: ReportQuery = {
+  const query: ReportQuery = id === "profit-loss" ? {} : {
     page: positiveInt(first(raw.page), 1, Number.MAX_SAFE_INTEGER),
     per_page: positiveInt(first(raw.per_page), 20, 100),
   };
@@ -185,8 +185,8 @@ function pagination(data: Obj, rows: ReportRowView[]) {
 
 function scalarTotals(value: unknown, kinds: Record<string, ReportCellKind> = {}) {
   return Object.entries(object(value))
-    .filter(([, item]) => scalar(item) !== null)
-    .map(([key, item]) => ({ key, value: scalar(item), kind: kinds[key] ?? (key.includes("count") || key.endsWith("days") || key === "balanced" || key === "reconciled" ? "number" as const : "money" as const) }));
+    .filter(([key, item]) => !["key", "name_ar", "name_en"].includes(key) && scalar(item) !== null)
+    .map(([key, item]) => ({ key, value: scalar(item), kind: kinds[key] ?? (key.includes("count") || key.includes("quantity") || key.endsWith("days") || key === "balanced" || key.endsWith("reconciled") || key.endsWith("valued") || key === "loyalty_points" ? "number" as const : key === "margin_percent" ? "percent" as const : "money" as const) }));
 }
 
 function drilldown(row: Obj): string | undefined {
@@ -206,6 +206,15 @@ function drilldown(row: Obj): string | undefined {
   return undefined;
 }
 
+function groupedHref(groupBy: unknown, key: unknown): string | undefined {
+  const id = String(scalar(key) ?? "");
+  if (!UUID.test(id)) return undefined;
+  if (groupBy === "product") return `/catalog/products/${id}`;
+  if (groupBy === "category" || groupBy === "department") return `/catalog/categories?id=${id}`;
+  if (groupBy === "brand") return `/catalog/brands?id=${id}`;
+  return undefined;
+}
+
 /** Convert every contract report shape into the one reusable table view. */
 export function reportView(id: ReportId, input: unknown, locale: string): ReportView {
   const data = object(input);
@@ -222,7 +231,7 @@ export function reportView(id: ReportId, input: unknown, locale: string): Report
     rows = array(data.data).map((row, index) => ({
       id: String(scalar(row.key) ?? index),
       cells: {
-        group: cell(name(row, locale)),
+        group: cell(name(row, locale), "text", groupedHref(data.group_by, row.key)),
         ...Object.fromEntries(columns.slice(1).map((key) => [key, cell(row[key], key === "order_count" ? "number" : key === "margin_percent" ? "percent" : "money")])),
       },
     }));
@@ -233,6 +242,12 @@ export function reportView(id: ReportId, input: unknown, locale: string): Report
     const previous = object(data.previous);
     const keys = ["sales_revenue", "delivery_revenue", "sales_returns", "delivery_fee_refunds", "net_revenue", "cost_of_goods_sold", "gross_profit", "operating_expenses", "inventory_write_downs", "other_income", "other_costs", "net_profit"];
     rows = keys.map((key) => ({ id: key, cells: { line: cell(key), current: cell(current[key], "money"), previous: cell(previous[key], "money") } }));
+    const previousExpenses = array(previous.expenses);
+    rows.push(...array(current.expenses).map((expense, index) => {
+      const id = String(scalar(expense.id) ?? index);
+      const prior = previousExpenses.find((item) => scalar(item.id) === scalar(expense.id));
+      return { id: `expense-${id}`, cells: { line: cell(name(expense, locale), "text", `/finance/ledger/entries?account_id=${id}&from=${scalar(data.from) ?? ""}&to=${scalar(data.to) ?? ""}`), current: cell(expense.amount, "money"), previous: cell(prior?.amount, "money") } };
+    }));
     totals = [];
   } else if (id === "trial-balance") {
     columns = ["account", "type", "debit", "credit", "balance"];
@@ -257,20 +272,26 @@ export function reportView(id: ReportId, input: unknown, locale: string): Report
       return { id: String(scalar(account.id) ?? index), cells: { cash_account: cell(account.name, "text", "/finance/cash-accounts"), opening_balance: cell(row.opening_balance, "money"), inflows: cell(row.inflows, "money"), outflows: cell(row.outflows, "money"), closing_balance: cell(row.closing_balance, "money") } };
     });
   } else if (id === "delivery-custody") {
-    columns = ["party", "goods_quantity", "goods_value", "cash_held", "oldest_goods_age_days", "oldest_cash_age_days"];
+    const costVisible = Object.prototype.hasOwnProperty.call(object(data.totals), "goods_value") || array(data.data).some((row) => Object.prototype.hasOwnProperty.call(row, "goods_value"));
+    columns = ["party", "goods_quantity", ...(costVisible ? ["goods_value"] : []), "cash_held", "oldest_goods_age_days", "oldest_cash_age_days"];
     rows = array(data.data).map((row, index) => {
       const party = object(row.party);
       return { id: String(scalar(party.id) ?? index), cells: { party: cell(party.name, "text", `/delivery-parties/${scalar(party.id) ?? ""}`), goods_quantity: cell(row.goods_quantity, "number"), goods_value: cell(row.goods_value, "money"), cash_held: cell(row.cash_held, "money"), oldest_goods_age_days: cell(row.oldest_goods_age_days, "number"), oldest_cash_age_days: cell(row.oldest_cash_age_days, "number") } };
     });
   } else if (id === "liabilities") {
     columns = ["type", "name", "document_number", "due_date", "age_days", "ageing_bucket", "amount"];
-    rows = array(data.data).map((row, index) => ({ id: `${scalar(row.type) ?? "row"}-${scalar(row.entity_id) ?? index}`, cells: { type: cell(row.type), name: cell(row.name), document_number: cell(row.document_number), due_date: cell(row.due_date, "date"), age_days: cell(row.age_days, "number"), ageing_bucket: cell(row.ageing_bucket), amount: cell(row.amount, "money") } }));
+    rows = array(data.data).map((row, index) => {
+      const entityId = String(scalar(row.entity_id) ?? "");
+      const type = scalar(row.type);
+      const href = type === "supplier_payable" ? `/purchasing/suppliers/${entityId}` : type === "accrued_expense" ? `/expenses/${entityId}` : type === "customer_refund" ? `/returns/${entityId}` : type === "unallocated_receipt" ? "/finance/cash-receipts/unallocated" : undefined;
+      return { id: `${type ?? "row"}-${entityId || index}`, cells: { type: cell(row.type), name: cell(row.name, "text", href), document_number: cell(row.document_number), due_date: cell(row.due_date, "date"), age_days: cell(row.age_days, "number"), ageing_bucket: cell(row.ageing_bucket), amount: cell(row.amount, "money") } };
+    });
   } else if (id === "inventory-valuation") {
     columns = ["sku", "product", "warehouse", "quantity", "moving_average_cost", "value", "stock_state", "last_sale_date", "slow_moving"];
     rows = array(data.data).map((row, index) => {
       const product = object(row.product);
       const warehouse = object(row.warehouse);
-      return { id: `${scalar(row.variant_id) ?? index}-${scalar(warehouse.id) ?? ""}`, cells: { sku: cell(row.sku), product: cell(name(product, locale)), warehouse: cell(warehouse.name), quantity: cell(row.quantity, "number"), moving_average_cost: cell(row.moving_average_cost, "money"), value: cell(row.value, "money"), stock_state: cell(row.stock_state), last_sale_date: cell(row.last_sale_date, "date"), slow_moving: cell(row.slow_moving, "number") } };
+      return { id: `${scalar(row.variant_id) ?? index}-${scalar(warehouse.id) ?? ""}`, cells: { sku: cell(row.sku), product: cell(name(product, locale), "text", `/catalog/products/${scalar(product.id) ?? ""}`), warehouse: cell(warehouse.name), quantity: cell(row.quantity, "number"), moving_average_cost: cell(row.moving_average_cost, "money"), value: cell(row.value, "money"), stock_state: cell(row.stock_state), last_sale_date: cell(row.last_sale_date, "date"), slow_moving: cell(row.slow_moving, "number") } };
     });
   } else if (id === "purchases") {
     columns = ["group", "purchased_quantity", "returned_quantity", "net_quantity", "goods_cost_iqd", "landed_cost_iqd", "purchase_cost_iqd", "returns_iqd", "net_cost_iqd", "document_count"];
@@ -295,7 +316,7 @@ export function reportView(id: ReportId, input: unknown, locale: string): Report
   } else if (id === "expenses") {
     columns = ["group", "immediate_iqd", "prepaid_amortisation_iqd", "corrections_iqd", "total_iqd", "document_count"];
     rows = array(data.data).map((row, index) => ({ id: String(scalar(row.group_id) ?? index), cells: { group: cell(name(row, locale), "text", drilldown(row)), ...Object.fromEntries(columns.slice(1).map((key) => [key, cell(row[key], key === "document_count" ? "number" : "money")])) } }));
-    chart = rows.map((row) => ({ label: String(row.cells.group.value ?? ""), value: String(row.cells.total_iqd.value ?? "0") }));
+    if (data.group_by === "category") chart = rows.map((row) => ({ label: String(row.cells.group.value ?? ""), value: String(row.cells.total_iqd.value ?? "0") }));
   }
 
   const paging = pagination(data, rows);

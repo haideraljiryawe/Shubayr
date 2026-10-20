@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { __resetRefreshCache, refreshSession } from "@/lib/session/refresh";
-import { isProxyablePath } from "@/lib/session/proxy-paths";
+import { isBinaryProxyPath, isProxyablePath } from "@/lib/session/proxy-paths";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
@@ -186,5 +186,16 @@ describe("isProxyablePath", () => {
     ["GET", "/me/notification-preferences", false],
   ])("%s %s → %s", (method, path, allowed) => {
     expect(isProxyablePath(path, method)).toBe(allowed);
+  });
+});
+
+describe("isBinaryProxyPath", () => {
+  const id = "10000000-0000-4000-8000-000000000001";
+
+  it("keeps only the GET report download response byte-for-byte", () => {
+    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "GET")).toBe(true);
+    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "POST")).toBe(false);
+    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/progress`, "GET")).toBe(false);
+    expect(isBinaryProxyPath("/admin/products", "GET")).toBe(false);
   });
 });

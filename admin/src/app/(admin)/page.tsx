@@ -80,6 +80,9 @@ async function dashboardSummary(api: Api, permissions: readonly string[]): Promi
 async function OwnerSummary({ summary }: { summary: OwnerDashboard }) {
   const t = await getTranslations("dashboard.summary");
   const locale = await getLocale();
+  const monthFrom = `${summary.business_date.slice(0, 8)}01`;
+  const todaySales = `/reports/sales?from=${summary.business_date}&to=${summary.business_date}&group_by=day`;
+  const monthSales = `/reports/sales?from=${monthFrom}&to=${summary.business_date}&group_by=day`;
   return (
     <section className="mb-8" aria-labelledby="owner-summary-title" data-testid="owner-dashboard-summary">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -89,9 +92,9 @@ async function OwnerSummary({ summary }: { summary: OwnerDashboard }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {summary.sales ? (
           <>
-            <SummaryTile href="/reports/sales" label={t("todaySales")} value={formatReportAmount(summary.sales.today_net_sales, locale)} sub={t("orders", { count: summary.sales.today_order_count })} testId="today-sales" />
-            <SummaryTile href="/reports/sales" label={t("monthSales")} value={formatReportAmount(summary.sales.month_to_date_net_sales, locale)} sub={t("orders", { count: summary.sales.month_to_date_order_count })} testId="month-sales" />
-            {summary.sales.month_to_date_gross_profit !== undefined ? <SummaryTile href="/reports/profitability" label={t("monthProfit")} value={formatReportAmount(summary.sales.month_to_date_gross_profit, locale)} testId="month-profit" /> : null}
+            <SummaryTile href={todaySales} label={t("todaySales")} value={formatReportAmount(summary.sales.today_net_sales, locale)} sub={t("orders", { count: summary.sales.today_order_count })} testId="today-sales" />
+            <SummaryTile href={monthSales} label={t("monthSales")} value={formatReportAmount(summary.sales.month_to_date_net_sales, locale)} sub={t("orders", { count: summary.sales.month_to_date_order_count })} testId="month-sales" />
+            {summary.sales.month_to_date_gross_profit !== undefined ? <SummaryTile href={`/reports/profitability?from=${monthFrom}&to=${summary.business_date}`} label={t("monthProfit")} value={formatReportAmount(summary.sales.month_to_date_gross_profit, locale)} testId="month-profit" /> : null}
           </>
         ) : null}
         {summary.orders_waiting_confirmation_call !== undefined ? <SummaryTile href="/orders?status=placed" label={t("waitingCalls")} value={String(summary.orders_waiting_confirmation_call)} testId="waiting-calls" /> : null}
@@ -118,7 +121,7 @@ function SummaryTile({ href, label, value, sub, testId }: { href: string; label:
     <Link href={href} data-testid={testId} className="group">
       <Card className="h-full p-4 transition-shadow group-hover:shadow-md">
         <p className="text-xs font-semibold text-text-muted">{label}</p>
-        <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
+        <p className="mt-1 text-xl font-bold tabular-nums" data-testid={testId ? `${testId}-value` : undefined}>{value}</p>
         {sub ? <p className="mt-1 text-xs text-text-muted">{sub}</p> : null}
       </Card>
     </Link>

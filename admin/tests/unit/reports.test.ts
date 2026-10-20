@@ -44,6 +44,22 @@ describe("report URL parameters", () => {
       from: "2026-10-01", to: "2026-10-20", group_by: "category", page: 4, per_page: 20,
     })).toEqual({ from: "2026-10-01", to: "2026-10-20", group_by: "category" });
   });
+
+  it("does not send undeclared pagination to the summary-only P&L endpoint", () => {
+    expect(reportQuery("profit-loss", { page: "2", per_page: "50" }, "2026-10-20")).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-20",
+    });
+  });
+
+  it("keeps only valid optional purchase and stock identifiers", () => {
+    const supplier = "10000000-0000-4000-8000-000000000001";
+    const variant = "50000000-0000-4000-8000-000000000001";
+    const category = "30000000-0000-4000-8000-000000000001";
+    expect(reportQuery("purchases", { supplier_id: supplier, variant_id: variant, category_id: category }, "2026-10-20")).toMatchObject({ supplier_id: supplier, variant_id: variant, category_id: category });
+    expect(reportQuery("stock-movement", { warehouse_id: "bad", variant_id: variant }, "2026-10-20")).toMatchObject({ variant_id: variant });
+    expect(reportQuery("expenses", { payee: "  Baghdad Power  " }, "2026-10-20")).toMatchObject({ payee: "Baghdad Power" });
+  });
 });
 
 describe("report formatting", () => {

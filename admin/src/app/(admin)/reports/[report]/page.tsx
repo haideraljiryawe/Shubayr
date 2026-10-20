@@ -9,6 +9,7 @@ import { ReportFilters } from "@/components/reports/report-filters";
 import { ReportTable } from "@/components/reports/report-table";
 import { loadReport } from "@/lib/api/reports-server";
 import { load, serverApi } from "@/lib/api/server";
+import { loadSupplierOptions } from "@/lib/api/purchasing-server";
 import { storeDay } from "@/lib/finance/dates";
 import { exportParameters, formatReportAmount, formatReportNumber, isReportId, reportQuery, reportView, REPORTS, type ReportCellKind } from "@/lib/reports";
 import type { RawSearchParams } from "@/lib/table-params";
@@ -29,10 +30,20 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   const api = await serverApi();
 
   let suppliers: Array<{ id: string; name: string }> = [];
-  if (report === "supplier-statement") {
-    const found = await load(api.GET("/admin/suppliers", { params: { query: { per_page: 100, sort: "name", dir: "asc" } } }));
-    if (found.ok) suppliers = found.data.data.map((supplier) => ({ id: supplier.id, name: supplier.name }));
-    if (!query.supplier_id && suppliers[0]) query.supplier_id = suppliers[0].id;
+  let warehouses: Array<{ id: string; name: string }> = [];
+  let categories: Array<{ id: string; name: string }> = [];
+  if (report === "supplier-statement" || report === "purchases") {
+    const found = await loadSupplierOptions(api, String(query.supplier_id ?? "") || undefined);
+    suppliers = found.suppliers.map((supplier) => ({ id: supplier.id, name: supplier.name }));
+    if (report === "supplier-statement" && !query.supplier_id && suppliers[0]) query.supplier_id = suppliers[0].id;
+  }
+  if (report === "stock-movement") {
+    const found = await load(api.GET("/admin/inventory/warehouses"));
+    if (found.ok) warehouses = found.data.flatMap(({ id, name }) => id && name ? [{ id, name }] : []);
+  }
+  if (report === "expenses") {
+    const found = await load(api.GET("/admin/expense-categories"));
+    if (found.ok) categories = found.data.map((category) => ({ id: category.id, name: (locale === "ar" ? category.name_ar : category.name_en) || category.name_en || category.name_ar || "—" }));
   }
 
   const result = report === "supplier-statement" && !query.supplier_id ? null : await loadReport(api, report, query);
@@ -45,11 +56,12 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
         description={t(`descriptions.${report}`)}
         actions={<ReportExport report={report} parameters={exportParameters(report, query)} />}
       />
-      <ReportFilters definition={definition} query={query} suppliers={suppliers} />
+      <ReportFilters definition={definition} query={query} suppliers={suppliers} warehouses={warehouses} categories={categories} />
       {view.touchesOpenPeriod ? <Alert tone="info" className="mb-6" data-testid="open-period-notice">{t("openPeriod")}</Alert> : null}
       {view.totals.length ? <Totals totals={view.totals} locale={locale} /> : null}
       {view.chart.length ? <ReportChart points={view.chart} kind={report === "expenses" ? "bar" : "line"} label={t(report === "expenses" ? "expenseChart" : "salesChart")} /> : null}
-      {report === "supplier-statement" && !query.supplier_id ? <Alert tone="info">{t("chooseSupplier")}</Alert> : <ReportTable view={view} />}
+      {report === "supplier-statement" && !query.supplier_id ? <Alert tone="info" className="mb-4">{t("chooseSupplier")}</Alert> : null}
+      <ReportTable view={view} />
     </div>
   );
 }

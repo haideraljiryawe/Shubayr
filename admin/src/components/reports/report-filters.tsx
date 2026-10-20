@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 import { Button, Input, Select } from "@/components/ui";
 import type { ReportDefinition, ReportQuery } from "@/lib/reports";
 
-export async function ReportFilters({ definition, query, suppliers }: { definition: ReportDefinition; query: ReportQuery; suppliers?: Array<{ id: string; name: string }> }) {
+type Option = { id: string; name: string };
+
+export async function ReportFilters({ definition, query, suppliers, warehouses, categories }: { definition: ReportDefinition; query: ReportQuery; suppliers?: Option[]; warehouses?: Option[]; categories?: Option[] }) {
   const t = await getTranslations("reports");
   return (
     <form className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4" method="get" data-testid="report-filters">
@@ -21,16 +23,18 @@ export async function ReportFilters({ definition, query, suppliers }: { definiti
         </Filter>
       ) : null}
       {definition.id === "inventory-valuation" ? <Filter label={t("slowDays")}><Input className="w-28" name="slow_days" type="number" min={1} max={3650} defaultValue={String(query.slow_days)} /></Filter> : null}
-      {definition.id === "supplier-statement" ? (
+      {definition.id === "supplier-statement" || definition.id === "purchases" ? (
         <Filter label={t("supplier")}>
-          <Select name="supplier_id" defaultValue={String(query.supplier_id ?? "")} required>
-            <option value="">{t("chooseSupplier")}</option>
+          <Select name="supplier_id" defaultValue={String(query.supplier_id ?? "")} required={definition.id === "supplier-statement"}>
+            <option value="">{definition.id === "supplier-statement" ? t("chooseSupplier") : t("allSuppliers")}</option>
             {(suppliers ?? []).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
           </Select>
         </Filter>
       ) : null}
-      {definition.id === "expenses" ? <Filter label={t("payee")}><Input name="payee" defaultValue={String(query.payee ?? "")} maxLength={200} /></Filter> : null}
-      <input type="hidden" name="per_page" value={String(query.per_page)} />
+      {definition.id === "purchases" ? <><Filter label={t("variantId")}><Input name="variant_id" defaultValue={String(query.variant_id ?? "")} /></Filter><Filter label={t("categoryId")}><Input name="category_id" defaultValue={String(query.category_id ?? "")} /></Filter></> : null}
+      {definition.id === "stock-movement" ? <><Filter label={t("warehouse")}><Select name="warehouse_id" defaultValue={String(query.warehouse_id ?? "")}><option value="">{t("allWarehouses")}</option>{(warehouses ?? []).map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</Select></Filter><Filter label={t("variantId")}><Input name="variant_id" defaultValue={String(query.variant_id ?? "")} /></Filter></> : null}
+      {definition.id === "expenses" ? <><Filter label={t("category")}><Select name="category_id" defaultValue={String(query.category_id ?? "")}><option value="">{t("allCategories")}</option>{(categories ?? []).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</Select></Filter><Filter label={t("payee")}><Input name="payee" defaultValue={String(query.payee ?? "")} maxLength={200} /></Filter></> : null}
+      {query.per_page !== undefined ? <input type="hidden" name="per_page" value={String(query.per_page)} /> : null}
       <Button type="submit" data-testid="report-apply">{t("apply")}</Button>
     </form>
   );
