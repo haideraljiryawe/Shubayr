@@ -36,6 +36,7 @@ export type NavKey =
   | "cashReceipts"
   | "expenses"
   | "expenseCategories"
+  | "reports"
   | "custodyExceptions"
   | "periods"
   | "ledger"
@@ -52,6 +53,8 @@ export interface NavItem {
   href: string;
   /** Every one of these must be granted. Empty means any signed-in staff. */
   requires: readonly string[];
+  /** At least one must be granted; useful for a hub whose children differ. */
+  requiresAny?: readonly string[];
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -110,6 +113,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // off at launch. Categories are managed with expense_categories.manage.
   { key: "expenses", href: "/expenses", requires: ["expenses.read"] },
   { key: "expenseCategories", href: "/expenses/categories", requires: ["expense_categories.manage"] },
+  { key: "reports", href: "/reports", requires: [], requiresAny: ["reports.sales.read", "reports.profit.read", "reports.financial.read", "reports.cash.read", "reports.liabilities.read", "reports.inventory.read", "reports.purchases.read", "reports.suppliers.read", "reports.stock.read", "reports.expenses.read"] },
   { key: "audit", href: "/audit", requires: ["audit.view"] },
 ];
 
@@ -126,6 +130,7 @@ export function visibleNav(
   return items.filter(
     (item) =>
       item.requires.every((key) => granted.has(key)) &&
+      (!item.requiresAny || item.requiresAny.some((key) => granted.has(key))) &&
       (!modules || isNavEnabled(item.key, modules)),
   );
 }
