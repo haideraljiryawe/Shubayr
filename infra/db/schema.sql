@@ -1731,3 +1731,6 @@ ON CONFLICT DO NOTHING;
 
 -- Phase 12 reports part 1 uses the production migration as its single DDL source.
 \ir ../../backend/prisma/migrations/20261018090000_reports_part1/migration.sql
+
+-- C17 purchasing/restock operational gaps and courier companies.
+\ir ../../backend/prisma/migrations/20261020090000_purchasing_restock_gaps/migration.sql

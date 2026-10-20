@@ -20,12 +20,16 @@ const check = (actual, expected, message) => {
 const scalar = async (sql, values = []) => (await db.query(sql, values)).rows[0]?.value;
 const amount = (value) => Number(value);
 
-async function request(path, { token, method = 'GET', body, expected = 200 } = {}) {
+async function request(
+  path,
+  { token, method = 'GET', body, expected = 200, headers = {} } = {},
+) {
   const response = await fetch(`${api}${path}`, {
     method,
     headers: {
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -127,6 +131,7 @@ try {
   const usdVariant = await fixtureVariant('USD');
   const correctionVariant = await fixtureVariant('CORRECT');
   const returnVariant = await fixtureVariant('RETURN');
+  const paidNowVariant = await fixtureVariant('PAID-NOW');
 
   const supplier = await request('/admin/suppliers', {
     token: stock,
@@ -762,6 +767,143 @@ try {
   check(stockDraft.payload.owner, 'stock', 'purchase draft belongs only to the stock user');
   check(adminDraft.payload.owner, 'admin', 'purchase draft belongs only to the admin user');
 
+  await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: supplier.id,
+      locationId,
+      variantId: paidNowVariant,
+      lines: [{ variant_id: paidNowVariant, quantity: '1', unit_cost: '3000' }],
+    }),
+  });
+  const preservedDraft = await request('/admin/drafts/purchase_invoice', {
+    token: stock,
+  });
+  check(
+    preservedDraft.id,
+    stockDraft.id,
+    'posting an unrelated invoice preserves the unfinished draft',
+  );
+
+  const paidNowKey = `c17-paid-now-${randomUUID()}`;
+  const paidNowBody = {
+    invoice: {
+      document_date: today,
+      draft_id: adminDraft.id,
+      supplier_id: supplier.id,
+      supplier_invoice_number: `PAID-NOW-${suffix}`,
+      currency_code: 'IQD',
+      default_location_id: locationId,
+      allocation_method: 'value',
+      lines: [
+        {
+          variant_id: paidNowVariant,
+          quantity: '2',
+          pack_size: '1',
+          unit_cost: '7000',
+          lot_number: 'PAID-NOW',
+        },
+      ],
+    },
+    payment: {
+      cash_account_id: iqdCash.id,
+      currency_code: 'IQD',
+      amount: '14000',
+      reference: 'C17 atomic settlement',
+    },
+  };
+  const paidNow = await request('/admin/purchase-invoices/paid-now', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    headers: { 'Idempotency-Key': paidNowKey },
+    body: paidNowBody,
+  });
+  check(paidNow.invoice.settlement_status, 'paid', 'paid-now invoice is fully settled');
+  check(amount(paidNow.invoice.remaining_currency), 0, 'paid-now invoice has no remaining balance');
+  check(paidNow.payment.allocations.length, 1, 'paid-now creates one allocation');
+  const paidNowReplay = await request('/admin/purchase-invoices/paid-now', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    headers: { 'Idempotency-Key': paidNowKey },
+    body: paidNowBody,
+  });
+  check(paidNowReplay.invoice.id, paidNow.invoice.id, 'paid-now replay returns the same invoice');
+  check(paidNowReplay.payment.id, paidNow.payment.id, 'paid-now replay returns the same payment');
+  check(
+    amount(await scalar('SELECT count(*)::int AS value FROM supplier_payment_allocations WHERE invoice_id=$1', [paidNow.invoice.id])),
+    1,
+    'paid-now replay does not duplicate the allocation',
+  );
+  await request('/admin/drafts/purchase_invoice', {
+    token: admin,
+    expected: 404,
+  });
+  const stillPreservedDraft = await request('/admin/drafts/purchase_invoice', {
+    token: stock,
+  });
+  check(stillPreservedDraft.id, stockDraft.id, 'posting removes only the explicitly linked caller-owned draft');
+
+  const failingPaidNowKey = `c17-paid-now-fail-${randomUUID()}`;
+  const failingInvoiceNumber = `PAID-NOW-ROLLBACK-${suffix}`;
+  const failedPaidNow = await request('/admin/purchase-invoices/paid-now', {
+    token: admin,
+    method: 'POST',
+    expected: 409,
+    headers: { 'Idempotency-Key': failingPaidNowKey },
+    body: {
+      ...paidNowBody,
+      invoice: {
+        ...paidNowBody.invoice,
+        draft_id: undefined,
+        supplier_invoice_number: failingInvoiceNumber,
+      },
+      payment: { ...paidNowBody.payment, amount: '13999' },
+    },
+  });
+  check(failedPaidNow.code, 'PAID_NOW_AMOUNT_MISMATCH', 'payment failure has a stable code');
+  check(
+    amount(await scalar('SELECT count(*)::int AS value FROM purchase_invoices WHERE invoice_number=$1', [failingInvoiceNumber])),
+    0,
+    'payment failure rolls back the invoice and inventory receipt',
+  );
+  check(
+    amount(await scalar('SELECT count(*)::int AS value FROM operation_records WHERE operation_id=$1', [failingPaidNowKey])),
+    0,
+    'payment failure rolls back the idempotency record',
+  );
+
+  const lastCost = await request(
+    `/admin/purchase-costs/variants/${paidNowVariant}/last`,
+    { token: stock },
+  );
+  check(amount(lastCost.unit_cost), 7000, 'last-cost read returns the latest base-unit purchase cost');
+  check(lastCost.supplier.id, supplier.id, 'last-cost read identifies the supplier');
+  check(lastCost.invoice_id, paidNow.invoice.id, 'last-cost read identifies the invoice');
+  const newestLots = await request(
+    `/admin/inventory/lots?variant_id=${paidNowVariant}&sort_by=entry_date&sort_direction=desc&per_page=100`,
+    { token: stock },
+  );
+  check(newestLots.data[0].lot_number, 'PAID-NOW', 'lot list can sort newest receipt first');
+
+  const supplierSearch = await request(
+    `/admin/suppliers?q=${encodeURIComponent(supplier.phone)}&per_page=100`,
+    { token: stock },
+  );
+  check(supplierSearch.data.map((row) => row.id).includes(supplier.id), true, 'supplier search matches phone');
+  const recentSuppliers = await request('/admin/suppliers?sort_by=recent_purchase&per_page=100', {
+    token: stock,
+  });
+  check(
+    recentSuppliers.data.findIndex((row) => row.id === supplier.id) <
+      recentSuppliers.data.findIndex((row) => row.id === disposable.id),
+    true,
+    'recent-purchase sorting places a used supplier before an unused supplier',
+  );
+
   await db.query(`
     INSERT INTO user_permission_grants (user_id, permission_id, granted_by, reason)
     SELECT target.id, permission.id, actor.id, 'Phase 6 cost redaction acceptance'
@@ -776,7 +918,28 @@ try {
   })).access_token;
   const redacted = await request(`/admin/purchase-invoices/${first.id}`, { token: operations });
   check('total_iqd' in redacted, false, 'invoice cost totals require cost.view');
+  check('total_cost' in redacted, false, 'plain supplier readers do not receive operational totals');
   check('landed_unit_cost_iqd' in redacted.items[0], false, 'line landed cost requires cost.view');
+  await db.query(`
+    INSERT INTO user_permission_grants (user_id, permission_id, granted_by, reason)
+    SELECT target.id, permission.id, actor.id, 'C17 operational settlement visibility'
+    FROM users target CROSS JOIN users actor CROSS JOIN permissions permission
+    WHERE target.username='operations' AND actor.username='admin'
+      AND permission.key='purchases.create'
+    ON CONFLICT DO NOTHING
+  `);
+  await db.query("UPDATE users SET permission_version=permission_version+1 WHERE username='operations'");
+  const purchaseCreator = (await request('/admin/auth/login', {
+    method: 'POST',
+    expected: 201,
+    body: { username: 'operations', password: 'Shubayr-Dev-Staff!2026' },
+  })).access_token;
+  const operationalTotals = await request(`/admin/purchase-invoices/${first.id}`, {
+    token: purchaseCreator,
+  });
+  check('total_cost' in operationalTotals, true, 'purchase creators can see the invoice total needed for settlement');
+  check('remaining_currency' in operationalTotals, true, 'purchase creators can see the remaining balance');
+  check('unit_cost' in operationalTotals.items[0], false, 'purchase creators still cannot see unit costs without cost.view');
   const fullCost = await request(`/admin/purchase-invoices/${second.id}`, { token: stock });
   check('total_iqd' in fullCost, true, 'stock controller receives cost fields');
 

@@ -2826,6 +2826,10 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
+                    /** @description Case-insensitive supplier name or phone search. */
+                    q?: string;
+                    /** @description recent_purchase sorts the latest posted purchase first */
+                    sort_by?: "name" | "recent_purchase";
                 };
                 header?: never;
                 path?: never;
@@ -2944,6 +2948,95 @@ export interface paths {
                 422: components["responses"]["ExchangeRateValidation"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/purchase-invoices/paid-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically post a purchase invoice and settle it from a cash account
+         * @description The invoice, inventory receipt, supplier payment, full allocation and both balanced journal entries commit in one transaction. A payment that does not settle the invoice exactly is rejected and nothing is retained. Strict separation of duties rejects this combined creator/payment flow.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PaidNowPurchaseInput"];
+                };
+            };
+            responses: {
+                /** @description Posted and fully paid purchase */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaidNowPurchaseResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["PostingConflict"];
+                422: components["responses"]["ExchangeRateValidation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/purchase-costs/variants/{id}/last": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the latest posted purchase unit cost for one variant */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Latest purchase cost, or null when the variant has never been purchased */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LastVariantPurchaseCost"] | null;
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6307,11 +6400,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List internal agents and external drivers */
+        /** List internal agents, external drivers and courier companies */
         get: {
             parameters: {
                 query?: {
-                    kind?: "internal_agent" | "external_driver";
+                    kind?: "internal_agent" | "external_driver" | "courier_company";
                     active?: boolean;
                     q?: string;
                     page?: components["parameters"]["Page"];
@@ -6358,7 +6451,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    kind?: "internal_agent" | "external_driver";
+                    kind?: "internal_agent" | "external_driver" | "courier_company";
                     active?: boolean;
                     q?: string;
                     sort_by?: "name" | "goods_value_iqd" | "cash_held" | "oldest_item_age_days" | "orders_held";
@@ -6808,6 +6901,146 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["ExternalDriverMutation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        trace?: never;
+    };
+    "/admin/courier-companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List courier companies without accounts */
+        get: {
+            parameters: {
+                query?: {
+                    active?: boolean;
+                    /** @description Company name */
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated courier companies */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeliveryPartyPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        /** Create a courier company delivery party */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CourierCompanyCreate"];
+                };
+            };
+            responses: {
+                /** @description Created courier company */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CourierCompanyMutation"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/courier-companies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an unused courier company or deactivate one with history */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Whether the company was deleted or retained as inactive */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ExternalDriverRemoval"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update or activate/deactivate a courier company */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CourierCompanyUpdate"];
+                };
+            };
+            responses: {
+                /** @description Updated courier company */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CourierCompanyMutation"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -12159,6 +12392,8 @@ export interface paths {
             parameters: {
                 query?: {
                     variant_id?: string;
+                    sort_by?: "expiry_date" | "entry_date";
+                    sort_direction?: "asc" | "desc";
                     page?: components["parameters"]["Page"];
                     per_page?: components["parameters"]["PerPage"];
                 };
@@ -14889,7 +15124,7 @@ export interface components {
                     /** Format: uuid */
                     id: string;
                     /** @enum {string} */
-                    kind: "internal_agent" | "external_driver";
+                    kind: "internal_agent" | "external_driver" | "courier_company";
                     name: string;
                     phone: string;
                 } | null;
@@ -15099,6 +15334,11 @@ export interface components {
             default_currency: "IQD" | "USD";
             payment_terms_days: number;
             is_active: boolean;
+            /**
+             * Format: date-time
+             * @description Time of the supplier's most recently posted purchase; null before the first purchase.
+             */
+            last_purchase_at: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -15147,7 +15387,16 @@ export interface components {
             /** Format: uuid */
             supplier_id?: string;
             invoice_number?: string | null;
+            /** @enum {string} */
+            currency_code?: "IQD" | "USD";
             total_cost?: number;
+            /** @description Operational settlement amount */
+            remaining_currency?: number;
+            /**
+             * @description Operational settlement state
+             * @enum {string}
+             */
+            settlement_status?: "open" | "partial" | "paid";
             /** @enum {string} */
             status?: "draft" | "received" | "posted" | "cancelled";
             /** Format: date-time */
@@ -15211,6 +15460,11 @@ export interface components {
             due_date?: string;
         };
         PurchaseInvoiceInput: components["schemas"]["PostingDocumentInput"] & {
+            /**
+             * Format: uuid
+             * @description Optional caller-owned purchase-invoice draft to remove after this invoice posts. Other drafts are never removed.
+             */
+            draft_id?: string;
             /** Format: uuid */
             supplier_id: string;
             supplier_invoice_number?: string;
@@ -15244,6 +15498,86 @@ export interface components {
                 currency_code: "IQD" | "USD";
                 amount: string;
             }[];
+        };
+        PaidNowPurchaseInput: {
+            invoice: {
+                /** Format: date */
+                document_date: string;
+                /** Format: date */
+                accounting_date?: string;
+                backdate_reason?: string;
+                /**
+                 * Format: uuid
+                 * @description Optional caller-owned purchase-invoice draft to remove after the atomic posting succeeds.
+                 */
+                draft_id?: string;
+                /** Format: uuid */
+                supplier_id: string;
+                supplier_invoice_number?: string;
+                /** @enum {string} */
+                currency_code: "IQD" | "USD";
+                exchange_rate?: string;
+                /** Format: uuid */
+                default_location_id: string;
+                /** @enum {string} */
+                allocation_method: "value" | "quantity" | "manual";
+                /** Format: date */
+                due_date?: string;
+                notes?: string;
+                lines: {
+                    /** Format: uuid */
+                    variant_id: string;
+                    /** Format: uuid */
+                    location_id?: string;
+                    quantity: string;
+                    pack_size?: string;
+                    unit_cost: string;
+                    lot_number?: string;
+                    /** Format: date */
+                    expiry_date?: string;
+                    manual_landed_cost_iqd?: string;
+                }[];
+                landed_costs?: {
+                    kind: string;
+                    description?: string;
+                    /** @enum {string} */
+                    currency_code: "IQD" | "USD";
+                    amount: string;
+                }[];
+            };
+            payment: {
+                /** Format: uuid */
+                cash_account_id: string;
+                /** @enum {string} */
+                currency_code: "IQD" | "USD";
+                amount: string;
+                exchange_rate?: string;
+                reference?: string;
+                notes?: string;
+            };
+        };
+        PaidNowPurchaseResult: {
+            invoice: components["schemas"]["PurchaseInvoice"];
+            payment: components["schemas"]["PurchasingDocument"];
+        };
+        LastVariantPurchaseCost: {
+            /** Format: uuid */
+            variant_id: string;
+            /** @description Latest posted base-unit cost in the purchase invoice currency. */
+            unit_cost: number;
+            /** @enum {string} */
+            currency_code: "IQD" | "USD";
+            /** Format: date-time */
+            document_date: string;
+            /** Format: date-time */
+            received_at: string;
+            supplier: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            /** Format: uuid */
+            invoice_id: string;
         };
         SupplierPaymentInput: components["schemas"]["PostingDocumentInput"] & {
             /** Format: uuid */
@@ -16000,11 +16334,13 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "internal_agent" | "external_driver";
+            kind: "internal_agent" | "external_driver" | "courier_company";
             /** Format: uuid */
             user_id: string | null;
             name: string;
             phone: string;
+            /** @description Optional courier-company contact; null for existing party types unless explicitly stored. */
+            contact_person: string | null;
             vehicle_number: string | null;
             description: string | null;
             notes: string | null;
@@ -16066,8 +16402,41 @@ export interface components {
             user_id: null;
             name: string;
             phone: string;
+            contact_person: null;
             vehicle_number: string | null;
             description: string | null;
+            notes: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            duplicate_phone_warning: boolean;
+        };
+        CourierCompanyCreate: {
+            company_name: string;
+            phone: string;
+            contact_person?: string;
+            notes?: string;
+        };
+        CourierCompanyUpdate: {
+            company_name?: string;
+            phone?: string;
+            contact_person?: string;
+            notes?: string;
+            is_active?: boolean;
+        };
+        CourierCompanyMutation: {
+            /** Format: uuid */
+            id: string;
+            /** @constant */
+            kind: "courier_company";
+            user_id: null;
+            name: string;
+            phone: string;
+            contact_person: string | null;
+            vehicle_number: null;
+            description: null;
             notes: string | null;
             is_active: boolean;
             /** Format: date-time */
@@ -16080,7 +16449,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "internal_agent" | "external_driver";
+            kind: "internal_agent" | "external_driver" | "courier_company";
             /** Format: uuid */
             user_id: string | null;
             name: string;
@@ -18061,7 +18430,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "internal_agent" | "external_driver";
+            kind: "internal_agent" | "external_driver" | "courier_company";
             /** Format: uuid */
             user_id: string | null;
             name: string;
@@ -18184,7 +18553,7 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 /** @enum {string} */
-                kind: "internal_agent" | "external_driver";
+                kind: "internal_agent" | "external_driver" | "courier_company";
                 name: string;
             };
         };

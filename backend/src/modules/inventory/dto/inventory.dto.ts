@@ -37,6 +37,12 @@ export class BalanceQueryDto extends PageDto {
 
 export class LotQueryDto extends PageDto {
   @IsOptional() @IsUUID('4') variant_id?: string;
+  @IsOptional()
+  @IsIn(['expiry_date', 'entry_date'])
+  sort_by: 'expiry_date' | 'entry_date' = 'expiry_date';
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sort_direction: 'asc' | 'desc' = 'asc';
 }
 
 export class MovementQueryDto extends LotQueryDto {

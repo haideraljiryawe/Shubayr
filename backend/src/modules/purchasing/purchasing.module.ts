@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FinanceModule } from '../finance/finance.module';
 import {
   PurchaseCostCorrectionsController,
+  PurchaseCostsController,
   PurchaseInvoicesController,
   SupplierCreditsController,
   SupplierPaymentsController,
@@ -19,6 +20,7 @@ import { PurchasingService } from './purchasing.service';
     SupplierCreditsController,
     SupplierReturnsController,
     PurchaseCostCorrectionsController,
+    PurchaseCostsController,
   ],
   providers: [PurchasingService],
   exports: [PurchasingService],

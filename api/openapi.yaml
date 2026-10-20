@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.7.0
+  version: 17.8.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -1496,6 +1496,8 @@ paths:
       parameters:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
+        - { name: q, in: query, schema: { type: string, maxLength: 160 }, description: Case-insensitive supplier name or phone search. }
+        - { name: sort_by, in: query, schema: { type: string, enum: [name, recent_purchase], default: name }, description: recent_purchase sorts the latest posted purchase first, with never-used suppliers last. }
       responses:
         "200":
           description: Paginated suppliers
@@ -1554,6 +1556,46 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+  /admin/purchase-invoices/paid-now:
+    post:
+      tags: [Purchasing]
+      summary: Atomically post a purchase invoice and settle it from a cash account
+      description: >
+        The invoice, inventory receipt, supplier payment, full allocation and
+        both balanced journal entries commit in one transaction. A payment that
+        does not settle the invoice exactly is rejected and nothing is retained.
+        Strict separation of duties rejects this combined creator/payment flow.
+      x-permissions: [purchases.create, supplier_payments.record]
+      x-error-codes: [PURCHASE_IDEMPOTENCY_KEY_REQUIRED, PURCHASE_IDEMPOTENCY_KEY_INVALID, RECEIVING_LOCATION_INACTIVE, SUPPLIER_INVOICE_NUMBER_DUPLICATE, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, INVENTORY_COST_NEGATIVE, CASH_ACCOUNT_INACTIVE, EXCHANGE_RATE_NOT_FOUND, PAID_NOW_AMOUNT_MISMATCH, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaidNowPurchaseInput" }
+      responses:
+        "201": { description: Posted and fully paid purchase, content: { application/json: { schema: { $ref: "#/components/schemas/PaidNowPurchaseResult" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/PostingConflict" }
+        "422": { $ref: "#/components/responses/ExchangeRateValidation" }
+  /admin/purchase-costs/variants/{id}/last:
+    get:
+      tags: [Purchasing]
+      summary: Read the latest posted purchase unit cost for one variant
+      x-permission: cost.view
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200":
+          description: Latest purchase cost, or null when the variant has never been purchased
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/LastVariantPurchaseCost" }
+                  - { type: "null" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /admin/suppliers/balances:
     get:
       tags: [Purchasing]
@@ -3150,10 +3192,10 @@ paths:
   /admin/delivery-parties:
     get:
       tags: [Admin, Deliveries]
-      summary: List internal agents and external drivers
+      summary: List internal agents, external drivers and courier companies
       x-any-permissions: [deliveries.manage, orders.assign_agent, drivers.manage]
       parameters:
-        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver, courier_company] } }
         - { name: active, in: query, schema: { type: boolean } }
         - { name: q, in: query, schema: { type: string, maxLength: 120 } }
         - { $ref: "#/components/parameters/Page" }
@@ -3174,7 +3216,7 @@ paths:
       x-permission: deliveries.manage
       x-error-codes: [COST_VIEW_REQUIRED]
       parameters:
-        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver] } }
+        - { name: kind, in: query, schema: { type: string, enum: [internal_agent, external_driver, courier_company] } }
         - { name: active, in: query, schema: { type: boolean } }
         - { name: q, in: query, schema: { type: string, maxLength: 120 } }
         - { name: sort_by, in: query, schema: { type: string, enum: [name, goods_value_iqd, cash_held, oldest_item_age_days, orders_held], default: name } }
@@ -3376,6 +3418,51 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ExternalDriverRemoval" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/courier-companies:
+    get:
+      tags: [Admin, Deliveries]
+      summary: List courier companies without accounts
+      x-permission: drivers.manage
+      parameters:
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 120 }, description: Company name, phone or contact-person search. }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200": { description: Paginated courier companies, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryPartyPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+    post:
+      tags: [Admin, Deliveries]
+      summary: Create a courier company delivery party
+      x-permission: drivers.manage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CourierCompanyCreate" } } } }
+      responses:
+        "201": { description: Created courier company, content: { application/json: { schema: { $ref: "#/components/schemas/CourierCompanyMutation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/courier-companies/{id}:
+    patch:
+      tags: [Admin, Deliveries]
+      summary: Update or activate/deactivate a courier company
+      x-permission: drivers.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CourierCompanyUpdate" } } } }
+      responses:
+        "200": { description: Updated courier company, content: { application/json: { schema: { $ref: "#/components/schemas/CourierCompanyMutation" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Validation" }
+    delete:
+      tags: [Admin, Deliveries]
+      summary: Delete an unused courier company or deactivate one with history
+      x-permission: drivers.manage
+      parameters: [{ $ref: "#/components/parameters/PathId" }]
+      responses:
+        "200": { description: Whether the company was deleted or retained as inactive, content: { application/json: { schema: { $ref: "#/components/schemas/ExternalDriverRemoval" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
@@ -5707,6 +5794,8 @@ paths:
       x-permission: inventory.view
       parameters:
         - { name: variant_id, in: query, schema: { type: string, format: uuid } }
+        - { name: sort_by, in: query, schema: { type: string, enum: [expiry_date, entry_date], default: expiry_date } }
+        - { name: sort_direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -7898,7 +7987,7 @@ components:
                       required: [id, kind, name, phone]
                       properties:
                         id: { type: string, format: uuid }
-                        kind: { type: string, enum: [internal_agent, external_driver] }
+                        kind: { type: string, enum: [internal_agent, external_driver, courier_company] }
                         name: { type: string }
                         phone: { type: string }
                     - { type: "null" }
@@ -8154,7 +8243,7 @@ components:
     Supplier:
       type: object
       additionalProperties: false
-      required: [id, name, default_currency, payment_terms_days, is_active, created_at, updated_at]
+      required: [id, name, default_currency, payment_terms_days, is_active, last_purchase_at, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -8165,6 +8254,7 @@ components:
         default_currency: { type: string, enum: [IQD, USD] }
         payment_terms_days: { type: integer, minimum: 0 }
         is_active: { type: boolean }
+        last_purchase_at: { type: [string, "null"], format: date-time, description: Time of the supplier's most recently posted purchase; null before the first purchase. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -8224,7 +8314,10 @@ components:
         created_by_name: { type: string }
         supplier_id: { type: string, format: uuid }
         invoice_number: { type: [string, "null"] }
+        currency_code: { type: string, enum: [IQD, USD] }
         total_cost: { type: number }
+        remaining_currency: { type: number, minimum: 0, description: Operational settlement amount, visible with cost.view, purchases.create or supplier_payments.record. }
+        settlement_status: { type: string, enum: [open, partial, paid], description: Operational settlement state, visible with cost.view, purchases.create or supplier_payments.record. }
         status: { type: string, enum: [draft, received, posted, cancelled] }
         received_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
@@ -8291,6 +8384,7 @@ components:
         - type: object
           required: [supplier_id, currency_code, default_location_id, allocation_method, lines]
           properties:
+            draft_id: { type: string, format: uuid, description: Optional caller-owned purchase-invoice draft to remove after this invoice posts. Other drafts are never removed. }
             supplier_id: { type: string, format: uuid }
             supplier_invoice_number: { type: string, maxLength: 80 }
             currency_code: { type: string, enum: [IQD, USD] }
@@ -8326,6 +8420,94 @@ components:
                   description: { type: string }
                   currency_code: { type: string, enum: [IQD, USD] }
                   amount: { type: string }
+
+    PaidNowPurchaseInput:
+      type: object
+      additionalProperties: false
+      required: [invoice, payment]
+      properties:
+        invoice:
+          type: object
+          additionalProperties: false
+          required: [document_date, supplier_id, currency_code, default_location_id, allocation_method, lines]
+          properties:
+            document_date: { type: string, format: date }
+            accounting_date: { type: string, format: date }
+            backdate_reason: { type: string, minLength: 3, maxLength: 500 }
+            draft_id: { type: string, format: uuid, description: Optional caller-owned purchase-invoice draft to remove after the atomic posting succeeds. }
+            supplier_id: { type: string, format: uuid }
+            supplier_invoice_number: { type: string, maxLength: 80 }
+            currency_code: { type: string, enum: [IQD, USD] }
+            exchange_rate: { type: string }
+            default_location_id: { type: string, format: uuid }
+            allocation_method: { type: string, enum: [value, quantity, manual] }
+            due_date: { type: string, format: date }
+            notes: { type: string, maxLength: 2000 }
+            lines:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [variant_id, quantity, unit_cost]
+                properties:
+                  variant_id: { type: string, format: uuid }
+                  location_id: { type: string, format: uuid }
+                  quantity: { type: string }
+                  pack_size: { type: string }
+                  unit_cost: { type: string }
+                  lot_number: { type: string, maxLength: 80 }
+                  expiry_date: { type: string, format: date }
+                  manual_landed_cost_iqd: { type: string }
+            landed_costs:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [kind, currency_code, amount]
+                properties:
+                  kind: { type: string }
+                  description: { type: string }
+                  currency_code: { type: string, enum: [IQD, USD] }
+                  amount: { type: string }
+        payment:
+          type: object
+          additionalProperties: false
+          required: [cash_account_id, currency_code, amount]
+          properties:
+            cash_account_id: { type: string, format: uuid }
+            currency_code: { type: string, enum: [IQD, USD] }
+            amount: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+            exchange_rate: { type: string, pattern: '^\d+(\.\d{1,10})?$' }
+            reference: { type: string, maxLength: 160 }
+            notes: { type: string, maxLength: 2000 }
+
+    PaidNowPurchaseResult:
+      type: object
+      additionalProperties: false
+      required: [invoice, payment]
+      properties:
+        invoice: { $ref: "#/components/schemas/PurchaseInvoice" }
+        payment: { $ref: "#/components/schemas/PurchasingDocument" }
+
+    LastVariantPurchaseCost:
+      type: object
+      additionalProperties: false
+      required: [variant_id, unit_cost, currency_code, document_date, received_at, supplier, invoice_id]
+      properties:
+        variant_id: { type: string, format: uuid }
+        unit_cost: { type: number, minimum: 0, description: Latest posted base-unit cost in the purchase invoice currency. }
+        currency_code: { type: string, enum: [IQD, USD] }
+        document_date: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        supplier:
+          type: object
+          additionalProperties: false
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        invoice_id: { type: string, format: uuid }
 
     SupplierPaymentInput:
       allOf:
@@ -9363,13 +9545,14 @@ components:
     DeliveryParty:
       type: object
       additionalProperties: false
-      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at]
+      required: [id, kind, user_id, name, phone, contact_person, vehicle_number, description, notes, is_active, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [internal_agent, external_driver] }
+        kind: { type: string, enum: [internal_agent, external_driver, courier_company] }
         user_id: { type: [string, "null"], format: uuid }
         name: { type: string }
         phone: { type: string }
+        contact_person: { type: [string, "null"], description: Optional courier-company contact; null for existing party types unless explicitly stored. }
         vehicle_number: { type: [string, "null"] }
         description: { type: [string, "null"] }
         notes: { type: [string, "null"] }
@@ -9448,15 +9631,56 @@ components:
     ExternalDriverMutation:
       type: object
       additionalProperties: false
-      required: [id, kind, user_id, name, phone, vehicle_number, description, notes, is_active, created_at, updated_at, duplicate_phone_warning]
+      required: [id, kind, user_id, name, phone, contact_person, vehicle_number, description, notes, is_active, created_at, updated_at, duplicate_phone_warning]
       properties:
         id: { type: string, format: uuid }
         kind: { type: string, enum: [external_driver] }
         user_id: { type: "null" }
         name: { type: string }
         phone: { type: string }
+        contact_person: { type: "null" }
         vehicle_number: { type: [string, "null"] }
         description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        duplicate_phone_warning: { type: boolean }
+
+    CourierCompanyCreate:
+      type: object
+      additionalProperties: false
+      required: [company_name, phone]
+      properties:
+        company_name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_person: { type: string, maxLength: 120 }
+        notes: { type: string, maxLength: 2000 }
+
+    CourierCompanyUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        company_name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: string, minLength: 3, maxLength: 32 }
+        contact_person: { type: string, maxLength: 120 }
+        notes: { type: string, maxLength: 2000 }
+        is_active: { type: boolean }
+
+    CourierCompanyMutation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, user_id, name, phone, contact_person, vehicle_number, description, notes, is_active, created_at, updated_at, duplicate_phone_warning]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, const: courier_company }
+        user_id: { type: "null" }
+        name: { type: string }
+        phone: { type: string }
+        contact_person: { type: [string, "null"] }
+        vehicle_number: { type: "null" }
+        description: { type: "null" }
         notes: { type: [string, "null"] }
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
@@ -9469,7 +9693,7 @@ components:
       required: [id, kind, user_id, name, phone]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [internal_agent, external_driver] }
+        kind: { type: string, enum: [internal_agent, external_driver, courier_company] }
         user_id: { type: [string, "null"], format: uuid }
         name: { type: string }
         phone: { type: string }
@@ -11904,7 +12128,7 @@ components:
       required: [id, kind, user_id, name, phone, vehicle_number, is_active]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [internal_agent, external_driver] }
+        kind: { type: string, enum: [internal_agent, external_driver, courier_company] }
         user_id: { type: [string, "null"], format: uuid }
         name: { type: string }
         phone: { type: string }
@@ -12042,7 +12266,7 @@ components:
               required: [id, kind, name]
               properties:
                 id: { type: string, format: uuid }
-                kind: { type: string, enum: [internal_agent, external_driver] }
+                kind: { type: string, enum: [internal_agent, external_driver, courier_company] }
                 name: { type: string }
 
     CashReceiptReconciliation:

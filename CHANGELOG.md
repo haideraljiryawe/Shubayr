@@ -1,5 +1,27 @@
 # Changelog
 
+## 17.8.0 - 2026-10-20
+
+### Added
+
+- One idempotent, transactional purchase-invoice paid-now operation that posts
+  the invoice, supplier payment and allocation together or rolls all of them
+  back.
+- Per-variant last-purchase-cost reads, selectable newest-first inventory lots,
+  supplier name/phone search and most-recent-purchase ordering.
+- Courier companies as accountless delivery parties, reusing the existing
+  handover, delivery, custody and cash-receipt controls.
+
+### Changed
+
+- Purchase posting deletes only the explicitly identified draft, so a restock
+  cannot discard another unfinished invoice.
+- Invoice-currency totals and remaining balances are operational settlement
+  fields visible to `purchases.create` or `supplier_payments.record`; all unit,
+  landed and IQD cost fields continue to require `cost.view`.
+- The API contract is version 17.8.0. Every change is additive and staff-only;
+  no public or mobile response changed.
+
 ## 17.7.0 - 2026-10-19
 
 ### Added

@@ -576,6 +576,7 @@ model DeliveryParty {
   user_id                 String?              @unique(map: "delivery_parties_user_id_key") @db.Uuid
   name                    String               @db.VarChar(120)
   phone                   String               @db.VarChar(32)
+  contact_person          String?              @db.VarChar(120)
   vehicle_number          String?              @db.VarChar(80)
   description             String?              @db.Text
   notes                   String?              @db.Text
@@ -1051,6 +1052,7 @@ model Supplier {
   default_currency   String                   @default("IQD") @db.Char(3)
   payment_terms_days Int                      @default(0)
   is_active          Boolean                  @default(true)
+  last_purchase_at   DateTime?                @db.Timestamptz(6)
   created_at         DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at         DateTime                 @default(now()) @db.Timestamptz(6)
   purchase_invoices  PurchaseInvoice[]
@@ -1064,6 +1066,7 @@ model Supplier {
   expenses           Expense[]
 
   @@index([name], map: "idx_suppliers_name")
+  @@index([last_purchase_at(sort: Desc), name, id], map: "idx_suppliers_recent_purchase")
   @@map("suppliers")
 }
 

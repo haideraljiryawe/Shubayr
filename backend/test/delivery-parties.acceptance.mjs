@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
@@ -60,6 +61,13 @@ const [admin, agentA, agentB] = await Promise.all([
   appLogin('+9647700000007'),
 ]);
 const adminToken = admin.access_token;
+const suffix = Date.now().toString(36);
+const today = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Baghdad',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
 
 const parties = await request('/admin/delivery-parties?per_page=100', {
   token: adminToken,
@@ -246,6 +254,158 @@ check(
   Number(Number(cashLedger.rows[0].balance).toFixed(6)),
   'list cash totals equal the cash-in-custody ledger balance',
 );
+
+const courier = await request('/admin/courier-companies', {
+  token: adminToken,
+  method: 'POST',
+  expected: 201,
+  body: {
+    company_name: `C17 Courier ${suffix}`,
+    phone: `+964780${String(Date.now()).slice(-7)}`,
+    contact_person: 'C17 dispatch desk',
+    notes: 'Courier-company acceptance fixture',
+  },
+});
+check(courier.kind, 'courier_company', 'courier company has its own party kind');
+check(courier.contact_person, 'C17 dispatch desk', 'courier company keeps its contact person');
+
+const customerId = (
+  await db.query("SELECT id::text FROM users WHERE phone='+9647700000006'")
+).rows[0].id;
+const stock = (
+  await db.query(`
+    SELECT batch.id::text AS batch_id, batch.product_id::text,
+           batch.variant_id::text, balance.location_id::text,
+           cost.average_cost_iqd::numeric AS unit_cost
+    FROM inventory_batches batch
+    JOIN batch_stock balance ON balance.batch_id=batch.id
+    JOIN sku_costs cost ON cost.variant_id=batch.variant_id
+    WHERE balance.quantity-balance.reserved>2
+      AND cost.book_quantity>2 AND cost.average_cost_iqd>0
+    ORDER BY balance.quantity DESC, batch.id
+    LIMIT 1
+  `)
+).rows[0];
+assert.ok(stock, 'courier handover requires one available inventory batch');
+assertions += 1;
+const courierOrder = {
+  id: randomUUID(),
+  itemId: randomUUID(),
+  deliveryId: randomUUID(),
+  reservationId: randomUUID(),
+  total: 25000,
+};
+await db.query('BEGIN');
+try {
+  await db.query(
+    `INSERT INTO orders
+      (id,user_id,order_number,status,version,payment_method,subtotal,delivery_fee,discount,total,currency_code,document_date,accounting_date,delivery_contact_phone,delivery_city)
+     VALUES ($1,$2,$3,'ready_for_dispatch',4,'cod',20000,5000,0,$4,'IQD',$5,$5,'+9647700000006','Baghdad')`,
+    [courierOrder.id, customerId, `VERIFY-C17-COURIER-${suffix}`, courierOrder.total, today],
+  );
+  await db.query(
+    `INSERT INTO order_items
+      (id,order_id,product_id,variant_id,product_name_ar,product_name_en,quantity,unit_price,line_total,discount_share,net_line_total,net_paid_total,currency_code)
+     VALUES ($1,$2,$3,$4,'اختبار شركة توصيل','Courier fixture',1,20000,20000,0,20000,20000,'IQD')`,
+    [courierOrder.itemId, courierOrder.id, stock.product_id, stock.variant_id],
+  );
+  await db.query(
+    `INSERT INTO deliveries (id,order_id,status,delivery_fee,currency_code)
+     VALUES ($1,$2,'assigned',5000,'IQD')`,
+    [courierOrder.deliveryId, courierOrder.id],
+  );
+  await db.query('UPDATE orders SET delivery_id=$1 WHERE id=$2', [
+    courierOrder.deliveryId,
+    courierOrder.id,
+  ]);
+  await db.query(
+    `INSERT INTO payments
+      (order_id,method,status,amount,currency_code,document_date,accounting_date)
+     VALUES ($1,'cod','pending',$2,'IQD',$3,$3)`,
+    [courierOrder.id, courierOrder.total, today],
+  );
+  await db.query(
+    `INSERT INTO stock_reservations
+      (id,order_id,order_item_id,batch_id,location_id,quantity,status)
+     VALUES ($1,$2,$3,$4,$5,1,'reserved')`,
+    [
+      courierOrder.reservationId,
+      courierOrder.id,
+      courierOrder.itemId,
+      stock.batch_id,
+      stock.location_id,
+    ],
+  );
+  await db.query(
+    'UPDATE batch_stock SET reserved=reserved+1 WHERE batch_id=$1 AND location_id=$2',
+    [stock.batch_id, stock.location_id],
+  );
+  await db.query('COMMIT');
+} catch (error) {
+  await db.query('ROLLBACK');
+  throw error;
+}
+
+const courierAssignment = await request(
+  `/deliveries/${courierOrder.deliveryId}/assign`,
+  {
+    token: adminToken,
+    method: 'PATCH',
+    body: { party_id: courier.id },
+  },
+);
+check(courierAssignment.party.kind, 'courier_company', 'courier company can be assigned');
+const courierDispatch = await request(`/admin/orders/${courierOrder.id}/status`, {
+  token: adminToken,
+  method: 'PATCH',
+  body: { status: 'dispatched', version: 4, note: 'C17 courier handover' },
+});
+check(courierDispatch.delivery.party.id, courier.id, 'handover preserves the courier company');
+const courierDelivery = await request(
+  `/admin/deliveries/${courierOrder.deliveryId}/status`,
+  {
+    token: adminToken,
+    method: 'PATCH',
+    body: {
+      status: 'delivered',
+      order_version: courierDispatch.version,
+      operation_id: `c17-courier-delivery-${randomUUID()}`,
+      collection_confirmation: 'confirmed',
+      collected_amount: String(courierOrder.total),
+      source: 'Courier company signed proof',
+    },
+  },
+);
+check(courierDelivery.collection.status, 'confirmed_full', 'courier delivery confirms the full collection');
+const courierTill = await request('/admin/cash-accounts', {
+  token: adminToken,
+  method: 'POST',
+  expected: 201,
+  body: { name: `C17 Courier Till ${suffix}`, kind: 'cash', currency_code: 'IQD' },
+});
+const courierReceipt = await request('/admin/cash-receipts', {
+  token: adminToken,
+  method: 'POST',
+  expected: 201,
+  body: {
+    operation_id: `c17-courier-receipt-${randomUUID()}`,
+    document_date: today,
+    party_id: courier.id,
+    cash_account_id: courierTill.id,
+    amount_iqd: String(courierOrder.total),
+    allocations: [{ order_id: courierOrder.id, amount_iqd: String(courierOrder.total) }],
+  },
+});
+check(
+  courierReceipt.allocation_batches[0].allocations.length,
+  1,
+  'courier cash receipt allocates the delivered order',
+);
+const courierCustody = await request(`/admin/delivery-parties/${courier.id}/custody`, {
+  token: adminToken,
+});
+check(courierCustody.goods.quantity, 0, 'courier has no goods after delivery');
+check(courierCustody.cash.amount, 0, 'courier has no cash after receipt');
 await db.end();
 
 const usedRemoval = await request(`/admin/external-drivers/${external.id}`, {

@@ -266,6 +266,14 @@ export class InventoryService {
     const where = query.variant_id
       ? { variant_id: query.variant_id }
       : undefined;
+    const orderBy: Prisma.InventoryBatchOrderByWithRelationInput[] =
+      query.sort_by === 'entry_date'
+        ? [{ entry_date: query.sort_direction }, { id: query.sort_direction }]
+        : [
+            { expiry_date: { sort: query.sort_direction, nulls: 'last' } },
+            { entry_date: query.sort_direction },
+            { id: query.sort_direction },
+          ];
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.inventoryBatch.findMany({
         where,
@@ -276,7 +284,7 @@ export class InventoryService {
             select: { quantity: true },
           },
         },
-        orderBy: [{ expiry_date: 'asc' }, { entry_date: 'asc' }, { id: 'asc' }],
+        orderBy,
         skip: (page - 1) * perPage,
         take: perPage,
       }),
