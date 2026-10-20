@@ -84,7 +84,7 @@ export function DeleteAccount() {
           <p className="text-sm text-text-muted">{t("signedOutBody")}</p>
         </div>
         {/* Signing in keeps the visitor here: the confirm step replaces the form. */}
-        <OtpForm onSignedIn={() => undefined} />
+        <OtpForm progressKey="delete-account" onSignedIn={() => undefined} />
         <p className="text-xs text-text-muted" data-testid="delete-support">
           {t("noAccessLead")}{" "}
           {info.phone || info.email ? (

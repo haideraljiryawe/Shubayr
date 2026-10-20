@@ -9,6 +9,7 @@ import { FormError } from "@/components/forms/form-error";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { englishOrArabic, slugFor, uniqueSlug, type Brand } from "@/lib/catalog";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
  * A brand made without leaving the product: the Arabic name is enough (the
@@ -31,7 +32,7 @@ export function BrandQuickCreate({
   const api = useApiForm();
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useLocaleScopedState<string | null>(null);
 
   async function submit() {
     if (!nameAr.trim()) {

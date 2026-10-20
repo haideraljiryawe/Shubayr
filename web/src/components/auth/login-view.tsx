@@ -43,6 +43,7 @@ export function LoginView() {
 
       <Card padding="lg">
         <OtpForm
+          progressKey="login"
           onSignedIn={(user) => {
             showToast(
               user.name ? t("welcome", { name: user.name }) : t("signedIn"),

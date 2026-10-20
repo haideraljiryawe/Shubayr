@@ -4,6 +4,7 @@ import { useState, type InputHTMLAttributes } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui";
 import { parseLocalizedDecimal, type NumberParseOptions } from "@/lib/number";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
  * NumberInput's sibling for money and rates: the same digits and the same
@@ -35,7 +36,7 @@ export function DecimalInput({
   const t = useTranslations("numbers");
   const [text, setText] = useState(value);
   const [edited, setEdited] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useLocaleScopedState<string | null>(null);
   // Untouched: show the typed-in initial value, else the prefill as it arrives.
   const display = edited || value !== "" || prefill === undefined ? text : prefill;
 

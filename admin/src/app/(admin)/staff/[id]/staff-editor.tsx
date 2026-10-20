@@ -17,6 +17,7 @@ import { ApiError, fieldErrorMap } from "@/lib/api/errors";
 import { isStrongPassword } from "@/lib/password";
 import type { StaffUser } from "@/lib/staff-query";
 import { StaffStatus } from "../staff-table";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
  * One staff account: profile, access, and the two destructive actions.
@@ -41,7 +42,7 @@ export function StaffEditor({
     "deactivate" | "reactivate" | "password" | null
   >(null);
   const [tempPassword, setTempPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useLocaleScopedState<string | null>(null);
 
   function saved(message: string) {
     toast(message);

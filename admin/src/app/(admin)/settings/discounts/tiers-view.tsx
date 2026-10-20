@@ -16,6 +16,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { sortTiers, tierDiscount, tierWarnings, type DiscountTier } from "@/lib/delivery-pricing";
 import { formatAmount } from "@/lib/finance/money";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type Dialog = { kind: "form"; tier: DiscountTier | null } | { kind: "delete"; tier: DiscountTier } | null;
 
@@ -162,7 +163,7 @@ function TierForm({ tier, onClose, onSaved }: { tier: DiscountTier | null; onClo
   const [minimum, setMinimum] = useState<number | null>(tier ? Number(tier.min_subtotal) : null);
   const [percent, setPercent] = useState<number | null>(tier ? tier.percent : null);
   const [active, setActive] = useState(tier?.is_active ?? true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useLocaleScopedState<Record<string, string>>({});
   const money = (value: number) => formatAmount(value, "IQD", 0, locale);
   const shownPercent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2, numberingSystem: "latn" });
   const valid = minimum !== null && minimum >= 0 && percent !== null && percent > 0 && percent <= 50;

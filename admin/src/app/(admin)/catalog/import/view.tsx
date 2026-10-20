@@ -40,6 +40,7 @@ import {
 } from "@/lib/catalog-import";
 import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 const PREVIEW_PAGE = 50;
 
@@ -99,7 +100,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
   const [file, setFile] = useState<File | null>(null);
   const [createMissing, setCreateMissing] = useState(false);
   const [upload, setUpload] = useState<{ phase: "uploading" | "processing"; percent: number } | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useLocaleScopedState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const committingNow = useRef(false);
   const [result, setResult] = useState<CommitResult | null>(null);

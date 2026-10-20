@@ -15,6 +15,7 @@ import { errorCode, errorKind, type ErrorKind } from "@/lib/api/errors";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { stockHref, type Warehouse, type WarehouseLocation } from "@/lib/inventory";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type Editing =
   | { kind: "warehouse"; warehouse: Warehouse | null }
@@ -231,7 +232,6 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
 
 function WarehouseDialog({ warehouse, onClose, onSaved }: { warehouse: Warehouse | null; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("inventory.warehouses");
-  const tErrors = useTranslations("errors");
   const toast = useToast();
   const api = useApiForm();
   const [code, setCode] = useState(warehouse?.code ?? "");
@@ -290,13 +290,12 @@ function LocationDialog({
   onSaved: () => void;
 }) {
   const t = useTranslations("inventory.warehouses");
-  const tErrors = useTranslations("errors");
   const toast = useToast();
   const api = useApiForm();
   const [code, setCode] = useState(location?.code ?? "");
   const [description, setDescription] = useState(location?.description ?? "");
   const [sellable, setSellable] = useState(location?.is_sellable ?? true);
-  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useLocaleScopedState<string | null>(null);
 
   async function submit() {
     if (code.trim().length < 1 || code.trim().length > 40) {

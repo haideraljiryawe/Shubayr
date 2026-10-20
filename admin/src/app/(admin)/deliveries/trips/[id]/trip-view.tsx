@@ -13,7 +13,7 @@ import { usePosting } from "@/components/finance/use-posting";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { TripRefusal } from "@/components/trips/trip-refusal";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, errorCode } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import { CollectionOperation, staffDeliveryFields, type CollectionChoice } from "@/lib/collection";
 import { exceptionHref } from "@/lib/finance/custody-exceptions";
 import { entryHref } from "@/lib/finance/links";

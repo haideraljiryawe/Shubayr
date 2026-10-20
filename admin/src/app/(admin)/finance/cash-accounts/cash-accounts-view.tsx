@@ -19,6 +19,7 @@ import { storeDay } from "@/lib/finance/dates";
 import { decimalPlaces, formatAmount, isPositive } from "@/lib/finance/money";
 import { newOperationId } from "@/lib/finance/operations";
 import type { components } from "@/types/api";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 type CashAccount = components["schemas"]["CashAccount"];
 
@@ -147,7 +148,7 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"cash" | "bank">("cash");
   const [code, setCode] = useState(enabled.find((currency) => currency.isBase)?.code ?? enabled[0]?.code ?? "IQD");
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameError, setNameError] = useLocaleScopedState<string | null>(null);
 
   async function submit() {
     if (name.trim().length < 2) {

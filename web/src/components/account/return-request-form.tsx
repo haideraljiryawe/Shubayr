@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
-  ApiError,
   api,
   type Order,
   type OrderItem,

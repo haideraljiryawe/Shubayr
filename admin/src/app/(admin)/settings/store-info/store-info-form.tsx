@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
+import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import {
   MAX_LENGTH,
   storeInfoApiProblems,

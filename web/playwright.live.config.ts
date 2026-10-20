@@ -51,6 +51,7 @@ export default defineConfig({
     "**/live-account-deletion.spec.ts",
     "**/live-returns.spec.ts",
     "**/live-store-info.spec.ts",
+    "**/live-localized.spec.ts",
   ],
   timeout: 90000,
   use: {

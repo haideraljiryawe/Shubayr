@@ -16,6 +16,7 @@ import {
   type ImageDraft,
   type ImageFailure,
 } from "@/lib/product-images";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 let tileCounter = 0;
 
@@ -50,7 +51,7 @@ export function ImageManager({
   const objectUrls = useRef(new Set<string>());
   const [dropping, setDropping] = useState(false);
   const [dragKey, setDragKey] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useLocaleScopedState<string | null>(null);
 
   useEffect(() => {
     const urls = objectUrls.current;

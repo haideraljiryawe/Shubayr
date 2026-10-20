@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { groupMatched, looksLikeZip, type ImageResult } from "@/lib/catalog-import";
 import { postFile } from "@/lib/file-upload";
 import { OperationKey } from "@/lib/finance/cash-receipts";
+import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
  * Upload a ZIP of pictures named by SKU (SKU.jpg, SKU-2.jpg …) with upload
@@ -22,7 +23,7 @@ export function BulkImagesView() {
   const locale = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<{ phase: "uploading" | "processing"; percent: number } | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useLocaleScopedState<string | null>(null);
   const [result, setResult] = useState<ImageResult | null>(null);
   const operation = useRef(new OperationKey(() => `images-${crypto.randomUUID()}`));
   // Changing the key empties the file input after an upload.

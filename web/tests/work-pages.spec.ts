@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import ar from "../src/messages/ar.json";
 import { FakeApi, gate, signInAs, type Seen } from "./fake-api";
 
 /**
@@ -508,7 +509,7 @@ test.describe("delivery agent", () => {
     expect(second.operation_id).toBe(first.operation_id);
   });
 
-  test("amount not confirmed yet sends no amount, and a refused amount keeps the step with the server's reason", async ({ page }) => {
+  test("amount not confirmed yet sends no amount, and a refused amount keeps the step with the reason in the page's language", async ({ page }) => {
     let current = { ...DELIVERY, status: "out_for_delivery", dispatched_at: new Date().toISOString() };
     serveDeliveries(() => current);
     api.on("PATCH", /^\/deliveries\/[^/]+$/, (seen) => {
@@ -524,7 +525,9 @@ test.describe("delivery agent", () => {
     await page.getByTestId("delivery-action-delivered").click();
     await page.getByTestId("delivery-collected-amount").fill("99");
     await page.getByTestId("delivery-confirm-yes").click();
-    await expect(page.getByTestId("delivery-collection-error")).toContainText("amount due");
+    // The store's own wording, never the API's English message (NOTE-012).
+    await expect(page.getByTestId("delivery-collection-error")).toHaveText(ar.deliveries.collection.amountRefused);
+    await expect(page.getByTestId("delivery-collection-error")).not.toContainText("amount due");
     await expect(page.getByTestId("delivery-collection-step")).toBeVisible();
 
     await page.getByTestId("delivery-collection-unconfirmed").check();
