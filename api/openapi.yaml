@@ -1497,7 +1497,7 @@ paths:
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
         - { name: q, in: query, schema: { type: string, maxLength: 160 }, description: Case-insensitive supplier name or phone search. }
-        - { name: sort_by, in: query, schema: { type: string, enum: [name, recent_purchase], default: name }, description: recent_purchase sorts the latest posted purchase first, with never-used suppliers last. }
+        - { name: sort_by, in: query, schema: { type: string, enum: [name, recent_purchase], default: name }, description: "recent_purchase sorts the latest posted purchase first, with never-used suppliers last." }
       responses:
         "200":
           description: Paginated suppliers
