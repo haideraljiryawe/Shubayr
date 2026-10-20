@@ -26,6 +26,7 @@ export const MODULES = [
   "purchasing",
   "finance",
   "expenses",
+  "reports",
   "deliveryParties",
   "trips",
   "custody",
@@ -37,7 +38,7 @@ export type ModuleKey = (typeof MODULES)[number];
 
 /** ADMIN_MODULES for the launch (production's .env.production.example). */
 export const LAUNCH_MODULES =
-  "catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit";
+  "catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,reports,audit";
 
 /** Each sidebar entry's module; the dashboard belongs to none and always shows. */
 export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
@@ -76,6 +77,7 @@ export const NAV_MODULE: Record<Exclude<NavKey, "dashboard">, ModuleKey> = {
   cashReceipts: "cashReceipts",
   expenses: "expenses",
   expenseCategories: "expenses",
+  reports: "reports",
   audit: "audit",
 };
 
@@ -99,6 +101,7 @@ const ROUTES: ReadonlyArray<[prefix: string, owner: ModuleKey]> = [
   ["/retrievals", "orders"],
   ["/returns", "returns"],
   ["/expenses", "expenses"],
+  ["/reports", "reports"],
   ["/settings", "settings"],
   ["/staff", "users"],
   ["/presets", "users"],

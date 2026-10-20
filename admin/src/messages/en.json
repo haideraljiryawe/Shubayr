@@ -44,7 +44,8 @@
     "returns": "Returns",
     "expenses": "Expenses",
     "expenseCategories": "Expense categories",
-    "banners": "Home banners"
+    "banners": "Home banners",
+    "reports": "Reports"
   },
   "auth": {
     "signIn": "Sign in",
@@ -197,9 +198,24 @@
       "returns": "Review customer returns: approve, receive, inspect and refund.",
       "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
       "expenseCategories": "The kinds of expense and the ledger account each one posts to.",
-      "banners": "The banners at the top of the store's home page: picture, schedule, order and link."
+      "banners": "The banners at the top of the store's home page: picture, schedule, order and link.",
+      "reports": "Sales, profitability, cash, stock and financial statements from posted records."
     },
     "noSections": "Your current permissions don't open any sections yet.",
+    "summary": {
+      "title": "Owner overview",
+      "asOf": "Business date {date}, Baghdad",
+      "todaySales": "Today's net sales",
+      "monthSales": "Month-to-date net sales",
+      "monthProfit": "Month-to-date gross profit",
+      "orders": "{count, plural, one {# order} other {# orders}}",
+      "waitingCalls": "Waiting for confirmation call",
+      "lateOrders": "Late orders",
+      "lowStock": "Low-stock SKUs",
+      "payablesDue": "Payables due in 7 days",
+      "orderStatus": "Orders: {status}",
+      "cashAccount": "Cash on hand: {name}"
+    },
     "firstDay": {
       "title": "Set up your store",
       "body": "A few steps to prepare the store: the catalog and its stock, who you buy from, and who delivers. You can come back to any step later.",
@@ -4348,6 +4364,84 @@
       "image": {
         "required": "Choose a picture for the banner."
       }
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Operational and financial reports from posted records.",
+    "noPermission": "Your current permissions do not open any reports.",
+    "empty": "No posted data matches these filters.",
+    "tableCaption": "Report detail rows",
+    "from": "From",
+    "to": "To",
+    "asOf": "As of",
+    "groupBy": "Group by",
+    "slowDays": "Slow-moving after days",
+    "supplier": "Supplier",
+    "chooseSupplier": "Choose a supplier",
+    "payee": "Payee contains",
+    "apply": "Apply filters",
+    "openPeriod": "This range touches an open accounting period. Totals can change until it is closed.",
+    "totals": "Report totals",
+    "salesChart": "Net sales by day",
+    "expenseChart": "Expenses by category",
+    "yes": "Yes",
+    "no": "No",
+    "names": {
+      "sales": "Sales",
+      "profitability": "Profitability",
+      "profit-loss": "Profit & loss",
+      "trial-balance": "Trial balance",
+      "balance-sheet": "Balance sheet",
+      "cash": "Cash",
+      "delivery-custody": "Delivery custody",
+      "liabilities": "Liabilities",
+      "inventory-valuation": "Inventory valuation",
+      "purchases": "Purchases",
+      "supplier-statement": "Supplier statement",
+      "stock-movement": "Stock movement",
+      "expenses": "Expenses"
+    },
+    "descriptions": {
+      "sales": "Posted sales, discounts, returns and delivery fees.",
+      "profitability": "Net sales, issue cost, gross profit and margin.",
+      "profit-loss": "Current period results with the preceding-period comparison.",
+      "trial-balance": "Every ledger account's debit, credit and balance as of a date.",
+      "balance-sheet": "Assets, liabilities and equity as of a date.",
+      "cash": "Opening, movement and closing balance for each cash account.",
+      "delivery-custody": "Goods and cash still held by each delivery party.",
+      "liabilities": "Supplier, expense and refund liabilities and operational exposures.",
+      "inventory-valuation": "Historical stock quantity and moving-average value.",
+      "purchases": "Purchase quantities, landed costs and supplier returns.",
+      "supplier-statement": "Supplier activity and accounts-payable reconciliation.",
+      "stock-movement": "Opening, receipts, issues, returns, transfers and closing stock.",
+      "expenses": "Recognized expenses, including prepaid amortisation."
+    },
+    "groups": {
+      "day": "Day", "week": "Week", "month": "Month", "department": "Department", "category": "Category", "brand": "Brand", "product": "Product", "sku": "SKU", "period": "Period", "supplier": "Supplier", "payee": "Payee"
+    },
+    "export": {
+      "csv": "Export CSV", "xlsx": "Export XLSX", "progress": "Exporting {done} of {total}", "failed": "The export could not be completed."
+    },
+    "values": {
+      "asset": "Asset", "liability": "Liability", "equity": "Equity", "in": "In stock", "low": "Low stock", "out": "Out of stock",
+      "supplier_payable": "Supplier payable", "accrued_expense": "Accrued expense", "customer_refund": "Customer refund", "unallocated_receipt": "Unallocated receipt",
+      "no_due_date": "No due date", "current": "Current", "1_30": "1–30 days", "31_60": "31–60 days", "61_90": "61–90 days", "90_plus": "Over 90 days",
+      "purchase_invoice": "Purchase invoice", "supplier_payment": "Supplier payment", "supplier_credit": "Supplier credit", "supplier_return": "Supplier return", "expense": "Expense"
+    },
+    "fields": {
+      "group": "Group", "line": "Line", "current": "Current period", "previous": "Previous period", "account": "Account", "type": "Type", "name": "Name", "party": "Delivery party", "cash_account": "Cash account", "sku": "SKU", "product": "Product", "warehouse": "Warehouse", "document_number": "Document", "source_type": "Source", "document_date": "Document date", "currency": "Currency", "due_date": "Due date", "age_days": "Age (days)", "ageing_bucket": "Ageing", "stock_state": "Stock state", "last_sale_date": "Last sale", "slow_moving": "Slow moving",
+      "gross_sales": "Gross sales", "tier_discounts": "Tier discounts", "coupon_discounts": "Coupon discounts", "other_discounts": "Other discounts", "returns": "Returns", "net_sales": "Net sales", "order_count": "Orders", "average_order_value": "Average order value", "original_delivery_fees": "Original delivery fees", "charged_delivery_fees": "Charged delivery fees", "delivery_fee_adjustments": "Delivery fee adjustments", "delivery_fee_refunds": "Delivery fee refunds", "cancelled_count": "Cancelled", "rejected_count": "Rejected",
+      "cost_of_goods_sold": "Cost of goods sold", "return_cost_reversals": "Return cost reversals", "gross_profit": "Gross profit", "margin_percent": "Margin", "inventory_write_downs": "Inventory write-downs",
+      "sales_revenue": "Sales revenue", "delivery_revenue": "Delivery revenue", "sales_returns": "Sales returns", "net_revenue": "Net revenue", "operating_expenses": "Operating expenses", "other_income": "Other income", "other_costs": "Other costs", "net_profit": "Net profit",
+      "debit": "Debit", "credit": "Credit", "balance": "Balance", "debit_total": "Total debit", "credit_total": "Total credit", "balanced": "Balanced", "assets": "Assets", "liabilities": "Liabilities", "equity": "Equity", "current_earnings": "Current earnings", "liabilities_and_equity": "Liabilities + equity",
+      "opening_balance": "Opening balance", "inflows": "Inflows", "outflows": "Outflows", "closing_balance": "Closing balance", "goods_quantity": "Goods quantity", "goods_value": "Goods value", "goods_ledger_balance": "Goods ledger balance", "goods_reconciled": "Goods reconciled", "cash_held": "Cash held", "cash_ledger_balance": "Cash ledger balance", "cash_reconciled": "Cash reconciled", "oldest_goods_age_days": "Oldest goods (days)", "oldest_cash_age_days": "Oldest cash (days)",
+      "supplier_payables": "Supplier payables", "supplier_ledger_balance": "Supplier ledger balance", "supplier_reconciled": "Supplier reconciled", "accrued_expenses": "Accrued expenses", "expense_ledger_balance": "Expense ledger balance", "expenses_reconciled": "Expenses reconciled", "customer_refunds_owed": "Customer refunds owed", "refund_ledger_balance": "Refund ledger balance", "refunds_reconciled": "Refunds reconciled", "other_ledger_liabilities": "Other ledger liabilities", "liability_ledger_total": "Ledger liabilities", "unallocated_customer_receipts": "Unallocated receipts", "unallocated_receipts_ledger_valued": "Receipts ledger-valued", "loyalty_accounts": "Loyalty accounts", "loyalty_points": "Loyalty points", "loyalty_value_iqd": "Loyalty value", "amount": "Amount",
+      "quantity": "Quantity", "moving_average_cost": "Average unit cost", "value": "Value", "inventory_ledger_balance": "Inventory ledger balance", "reconciled": "Reconciled", "out_of_stock_count": "Out-of-stock SKUs", "low_stock_count": "Low-stock SKUs", "slow_moving_count": "Slow-moving SKUs",
+      "purchased_quantity": "Purchased quantity", "returned_quantity": "Returned quantity", "net_quantity": "Net quantity", "goods_cost_iqd": "Goods cost", "landed_cost_iqd": "Landed cost", "purchase_cost_iqd": "Purchase cost", "returns_iqd": "Returns", "net_cost_iqd": "Net cost", "document_count": "Documents",
+      "payments": "Payments", "credits": "Credits", "fx_differences": "FX differences", "supplier_subledger_iqd": "Supplier subledger", "accounts_payable_iqd": "Accounts payable", "difference_iqd": "Difference", "debit_currency": "Debit (document currency)", "credit_currency": "Credit (document currency)", "debit_iqd": "Debit IQD", "credit_iqd": "Credit IQD",
+      "opening_quantity": "Opening quantity", "opening_value_iqd": "Opening value", "receipts_quantity": "Receipts quantity", "receipts_value_iqd": "Receipts value", "sales_quantity": "Sales quantity", "sales_value_iqd": "Sales issue value", "returns_quantity": "Returns quantity", "returns_value_iqd": "Returns value", "transfers_quantity": "Transfer quantity", "transfers_value_iqd": "Transfer value", "counts_write_downs_quantity": "Counts/write-down quantity", "counts_write_downs_value_iqd": "Counts/write-down value", "closing_quantity": "Closing quantity", "closing_value_iqd": "Closing value",
+      "immediate_iqd": "Immediate expenses", "prepaid_amortisation_iqd": "Prepaid amortisation", "corrections_iqd": "Corrections", "total_iqd": "Total expense"
     }
   }
 }

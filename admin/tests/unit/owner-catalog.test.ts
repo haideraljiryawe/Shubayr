@@ -79,12 +79,13 @@ describe("admin modules (ADMIN_MODULES)", () => {
 
   it("launches with purchasing, delivery parties and cash receipts; trips and custody stay off", () => {
     const launch = parseModules(LAUNCH_MODULES);
-    expect(launch).toEqual(["catalog", "stock", "orders", "settings", "users", "returns", "purchasing", "finance", "expenses", "deliveryParties", "cashReceipts", "audit"]);
+    expect(launch).toEqual(["catalog", "stock", "orders", "settings", "users", "returns", "purchasing", "finance", "expenses", "reports", "deliveryParties", "cashReceipts", "audit"]);
     expect(isRouteEnabled("/catalog/products", launch)).toBe(true);
     expect(isRouteEnabled("/orders/1", launch)).toBe(true);
     expect(isRouteEnabled("/purchasing/invoices/new", launch)).toBe(true);
     expect(isRouteEnabled("/delivery-parties", launch)).toBe(true);
     expect(isRouteEnabled("/finance/cash-receipts", launch)).toBe(true);
+    expect(isRouteEnabled("/reports/sales", launch)).toBe(true);
     expect(isRouteEnabled("/deliveries/trips", launch)).toBe(false);
     expect(isRouteEnabled("/deliveries/trips/abc", launch)).toBe(false);
     // Confirming a delivery's cash later is part of orders, on at launch.
@@ -94,7 +95,7 @@ describe("admin modules (ADMIN_MODULES)", () => {
     expect(isRouteEnabled("/", launch)).toBe(true);
     expect(isRouteEnabled("/module-disabled", launch)).toBe(true);
 
-    const all = NAV_ITEMS.flatMap((item) => item.requires);
+    const all = NAV_ITEMS.flatMap((item) => [...item.requires, ...(item.requiresAny ?? [])]);
     const keys = visibleNav(all, undefined, launch).map((item) => item.key);
     expect(keys).toEqual([
       "dashboard",
@@ -131,6 +132,7 @@ describe("admin modules (ADMIN_MODULES)", () => {
       "cashReceipts",
       "expenses",
       "expenseCategories",
+      "reports",
       "audit",
     ]);
     // Trips and custody exceptions are the add-ons still off.

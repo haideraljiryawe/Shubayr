@@ -101,6 +101,7 @@ describe("visibleNav", () => {
         "custody_exceptions.view",
         "delivery_zones.manage",
         "discount_tiers.manage",
+        "reports.sales.read",
       ]),
     ).toHaveLength(NAV_ITEMS.length);
     expect(visibleNav(["deliveries.manage"]).map((item) => item.key)).toEqual([
@@ -108,6 +109,10 @@ describe("visibleNav", () => {
       "deliveryParties",
       // Cash handed in by delivery parties is read with deliveries.manage (API 13.2).
       "cashReceipts",
+    ]);
+    expect(visibleNav(["reports.cash.read"]).map((item) => item.key)).toEqual([
+      "dashboard",
+      "reports",
     ]);
   });
 
