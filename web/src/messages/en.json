@@ -38,7 +38,8 @@
     "decrease": "Decrease quantity",
     "addToWishlist": "Add to wishlist",
     "removeFromWishlist": "Remove from wishlist",
-    "quantity": "Quantity"
+    "quantity": "Quantity",
+    "back": "Back"
   },
   "styleGuide": {
     "title": "Style guide",
@@ -126,7 +127,8 @@
     "browse": "Browse products",
     "chooseOptions": "Choose options",
     "fromPrice": "From",
-    "brand": "Brand"
+    "brand": "Brand",
+    "breadcrumbLabel": "Breadcrumb"
   },
   "home": {
     "categoriesTitle": "Main categories",
@@ -962,7 +964,8 @@
         "confirmed_short": "Collected less than due",
         "unconfirmed": "Amount not confirmed yet"
       },
-      "unconfirmedNext": "The store will confirm the amount you hand in."
+      "unconfirmedNext": "The store will confirm the amount you hand in.",
+      "amountRefused": "That amount is outside what's allowed: it must be between zero and the amount due on the order."
     }
   },
   "inbox": {
@@ -1097,5 +1100,47 @@
     "noAccessLead": "Can't reach your number? Contact us:",
     "or": "or",
     "contactPage": "the Contact us page"
+  },
+  "apiErrors": {
+    "_fallback": "Something went wrong. Please try again.",
+    "_network": "We couldn't reach the store. Check your connection and try again.",
+    "_rateLimited": "Too many attempts. Wait a moment and try again.",
+    "RETURN_WINDOW_EXPIRED": "The return period has ended.",
+    "RETURN_ORDER_NOT_DELIVERED": "Only delivered orders can be returned.",
+    "RETURN_ITEMS_REQUIRED": "Choose at least one item.",
+    "RETURN_ITEM_DUPLICATE": "An item is listed twice.",
+    "RETURN_ITEM_NOT_ON_ORDER": "That item isn't on the order.",
+    "RETURN_QUANTITY_INVALID": "Enter a valid quantity.",
+    "RETURN_QUANTITY_EXCEEDS_ELIGIBLE": "That's more than can be returned.",
+    "RETURN_QUANTITY_PRECISION": "Quantities take at most 3 decimal places.",
+    "RETURN_INVALID_STATE": "Someone else already moved this return to another step. Reload the page to see where it is.",
+    "RETURN_NOT_FOUND": "The return no longer exists.",
+    "SKU_WHOLE_UNITS_ONLY": "This SKU is sold in whole units only.",
+    "IDEMPOTENCY_KEY_REUSED": "This request was already sent with different details. Start it again.",
+    "ORDER_NOT_FOUND": "The order no longer exists.",
+    "ORDER_ACCESS_FORBIDDEN": "You can't open this order.",
+    "ORDER_CANCELLATION_NOT_ALLOWED": "This order can't be cancelled now.",
+    "PAID_COD_CANCELLATION_FORBIDDEN": "A paid order can't be cancelled.",
+    "CANCELLATION_REQUEST_ALREADY_PENDING": "A cancellation request is already waiting.",
+    "CANCELLATION_REQUEST_NOT_ALLOWED": "A cancellation can't be requested now.",
+    "STALE_ORDER_STATE": "The order changed meanwhile. Reload and try again.",
+    "ORDER_TRANSITION_NOT_ALLOWED": "The order can't move to that status now.",
+    "DELIVERY_ZONE_NOT_SERVED": "The store doesn't deliver there.",
+    "ADDRESS_GOVERNORATE_REQUIRED": "Choose the governorate.",
+    "ONLY_DEFAULT_ADDRESS_REQUIRED": "The only address must stay the default.",
+    "GOVERNORATE_NOT_AVAILABLE": "This governorate isn't available.",
+    "PRODUCT_ORDER_LIMIT_EXCEEDED": "That's more than one order may take of this product.",
+    "REQUESTED_QUANTITY_UNAVAILABLE": "That quantity isn't available.",
+    "INSUFFICIENT_STOCK": "There isn't enough stock.",
+    "PRICE_CHANGED": "A price changed. Review the order again.",
+    "CART_EMPTY": "The cart is empty.",
+    "COUPON_INVALID": "That coupon can't be used.",
+    "LOYALTY_POINTS_INSUFFICIENT": "There aren't enough points.",
+    "SMS_NOT_CONFIGURED": "Text messages aren't set up yet.",
+    "OTP_DELIVERY_UNAVAILABLE": "The code couldn't be sent right now. Try again shortly.",
+    "ACCOUNT_DELETION_BLOCKED": "The account can't be deleted yet.",
+    "PERMISSION_DENIED": "You don't have permission for this.",
+    "DELIVERY_PARTY_INACTIVE": "This delivery party is inactive.",
+    "PERIOD_CLOSED": "That accounting period is closed."
   }
 }

@@ -92,6 +92,7 @@ function Progress({ value, label, testId }: { value: number; label: string; test
  */
 export function CatalogImportView({ initial, canPostStock }: { initial: CatalogImport | null; canPostStock: boolean }) {
   const t = useTranslations("catalogImport");
+  const tErrors = useTranslations("errors");
   const locale = useLocale();
   const router = useRouter();
   const [current, setCurrent] = useState<CatalogImport | null>(initial);
@@ -171,7 +172,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     if (cause instanceof ApiError) {
       if (cause.code && t.has(`errors.${cause.code}`)) return t(`errors.${cause.code}`);
       if (cause.status === 413) return t("errors.tooLarge");
-      if (cause.message) return cause.message;
+      if (cause.code && tErrors.has(`codes.${cause.code}`)) return tErrors(`codes.${cause.code}`);
     }
     return t("errors.generic");
   }
@@ -415,7 +416,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                         <code dir="ltr" className="text-xs">
                           {row.sku ?? "—"}
                         </code>
-                        <span dir="auto">{row.commit_error?.message ?? row.commit_error?.code ?? ""}</span>
+                        <span>{row.commit_error?.code && tErrors.has(`codes.${row.commit_error.code}`) ? tErrors(`codes.${row.commit_error.code}`) : tErrors("codes.CATALOG_IMPORT_ROW_FAILED")}</span>
                       </li>
                     ))}
                   </ul>
@@ -575,7 +576,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                           <span className="text-text-muted">{t(`issues.${issue.code}.fix`)}</span>
                                         </>
                                       ) : (
-                                        <span dir="auto">{issue.message}</span>
+                                        <span>{tErrors("fields.invalid")}</span>
                                       )}
                                     </span>
                                   </li>

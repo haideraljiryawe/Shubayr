@@ -78,7 +78,7 @@ export function BrandQuickCreate({
           <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="brand-quick-name-en" />
         </Field>
       </div>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

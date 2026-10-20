@@ -2,7 +2,7 @@
   "brand": {
     "name": "Shubayr",
     "tagline": "كل ما تحتاجه في مكان واحد",
-    "strapline": "Modern · Simple · Everywhere",
+    "strapline": "عصري · بسيط · في كل مكان",
     "officialName": "Shubayr"
   },
   "nav": {
@@ -38,7 +38,8 @@
     "decrease": "إنقاص الكمية",
     "addToWishlist": "أضف إلى المفضلة",
     "removeFromWishlist": "إزالة من المفضلة",
-    "quantity": "الكمية"
+    "quantity": "الكمية",
+    "back": "رجوع"
   },
   "styleGuide": {
     "title": "دليل التصميم",
@@ -126,7 +127,8 @@
     "browse": "تصفّح المنتجات",
     "chooseOptions": "اختر الخيارات",
     "fromPrice": "يبدأ من",
-    "brand": "العلامة التجارية"
+    "brand": "العلامة التجارية",
+    "breadcrumbLabel": "مسار التنقل"
   },
   "home": {
     "categoriesTitle": "الأقسام الرئيسية",
@@ -962,7 +964,8 @@
         "confirmed_short": "استُلم أقل من المستحق",
         "unconfirmed": "المبلغ غير مؤكد بعد"
       },
-      "unconfirmedNext": "سيؤكد المتجر المبلغ الذي تسلّمه."
+      "unconfirmedNext": "سيؤكد المتجر المبلغ الذي تسلّمه.",
+      "amountRefused": "المبلغ خارج الحدود المسموحة: يجب أن يكون بين صفر والمبلغ المستحق على الطلب."
     }
   },
   "inbox": {
@@ -1097,5 +1100,47 @@
     "noAccessLead": "لا تستطيع الوصول إلى رقمك؟ تواصل معنا:",
     "or": "أو",
     "contactPage": "صفحة «اتصل بنا»"
+  },
+  "apiErrors": {
+    "_fallback": "حدث خطأ. حاول مرة أخرى.",
+    "_network": "تعذّر الوصول إلى المتجر. تحقق من الاتصال وحاول مرة أخرى.",
+    "_rateLimited": "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
+    "RETURN_WINDOW_EXPIRED": "انتهت مدة الإرجاع.",
+    "RETURN_ORDER_NOT_DELIVERED": "يمكن إرجاع الطلبات المسلّمة فقط.",
+    "RETURN_ITEMS_REQUIRED": "اختر صنفًا واحدًا على الأقل.",
+    "RETURN_ITEM_DUPLICATE": "صنف مكرر.",
+    "RETURN_ITEM_NOT_ON_ORDER": "هذا الصنف ليس في الطلب.",
+    "RETURN_QUANTITY_INVALID": "أدخل كمية صحيحة.",
+    "RETURN_QUANTITY_EXCEEDS_ELIGIBLE": "الكمية أكبر مما يمكن إرجاعه.",
+    "RETURN_QUANTITY_PRECISION": "الكميات 3 منازل عشرية كحد أقصى.",
+    "RETURN_INVALID_STATE": "نقل شخص آخر هذا المرتجع إلى خطوة أخرى. أعد تحميل الصفحة لترى أين وصل.",
+    "RETURN_NOT_FOUND": "طلب الإرجاع لم يعد موجودًا.",
+    "SKU_WHOLE_UNITS_ONLY": "هذا النوع يُباع بوحدات كاملة فقط.",
+    "IDEMPOTENCY_KEY_REUSED": "أُرسل هذا الطلب سابقًا بتفاصيل مختلفة. ابدأه من جديد.",
+    "ORDER_NOT_FOUND": "الطلب لم يعد موجودًا.",
+    "ORDER_ACCESS_FORBIDDEN": "لا يمكنك فتح هذا الطلب.",
+    "ORDER_CANCELLATION_NOT_ALLOWED": "لا يمكن إلغاء هذا الطلب الآن.",
+    "PAID_COD_CANCELLATION_FORBIDDEN": "لا يمكن إلغاء طلب مدفوع.",
+    "CANCELLATION_REQUEST_ALREADY_PENDING": "يوجد طلب إلغاء بانتظار القرار.",
+    "CANCELLATION_REQUEST_NOT_ALLOWED": "لا يمكن طلب الإلغاء الآن.",
+    "STALE_ORDER_STATE": "تغيّر الطلب في الأثناء. حدّث الصفحة وحاول مجددًا.",
+    "ORDER_TRANSITION_NOT_ALLOWED": "لا يمكن نقل الطلب إلى هذه الحالة الآن.",
+    "DELIVERY_ZONE_NOT_SERVED": "المتجر لا يوصّل إلى هناك.",
+    "ADDRESS_GOVERNORATE_REQUIRED": "اختر المحافظة.",
+    "ONLY_DEFAULT_ADDRESS_REQUIRED": "يجب أن يبقى العنوان الوحيد افتراضيًا.",
+    "GOVERNORATE_NOT_AVAILABLE": "هذه المحافظة غير متاحة.",
+    "PRODUCT_ORDER_LIMIT_EXCEEDED": "هذه الكمية أكثر مما يسمح به الطلب الواحد من هذا المنتج.",
+    "REQUESTED_QUANTITY_UNAVAILABLE": "هذه الكمية غير متوفرة.",
+    "INSUFFICIENT_STOCK": "المخزون غير كافٍ.",
+    "PRICE_CHANGED": "تغيّر سعر. راجع الطلب مرة أخرى.",
+    "CART_EMPTY": "السلة فارغة.",
+    "COUPON_INVALID": "لا يمكن استخدام هذه القسيمة.",
+    "LOYALTY_POINTS_INSUFFICIENT": "النقاط غير كافية.",
+    "SMS_NOT_CONFIGURED": "خدمة الرسائل النصية غير مُعدّة بعد.",
+    "OTP_DELIVERY_UNAVAILABLE": "تعذّر إرسال الرمز الآن. حاول بعد قليل.",
+    "ACCOUNT_DELETION_BLOCKED": "لا يمكن حذف الحساب بعد.",
+    "PERMISSION_DENIED": "لا تملك صلاحية لهذا الإجراء.",
+    "DELIVERY_PARTY_INACTIVE": "جهة التوصيل هذه غير نشطة.",
+    "PERIOD_CLOSED": "الفترة المحاسبية مقفلة."
   }
 }

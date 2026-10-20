@@ -313,8 +313,9 @@ test("a pending order cancels directly; a confirmed one only takes a request the
 
   await signIn(page, `/account/orders/${pending.id}`);
   await expect(page.getByTestId("order-request-cancel")).toHaveCount(0);
-  page.once("dialog", (prompt) => void prompt.accept());
+  // The store asks in its own dialog (NOTE-012), not the browser's confirm().
   await page.getByTestId("order-cancel").click();
+  await page.getByTestId("order-cancel-dialog-confirm").click();
   const headers = bearer(await customerToken(request));
   await expect
     .poll(

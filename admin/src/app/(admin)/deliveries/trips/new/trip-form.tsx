@@ -12,7 +12,7 @@ import { PartySearch, type PartyChoice } from "@/components/parties/party-search
 import { DocumentDateFields, documentDateError, type DocumentDateValue } from "@/components/purchasing/document-date";
 import { TripRefusal } from "@/components/trips/trip-refusal";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { errorKind } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import type { CashAccountOption } from "@/lib/api/purchasing-server";
 import { OperationKey } from "@/lib/finance/cash-receipts";
 import { FARE_METHODS, tripHref, tripRefusal, type FareBearer, type FareMethod, type Trip } from "@/lib/trips";
@@ -138,7 +138,7 @@ export function TripForm({
         </ul>
       ) : null}
       {posting.state.phase === "error" ? (
-        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} detail={posting.state.error.message} />
+        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} />
       ) : null}
       <div className="flex justify-end">
         <Button pending={busy} onClick={() => void submit()} data-testid="trip-submit">

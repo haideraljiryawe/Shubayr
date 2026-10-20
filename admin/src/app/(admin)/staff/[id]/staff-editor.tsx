@@ -33,6 +33,7 @@ export function StaffEditor({
   catalog: AccessCatalog | null;
 }) {
   const t = useTranslations("staff");
+  const tErrors = useTranslations("errors");
   const router = useRouter();
   const toast = useToast();
 
@@ -139,7 +140,7 @@ export function StaffEditor({
             );
           } catch (cause) {
             if (cause instanceof ApiError)
-              setPasswordError(fieldErrorMap(cause.errors).password ?? null);
+              setPasswordError(fieldErrorMap(cause.errors, tErrors).password ?? null);
             throw cause;
           }
           setTempPassword("");
@@ -205,7 +206,7 @@ function ProfileSection({
         }}
       >
         <h2 className="text-lg font-bold">{t("profileTitle")}</h2>
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
         <div className="grid gap-4 md:grid-cols-2">
           <Field
             label={t("fields.name")}
@@ -322,7 +323,7 @@ function AccessSection({
           <h2 className="text-lg font-bold">{t("accessTitle")}</h2>
           <p className="text-sm text-text-muted">{t("accessHint")}</p>
         </div>
-        <FormError kind={form.formError} detail={form.formErrorDetail} />
+        <FormError kind={form.formError} code={form.formErrorCode} />
         <AccessFields
           catalog={catalog}
           presetIds={presetIds}

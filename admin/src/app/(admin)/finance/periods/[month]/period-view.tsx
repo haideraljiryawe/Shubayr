@@ -112,7 +112,7 @@ export function PeriodView({
               <Field label={t("closeNote")} name="reason" hint={t("closeNoteHint")} error={api.fieldErrors.reason}>
                 <Textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} data-testid="close-note" />
               </Field>
-              <FormError kind={api.formError} detail={api.formErrorDetail} />
+              <FormError kind={api.formError} code={api.formErrorCode} />
               <div className="flex justify-end">
                 <Button onClick={() => void close()} pending={api.pending} disabled={!checklist.can_close} data-testid="period-close">
                   {t("close")}

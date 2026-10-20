@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { Field } from "@/components/forms/field";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { FormError } from "@/components/forms/form-error";
+import { errorCode, errorKind, type ErrorKind } from "@/lib/api/errors";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { stockHref, type Warehouse, type WarehouseLocation } from "@/lib/inventory";
@@ -23,11 +24,12 @@ type Deleting = { kind: "warehouse"; id: string; label: string } | { kind: "loca
 
 export function WarehousesView({ warehouses, canManage }: { warehouses: Warehouse[]; canManage: boolean }) {
   const t = useTranslations("inventory.warehouses");
+  const tErrors = useTranslations("errors");
   const router = useRouter();
   const toast = useToast();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<Deleting | null>(null);
-  const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
+  const [toggleError, setToggleError] = useState<{ id: string; kind: ErrorKind; code: string | null } | null>(null);
 
   /** Deactivate or reactivate; the API refuses to deactivate while stock remains. */
   async function setActive(kind: "warehouse" | "location", id: string, active: boolean) {
@@ -41,7 +43,7 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
       toast(active ? t("activated") : t("deactivated"));
       router.refresh();
     } catch (cause) {
-      setToggleError({ id, message: cause instanceof Error ? cause.message : t("toggleFailed") });
+      setToggleError({ id, kind: errorKind(cause), code: errorCode(cause) ?? null });
     }
   }
 
@@ -92,8 +94,8 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
               </div>
             ) : null}
           </div>
-          {toggleError?.id === warehouse.id ? (
-            <FormError kind="conflict" detail={toggleError?.message} />
+          {toggleError && toggleError.id === warehouse.id ? (
+            <FormError kind={toggleError.kind} code={toggleError.code} />
           ) : null}
 
           <div className="overflow-x-auto">
@@ -132,9 +134,9 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
                         <Badge tone={location.is_active ? "success" : "neutral"} data-testid="location-status">
                           {location.is_active ? t("active") : t("inactive")}
                         </Badge>
-                        {toggleError?.id === location.id ? (
+                        {toggleError && toggleError.id === location.id ? (
                           <span className="mt-1 block text-xs font-semibold text-error-dark" role="alert" data-testid="location-toggle-error">
-                            {toggleError?.message}
+                            {toggleError.code && tErrors.has(`codes.${toggleError.code}`) ? tErrors(`codes.${toggleError.code}`) : tErrors(toggleError.kind)}
                           </span>
                         ) : null}
                       </td>
@@ -229,6 +231,7 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
 
 function WarehouseDialog({ warehouse, onClose, onSaved }: { warehouse: Warehouse | null; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("inventory.warehouses");
+  const tErrors = useTranslations("errors");
   const toast = useToast();
   const api = useApiForm();
   const [code, setCode] = useState(warehouse?.code ?? "");
@@ -270,7 +273,7 @@ function WarehouseDialog({ warehouse, onClose, onSaved }: { warehouse: Warehouse
           <Input value={name} maxLength={120} onChange={(event) => setName(event.target.value)} data-testid="warehouse-name" />
         </Field>
       </div>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }
@@ -287,6 +290,7 @@ function LocationDialog({
   onSaved: () => void;
 }) {
   const t = useTranslations("inventory.warehouses");
+  const tErrors = useTranslations("errors");
   const toast = useToast();
   const api = useApiForm();
   const [code, setCode] = useState(location?.code ?? "");
@@ -334,7 +338,7 @@ function LocationDialog({
           <span className="block text-xs text-text-muted">{t("sellableHint")}</span>
         </span>
       </label>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

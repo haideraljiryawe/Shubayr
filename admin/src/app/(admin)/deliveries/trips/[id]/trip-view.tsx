@@ -13,7 +13,7 @@ import { usePosting } from "@/components/finance/use-posting";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { TripRefusal } from "@/components/trips/trip-refusal";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind } from "@/lib/api/errors";
+import { ApiError, errorKind, errorCode } from "@/lib/api/errors";
 import { CollectionOperation, staffDeliveryFields, type CollectionChoice } from "@/lib/collection";
 import { exceptionHref } from "@/lib/finance/custody-exceptions";
 import { entryHref } from "@/lib/finance/links";
@@ -308,7 +308,7 @@ function DeliverPanel({ order, onDone }: { order: TripOrder; onDone: (notice: No
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-md bg-card p-3" data-testid="trip-deliver-panel">
       <CollectionFields due={order.amount_to_collect_iqd} currency="IQD" choice={choice} onChoice={setChoice} amount={amount} onAmount={setAmount} allowUnconfirmed />
-      {posting.state.phase === "error" ? <FormError kind={errorKind(posting.state.error)} detail={posting.state.error.message} /> : null}
+      {posting.state.phase === "error" ? <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} /> : null}
       <div className="flex justify-end">
         <Button pending={busy} onClick={() => void confirm()} data-testid="trip-deliver-confirm">
           {t("actions.confirmDelivered")}
@@ -344,7 +344,7 @@ function FailPanel({ order, onDone }: { order: TripOrder; onDone: (notice: Notic
       <Field label={t("actions.failReason")} name="reason" error={attempted && reason.trim().length < 3 ? t("actions.failReasonRequired") : null}>
         <Textarea value={reason} maxLength={500} rows={2} disabled={busy} onChange={(event) => setReason(event.target.value)} data-testid="trip-fail-reason" />
       </Field>
-      {posting.state.phase === "error" ? <FormError kind={errorKind(posting.state.error)} detail={posting.state.error.message} /> : null}
+      {posting.state.phase === "error" ? <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} /> : null}
       <div className="flex justify-end">
         <Button variant="danger" pending={busy} onClick={() => void confirm()} data-testid="trip-fail-confirm">
           {t("actions.confirmFailed")}
@@ -428,7 +428,7 @@ function AddOrders({ trip, onDone }: { trip: Trip; onDone: (notice: Notice) => v
         ) : null}
       </div>
       {posting.state.phase === "error" ? (
-        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} detail={posting.state.error.message} />
+        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} />
       ) : null}
       {rows === null ? null : rows.length === 0 ? (
         <p className="text-sm text-text-muted" data-testid="trip-add-none">
@@ -482,7 +482,7 @@ function StartTrip({ trip, onDone }: { trip: Trip; onDone: (notice: Notice) => v
         {totals.left === 0n ? t("detail.sharesMatch", { fare: money(totals.fare) }) : t("detail.sharesOff", { shares: money(totals.shares), fare: money(totals.fare) })}
       </p>
       {posting.state.phase === "error" ? (
-        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} detail={posting.state.error.message} />
+        tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} />
       ) : null}
       <div className="flex justify-end">
         <Button pending={busy} onClick={() => void start()} data-testid="trip-start-button">
@@ -546,7 +546,7 @@ function CloseTrip({ trip, today, onDone }: { trip: Trip; today: string; onDone:
                 : t("detail.previewOver", { expected: money(preview.expected), received: money(preview.received), difference: money(-preview.outstanding) })}
           </p>
           {preview.nettingTooLarge ? <Alert data-testid="trip-close-netting">{t("refusals.nettingTooLarge")}</Alert> : null}
-          {error ? tripRefusal(error) ? <TripRefusal error={error} orders={trip.orders} /> : <FormError kind={errorKind(error)} detail={error instanceof ApiError ? error.message : null} /> : null}
+          {error ? tripRefusal(error) ? <TripRefusal error={error} orders={trip.orders} /> : <FormError kind={errorKind(error)} code={errorCode(error)} /> : null}
           {posting.state.phase === "posted" ? null : (
             <div className="flex justify-end gap-2">
               <Button variant="ghost" disabled={busy} onClick={() => setReview(false)}>

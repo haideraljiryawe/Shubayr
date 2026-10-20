@@ -186,7 +186,7 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
             </Select>
           </Field>
         </div>
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end">
           <Button type="submit" pending={api.pending} data-testid="account-create-submit">
             <Plus className="size-4" aria-hidden />
@@ -232,7 +232,7 @@ function EditAccount({ account, onDone, onCancel }: { account: CashAccount; onDo
             {t("active")}
           </label>
         </div>
-        <FormError kind={api.formError} detail={api.formErrorDetail} />
+        <FormError kind={api.formError} code={api.formErrorCode} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>{t("cancel")}</Button>
           <Button type="submit" pending={api.pending} data-testid="account-edit-submit">{t("save")}</Button>
@@ -256,12 +256,13 @@ function OpeningBalance({
 }) {
   const t = useTranslations("cashAccounts");
   const posting = usePosting();
+  const tErrors = useTranslations("errors");
   const [operationId] = useState(newOperationId);
   const [amount, setAmount] = useState<string | null>(null);
   const [date, setDate] = useState(storeDay());
   const [backdateReason, setBackdateReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors) : {};
+  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors, tErrors) : {};
 
   async function submit() {
     const found: Record<string, string> = {};
@@ -336,6 +337,7 @@ function TransferPanel({
   const t = useTranslations("cashAccounts");
   const locale = useLocale();
   const posting = usePosting();
+  const tErrors = useTranslations("errors");
   const active = accounts.filter((account) => account.is_active);
   const [fromId, setFromId] = useState(active[0]?.id ?? "");
   const from = active.find((account) => account.id === fromId) ?? null;
@@ -350,7 +352,7 @@ function TransferPanel({
   const [review, setReview] = useState<{ operationId: string } | null>(null);
   const [generation, setGeneration] = useState(0);
   const precision = from ? precisionOf(currencies, from.currency_code) : 0;
-  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors) : {};
+  const server = posting.state.phase === "error" ? fieldErrorMap(posting.state.error.errors, tErrors) : {};
   const posted = posting.state.phase === "posted";
 
   if (active.length < 2) {

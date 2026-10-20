@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Alert, Button } from "@/components/ui";
 import { FormError } from "@/components/forms/form-error";
-import { errorKind } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import { documentHref, entryHref } from "@/lib/finance/links";
 import { isClosedPeriod } from "@/lib/finance/operations";
 import type { PostingState } from "./use-posting";
@@ -63,7 +63,7 @@ export function PostingStatus({
       return isClosedPeriod(state.error) ? (
         <Alert data-testid="posting-period-closed">{t("periodClosed")}</Alert>
       ) : (
-        <FormError kind={errorKind(state.error)} detail={state.error.message} />
+        <FormError kind={errorKind(state.error)} code={errorCode(state.error)} />
       );
     default:
       return null;

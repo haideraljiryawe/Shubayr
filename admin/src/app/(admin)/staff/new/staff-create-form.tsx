@@ -69,7 +69,7 @@ export function StaffCreateForm({
         void submit();
       }}
     >
-      <FormError kind={form.formError} detail={form.formErrorDetail} />
+      <FormError kind={form.formError} code={form.formErrorCode} />
 
       <Card className="grid gap-5 md:grid-cols-2">
         <Field

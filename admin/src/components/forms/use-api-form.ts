@@ -1,21 +1,37 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ApiError,
   errorKind,
   fieldErrorMap,
   type ErrorKind,
+  type FieldError,
 } from "@/lib/api/errors";
 
 export interface ApiFormState {
   pending: boolean;
-  /** 422 messages keyed by top-level field name. */
+  /** 422 messages keyed by top-level field name, in the current language. */
   fieldErrors: Record<string, string>;
   /** What went wrong at the form level, if anything. */
   formError: ErrorKind | null;
-  /** The API's own message for the form-level error, as a fallback detail. */
-  formErrorDetail: string | null;
+  /** The failure's documented code, for FormError's specific message. */
+  formErrorCode: string | null;
+}
+
+interface Stored {
+  pending: boolean;
+  /** The API's field errors, kept as codes and translated at render time. */
+  apiFieldErrors: FieldError[];
+  /** Client-side messages a form set itself (already in a language). */
+  clientFieldErrors: Record<string, string>;
+  /** Fields the person has edited since the errors arrived. */
+  cleared: string[];
+  formError: ErrorKind | null;
+  formErrorCode: string | null;
+  /** The language the client messages were written in. */
+  locale: string;
 }
 
 /**
@@ -26,22 +42,35 @@ export interface ApiFormState {
  * a network error) becomes one form-level message. `run` resolves to the
  * result on success and to `undefined` on failure, so callers only branch on
  * success.
+ *
+ * Messages are never the API's English text (NOTE-012): field errors and the
+ * form-level code are kept as codes and translated when shown, so switching
+ * the language re-words them; messages a form set itself are cleared on a
+ * switch rather than left in the old language.
  */
 export function useApiForm() {
-  const [state, setState] = useState<ApiFormState>({
+  const t = useTranslations("errors");
+  const locale = useLocale();
+  const [state, setState] = useState<Stored>({
     pending: false,
-    fieldErrors: {},
+    apiFieldErrors: [],
+    clientFieldErrors: {},
+    cleared: [],
     formError: null,
-    formErrorDetail: null,
+    formErrorCode: null,
+    locale,
   });
 
   const run = useCallback(
     async <T>(action: () => Promise<T>): Promise<T | undefined> => {
       setState({
         pending: true,
-        fieldErrors: {},
+        apiFieldErrors: [],
+        clientFieldErrors: {},
+        cleared: [],
         formError: null,
-        formErrorDetail: null,
+        formErrorCode: null,
+        locale,
       });
       try {
         const result = await action();
@@ -49,40 +78,52 @@ export function useApiForm() {
         return result;
       } catch (cause) {
         const kind = errorKind(cause);
-        const fieldErrors =
-          cause instanceof ApiError && kind === "validation"
-            ? fieldErrorMap(cause.errors)
-            : {};
+        const apiFieldErrors = cause instanceof ApiError && kind === "validation" ? cause.errors : [];
         setState({
           pending: false,
-          fieldErrors,
+          apiFieldErrors,
+          clientFieldErrors: {},
+          cleared: [],
           // A 422 whose errors all landed on fields needs no banner.
-          formError:
-            kind === "validation" && Object.keys(fieldErrors).length > 0
-              ? null
-              : kind,
-          formErrorDetail: cause instanceof ApiError ? cause.message : null,
+          formError: kind === "validation" && apiFieldErrors.length > 0 ? null : kind,
+          formErrorCode: cause instanceof ApiError ? (cause.code ?? null) : null,
+          locale,
         });
         return undefined;
       }
     },
-    [],
+    [locale],
   );
 
   /** Clear one field's error as soon as the person edits it. */
   const clearField = useCallback((name: string) => {
     setState((current) => {
-      if (!(name in current.fieldErrors)) return current;
-      const rest = { ...current.fieldErrors };
-      delete rest[name];
-      return { ...current, fieldErrors: rest };
+      if (current.cleared.includes(name)) return current;
+      const client = { ...current.clientFieldErrors };
+      delete client[name];
+      return { ...current, clientFieldErrors: client, cleared: [...current.cleared, name] };
     });
   }, []);
 
   /** Show a client-side validation message the same way as the API's. */
-  const setFieldErrors = useCallback((fieldErrors: Record<string, string>) => {
-    setState((current) => ({ ...current, fieldErrors }));
-  }, []);
+  const setFieldErrors = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      setState((current) => ({ ...current, clientFieldErrors: fieldErrors, cleared: [], locale }));
+    },
+    [locale],
+  );
 
-  return { ...state, run, clearField, setFieldErrors };
+  const client = state.locale === locale ? state.clientFieldErrors : {};
+  const fieldErrors: Record<string, string> = {};
+  for (const [name, message] of Object.entries({ ...fieldErrorMap(state.apiFieldErrors, t), ...client })) {
+    if (!state.cleared.includes(name)) fieldErrors[name] = message;
+  }
+
+  const view: ApiFormState = {
+    pending: state.pending,
+    fieldErrors,
+    formError: state.formError,
+    formErrorCode: state.formErrorCode,
+  };
+  return { ...view, run, clearField, setFieldErrors };
 }

@@ -113,7 +113,7 @@ export function SupplierDialog({
           <Textarea value={notes} maxLength={2000} onChange={(event) => setNotes(event.target.value)} />
         </Field>
       )}
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

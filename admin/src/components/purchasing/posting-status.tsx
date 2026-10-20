@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Alert, Button } from "@/components/ui";
 import { FormError } from "@/components/forms/form-error";
 import type { PostingState } from "@/components/finance/use-posting";
-import { errorKind } from "@/lib/api/errors";
+import { errorKind, errorCode } from "@/lib/api/errors";
 import { entryHref } from "@/lib/finance/links";
 import { isClosedPeriod } from "@/lib/finance/operations";
 import { isMissingRate, isRateOverrideForbidden, isSeparationOfDuties } from "@/lib/purchasing";
@@ -95,7 +95,7 @@ export function PurchasingPostingStatus<T extends Posted>({
             </Link>
           </Alert>
         );
-      return <FormError kind={errorKind(state.error)} detail={state.error.message} />;
+      return <FormError kind={errorKind(state.error)} code={errorCode(state.error)} />;
     default:
       return null;
   }

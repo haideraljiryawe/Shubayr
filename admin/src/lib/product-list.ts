@@ -140,13 +140,17 @@ export interface BulkOutcome {
   lines: BulkLine[];
 }
 
-/** The API's per-product results, named and ordered for the report. */
-export function bulkOutcome(result: BulkResult, nameOf: (id: string) => string, unknown: string): BulkOutcome {
+/**
+ * The API's per-product results, named and ordered for the report. A
+ * failure is worded from its code by `describe` (the person's language),
+ * never from the API's English message.
+ */
+export function bulkOutcome(result: BulkResult, nameOf: (id: string) => string, describe: (code: string | undefined) => string): BulkOutcome {
   const lines = result.results.map((item) => ({
     id: item.id,
     name: nameOf(item.id),
     ok: item.status === "updated",
-    message: item.status === "updated" ? null : (item.message ?? item.code ?? unknown),
+    message: item.status === "updated" ? null : describe(item.code ?? undefined),
   }));
   lines.sort((a, b) => Number(a.ok) - Number(b.ok));
   const failed = lines.filter((line) => !line.ok).length;

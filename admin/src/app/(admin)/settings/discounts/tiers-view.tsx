@@ -13,7 +13,7 @@ import { FormError } from "@/components/forms/form-error";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
-import { ApiError, errorKind, type ErrorKind } from "@/lib/api/errors";
+import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { sortTiers, tierDiscount, tierWarnings, type DiscountTier } from "@/lib/delivery-pricing";
 import { formatAmount } from "@/lib/finance/money";
 
@@ -31,7 +31,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
   const toast = useToast();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toggling, setToggling] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; detail: string } | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; kind: ErrorKind; errorCode: string | null } | null>(null);
   const money = (value: number) => formatAmount(value, "IQD", 0, locale);
   const percent = (value: number) => value.toLocaleString(locale === "ar" ? "ar-IQ" : "en-US", { maximumFractionDigits: 2, numberingSystem: "latn" });
   const warnings = tierWarnings(tiers);
@@ -46,7 +46,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
       );
       router.refresh();
     } catch (cause) {
-      setRowError({ id: tier.id, kind: errorKind(cause), detail: cause instanceof Error ? cause.message : "" });
+      setRowError({ id: tier.id, kind: errorKind(cause), errorCode: errorCode(cause) ?? null });
     } finally {
       setToggling(null);
     }
@@ -115,7 +115,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
                       {t("delete")}
                     </Button>
                   </div>
-                  {rowError?.id === tier.id ? <FormError kind={rowError.kind} detail={rowError.detail} /> : null}
+                  {rowError?.id === tier.id ? <FormError kind={rowError.kind} code={rowError.errorCode} /> : null}
                 </Card>
               </li>
             );
@@ -217,7 +217,7 @@ function TierForm({ tier, onClose, onSaved }: { tier: DiscountTier | null; onClo
           ? t("example", { subtotal: money(minimum), percent: shownPercent(percent), discount: money(tierDiscount(minimum, percent)) })
           : t("exampleEmpty")}
       </div>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

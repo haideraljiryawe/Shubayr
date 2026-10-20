@@ -43,20 +43,99 @@ export function toApiError(status: number, body: unknown): ApiError {
   );
 }
 
+/* ---------------------------------------------------------------------------
+ * Messages people see (NOTE-012): by code, in the person's language — never
+ * the API's English message text, which is for logs and developers.
+ *
+ * - A top-level code (PERIOD_CLOSED, …) has its own message in errors.codes
+ *   when the contract documents it; otherwise the error's kind speaks.
+ * - A field error's code is a validator name (isNotEmpty, maxLength, …) or a
+ *   documented business code; both map to a message, and anything else gets
+ *   the field fallback "Check this value".
+ * ------------------------------------------------------------------------- */
+
+/** The translator the describers need (next-intl's `t`, scoped to "errors"). */
+export interface ErrorTranslator {
+  (key: string): string;
+  has(key: string): boolean;
+}
+
+/** class-validator constraint names → errors.fields keys. */
+export const FIELD_CODE_MESSAGES: Record<string, string> = {
+  isNotEmpty: "required",
+  isDefined: "required",
+  arrayNotEmpty: "required",
+  maxLength: "tooLong",
+  arrayMaxSize: "tooLong",
+  minLength: "tooShort",
+  arrayMinSize: "tooShort",
+  isLength: "tooLong",
+  isNumber: "number",
+  isNumberString: "number",
+  isDecimal: "number",
+  isNumeric: "number",
+  isInt: "wholeNumber",
+  min: "tooSmall",
+  isPositive: "tooSmall",
+  max: "tooLarge",
+  isEnum: "choice",
+  isIn: "choice",
+  isEmail: "email",
+  isUrl: "url",
+  isDateString: "date",
+  isISO8601: "date",
+  isDate: "date",
+  matches: "format",
+  isUUID: "format",
+  isObject: "format",
+  isArray: "format",
+  nestedValidation: "format",
+  whitelistValidation: "notAllowed",
+  arrayUnique: "duplicate",
+  isPhoneNumber: "phone",
+  isMobilePhone: "phone",
+  isString: "text",
+  isBoolean: "yesNo",
+};
+
+/** The message for one field error, in the person's language. */
+export function describeFieldError(t: ErrorTranslator, error: Pick<FieldError, "code">): string {
+  const field = FIELD_CODE_MESSAGES[error.code];
+  if (field) return t(`fields.${field}`);
+  if (t.has(`codes.${error.code}`)) return t(`codes.${error.code}`);
+  return t("fields.invalid");
+}
+
 /**
- * 422 field errors keyed by the form field they belong to.
+ * 422 field errors keyed by the form field they belong to, as messages in
+ * the person's language.
  *
  * The API reports nested paths (`preset_ids.0`, `items.2.quantity`); a form
  * shows the message next to the top-level control, so the first segment is
- * the key and the first message for a field wins.
+ * the key and the first error for a field wins.
  */
-export function fieldErrorMap(errors: FieldError[]): Record<string, string> {
+export function fieldErrorMap(errors: FieldError[], t: ErrorTranslator): Record<string, string> {
   const map: Record<string, string> = {};
   for (const error of errors) {
     const field = error.field.split(".")[0] || "_";
-    map[field] ??= error.message;
+    map[field] ??= describeFieldError(t, error);
   }
   return map;
+}
+
+/** The API error's code, when there is one (for FormError's `code`). */
+export function errorCode(error: unknown): string | undefined {
+  return error instanceof ApiError ? error.code : undefined;
+}
+
+/**
+ * The one message for a failure: its documented code's message if there is
+ * one, else the kind's. Never the server's own text, a stack or a token.
+ */
+export function describeError(t: ErrorTranslator, error: unknown): string {
+  const code = errorCode(error);
+  if (code && t.has(`codes.${code}`)) return t(`codes.${code}`);
+  return t(errorKind(error));
 }
 
 export type ErrorKind =

@@ -142,7 +142,7 @@ function GovernorateForm({
         {t("activeLabel")}
       </label>
       <p className="-mt-2 text-xs text-text-muted">{t("activeHint")}</p>
-      <FormError kind={api.formError} detail={api.formErrorDetail} />
+      <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );
 }

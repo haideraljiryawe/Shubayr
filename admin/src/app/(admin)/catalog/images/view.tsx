@@ -18,6 +18,7 @@ import { OperationKey } from "@/lib/finance/cash-receipts";
  */
 export function BulkImagesView() {
   const t = useTranslations("catalogImages");
+  const tErrors = useTranslations("errors");
   const locale = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<{ phase: "uploading" | "processing"; percent: number } | null>(null);
@@ -31,7 +32,7 @@ export function BulkImagesView() {
     if (cause instanceof ApiError) {
       if (cause.code && t.has(`errors.${cause.code}`)) return t(`errors.${cause.code}`);
       if (cause.status === 413) return t("errors.tooLarge");
-      if (cause.message) return cause.message;
+      if (cause.code && tErrors.has(`codes.${cause.code}`)) return tErrors(`codes.${cause.code}`);
     }
     return t("errors.generic");
   }
