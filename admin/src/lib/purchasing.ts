@@ -26,7 +26,7 @@ export interface PurchaseInvoice {
   supplier_id: string;
   invoice_number: string | null;
   currency_code: CurrencyCode;
-  /** Absent without cost.view. */
+  /** Absent without cost.view (subtotal, landed, IQD); total_cost, remaining and settlement need only canViewSettlement. */
   exchange_rate?: number;
   subtotal_currency?: number;
   landed_cost_currency?: number;
@@ -513,4 +513,21 @@ export function moneyText(value: bigint, currency: string, digits: number, local
 
 export function precisionOf(currency: string): number {
   return currency === "IQD" ? 0 : 2;
+}
+
+/**
+ * Invoice-currency total, remaining balance and settlement state are
+ * operational settlement fields (contract 17.8.0): the API returns them to
+ * staff who buy or pay suppliers, not only to cost.view. Unit, landed and IQD
+ * cost fields still need cost.view.
+ */
+export const SETTLEMENT_PERMISSIONS = ["cost.view", "purchases.create", "supplier_payments.record"] as const;
+
+export function canViewSettlement(permissions: readonly string[]): boolean {
+  return SETTLEMENT_PERMISSIONS.some((key) => permissions.includes(key));
+}
+
+/** Active suppliers only, in the order given (a picker never offers an inactive one). */
+export function activeSuppliers(rows: readonly Supplier[]): Supplier[] {
+  return rows.filter((supplier) => supplier.is_active);
 }

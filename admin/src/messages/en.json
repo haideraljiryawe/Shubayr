@@ -686,8 +686,6 @@
       "newDescription": "One screen, one posting: the supplier's invoice, its lines and landed costs, added to stock in one step.",
       "back": "Purchase invoices",
       "supplier": "Supplier",
-      "pickSupplier": "Choose a supplier",
-      "suppliersPartial": "Showing the first 500 suppliers.",
       "invoiceNumber": "Supplier invoice no.",
       "invoiceNumberHint": "As printed on the supplier's invoice; must be unique per supplier.",
       "currency": "Currency",
@@ -810,9 +808,6 @@
       "pay": "Pay",
       "returnGoods": "Return to supplier",
       "correct": "Correct cost",
-      "suppliersRecent": "Bought from recently",
-      "suppliersOthers": "Other suppliers",
-      "suppliersAll": "Suppliers",
       "newSupplier": "New supplier",
       "skippedLines": "{count, plural, one {# line without a quantity is} other {# lines without a quantity are}} left out.",
       "blankLine": "Not on this invoice (no quantity)",
@@ -822,20 +817,21 @@
         "owed": "Owed — pay later",
         "owedHint": "The amount is added to what you owe this supplier; pay it later from Supplier payments.",
         "now": "Paid now from a cash account",
-        "nowHint": "Right after the stock is added, the whole invoice is paid from the cash account you choose.",
+        "nowHint": "The stock, the invoice and the payment are recorded together in one step: if anything is refused, nothing is recorded.",
         "account": "Cash account",
         "pickAccount": "Choose a cash account",
         "noAccount": "No active cash account in {currency}. Add one under Finance → Cash accounts, or record it as owed.",
         "reviewPaid": "Paid now from “{account}” once posted.",
         "reviewOwed": "Recorded as owed to the supplier.",
-        "paying": "Recording the payment…",
-        "paid": "Paid {amount} to the supplier.",
-        "failed": "The stock was added and the invoice is posted, but the payment wasn't recorded, so the invoice is still owed.",
-        "retry": "Try the payment again",
-        "payLater": "Pay it from Supplier payments",
+        "paid": "Posted and paid {amount} to the supplier in one step.",
         "errors": {
-          "account": "Choose the cash account it is paid from."
-        }
+          "account": "Choose the cash account it is paid from.",
+          "amountUnknown": "Paid now isn't available while a landed cost is in another currency."
+        },
+        "amount": "Paid now: {amount} (the whole invoice).",
+        "amountUnknown": "The exact amount isn't known before posting while a landed cost is in another currency. Record it as owed and pay it from Supplier payments.",
+        "strictSeparation": "Strict separation of duties is on, so the person who records a purchase can't also pay it. Record it as owed; a colleague pays it from Supplier payments.",
+        "recordOwedInstead": "Record as owed instead"
       },
       "restock": {
         "title": "Restock",
@@ -843,7 +839,7 @@
         "description": "A purchase from your supplier: enter only the quantities you received. Lines left empty aren't posted, so you can restock a single colour or size.",
         "backToProduct": "Back to the product",
         "intro": "Each variant of “{name}” has a line, starting at what you last paid. Enter the quantity you received on the lines you restock and leave the others empty.",
-        "otherDraft": "You also have an unfinished purchase invoice (saved {at}). Posting this restock will discard that draft — finish it first if you still need it.",
+        "otherDraft": "You also have an unfinished purchase invoice (saved {at}). Posting this restock leaves that draft as it is.",
         "openDraft": "Open the draft",
         "lastCost": "Last paid: {cost} {currency}",
         "doneTitle": "Stock added",
@@ -1082,6 +1078,18 @@
         "90_plus": "90+",
         "no_due_date": "No due date"
       }
+    },
+    "supplierPicker": {
+      "placeholder": "Search suppliers by name or phone…",
+      "recentHint": "Bought from most recently first; suppliers never bought from come last.",
+      "matches": "Matching suppliers, searched across all suppliers.",
+      "none": "No active supplier matches.",
+      "noneYet": "No suppliers yet. Add one with the button next to this field.",
+      "forbidden": "You don't have permission to search suppliers.",
+      "failed": "The search didn't work. Try again.",
+      "change": "Choose another supplier",
+      "lastPurchase": "Last purchase {at}",
+      "neverBought": "Not bought from yet"
     }
   },
   "staff": {
@@ -1349,7 +1357,8 @@
       "noParties": "No active agents or external drivers.",
       "kinds": {
         "internal_agent": "Agent",
-        "external_driver": "External driver"
+        "external_driver": "External driver",
+        "courier_company": "Courier company"
       },
       "noPartiesYet": "There is no delivery party yet: add your own driver or a courier company to hand orders over.",
       "addFirstParty": "Add a delivery party",
@@ -2758,18 +2767,20 @@
   },
   "parties": {
     "title": "Delivery parties",
-    "description": "Everyone who carries orders: the store's agents (with the app) and external drivers (no account). Open a party to see the goods they hold.",
+    "description": "Everyone who carries orders: the store's agents (with the app), external drivers and courier companies (no account). Open a party to see the goods and cash they hold.",
     "columns": {
       "name": "Name",
       "kind": "Type",
       "phone": "Phone",
       "vehicle": "Vehicle",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "contact": "Contact person"
     },
     "kinds": {
       "internal_agent": "Agent",
-      "external_driver": "External driver"
+      "external_driver": "External driver",
+      "courier_company": "Courier company"
     },
     "status": {
       "active": "Active",
@@ -2928,6 +2939,15 @@
         "in_progress": "In progress",
         "closed": "Closed"
       }
+    },
+    "addKind": "Add:",
+    "courier": {
+      "createTitle": "Add a courier company",
+      "hint": "A delivery company without an account. Assign it orders, hand them over and take in the cash it collects, like your own drivers.",
+      "name": "Company name",
+      "nameRequired": "Enter the company's name.",
+      "contactPerson": "Contact person (optional)",
+      "create": "Add courier company"
     }
   },
   "collections": {

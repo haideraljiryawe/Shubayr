@@ -8,16 +8,15 @@ import { Alert, Badge, buttonClasses, Input } from "@/components/ui";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { errorKind, type ErrorKind } from "@/lib/api/errors";
 import { FormError } from "@/components/forms/form-error";
-import type { components } from "@/types/api";
-
-type DeliveryParty = components["schemas"]["DeliveryParty"];
+import { PARTY_TONE, type DeliveryParty } from "@/lib/delivery-parties";
 
 const PER_PAGE = 20;
 
 /**
  * Choose who carries the order from GET /admin/delivery-parties (contract
- * 11.2): active internal agents and external drivers, searched by name,
- * phone or vehicle on the server, gated by orders.assign_agent alone.
+ * 11.2, 17.8.0): active internal agents, external drivers and courier
+ * companies, searched by name, phone or vehicle on the server, gated by
+ * orders.assign_agent alone.
  *
  * Typing is debounced, and only the newest search may land: an older, slower
  * answer never replaces a newer one.
@@ -113,7 +112,8 @@ export function PartyPicker({
               />
               <span className="font-semibold">{party.name}</span>
               <span className="text-xs text-text-muted" dir="ltr">{party.phone}</span>
-              <Badge tone={party.kind === "external_driver" ? "warning" : "info"}>{t(`kinds.${party.kind}`)}</Badge>
+              {party.contact_person ? <span className="text-xs text-text-muted">{party.contact_person}</span> : null}
+              <Badge tone={PARTY_TONE[party.kind]}>{t(`kinds.${party.kind}`)}</Badge>
             </label>
           ))}
         </fieldset>

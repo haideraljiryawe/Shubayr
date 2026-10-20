@@ -9,7 +9,7 @@ import { loadSupplierOptions } from "@/lib/api/purchasing-server";
 import { load, serverApi } from "@/lib/api/server";
 import { lastPage } from "@/lib/list-queries";
 import { UUID } from "@/lib/inventory";
-import type { PurchaseInvoice } from "@/lib/purchasing";
+import { canViewSettlement, type PurchaseInvoice } from "@/lib/purchasing";
 import { parseTableParams, type RawSearchParams, type TableParams } from "@/lib/table-params";
 import { InvoicesTable } from "./invoices-table";
 
@@ -71,7 +71,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
         rows={invoices.data.data as unknown as PurchaseInvoice[]}
         state={{ page: invoices.data.page, perPage: invoices.data.per_page, total: invoices.data.total, sort: "document_date", dir: "desc" }}
         suppliers={options.suppliers.map((supplier) => ({ id: supplier.id, name: supplier.name }))}
-        canViewCost={permissions.includes("cost.view")}
+        canViewTotals={canViewSettlement(permissions)}
       />
     </>
   );
