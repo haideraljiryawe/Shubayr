@@ -361,7 +361,8 @@ test("suppliers: create through the UI, then the invoice screen converts packs a
   await page
     .getByRole("link", { name: /فاتورة شراء جديدة|New purchase invoice/ })
     .click();
-  await expect(page.getByTestId("invoice-supplier")).toHaveValue(
+  await expect(page.getByTestId("invoice-supplier-picked")).toHaveAttribute(
+    "data-supplier-id",
     state.iqdSupplier.id,
   );
   await page.getByTestId("invoice-number").fill(`S-${run}-1`);

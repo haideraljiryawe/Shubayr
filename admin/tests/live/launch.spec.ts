@@ -146,7 +146,7 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   await dialog.getByTestId("supplier-phone").fill("07701234567");
   await dialog.getByTestId("dialog-submit").click();
   await expect(dialog).toBeHidden();
-  await expect(form.getByTestId("invoice-supplier").locator("option:checked")).toContainText(`Basra Textiles ${run}`);
+  await expect(form.getByTestId("invoice-supplier-picked")).toContainText(`Basra Textiles ${run}`);
 
   // Only the red one: 4 pieces. Black stays empty and is left out.
   await red.getByTestId("line-packs").fill("4");
@@ -157,11 +157,19 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   await form.getByTestId("invoice-payment-now").check();
   await form.getByTestId("invoice-cash-account").selectOption(account);
 
+  // The whole invoice, 4 × 9,000, is what "paid now" pays.
+  await expect(form.getByTestId("invoice-paid-amount")).toContainText("36,000");
+
   await form.getByTestId("invoice-review-button").click();
   const review = form.getByTestId("invoice-review");
   await expect(review.getByTestId("invoice-review-line")).toHaveCount(1);
   await expect(review.getByTestId("invoice-review-line")).toHaveAttribute("data-sku", product.red.sku);
   await expect(review.getByTestId("invoice-review-skipped")).toBeVisible();
+  // One atomic call posts the invoice and the payment; no separate payment request.
+  const posts: string[] = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "POST" && /\/api\/proxy\/admin\/(purchase-invoices|supplier-payments)/.test(sent.url())) posts.push(new URL(sent.url()).pathname);
+  });
   await form.getByTestId("invoice-confirm").click();
 
   // The new stock per variant, and the way back to the product.
@@ -173,6 +181,7 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   await expect(row.getByTestId("restock-result-added")).toContainText("4");
   await expect.poll(async () => digits(await row.getByTestId("restock-result-on-hand").textContent())).toBe("9");
   await expect(form.getByTestId("invoice-paid-now")).toBeVisible();
+  expect(posts).toEqual(["/api/proxy/admin/purchase-invoices/paid-now"]);
 
   expect(await onHand(request, product.red.id)).toBe(9);
   expect(await onHand(request, product.black.id)).toBe(5);
