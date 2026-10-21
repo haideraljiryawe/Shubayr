@@ -182,6 +182,14 @@ describe("banner bodies", () => {
     expect(validateBanner({ ...form, showText: true }, { hasImage: true })).toEqual([{ field: "title", kind: "required" }]);
   });
 
+  it("allows an unchanged stored legacy title only while editing that legacy record", () => {
+    const legacy = banner({ title: "Legacy title", title_ar: null, title_en: null });
+    const form = formFromBanner(legacy);
+    expect(validateBanner(form, { hasImage: true })).toEqual([{ field: "title", kind: "required" }]);
+    expect(validateBanner(form, { hasImage: true, allowStoredLegacyTitle: true })).toEqual([]);
+    expect(patchBody(form, legacy, legacy.image_url)).toBeNull();
+  });
+
   it("product and category actions need a target; url needs a valid address; offers and none need nothing", () => {
     const base = { ...formFromBanner(null), internalName: "n", titleAr: "ع" };
     const fields = (f: typeof base) => validateBanner(f, { hasImage: true }).map((p) => `${p.field}:${p.kind}`);

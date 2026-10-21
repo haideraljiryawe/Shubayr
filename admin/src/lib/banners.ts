@@ -202,14 +202,19 @@ export type BannerProblem =
 
 const PRIORITY = /^\d{1,6}$/;
 
-export function validateBanner(form: BannerForm, { hasImage }: { hasImage: boolean }): BannerProblem[] {
+export function validateBanner(
+  form: BannerForm,
+  { hasImage, allowStoredLegacyTitle = false }: { hasImage: boolean; allowStoredLegacyTitle?: boolean },
+): BannerProblem[] {
   const problems: BannerProblem[] = [];
   const name = form.internalName.trim();
   if (!name) problems.push({ field: "internalName", kind: "required" });
   else if (name.length > TITLE_MAX) problems.push({ field: "internalName", kind: "tooLong" });
   // Text on the banner needs a title in at least one language; an image-only
   // banner needs none (the API keeps fallback text for older clients).
-  if (form.showText && !form.titleAr.trim() && !form.titleEn.trim()) problems.push({ field: "title", kind: "required" });
+  if (form.showText && !form.titleAr.trim() && !form.titleEn.trim() && !allowStoredLegacyTitle) {
+    problems.push({ field: "title", kind: "required" });
+  }
   if (form.titleAr.trim().length > TITLE_MAX) problems.push({ field: "titleAr", kind: "tooLong" });
   if (form.titleEn.trim().length > TITLE_MAX) problems.push({ field: "titleEn", kind: "tooLong" });
   if (form.ctaAr.trim().length > CTA_MAX) problems.push({ field: "ctaAr", kind: "tooLong" });
