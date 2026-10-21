@@ -240,7 +240,7 @@ const inactiveDriver = await request('/admin/external-drivers', {
   method: 'POST',
   expected: 201,
   body: {
-    name: 'C8 Inactive Trip Driver',
+    name: 'C8 Inactive Courier Fixture',
     phone: `+96475${Date.now()}`.slice(0, 16),
   },
 });
