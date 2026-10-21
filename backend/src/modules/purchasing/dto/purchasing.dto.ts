@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsDecimal,
+  IsDefined,
   IsIn,
   IsInt,
   IsOptional,
@@ -15,6 +16,7 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -120,7 +122,15 @@ export class PaidNowPurchaseInvoiceDto extends OmitType(
 export class PaidNowSupplierPaymentDto {
   @IsUUID('4') cash_account_id!: string;
   @Matches(CURRENCY) currency_code!: 'IQD' | 'USD';
-  @IsDecimal({ decimal_digits: '0,6', force_decimal: false }) amount!: string;
+  @IsOptional()
+  @IsBoolean()
+  pay_full_invoice_total?: boolean;
+  @ValidateIf((input: PaidNowSupplierPaymentDto) =>
+    input.pay_full_invoice_total ? input.amount !== undefined : true,
+  )
+  @IsDefined()
+  @IsDecimal({ decimal_digits: '0,6', force_decimal: false })
+  amount?: string;
   @IsOptional()
   @IsDecimal({ decimal_digits: '0,10', force_decimal: false })
   exchange_rate?: string;
@@ -215,6 +225,8 @@ export class PurchasingQueryDto {
   @IsOptional() @Matches(DATE) to?: string;
   @IsOptional() @IsString() @MaxLength(30) status?: string;
   @IsOptional() @Matches(CURRENCY) currency?: 'IQD' | 'USD';
+  @IsOptional() @IsUUID('4') category_id?: string;
+  @IsOptional() @IsString() @MaxLength(80) sku?: string;
 }
 
 export enum SupplierListSort {

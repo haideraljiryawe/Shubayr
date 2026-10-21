@@ -526,6 +526,16 @@ check(
   false,
   'sales response exposes no costs',
 );
+check(
+  sales.data[0].drilldown.documents.resource,
+  'orders',
+  'sales rows identify their underlying document resource',
+);
+check(
+  sales.data[0].drilldown.journals.resource,
+  'journal_entries',
+  'sales rows identify their underlying journal resource',
+);
 
 const profit = await timed(
   'profitability',
@@ -551,10 +561,34 @@ check(
   '333300.0000',
   'gross profit reconciles exactly',
 );
+check(
+  profit.data[0].drilldown.documents.parameters.group_by,
+  'sku',
+  'profitability drill-down preserves the grouping selector',
+);
+
+const skuPicker = await request(
+  `/admin/reports/catalog-picker?report_type=profitability&kind=sku&q=${encodeURIComponent(`C14-${variantId}`)}`,
+  { token: adminToken },
+);
+check(
+  skuPicker.data[0].id,
+  variantId,
+  'report-scoped SKU picker returns the matching variant',
+);
+const categoryPicker = await request(
+  '/admin/reports/catalog-picker?report_type=sales&kind=category&q=C14',
+  { token: adminToken },
+);
+check(
+  categoryPicker.data.some((row) => row.id === categoryId),
+  true,
+  'report-scoped category picker returns matching categories',
+);
 
 const pnl = await timed(
   'profit_loss',
-  '/admin/reports/profit-loss?from=2026-08-01&to=2026-08-31',
+  '/admin/reports/profit-loss?from=2026-08-01&to=2026-08-31&per_page=1',
 );
 check(
   pnl.current.sales_revenue,
@@ -590,6 +624,26 @@ check(
   pnl.current.expenses[0].amount,
   '1000.0000',
   'expense category amount reconciles exactly',
+);
+check(pnl.data.length, 1, 'P&L detail rows use server-side pagination');
+check(
+  pnl.pagination.total > 1,
+  true,
+  'P&L pagination reports the complete account-row count',
+);
+check(
+  pnl.data[0].drilldown.resource,
+  'journal_entries',
+  'P&L detail rows provide journal drill-down metadata',
+);
+const pnlSecondPage = await request(
+  '/admin/reports/profit-loss?from=2026-08-01&to=2026-08-31&page=2&per_page=1',
+  { token: adminToken },
+);
+check(
+  pnlSecondPage.data[0].account_id === pnl.data[0].account_id,
+  false,
+  'P&L pages return distinct stable account rows',
 );
 
 const ledger = await client.query(`

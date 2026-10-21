@@ -64,6 +64,7 @@ const banner = (over: Partial<Banner> = {}): Banner => ({
   starts_at: null,
   ends_at: null,
   created_at: "2026-10-01T09:00:00.000Z",
+  removal: { allowed: true, reason_code: null },
   ...over,
 });
 

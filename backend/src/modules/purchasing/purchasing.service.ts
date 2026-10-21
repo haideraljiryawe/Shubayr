@@ -11,7 +11,7 @@ import {
 } from '../../common/access/separation-of-duties';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../database/prisma.service';
-import { conflict, forbidden } from '../../common/http/api-error';
+import { conflict, forbidden, invalid } from '../../common/http/api-error';
 import {
   actorDisplayName,
   actorSelect,
@@ -604,6 +604,24 @@ export class PurchasingService {
       ...(query.supplier_id ? { supplier_id: query.supplier_id } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.currency ? { currency_code: query.currency } : {}),
+      ...(query.category_id || query.sku
+        ? {
+            items: {
+              some: {
+                ...(query.category_id
+                  ? { product: { category_id: query.category_id } }
+                  : {}),
+                ...(query.sku
+                  ? {
+                      variant: {
+                        sku: { contains: query.sku, mode: 'insensitive' },
+                      },
+                    }
+                  : {}),
+              },
+            },
+          }
+        : {}),
       ...(query.from || query.to
         ? {
             document_date: {
@@ -648,6 +666,15 @@ export class PurchasingService {
     input: CreatePaidPurchaseInvoiceDto,
   ) {
     const operationId = purchaseIdempotencyKey(key);
+    if (
+      input.payment.pay_full_invoice_total &&
+      input.payment.amount !== undefined
+    ) {
+      throw invalid(
+        'PAID_NOW_AMOUNT_CONFLICT',
+        'Omit amount when pay_full_invoice_total is true',
+      );
+    }
     if (!input.invoice.lines.length) {
       throw new UnprocessableEntityException(
         'At least one purchase line is required',
@@ -696,7 +723,7 @@ export class PurchasingService {
           supplier_id: input.invoice.supplier_id,
           cash_account_id: input.payment.cash_account_id,
           currency_code: input.payment.currency_code,
-          amount: input.payment.amount,
+          amount: input.payment.amount ?? '0',
           ...(input.payment.exchange_rate
             ? { exchange_rate: input.payment.exchange_rate }
             : {}),
@@ -705,7 +732,7 @@ export class PurchasingService {
             : {}),
           ...(input.payment.notes ? { notes: input.payment.notes } : {}),
           allocations: [
-            { invoice_id: posted.id, amount: input.payment.amount },
+            { invoice_id: posted.id, amount: input.payment.amount ?? '0' },
           ],
         };
         const payment = await this.postPaidNowPayment(
@@ -714,6 +741,7 @@ export class PurchasingService {
           permissions,
           paymentInput,
           dates,
+          input.payment.pay_full_invoice_total === true,
         );
         return {
           invoice: await this.invoiceTx(tx, posted.id, permissions),
@@ -1041,6 +1069,7 @@ export class PurchasingService {
       accountingDate: Date;
       backdateReason?: string;
     },
+    payFullInvoiceTotal = false,
   ) {
     await this.requireActiveSupplier(tx, input.supplier_id);
     const cash = await tx.cashAccount.findUnique({
@@ -1054,7 +1083,6 @@ export class PurchasingService {
         'Payment currency must match the cash account',
       );
     }
-    const amount = this.positive(input.amount, 'amount');
     const allocation = input.allocations[0];
     const invoice = await tx.purchaseInvoice.findUnique({
       where: { id: allocation.invoice_id },
@@ -1088,10 +1116,18 @@ export class PurchasingService {
     );
     const cashRate = input.currency_code === 'IQD' ? D(1) : settlementRate;
     const invoiceRate = invoice.currency_code === 'IQD' ? D(1) : settlementRate;
+    const amount = payFullInvoiceTotal
+      ? D(invoice.total_cost)
+          .times(invoiceRate)
+          .div(cashRate)
+          .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP)
+      : this.positive(input.amount, 'amount');
     const paidIqd = amount.times(cashRate);
-    const applied = paidIqd
-      .div(invoiceRate)
-      .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+    const applied = payFullInvoiceTotal
+      ? D(invoice.total_cost)
+      : paidIqd
+          .div(invoiceRate)
+          .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
     if (!applied.equals(invoice.total_cost)) {
       throw conflict(
         'PAID_NOW_AMOUNT_MISMATCH',

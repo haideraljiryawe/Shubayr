@@ -25,7 +25,7 @@ import { STORE_TIME_ZONE } from "@/lib/store-time";
  * - Order is replaced in one atomic call (PUT /admin/banners/order).
  * ------------------------------------------------------------------------- */
 
-export type Banner = components["schemas"]["Banner"];
+export type Banner = components["schemas"]["AdminBanner"];
 export type BannerCreate = components["schemas"]["BannerCreate"];
 export type BannerPatch = components["schemas"]["BannerPatch"];
 export type BannerTarget = components["schemas"]["BannerResolvedTarget"];

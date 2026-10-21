@@ -69,6 +69,15 @@ describe('ReportsService', () => {
       }),
     );
     expect(result.data[0]).not.toHaveProperty('cost_of_goods_sold');
+    expect(result.data[0].drilldown.documents.resource).toBe('orders');
+    expect(result.data[0].drilldown.documents.parameters).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-31',
+      report: 'sales',
+      group_by: 'day',
+      group_id: '2026-10-18',
+    });
+    expect(result.data[0].drilldown.journals.resource).toBe('journal_entries');
     expect(result.orders_count).toBe(2);
   });
 
@@ -155,5 +164,47 @@ describe('ReportsService', () => {
     expect(result.balanced).toBe(true);
     expect(result.debit_total).toBe('100.0000');
     expect(result.pagination.total).toBe(1);
+  });
+
+  it('scopes report pickers to the permission for the requested report', async () => {
+    const prisma = {
+      category: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            name_ar: 'فئة',
+            name_en: 'Category',
+          },
+        ]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    };
+    const service = new ReportsService(prisma as never, {} as never);
+
+    await expect(
+      service.catalogPicker(
+        { id: actor.id, permissions: ['reports.purchases.read'] },
+        { report_type: 'purchases', kind: 'category', q: 'Cat' },
+      ),
+    ).resolves.toEqual({
+      page: 1,
+      per_page: 20,
+      total: 1,
+      data: [
+        {
+          kind: 'category',
+          id: '22222222-2222-4222-8222-222222222222',
+          sku: null,
+          name_ar: 'فئة',
+          name_en: 'Category',
+        },
+      ],
+    });
+    await expect(
+      service.catalogPicker(
+        { id: actor.id, permissions: ['reports.sales.read'] },
+        { report_type: 'purchases', kind: 'category' },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

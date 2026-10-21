@@ -18,6 +18,7 @@ import { BannerQueryDto } from './dto/banner-query.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
 import { ReorderBannersDto } from './dto/reorder-banners.dto';
+import { SwapDefaultBannerDto } from './dto/swap-default-banner.dto';
 import {
   RateLimitRisk,
   RateLimitTier,
@@ -58,6 +59,11 @@ export class AdminBannersController {
   @Put('order')
   reorder(@Body() input: ReorderBannersDto) {
     return this.banners.reorder(input.ids);
+  }
+
+  @Post('defaults/swap')
+  swapDefault(@Body() input: SwapDefaultBannerDto) {
+    return this.banners.swapDefault(input);
   }
 
   @Patch(':id')

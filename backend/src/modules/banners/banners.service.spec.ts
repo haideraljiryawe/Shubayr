@@ -190,7 +190,10 @@ describe('BannersService', () => {
       Promise.resolve(banner(data)),
     );
     const service = new BannersService(
-      { banner: { create }, ...readDelegates() } as never,
+      {
+        banner: { create, count: jest.fn().mockResolvedValue(0) },
+        ...readDelegates(),
+      } as never,
       { requireManagedUrl } as never,
     );
 
@@ -294,6 +297,88 @@ describe('BannersService', () => {
       service.update(stored.id, { is_active: false }),
     ).rejects.toMatchObject({
       response: { code: 'BANNER_DEFAULT_MINIMUM_REQUIRED' },
+    });
+  });
+
+  it('returns stored localized values raw and explains a protected default', async () => {
+    const stored = banner({
+      is_default: true,
+      title_ar: null,
+      title_en: 'Stored English',
+    });
+    const service = new BannersService(
+      {
+        banner: {
+          count: jest.fn().mockResolvedValue(2),
+          findMany: jest.fn().mockResolvedValue([stored]),
+        },
+        $transaction: jest.fn((operations) => Promise.all(operations)),
+        ...readDelegates(),
+      } as never,
+      {} as never,
+    );
+
+    const result = await service.listAdmin({}, now);
+
+    expect(result.data[0]).toEqual(
+      expect.objectContaining({
+        title_ar: null,
+        title_en: 'Stored English',
+        removal: {
+          allowed: false,
+          reason_code: 'BANNER_DEFAULT_MINIMUM_REQUIRED',
+        },
+      }),
+    );
+  });
+
+  it('swaps defaults atomically without passing through an invalid default set', async () => {
+    const outgoing = banner({
+      id: '10000000-0000-4000-8000-000000000071',
+      is_default: true,
+      default_priority: 4,
+    });
+    const incoming = banner({
+      id: '10000000-0000-4000-8000-000000000072',
+      is_default: false,
+    });
+    const update = jest.fn().mockResolvedValue({});
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      banner: {
+        findUnique: jest.fn(({ where }: { where: { id: string } }) =>
+          Promise.resolve(where.id === outgoing.id ? outgoing : incoming),
+        ),
+        update,
+        findMany: jest.fn().mockResolvedValue([
+          { ...outgoing, is_default: false },
+          { ...incoming, is_default: true, default_priority: 4 },
+        ]),
+        count: jest.fn().mockResolvedValue(2),
+      },
+      ...readDelegates(),
+    };
+    const service = new BannersService(
+      {
+        $transaction: jest.fn((work: (client: typeof tx) => unknown) =>
+          work(tx),
+        ),
+      } as never,
+      {} as never,
+    );
+
+    await service.swapDefault({
+      outgoing_id: outgoing.id,
+      incoming_id: incoming.id,
+    });
+
+    expect(update).toHaveBeenNthCalledWith(1, {
+      where: { id: outgoing.id },
+      data: { is_default: false },
+    });
+    expect(update).toHaveBeenNthCalledWith(2, {
+      where: { id: incoming.id },
+      data: { is_default: true, default_priority: 4 },
     });
   });
 });

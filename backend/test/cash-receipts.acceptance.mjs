@@ -350,7 +350,7 @@ await request(`/admin/cash-receipts/${receipt.id}/allocations`, {
     ],
   },
 });
-await request('/admin/cash-receipts', {
+const strictCreateError = await request('/admin/cash-receipts', {
   token: adminToken,
   method: 'POST',
   expected: 409,
@@ -362,6 +362,11 @@ await request('/admin/cash-receipts', {
     amount_iqd: '40001',
   },
 });
+check(
+  strictCreateError.code,
+  'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
+  'strict separation requires another user for initial allocation',
+);
 
 const laterInput = {
   operation_id: `c6-later-${randomUUID()}`,
@@ -498,16 +503,24 @@ const strictReceipt = await request('/admin/cash-receipts', {
     amount_iqd: '10000',
   },
 });
-await request(`/admin/cash-receipts/${strictReceipt.id}/allocations`, {
-  token: adminToken,
-  method: 'POST',
-  expected: 403,
-  body: {
-    operation_id: `c6-strict-self-${randomUUID()}`,
-    document_date: today,
-    allocations: [{ order_id: orders[2].orderId, amount_iqd: '10000' }],
+const strictAllocationError = await request(
+  `/admin/cash-receipts/${strictReceipt.id}/allocations`,
+  {
+    token: adminToken,
+    method: 'POST',
+    expected: 403,
+    body: {
+      operation_id: `c6-strict-self-${randomUUID()}`,
+      document_date: today,
+      allocations: [{ order_id: orders[2].orderId, amount_iqd: '10000' }],
+    },
   },
-});
+);
+check(
+  strictAllocationError.code,
+  'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
+  'strict separation requires another user to allocate a receipt',
+);
 await request(`/admin/cash-receipts/${strictReceipt.id}/allocations`, {
   token: cashierToken,
   method: 'POST',
@@ -660,9 +673,8 @@ const finalStatement = await request(
   { token: adminToken },
 );
 check(
-  finalStatement.data.filter(
-    (row) => row.event === 'cash_receipt_reversed',
-  ).length,
+  finalStatement.data.filter((row) => row.event === 'cash_receipt_reversed')
+    .length,
   2,
   'party statement keeps each receipt and reversal visible',
 );

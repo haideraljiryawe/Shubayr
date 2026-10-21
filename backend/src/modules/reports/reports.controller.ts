@@ -26,6 +26,7 @@ import {
   PeriodReportQueryDto,
   ProfitabilityReportQueryDto,
   ProfitLossQueryDto,
+  ReportCatalogPickerQueryDto,
   PurchasesReportQueryDto,
   SalesReportQueryDto,
   StockMovementReportQueryDto,
@@ -144,6 +145,21 @@ export class ReportsController {
   )
   dashboard(@Req() request: AdminRequest) {
     return this.reportsPart2.dashboard(request.user);
+  }
+
+  @Get('catalog-picker')
+  @AdminAnyPermissionPolicy(
+    'reports.sales.read',
+    'reports.profit.read',
+    'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.stock.read',
+  )
+  catalogPicker(
+    @Req() request: AdminRequest,
+    @Query() query: ReportCatalogPickerQueryDto,
+  ) {
+    return this.reports.catalogPicker(request.user, query);
   }
 
   @Get('sales')

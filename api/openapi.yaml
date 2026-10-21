@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.8.1
+  version: 17.9.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -64,6 +64,98 @@ tags:
 
 security:
   - bearerAuth: []
+
+# Contract-wide registry for statically emitted backend codes that are shared
+# across routes or originate in workers/CLI/provider paths. Route-specific
+# x-error-codes remain beside each operation for client generation and review.
+x-error-codes:
+  - ACCOUNT_DELETED
+  - ACCOUNT_LOCKED
+  - ACCOUNT_NOT_ALLOWLISTED
+  - ACTIVE_EXTERNAL_DRIVER_NOT_FOUND
+  - APP_ROLE_FORBIDDEN
+  - ATTRIBUTES_INVALID
+  - AUTHENTICATION_REQUIRED
+  - AUTHORIZED_OPERATOR_NOT_FOUND
+  - AUTH_SURFACE_FORBIDDEN
+  - BAD_REQUEST
+  - BANNER_DEFAULT_REPLACEMENT_NOT_USABLE
+  - BANNER_DEFAULT_SWAP_INVALID
+  - BARCODE_DUPLICATE
+  - BOOLEAN_INVALID
+  - BRAND_NOT_FOUND
+  - CATALOG_IMPORT_ROW_FAILED
+  - CATALOG_IMPORT_UNIQUE_CONFLICT
+  - CATEGORY_MAX_DEPTH
+  - CATEGORY_NOT_FOUND
+  - CONFLICT
+  - CURRENCY_INVALID
+  - CURRENCY_NOT_ENABLED
+  - CUSTOMER_ACCOUNT_REQUIRED
+  - CUSTOMER_PHONE_ALREADY_REGISTERED
+  - DELIVERY_COLLECTED_AMOUNT_NOT_ALLOWED
+  - DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE
+  - DELIVERY_COLLECTION_AMOUNT_RANGE_INVALID
+  - DELIVERY_COLLECTION_DATE_RANGE_INVALID
+  - DELIVERY_PARTY_SELECTOR_INVALID
+  - EXPIRY_INVALID
+  - FCM_AUTH_NETWORK_ERROR
+  - FCM_AUTH_REJECTED
+  - FCM_AUTH_UNAVAILABLE
+  - FCM_INVALID_ARGUMENT
+  - FCM_NETWORK_ERROR
+  - FCM_RATE_LIMITED
+  - FCM_UNAVAILABLE
+  - FORBIDDEN
+  - INSUFFICIENT_STOCK
+  - INTERNAL_ERROR
+  - LOCATION_CODE_AMBIGUOUS
+  - LOCATION_NOT_FOUND
+  - LOW_STOCK_INVALID
+  - MESSAGE_TOO_LONG
+  - NEGOTIATION_REMOVED
+  - NOTIFICATION_PROVIDER_DISABLED
+  - NOT_FOUND
+  - NO_ELIGIBLE_DEVICES
+  - OPERATOR_NOT_ALLOWLISTED
+  - ORDER_NOT_FOUND
+  - ORIGINAL_ISSUE_LOCATION_UNAVAILABLE
+  - PAID_NOW_AMOUNT_CONFLICT
+  - PASSWORD_CHANGE_REQUIRED
+  - PAYLOAD_TOO_LARGE
+  - PERMISSION_DENIED
+  - PERMISSION_POLICY_UNRESOLVED
+  - PLATFORM_INVALID
+  - PRICE_INVALID
+  - PRICE_REQUIRED
+  - PRICING_RATE_REQUIRED
+  - PRODUCTION_SEND_REQUIRES_EXPLICIT_OVERRIDE
+  - PRODUCT_NOT_FOUND
+  - PRODUCT_REQUIRES_SUBCATEGORY
+  - PROVIDER_FAILURE
+  - QUANTITY_INVALID
+  - RATE_LIMITED
+  - REFERENCE_PRICE_INVALID
+  - REQUIRED
+  - RETURN_NOT_FOUND
+  - ROUTE_POLICY_MISSING
+  - SKU_DUPLICATE_IN_FILE
+  - SKU_NOT_FOUND
+  - SKU_REQUIRED
+  - STATUS_DEFAULTED
+  - STATUS_INVALID
+  - STRICT_SEPARATION_OF_DUTIES_REQUIRED
+  - TEST_CUSTOMER_NOT_FOUND
+  - TITLE_AND_BODY_REQUIRED
+  - UNAUTHORIZED
+  - UNIT_COST_INVALID
+  - UNSUPPORTED_MEDIA_TYPE
+  - VALIDATION_FAILED
+  - WORK_ACCOUNT_SHOPPING_FORBIDDEN
+x-deprecated-error-codes:
+  - code: SEPARATION_OF_DUTIES_VIOLATION
+    replacement: STRICT_SEPARATION_OF_DUTIES_REQUIRED
+    description: Legacy generic code; retained on unchanged routes for backward compatibility.
 
 paths:
   # ---------------- AUTH ----------------
@@ -1534,6 +1626,8 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date } }
         - { name: status, in: query, schema: { type: string } }
         - { name: currency, in: query, schema: { type: string, enum: [IQD, USD] } }
+        - { name: category_id, in: query, schema: { type: string, format: uuid }, description: Match invoices containing a product in this category. }
+        - { name: sku, in: query, schema: { type: string, maxLength: 80 }, description: Case-insensitive partial SKU match across invoice lines. }
       responses:
         "200": { description: Purchase invoice page, content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseInvoicePage" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1566,7 +1660,7 @@ paths:
         does not settle the invoice exactly is rejected and nothing is retained.
         Strict separation of duties rejects this combined creator/payment flow.
       x-permissions: [purchases.create, supplier_payments.record]
-      x-error-codes: [PURCHASE_IDEMPOTENCY_KEY_REQUIRED, PURCHASE_IDEMPOTENCY_KEY_INVALID, RECEIVING_LOCATION_INACTIVE, SUPPLIER_INVOICE_NUMBER_DUPLICATE, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, INVENTORY_COST_NEGATIVE, CASH_ACCOUNT_INACTIVE, EXCHANGE_RATE_NOT_FOUND, PAID_NOW_AMOUNT_MISMATCH, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [PURCHASE_IDEMPOTENCY_KEY_REQUIRED, PURCHASE_IDEMPOTENCY_KEY_INVALID, RECEIVING_LOCATION_INACTIVE, SUPPLIER_INVOICE_NUMBER_DUPLICATE, PURCHASE_RATE_OVERRIDE_REQUIRED, SUPPLIER_INACTIVE, INVENTORY_COST_NEGATIVE, CASH_ACCOUNT_INACTIVE, EXCHANGE_RATE_NOT_FOUND, PAID_NOW_AMOUNT_CONFLICT, PAID_NOW_AMOUNT_MISMATCH, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
@@ -2451,7 +2545,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Update delivery status (agent)
-      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH]
+      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH, DELIVERY_COLLECTED_AMOUNT_NOT_ALLOWED, DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE]
       description: >
         Only the assigned agent may act. An assigned delivery may start only
         when its order is ready_for_dispatch. Legal transitions are assigned to
@@ -2494,7 +2588,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Complete, fail, or retry a delivery as authorized staff
-      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH]
+      x-error-codes: [STALE_ORDER_STATE, TRIP_FARE_SHARE_MISMATCH, DELIVERY_COLLECTED_AMOUNT_NOT_ALLOWED, DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE]
       description: >
         Uses the same concurrency-safe order/delivery transition as the assigned
         agent route. Staff may mark dispatched deliveries delivered or failed,
@@ -2561,7 +2655,7 @@ paths:
         For a customer-paid trip, collected_amount includes the pass-through fare;
         only the goods amount enters store cash custody.
       x-permission: custody_exceptions.return_uncollected
-      x-error-codes: [DOOR_RETURN_REQUIRES_OUT_FOR_DELIVERY, STALE_ORDER_STATE, DELIVERY_PARTY_REQUIRED, RETURN_EXCEEDS_ORDER_VALUE, RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, TRIP_FARE_SHARE_MISMATCH, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [DOOR_RETURN_REQUIRES_OUT_FOR_DELIVERY, STALE_ORDER_STATE, DELIVERY_PARTY_REQUIRED, RETURN_EXCEEDS_ORDER_VALUE, RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, TRIP_FARE_SHARE_MISMATCH, INVENTORY_COST_NEGATIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2583,6 +2677,7 @@ paths:
       tags: [Deliveries]
       summary: List delivered orders whose collection awaits confirmation
       x-permission: deliveries.manage
+      x-error-codes: [DELIVERY_COLLECTION_DATE_RANGE_INVALID, DELIVERY_COLLECTION_AMOUNT_RANGE_INVALID]
       parameters:
         - { name: party_id, in: query, schema: { type: string, format: uuid } }
         - { name: date_from, in: query, description: Baghdad business date, schema: { type: string, format: date } }
@@ -2606,6 +2701,7 @@ paths:
       summary: Confirm the amount collected for an unconfirmed delivery
       description: Posts only the later full or later short confirmation map; sale revenue and COGS are never repeated. For a customer-paid trip the pass-through fare was already excluded, so collected_amount is the amount held for the store.
       x-permission: orders.deliver
+      x-error-codes: [DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -2632,6 +2728,7 @@ paths:
     patch:
       tags: [Deliveries]
       summary: Assign or reassign an active delivery to a delivery party
+      x-error-codes: [DELIVERY_PARTY_SELECTOR_INVALID]
       description: Staff may assign an active internal agent or external driver. agent_id remains accepted for backward compatibility and identifies an internal party; new clients use party_id.
       x-permission: orders.assign_agent
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
@@ -2872,6 +2969,22 @@ paths:
         "422": { $ref: "#/components/responses/Validation" }
 
   # ---------------- ADMIN: REPORTS & SETTINGS ----------------
+  /admin/reports/catalog-picker:
+    get:
+      tags: [Reports]
+      summary: Search report-scoped categories or SKUs without broader catalog permissions
+      x-surface: admin
+      x-any-permissions: [reports.sales.read, reports.profit.read, reports.inventory.read, reports.purchases.read, reports.stock.read]
+      parameters:
+        - { name: report_type, in: query, required: true, schema: { type: string, enum: [sales, profitability, purchases, stock_movement, inventory_valuation] } }
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [category, sku] } }
+        - { name: q, in: query, schema: { type: string, maxLength: 160 } }
+        - { $ref: "#/components/parameters/Page" }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Scoped picker results, content: { application/json: { schema: { $ref: "#/components/schemas/ReportCatalogPickerPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/reports/sales:
     get:
       tags: [Reports]
@@ -2924,6 +3037,8 @@ paths:
       parameters:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
         - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200": { description: Profit and loss, content: { application/json: { schema: { $ref: "#/components/schemas/ProfitLossReport" } } } }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3490,7 +3605,7 @@ paths:
     post:
       tags: [Admin, Deliveries]
       summary: Create a numbered external-driver trip and fare agreement
-      x-error-codes: [CUSTOMER_DIRECT_SETTLEMENT_REQUIRED, STORE_FARE_CUSTOMER_DIRECT_FORBIDDEN, TRIP_CASH_ACCOUNT_NOT_ALLOWED, TRIP_FARE_ACCOUNT_INVALID, AMOUNT_NEGATIVE, PERIOD_CLOSED]
+      x-error-codes: [ACTIVE_EXTERNAL_DRIVER_NOT_FOUND, CUSTOMER_DIRECT_SETTLEMENT_REQUIRED, STORE_FARE_CUSTOMER_DIRECT_FORBIDDEN, TRIP_CASH_ACCOUNT_NOT_ALLOWED, TRIP_FARE_ACCOUNT_INVALID, AMOUNT_NEGATIVE, PERIOD_CLOSED]
       description: Records exactly one store-paid or customer-direct fare before handover. A customer-direct fare never enters store revenue, expense, payable, collection, or netting.
       x-permission: trips.manage
       requestBody:
@@ -4087,7 +4202,7 @@ paths:
       summary: Upload and validate an Excel catalog import without changing catalog or stock
       description: Files with more than 500 rows validate as a background job. Poll the returned import resource for progress. At most 5,000 data rows are accepted.
       x-permission: catalog.import
-      x-error-codes: [CATALOG_IMPORT_FILE_REQUIRED, CATALOG_IMPORT_FILE_INVALID, CATALOG_IMPORT_HEADERS_INVALID, CATALOG_IMPORT_SHEET_REQUIRED, CATALOG_IMPORT_ROW_LIMIT, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED]
+      x-error-codes: [CATALOG_IMPORT_FILE_REQUIRED, CATALOG_IMPORT_FILE_INVALID, CATALOG_IMPORT_HEADERS_INVALID, CATALOG_IMPORT_SHEET_REQUIRED, CATALOG_IMPORT_ROW_LIMIT, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, ATTRIBUTES_INVALID, BARCODE_DUPLICATE, CATEGORY_MAX_DEPTH, CATEGORY_NOT_FOUND, CURRENCY_INVALID, CURRENCY_NOT_ENABLED, EXPIRY_INVALID, LOCATION_CODE_AMBIGUOUS, LOCATION_NOT_FOUND, LOW_STOCK_INVALID, PRICE_INVALID, PRICE_REQUIRED, PRODUCT_REQUIRES_SUBCATEGORY, QUANTITY_INVALID, REFERENCE_PRICE_INVALID, REQUIRED, SKU_DUPLICATE_IN_FILE, SKU_NOT_FOUND, SKU_REQUIRED, STATUS_DEFAULTED, STATUS_INVALID, UNIT_COST_INVALID]
       parameters:
         - { name: create_missing, in: query, schema: { type: boolean, default: false } }
       requestBody:
@@ -4179,7 +4294,7 @@ paths:
       summary: Queue a resumable commit of all valid preview rows
       description: Product rows are committed by the background worker in batches of at most 250 and progress is exposed on the detail resource. The operation id and durable per-row checkpoints make double submission and worker restart safe. A failed batch leaves earlier batches applied and reports the failed row. Valid Stock rows create exactly one posted inventory-opening document only after all product rows succeed.
       x-permission: catalog.import
-      x-error-codes: [CATALOG_IMPORT_ALREADY_COMMITTED, CATALOG_IMPORT_OPERATION_ID_REUSED, CATALOG_IMPORT_NOT_READY, CATALOG_IMPORT_NO_VALID_ROWS, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, CATALOG_IMPORT_QUEUE_UNAVAILABLE, EXCHANGE_RATE_REQUIRED]
+      x-error-codes: [CATALOG_IMPORT_ALREADY_COMMITTED, CATALOG_IMPORT_OPERATION_ID_REUSED, CATALOG_IMPORT_NOT_READY, CATALOG_IMPORT_NO_VALID_ROWS, CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED, CATALOG_IMPORT_QUEUE_UNAVAILABLE, CATALOG_IMPORT_ROW_FAILED, CATALOG_IMPORT_UNIQUE_CONFLICT, EXCHANGE_RATE_REQUIRED]
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       requestBody:
         required: true
@@ -4528,7 +4643,7 @@ paths:
           description: Paginated banners
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/BannerPage" }
+              schema: { $ref: "#/components/schemas/AdminBannerPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Admin]
@@ -4545,7 +4660,7 @@ paths:
           description: Created banner
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Banner" }
+              schema: { $ref: "#/components/schemas/AdminBanner" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/banners/order:
@@ -4576,8 +4691,33 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: "#/components/schemas/Banner" }
+                items: { $ref: "#/components/schemas/AdminBanner" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/banners/defaults/swap:
+    post:
+      tags: [Admin]
+      summary: Atomically replace one usable default banner with another
+      description: The outgoing default is removed only in the same transaction that makes the active, in-schedule replacement a default, so the two-default invariant never blocks replacement.
+      x-permission: catalog.products
+      x-error-codes: [BANNER_DEFAULT_SWAP_INVALID, BANNER_DEFAULT_REPLACEMENT_NOT_USABLE]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BannerDefaultSwap" }
+      responses:
+        "200":
+          description: The outgoing and incoming banners after the swap
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 2
+                maxItems: 2
+                items: { $ref: "#/components/schemas/AdminBanner" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Validation" }
   /admin/banners/{id}:
     get:
@@ -4590,7 +4730,7 @@ paths:
           description: Banner
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Banner" }
+              schema: { $ref: "#/components/schemas/AdminBanner" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
@@ -4609,7 +4749,7 @@ paths:
           description: Updated banner
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Banner" }
+              schema: { $ref: "#/components/schemas/AdminBanner" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -5430,7 +5570,7 @@ paths:
       x-surface: admin
       x-permission: cash_receipts.receive
       x-conditional-permission: { when: allocations are present, permission: cash_receipts.allocate }
-      x-error-codes: [RECEIPT_ALLOCATION_PERMISSION_REQUIRED, DELIVERY_PARTY_INACTIVE, CASH_ACCOUNT_INACTIVE, CASH_RECEIPT_REQUIRES_IQD_ACCOUNT, RECEIPT_EXCEEDS_CASH_CUSTODY, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_ALLOCATION_PERMISSION_REQUIRED, DELIVERY_PARTY_INACTIVE, CASH_ACCOUNT_INACTIVE, CASH_RECEIPT_REQUIRES_IQD_ACCOUNT, RECEIPT_EXCEEDS_CASH_CUSTODY, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptCreateInput" } } } }
       responses:
         "201": { description: Posted cash receipt, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptVoucher" } } } }
@@ -5505,7 +5645,7 @@ paths:
       description: Partial allocation is allowed. Orders must belong to the receipt party and allocations cannot exceed either the receipt remainder or an order's confirmed collected amount.
       x-surface: admin
       x-permission: cash_receipts.allocate
-      x-error-codes: [RECEIPT_ALLOCATION_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_ALLOCATION_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, ALLOCATION_ORDER_DUPLICATED, ALLOCATION_COLLECTION_NOT_FOUND, ALLOCATION_WRONG_PARTY, ALLOCATION_COLLECTION_UNCONFIRMED, ORDER_ALREADY_RECEIPTED, ALLOCATION_EXCEEDS_COLLECTED, ALLOCATION_EXCEEDS_RECEIPT, AMOUNT_NOT_NUMERIC, AMOUNT_NOT_POSITIVE, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptAllocateInput" } } } }
       responses:
@@ -5521,7 +5661,7 @@ paths:
       description: The reversal restores party cash custody and makes every allocation on the original receipt ineffective; the original rows remain unchanged.
       x-surface: admin
       x-permission: cash_receipts.reverse
-      x-error-codes: [RECEIPT_REVERSAL_ALREADY_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SELF_REVERSAL_FORBIDDEN, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RECEIPT_REVERSAL_ALREADY_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SELF_REVERSAL_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CashReceiptReversalInput" } } } }
       responses:
@@ -5559,7 +5699,7 @@ paths:
       description: Records selected custody holdings at original issue cost, reduces goods custody once, and applies the phase-3 exception_handover or exception_loss map according to liability bearer.
       x-surface: admin
       x-permission: custody_exceptions.loss
-      x-error-codes: [ORDER_HAS_NO_CUSTODY_PARTY, GOODS_LOSS_STATUS_INVALID, CUSTODY_COST_UNAVAILABLE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, CUSTODY_HOLDING_DUPLICATED, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [ORDER_HAS_NO_CUSTODY_PARTY, GOODS_LOSS_STATUS_INVALID, CUSTODY_COST_UNAVAILABLE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, GOODS_NOT_IN_CUSTODY, CUSTODY_EXCEPTION_EXCEEDS_GOODS, CUSTODY_HOLDING_DUPLICATED, AMOUNT_NOT_POSITIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GoodsCustodyExceptionInput" } } } }
       responses:
         "201": { description: Immutable goods custody exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -5575,7 +5715,7 @@ paths:
       description: Restocks goods at original issue cost and applies return value to the open uncollected amount before creating any refund payable. Existing receipt allocations are unchanged because only the uncollected shortfall is reduced.
       x-surface: admin
       x-permission: custody_exceptions.return_uncollected
-      x-error-codes: [RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [RETURN_REQUIRES_CONFIRMED_SHORTFALL, RETURN_SHORTFALL_RESOLVED, ORDER_ITEM_UNAVAILABLE, RETURN_HAS_NO_REFUNDABLE_VALUE, CUSTODY_HOLDING_WRONG_ORDER_OR_PARTY, RETURN_REQUIRES_SOLD_CUSTODY, RETURN_EXCEEDS_ISSUED_QUANTITY, RETURN_LOCATION_INACTIVE, CUSTODY_HOLDING_DUPLICATED, INVENTORY_COST_NEGATIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReturnAgainstUncollectedInput" } } } }
       responses:
         "201": { description: Immutable return-against-uncollected exception, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -5591,7 +5731,7 @@ paths:
       description: Creates the phase-3 delivery_fee_refund liability and settles it from an IQD cash account or against the order's still-uncollected amount. The cumulative active refund cannot exceed the charged delivery fee.
       x-surface: admin
       x-permission: custody_exceptions.refund_delivery_fee
-      x-error-codes: [REFUND_CASH_ACCOUNT_REQUIRED, REFUND_CASH_ACCOUNT_NOT_ALLOWED, DELIVERY_REVENUE_NOT_POSTED, DELIVERY_FEE_REFUND_EXCEEDS_CHARGE, REFUND_REQUIRES_ACTIVE_IQD_ACCOUNT, DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED, AMOUNT_NOT_POSITIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [REFUND_CASH_ACCOUNT_REQUIRED, REFUND_CASH_ACCOUNT_NOT_ALLOWED, DELIVERY_REVENUE_NOT_POSTED, DELIVERY_FEE_REFUND_EXCEEDS_CHARGE, REFUND_REQUIRES_ACTIVE_IQD_ACCOUNT, DELIVERY_FEE_REFUND_EXCEEDS_UNCOLLECTED, AMOUNT_NOT_POSITIVE, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryFeeRefundInput" } } } }
       responses:
         "201": { description: Immutable delivery-fee refund, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyException" } } } }
@@ -5621,7 +5761,7 @@ paths:
       description: Reverses every posting and stock effect. A party-liability loss cannot be reversed after a cash receipt has consumed that liability; reverse that receipt first.
       x-surface: admin
       x-permission: custody_exceptions.reverse
-      x-error-codes: [CUSTODY_EXCEPTION_ALREADY_REVERSED, SELF_REVERSAL_FORBIDDEN, RECEIPT_REVERSAL_REQUIRED, CUSTODY_EXCEPTION_REVERSAL_UNSAFE, RETURN_EXCEPTION_LOCATION_MISSING, RETURNED_STOCK_UNAVAILABLE, INVENTORY_COST_NEGATIVE, SEPARATION_OF_DUTIES_VIOLATION, PERIOD_CLOSED]
+      x-error-codes: [CUSTODY_EXCEPTION_ALREADY_REVERSED, SELF_CUSTODY_CASH_ACTION_FORBIDDEN, SELF_REVERSAL_FORBIDDEN, RECEIPT_REVERSAL_REQUIRED, CUSTODY_EXCEPTION_REVERSAL_UNSAFE, RETURN_EXCEPTION_LOCATION_MISSING, RETURNED_STOCK_UNAVAILABLE, INVENTORY_COST_NEGATIVE, STRICT_SEPARATION_OF_DUTIES_REQUIRED, PERIOD_CLOSED]
       parameters: [{ $ref: "#/components/parameters/PathId" }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CustodyExceptionReversalInput" } } } }
       responses:
@@ -6377,6 +6517,8 @@ components:
         current_status: { $ref: "#/components/schemas/OrderStatus" }
         current_version: { type: integer, minimum: 1 }
         price: { type: number }
+        min: { type: [string, number], description: Minimum accepted value or boundary for this field. }
+        max: { type: [string, number], description: Maximum accepted value or boundary for this field. }
         threshold_percent: { type: number }
         cost: { type: number }
         minimum_price: { type: number }
@@ -7319,6 +7461,45 @@ components:
         ends_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
+    AdminBanner:
+      type: object
+      additionalProperties: false
+      description: Admin representation. Localized fields are the stored values without public-language fallback.
+      required: [id, title, subtitle, image_url, cta_text, link_url, internal_name, title_ar, title_en, subtitle_ar, subtitle_en, cta_label_ar, cta_label_en, show_text, action_type, action_target_id, action, is_default, default_priority, sort_order, is_active, effective_status, starts_at, ends_at, created_at, removal]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, description: Legacy single-language title retained for migration compatibility. }
+        subtitle: { type: [string, "null"] }
+        image_url: { type: string, format: uri }
+        cta_text: { type: [string, "null"] }
+        link_url: { type: [string, "null"], format: uri }
+        internal_name: { type: string }
+        title_ar: { type: [string, "null"], description: Stored Arabic title; null means no Arabic value was supplied. }
+        title_en: { type: [string, "null"], description: Stored English title; null means no English value was supplied. }
+        subtitle_ar: { type: [string, "null"] }
+        subtitle_en: { type: [string, "null"] }
+        cta_label_ar: { type: [string, "null"] }
+        cta_label_en: { type: [string, "null"] }
+        show_text: { type: boolean }
+        action_type: { type: string, enum: [none, url, product, category, offers] }
+        action_target_id: { type: [string, "null"], format: uuid }
+        action: { $ref: "#/components/schemas/BannerAction" }
+        is_default: { type: boolean }
+        default_priority: { type: integer, minimum: 0 }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        effective_status: { type: string, enum: [active, scheduled, expired, disabled] }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        removal:
+          type: object
+          additionalProperties: false
+          required: [allowed, reason_code]
+          properties:
+            allowed: { type: boolean }
+            reason_code: { type: [string, "null"], enum: [BANNER_DEFAULT_MINIMUM_REQUIRED, null], description: Explains why delete/deactivation would be refused. }
+
     BannerAction:
       type: object
       additionalProperties: false
@@ -7397,6 +7578,15 @@ components:
         starts_at: { type: [string, "null"], format: date-time }
         ends_at: { type: [string, "null"], format: date-time }
 
+    BannerDefaultSwap:
+      type: object
+      additionalProperties: false
+      required: [outgoing_id, incoming_id]
+      properties:
+        outgoing_id: { type: string, format: uuid, description: Current default banner to remove from the default set. }
+        incoming_id: { type: string, format: uuid, description: Active, currently usable non-default banner to add. }
+        default_priority: { type: integer, minimum: 0, description: Defaults to the outgoing banner's priority. }
+
     BannerPage:
       allOf:
         - $ref: "#/components/schemas/Pagination"
@@ -7406,6 +7596,16 @@ components:
             data:
               type: array
               items: { $ref: "#/components/schemas/Banner" }
+
+    AdminBannerPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items: { $ref: "#/components/schemas/AdminBanner" }
 
     ProductVariant:
       type: object
@@ -8473,11 +8673,13 @@ components:
         payment:
           type: object
           additionalProperties: false
-          required: [cash_account_id, currency_code, amount]
+          required: [cash_account_id, currency_code]
+          description: Supply amount for the legacy exact-payment flow, or set pay_full_invoice_total=true and omit amount so the server settles the computed invoice total including landed costs and FX conversion.
           properties:
             cash_account_id: { type: string, format: uuid }
             currency_code: { type: string, enum: [IQD, USD] }
             amount: { type: string, pattern: '^\d+(\.\d{1,6})?$' }
+            pay_full_invoice_total: { type: boolean, description: When true, amount must be omitted and the server computes the exact full settlement amount in the cash-account currency. }
             exchange_rate: { type: string, pattern: '^\d+(\.\d{1,10})?$' }
             reference: { type: string, maxLength: 160 }
             notes: { type: string, maxLength: 2000 }
@@ -10999,10 +11201,48 @@ components:
         total: { type: integer, minimum: 0 }
         pages: { type: integer, minimum: 0 }
 
+    ReportCatalogPickerPage:
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [kind, id, sku, name_ar, name_en]
+                properties:
+                  kind: { type: string, enum: [category, sku] }
+                  id: { type: string, format: uuid, description: Category id for category results and variant id for SKU results. }
+                  sku: { type: [string, "null"] }
+                  name_ar: { type: string }
+                  name_en: { type: string }
+
+    ReportDrilldownDescriptor:
+      type: object
+      additionalProperties: false
+      required: [resource, endpoint, parameters]
+      properties:
+        resource: { type: string, enum: [orders, journal_entries] }
+        endpoint: { type: string }
+        parameters:
+          type: object
+          additionalProperties: { type: string }
+
+    CommercialReportDrilldown:
+      type: object
+      additionalProperties: false
+      required: [documents, journals]
+      properties:
+        documents: { $ref: "#/components/schemas/ReportDrilldownDescriptor" }
+        journals: { $ref: "#/components/schemas/ReportDrilldownDescriptor" }
+
     SalesReportRow:
       type: object
       additionalProperties: false
-      required: [key, name_ar, name_en, gross_sales, tier_discounts, coupon_discounts, other_discounts, returns, net_sales, order_count, average_order_value]
+      required: [key, name_ar, name_en, gross_sales, tier_discounts, coupon_discounts, other_discounts, returns, net_sales, order_count, average_order_value, drilldown]
       properties:
         key: { type: string }
         name_ar: { type: string }
@@ -11015,6 +11255,7 @@ components:
         net_sales: { $ref: "#/components/schemas/ExactDecimal" }
         order_count: { type: integer, minimum: 0 }
         average_order_value: { $ref: "#/components/schemas/ExactDecimal" }
+        drilldown: { $ref: "#/components/schemas/CommercialReportDrilldown" }
 
     SalesReportTotals:
       type: object
@@ -11060,6 +11301,7 @@ components:
             - { $ref: "#/components/schemas/ExactDecimal" }
             - { type: "null" }
         inventory_write_downs: { $ref: "#/components/schemas/ExactDecimal" }
+        drilldown: { $ref: "#/components/schemas/CommercialReportDrilldown", description: Present on detail rows; omitted from the aggregate totals object. }
 
     ProfitabilityReport:
       type: object
@@ -11108,7 +11350,7 @@ components:
     ProfitLossReport:
       type: object
       additionalProperties: false
-      required: [from, to, previous_from, previous_to, currency, touches_open_period, current, previous]
+      required: [from, to, previous_from, previous_to, currency, touches_open_period, current, previous, pagination, data]
       properties:
         from: { type: string, format: date }
         to: { type: string, format: date }
@@ -11118,6 +11360,24 @@ components:
         touches_open_period: { type: boolean }
         current: { $ref: "#/components/schemas/ProfitLossPeriod" }
         previous: { $ref: "#/components/schemas/ProfitLossPeriod" }
+        pagination: { $ref: "#/components/schemas/ReportPagination" }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ProfitLossDetailRow" }
+
+    ProfitLossDetailRow:
+      type: object
+      additionalProperties: false
+      required: [account_id, account_code, name_ar, name_en, section, current_amount, previous_amount, drilldown]
+      properties:
+        account_id: { type: string, format: uuid }
+        account_code: { type: string }
+        name_ar: { type: string }
+        name_en: { type: string }
+        section: { type: string, enum: [revenue, returns, cost_of_goods_sold, inventory_write_downs, other_income, expenses] }
+        current_amount: { $ref: "#/components/schemas/ExactDecimal" }
+        previous_amount: { $ref: "#/components/schemas/ExactDecimal" }
+        drilldown: { $ref: "#/components/schemas/ReportDrilldownDescriptor" }
 
     TrialBalanceReportRow:
       type: object
