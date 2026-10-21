@@ -710,6 +710,21 @@ jobs:
             backup /usr/local/bin/heartbeat.sh success)"
           echo "$output"
           echo "$output" | grep -q 'backup heartbeat failed'
+      - name: Backup retention listing failures fail the run
+        run: |
+          source deploy/scripts/lib.sh
+          dc exec -T backup sh -c 'mkdir -p /tmp/failing-rclone && printf "#!/bin/sh\nif [ \"\$1\" = lsf ]; then exit 42; fi\nexec /usr/bin/rclone \"\$@\"\n" > /tmp/failing-rclone/rclone && chmod +x /tmp/failing-rclone/rclone'
+          previous_success="$(dc exec -T backup cat /backups/last-success)"
+          set +e
+          output="$(dc exec -T \
+            -e PATH=/tmp/failing-rclone:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            backup /usr/local/bin/backup.sh retention-listing-failure 2>&1)"
+          status=$?
+          set -e
+          echo "$output"
+          [ "$status" -ne 0 ]
+          echo "$output" | grep -q 'ERROR: retention could not list'
+          [ "$(dc exec -T backup cat /backups/last-success)" = "$previous_success" ]
       - name: Only 80 and 443 are published
         run: |
           published="$(docker ps --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0:' || true)"

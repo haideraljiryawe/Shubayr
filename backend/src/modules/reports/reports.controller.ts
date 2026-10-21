@@ -26,6 +26,7 @@ import {
   PeriodReportQueryDto,
   ProfitabilityReportQueryDto,
   ProfitLossQueryDto,
+  ReportCatalogPickerQueryDto,
   PurchasesReportQueryDto,
   SalesReportQueryDto,
   StockMovementReportQueryDto,
@@ -37,6 +38,19 @@ import { ReportsPart3Service } from './reports-part3.service';
 
 type AdminRequest = Request & { user: AuthenticatedRequestUser };
 const uuid = new ParseUUIDPipe({ errorHttpStatusCode: 422 });
+
+export const REPORT_EXPORT_PERMISSIONS = [
+  'reports.sales.read',
+  'reports.profit.read',
+  'reports.financial.read',
+  'reports.cash.read',
+  'reports.liabilities.read',
+  'reports.inventory.read',
+  'reports.purchases.read',
+  'reports.suppliers.read',
+  'reports.stock.read',
+  'reports.expenses.read',
+] as const;
 
 @Controller('admin/reports')
 export class ReportsController {
@@ -133,6 +147,21 @@ export class ReportsController {
     return this.reportsPart2.dashboard(request.user);
   }
 
+  @Get('catalog-picker')
+  @AdminAnyPermissionPolicy(
+    'reports.sales.read',
+    'reports.profit.read',
+    'reports.inventory.read',
+    'reports.purchases.read',
+    'reports.stock.read',
+  )
+  catalogPicker(
+    @Req() request: AdminRequest,
+    @Query() query: ReportCatalogPickerQueryDto,
+  ) {
+    return this.reports.catalogPicker(request.user, query);
+  }
+
   @Get('sales')
   @AdminPolicy('reports.sales.read')
   sales(@Req() request: AdminRequest, @Query() query: SalesReportQueryDto) {
@@ -174,18 +203,7 @@ export class ReportsController {
 
   @Post('exports')
   @HttpCode(202)
-  @AdminAnyPermissionPolicy(
-    'reports.sales.read',
-    'reports.profit.read',
-    'reports.financial.read',
-    'reports.cash.read',
-    'reports.liabilities.read',
-    'reports.inventory.read',
-    'reports.purchases.read',
-    'reports.suppliers.read',
-    'reports.stock.read',
-    'reports.expenses.read',
-  )
+  @AdminAnyPermissionPolicy(...REPORT_EXPORT_PERMISSIONS)
   createExport(
     @Req() request: AdminRequest,
     @Body() input: CreateReportExportDto,
@@ -194,31 +212,13 @@ export class ReportsController {
   }
 
   @Get('exports/:id/progress')
-  @AdminAnyPermissionPolicy(
-    'reports.sales.read',
-    'reports.profit.read',
-    'reports.financial.read',
-    'reports.cash.read',
-    'reports.liabilities.read',
-    'reports.inventory.read',
-    'reports.purchases.read',
-    'reports.suppliers.read',
-    'reports.stock.read',
-    'reports.expenses.read',
-  )
+  @AdminAnyPermissionPolicy(...REPORT_EXPORT_PERMISSIONS)
   exportProgress(@Req() request: AdminRequest, @Param('id', uuid) id: string) {
     return this.exports.progress(id, request.user);
   }
 
   @Get('exports/:id/download')
-  @AdminAnyPermissionPolicy(
-    'reports.sales.read',
-    'reports.profit.read',
-    'reports.financial.read',
-    'reports.cash.read',
-    'reports.liabilities.read',
-    'reports.inventory.read',
-  )
+  @AdminAnyPermissionPolicy(...REPORT_EXPORT_PERMISSIONS)
   async downloadExport(
     @Req() request: AdminRequest,
     @Param('id', uuid) id: string,

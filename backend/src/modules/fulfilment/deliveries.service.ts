@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Delivery, Prisma } from '../../generated/prisma/client';
@@ -39,6 +38,7 @@ import {
   type DeliveryPostingScenario,
 } from '../finance/posting-scenarios';
 import { ExternalDriverTripHistoryService } from './external-driver-trip-history.service';
+import { invalid } from '../../common/http/api-error';
 
 const transitions: Record<string, readonly string[]> = {
   assigned: ['out_for_delivery'],
@@ -249,8 +249,21 @@ export class DeliveriesService {
 
   async assign(actorId: string, id: string, input: AssignDeliveryDto) {
     if (Boolean(input.agent_id) === Boolean(input.party_id)) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DELIVERY_PARTY_SELECTOR_INVALID',
         'Provide exactly one of agent_id or party_id',
+        [
+          {
+            field: 'agent_id',
+            code: 'DELIVERY_PARTY_SELECTOR_INVALID',
+            message: 'Provide exactly one delivery-party selector',
+          },
+          {
+            field: 'party_id',
+            code: 'DELIVERY_PARTY_SELECTOR_INVALID',
+            message: 'Provide exactly one delivery-party selector',
+          },
+        ],
       );
     }
     const partyId = input.party_id ?? input.agent_id!;
@@ -574,8 +587,17 @@ export class DeliveriesService {
           confirmation === 'unconfirmed' &&
           input.collected_amount !== undefined
         ) {
-          throw new UnprocessableEntityException(
+          throw invalid(
+            'DELIVERY_COLLECTED_AMOUNT_NOT_ALLOWED',
             'collected_amount must be omitted while collection is unconfirmed',
+            [
+              {
+                field: 'collected_amount',
+                code: 'DELIVERY_COLLECTED_AMOUNT_NOT_ALLOWED',
+                message:
+                  'collected_amount must be omitted while collection is unconfirmed',
+              },
+            ],
           );
         }
         const customerCollected =
@@ -587,8 +609,18 @@ export class DeliveriesService {
           (customerCollected.lt(passThroughFare) ||
             customerCollected.gt(customerDue))
         ) {
-          throw new UnprocessableEntityException(
-            `collected_amount must be between ${passThroughFare.toString()} and the customer order total`,
+          throw invalid(
+            'DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE',
+            'collected_amount is outside the allowed range',
+            [
+              {
+                field: 'collected_amount',
+                code: 'DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE',
+                message: 'collected_amount is outside the allowed range',
+                min: passThroughFare.toString(),
+                max: customerDue.toString(),
+              },
+            ],
           );
         }
         const collected =
@@ -856,8 +888,17 @@ export class DeliveriesService {
     partyId?: string,
   ) {
     if (query.date_from && query.date_to && query.date_from > query.date_to) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DELIVERY_COLLECTION_DATE_RANGE_INVALID',
         'date_from must be on or before date_to',
+        [
+          {
+            field: 'date_to',
+            code: 'DELIVERY_COLLECTION_DATE_RANGE_INVALID',
+            message: 'date_to must be on or after date_from',
+            min: query.date_from,
+          },
+        ],
       );
     }
     if (
@@ -865,8 +906,17 @@ export class DeliveriesService {
       query.amount_max !== undefined &&
       query.amount_min > query.amount_max
     ) {
-      throw new UnprocessableEntityException(
+      throw invalid(
+        'DELIVERY_COLLECTION_AMOUNT_RANGE_INVALID',
         'amount_min must be less than or equal to amount_max',
+        [
+          {
+            field: 'amount_max',
+            code: 'DELIVERY_COLLECTION_AMOUNT_RANGE_INVALID',
+            message: 'amount_max must be greater than or equal to amount_min',
+            min: query.amount_min,
+          },
+        ],
       );
     }
     const page = query.page ?? 1;
@@ -1034,8 +1084,18 @@ export class DeliveriesService {
         const due = new PrismaRuntime.Decimal(collection.due_amount);
         const collected = new PrismaRuntime.Decimal(input.collected_amount);
         if (collected.lt(0) || collected.gt(due)) {
-          throw new UnprocessableEntityException(
-            'collected_amount must be between zero and the order amount due',
+          throw invalid(
+            'DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE',
+            'collected_amount is outside the allowed range',
+            [
+              {
+                field: 'collected_amount',
+                code: 'DELIVERY_COLLECTED_AMOUNT_OUT_OF_RANGE',
+                message: 'collected_amount is outside the allowed range',
+                min: 0,
+                max: due.toString(),
+              },
+            ],
           );
         }
         const shortfall = due.minus(collected);

@@ -273,6 +273,15 @@ try {
     false,
     'hidden product target remains identifiable but unavailable',
   );
+  const adminRegularProduct = await request(
+    `/admin/banners/${regularProduct.id}`,
+    { token: admin },
+  );
+  check(
+    adminRegularProduct.title_en,
+    null,
+    'admin banner read returns the missing stored English title without fallback',
+  );
 
   const regularCategory = await request('/admin/banners', {
     token: admin,
@@ -342,6 +351,35 @@ try {
     minimum.code,
     'BANNER_DEFAULT_MINIMUM_REQUIRED',
     'two established usable defaults cannot be reduced below two',
+  );
+  const protectedDefault = await request(`/admin/banners/${firstDefault.id}`, {
+    token: admin,
+  });
+  check(
+    protectedDefault.removal,
+    {
+      allowed: false,
+      reason_code: 'BANNER_DEFAULT_MINIMUM_REQUIRED',
+    },
+    'admin reads explain why a protected default cannot be removed',
+  );
+  const swappedDefaults = await request('/admin/banners/defaults/swap', {
+    token: admin,
+    method: 'POST',
+    body: {
+      outgoing_id: firstDefault.id,
+      incoming_id: regularCategory.id,
+    },
+  });
+  check(
+    swappedDefaults.find(({ id }) => id === firstDefault.id).is_default,
+    false,
+    'default swap removes the outgoing banner atomically',
+  );
+  check(
+    swappedDefaults.find(({ id }) => id === regularCategory.id).is_default,
+    true,
+    'default swap installs the usable replacement atomically',
   );
   await request(`/media/${referencedMedia.id}`, {
     token: admin,

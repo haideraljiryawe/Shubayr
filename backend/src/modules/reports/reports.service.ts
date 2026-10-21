@@ -16,6 +16,7 @@ import type {
   ProfitabilityReportQueryDto,
   ProfitGroup,
   ProfitLossQueryDto,
+  ReportCatalogPickerQueryDto,
   SalesGroup,
   SalesReportQueryDto,
 } from './reports.dto';
@@ -72,6 +73,87 @@ export class ReportsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  async catalogPicker(actor: Actor, query: ReportCatalogPickerQueryDto) {
+    const permission = {
+      sales: 'reports.sales.read',
+      profitability: 'reports.profit.read',
+      purchases: 'reports.purchases.read',
+      stock_movement: 'reports.stock.read',
+      inventory_valuation: 'reports.inventory.read',
+    }[query.report_type];
+    this.require(actor, permission);
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 20;
+    const q = query.q?.trim();
+    if (query.kind === 'category') {
+      const where: Prisma.CategoryWhereInput = q
+        ? {
+            OR: [
+              { name_ar: { contains: q, mode: 'insensitive' } },
+              { name_en: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {};
+      const [rows, total] = await Promise.all([
+        this.prisma.category.findMany({
+          where,
+          orderBy: [{ name_en: 'asc' }, { id: 'asc' }],
+          skip: (page - 1) * perPage,
+          take: perPage,
+          select: { id: true, name_ar: true, name_en: true },
+        }),
+        this.prisma.category.count({ where }),
+      ]);
+      return {
+        page,
+        per_page: perPage,
+        total,
+        data: rows.map((row) => ({
+          kind: 'category' as const,
+          id: row.id,
+          sku: null,
+          name_ar: row.name_ar,
+          name_en: row.name_en,
+        })),
+      };
+    }
+    const where: Prisma.ProductVariantWhereInput = q
+      ? {
+          OR: [
+            { sku: { contains: q, mode: 'insensitive' } },
+            { product: { name_ar: { contains: q, mode: 'insensitive' } } },
+            { product: { name_en: { contains: q, mode: 'insensitive' } } },
+          ],
+        }
+      : {};
+    const [rows, total] = await Promise.all([
+      this.prisma.productVariant.findMany({
+        where,
+        orderBy: [{ sku: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * perPage,
+        take: perPage,
+        select: {
+          id: true,
+          sku: true,
+          product: { select: { name_ar: true, name_en: true } },
+        },
+      }),
+      this.prisma.productVariant.count({ where }),
+    ]);
+    return {
+      page,
+      per_page: perPage,
+      total,
+      data: rows.map((row) => ({
+        kind: 'sku' as const,
+        id: row.id,
+        sku: row.sku,
+        name_ar: row.product.name_ar,
+        name_en: row.product.name_en,
+      })),
+    };
+  }
 
   async sales(actor: Actor, query: SalesReportQueryDto, audit = false) {
     // The sales route existed as an optional-range contract before phase 12.
@@ -304,7 +386,16 @@ export class ReportsService {
           ? Math.ceil(count(rows[0].total_groups) / perPage)
           : 0,
       },
-      data: rows.map((row) => this.salesRow(row)),
+      data: rows.map((row) => ({
+        ...this.salesRow(row),
+        drilldown: this.commercialDrilldown(
+          'sales',
+          group,
+          row.group_key,
+          fromText,
+          toText,
+        ),
+      })),
     };
     if (audit)
       await this.auditRead(actor.id, 'sales', {
@@ -487,7 +578,16 @@ export class ReportsService {
           ? Math.ceil(count(rows[0].total_groups) / perPage)
           : 0,
       },
-      data: rows.map((row) => this.profitRow(row)),
+      data: rows.map((row) => ({
+        ...this.profitRow(row),
+        drilldown: this.commercialDrilldown(
+          'profitability',
+          group,
+          row.group_key,
+          query.from,
+          query.to,
+        ),
+      })),
     };
     if (audit)
       await this.auditRead(actor.id, 'profitability', {
@@ -505,13 +605,67 @@ export class ReportsService {
       Math.round((range.to.getTime() - range.from.getTime()) / 86_400_000) + 1;
     const previousTo = addBusinessDateDays(range.from, -1);
     const previousFrom = addBusinessDateDays(previousTo, -(days - 1));
-    const [current, previous, categories, previousCategories] =
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? 50;
+    const [current, previous, categories, previousCategories, detailRows] =
       await Promise.all([
         this.profitLossPeriod(range.from, range.to),
         this.profitLossPeriod(previousFrom, previousTo),
         this.expensesByCategory(range.from, range.to),
         this.expensesByCategory(previousFrom, previousTo),
+        this.prisma.$queryRaw<
+          Array<{
+            account_id: string;
+            account_code: string;
+            name_ar: string;
+            name_en: string;
+            account_type: string;
+            current_amount: Value;
+            previous_amount: Value;
+            total_rows: bigint;
+          }>
+        >(Prisma.sql`
+          WITH current_period AS (
+            SELECT jl.account_id,
+              SUM(CASE WHEN a.type = 'income'
+                THEN jl.credit_base - jl.debit_base
+                ELSE jl.debit_base - jl.credit_base END) AS amount
+            FROM journal_entries je
+            JOIN journal_lines jl ON jl.entry_id = je.id
+            JOIN ledger_accounts a ON a.id = jl.account_id
+            WHERE je.accounting_date BETWEEN ${range.from} AND ${range.to}
+              AND a.type IN ('income', 'expense')
+            GROUP BY jl.account_id
+          ), previous_period AS (
+            SELECT jl.account_id,
+              SUM(CASE WHEN a.type = 'income'
+                THEN jl.credit_base - jl.debit_base
+                ELSE jl.debit_base - jl.credit_base END) AS amount
+            FROM journal_entries je
+            JOIN journal_lines jl ON jl.entry_id = je.id
+            JOIN ledger_accounts a ON a.id = jl.account_id
+            WHERE je.accounting_date BETWEEN ${previousFrom} AND ${previousTo}
+              AND a.type IN ('income', 'expense')
+            GROUP BY jl.account_id
+          ), detail AS (
+            SELECT a.id AS account_id, a.code AS account_code,
+              a.name_ar, a.name_en, a.type AS account_type,
+              COALESCE(current_period.amount, 0) AS current_amount,
+              COALESCE(previous_period.amount, 0) AS previous_amount
+            FROM ledger_accounts a
+            LEFT JOIN current_period ON current_period.account_id = a.id
+            LEFT JOIN previous_period ON previous_period.account_id = a.id
+            WHERE a.type IN ('income', 'expense')
+              AND (COALESCE(current_period.amount, 0) <> 0
+                OR COALESCE(previous_period.amount, 0) <> 0)
+          )
+          SELECT *, COUNT(*) OVER() AS total_rows
+          FROM detail
+          ORDER BY account_code ASC, account_id ASC
+          LIMIT ${perPage} OFFSET ${(page - 1) * perPage}
+        `),
       ]);
+    const detailTotal = detailRows.length ? count(detailRows[0].total_rows) : 0;
     const result = {
       from: query.from,
       to: query.to,
@@ -524,6 +678,30 @@ export class ReportsService {
         ...this.presentProfitLoss(previous),
         expenses: previousCategories,
       },
+      pagination: {
+        page,
+        per_page: perPage,
+        total: detailTotal,
+        pages: Math.ceil(detailTotal / perPage),
+      },
+      data: detailRows.map((row) => ({
+        account_id: row.account_id,
+        account_code: row.account_code,
+        name_ar: row.name_ar,
+        name_en: row.name_en,
+        section: this.profitLossSection(row.account_type, row.account_code),
+        current_amount: money(row.current_amount),
+        previous_amount: money(row.previous_amount),
+        drilldown: {
+          resource: 'journal_entries',
+          endpoint: '/admin/ledger/entries',
+          parameters: {
+            account_code: row.account_code,
+            from: query.from,
+            to: query.to,
+          },
+        },
+      })),
     };
     if (audit)
       await this.auditRead(actor.id, 'profit_loss', {
@@ -792,6 +970,35 @@ export class ReportsService {
           ? money(0)
           : decimal(row.net_sales).div(orderCount).toFixed(4),
     };
+  }
+
+  private commercialDrilldown(
+    report: 'sales' | 'profitability',
+    groupBy: string,
+    groupId: string,
+    from: string,
+    to: string,
+  ) {
+    return {
+      documents: {
+        resource: 'orders',
+        endpoint: '/admin/orders',
+        parameters: { from, to, report, group_by: groupBy, group_id: groupId },
+      },
+      journals: {
+        resource: 'journal_entries',
+        endpoint: '/admin/ledger/entries',
+        parameters: { from, to, report, group_by: groupBy, group_id: groupId },
+      },
+    };
+  }
+
+  private profitLossSection(accountType: string, accountCode: string) {
+    if (accountCode === '4000' || accountCode === '4010') return 'revenue';
+    if (accountCode === '4100' || accountCode === '4110') return 'returns';
+    if (accountCode === '5000') return 'cost_of_goods_sold';
+    if (accountCode === '5010') return 'inventory_write_downs';
+    return accountType === 'income' ? 'other_income' : 'expenses';
   }
 
   private profitRow(row: ProfitRow) {

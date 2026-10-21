@@ -64,6 +64,7 @@ const banner = (over: Partial<Banner> = {}): Banner => ({
   starts_at: null,
   ends_at: null,
   created_at: "2026-10-01T09:00:00.000Z",
+  removal: { allowed: true, reason_code: null },
   ...over,
 });
 
@@ -179,6 +180,14 @@ describe("banner bodies", () => {
     expect(validateBanner(form, { hasImage: true })).toEqual([]);
     expect(createBody(form, "http://x/media/m", 0)).toMatchObject({ title: "Eid artwork", show_text: false, title_ar: null, title_en: null });
     expect(validateBanner({ ...form, showText: true }, { hasImage: true })).toEqual([{ field: "title", kind: "required" }]);
+  });
+
+  it("allows an unchanged stored legacy title only while editing that legacy record", () => {
+    const legacy = banner({ title: "Legacy title", title_ar: null, title_en: null });
+    const form = formFromBanner(legacy);
+    expect(validateBanner(form, { hasImage: true })).toEqual([{ field: "title", kind: "required" }]);
+    expect(validateBanner(form, { hasImage: true, allowStoredLegacyTitle: true })).toEqual([]);
+    expect(patchBody(form, legacy, legacy.image_url)).toBeNull();
   });
 
   it("product and category actions need a target; url needs a valid address; offers and none need nothing", () => {

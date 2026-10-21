@@ -2900,6 +2900,10 @@ export interface paths {
                     to?: string;
                     status?: string;
                     currency?: "IQD" | "USD";
+                    /** @description Match invoices containing a product in this category. */
+                    category_id?: string;
+                    /** @description Case-insensitive partial SKU match across invoice lines. */
+                    sku?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5524,6 +5528,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/reports/catalog-picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search report-scoped categories or SKUs without broader catalog permissions */
+        get: {
+            parameters: {
+                query: {
+                    report_type: "sales" | "profitability" | "purchases" | "stock_movement" | "inventory_valuation";
+                    kind: "category" | "sku";
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Scoped picker results */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportCatalogPickerPage"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reports/sales": {
         parameters: {
             query?: never;
@@ -5631,6 +5679,8 @@ export interface paths {
                 query: {
                     from: string;
                     to: string;
+                    page?: components["parameters"]["Page"];
+                    per_page?: components["parameters"]["PerPage"];
                 };
                 header?: never;
                 path?: never;
@@ -9176,7 +9226,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BannerPage"];
+                        "application/json": components["schemas"]["AdminBannerPage"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -9203,7 +9253,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Banner"];
+                        "application/json": components["schemas"]["AdminBanner"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -9249,7 +9299,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Banner"][];
+                        "application/json": components["schemas"]["AdminBanner"][];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -9257,6 +9307,52 @@ export interface paths {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners/defaults/swap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Atomically replace one usable default banner with another
+         * @description The outgoing default is removed only in the same transaction that makes the active, in-schedule replacement a default, so the two-default invariant never blocks replacement.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BannerDefaultSwap"];
+                };
+            };
+            responses: {
+                /** @description The outgoing and incoming banners after the swap */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminBanner"][];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["Validation"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -9288,7 +9384,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Banner"];
+                        "application/json": components["schemas"]["AdminBanner"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -9345,7 +9441,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Banner"];
+                        "application/json": components["schemas"]["AdminBanner"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -13719,6 +13815,10 @@ export interface components {
             current_status?: components["schemas"]["OrderStatus"];
             current_version?: number;
             price?: number;
+            /** @description Minimum accepted value or boundary for this field. */
+            min?: string | number;
+            /** @description Maximum accepted value or boundary for this field. */
+            max?: string | number;
             threshold_percent?: number;
             cost?: number;
             minimum_price?: number;
@@ -14620,6 +14720,54 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        /** @description Admin representation. Localized fields are the stored values without public-language fallback. */
+        AdminBanner: {
+            /** Format: uuid */
+            id: string;
+            /** @description Legacy single-language title retained for migration compatibility. */
+            title: string;
+            subtitle: string | null;
+            /** Format: uri */
+            image_url: string;
+            cta_text: string | null;
+            /** Format: uri */
+            link_url: string | null;
+            internal_name: string;
+            /** @description Stored Arabic title; null means no Arabic value was supplied. */
+            title_ar: string | null;
+            /** @description Stored English title; null means no English value was supplied. */
+            title_en: string | null;
+            subtitle_ar: string | null;
+            subtitle_en: string | null;
+            cta_label_ar: string | null;
+            cta_label_en: string | null;
+            show_text: boolean;
+            /** @enum {string} */
+            action_type: "none" | "url" | "product" | "category" | "offers";
+            /** Format: uuid */
+            action_target_id: string | null;
+            action: components["schemas"]["BannerAction"];
+            is_default: boolean;
+            default_priority: number;
+            sort_order: number;
+            is_active: boolean;
+            /** @enum {string} */
+            effective_status: "active" | "scheduled" | "expired" | "disabled";
+            /** Format: date-time */
+            starts_at: string | null;
+            /** Format: date-time */
+            ends_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            removal: {
+                allowed: boolean;
+                /**
+                 * @description Explains why delete/deactivation would be refused.
+                 * @enum {string|null}
+                 */
+                reason_code: "BANNER_DEFAULT_MINIMUM_REQUIRED" | null;
+            };
+        };
         BannerAction: {
             /** @enum {string} */
             type: "none" | "url" | "product" | "category" | "offers";
@@ -14710,8 +14858,25 @@ export interface components {
             /** Format: date-time */
             ends_at?: string | null;
         };
+        BannerDefaultSwap: {
+            /**
+             * Format: uuid
+             * @description Current default banner to remove from the default set.
+             */
+            outgoing_id: string;
+            /**
+             * Format: uuid
+             * @description Active
+             */
+            incoming_id: string;
+            /** @description Defaults to the outgoing banner's priority. */
+            default_priority?: number;
+        };
         BannerPage: components["schemas"]["Pagination"] & {
             data: components["schemas"]["Banner"][];
+        };
+        AdminBannerPage: components["schemas"]["Pagination"] & {
+            data: components["schemas"]["AdminBanner"][];
         };
         ProductVariant: {
             /** Format: uuid */
@@ -15545,12 +15710,15 @@ export interface components {
                     amount: string;
                 }[];
             };
+            /** @description Supply amount for the legacy exact-payment flow, or set pay_full_invoice_total=true and omit amount so the server settles the computed invoice total including landed costs and FX conversion. */
             payment: {
                 /** Format: uuid */
                 cash_account_id: string;
                 /** @enum {string} */
                 currency_code: "IQD" | "USD";
-                amount: string;
+                amount?: string;
+                /** @description When true */
+                pay_full_invoice_total?: boolean;
                 exchange_rate?: string;
                 reference?: string;
                 notes?: string;
@@ -17468,6 +17636,32 @@ export interface components {
             total: number;
             pages: number;
         };
+        ReportCatalogPickerPage: components["schemas"]["Pagination"] & {
+            data: {
+                /** @enum {string} */
+                kind: "category" | "sku";
+                /**
+                 * Format: uuid
+                 * @description Category id for category results and variant id for SKU results.
+                 */
+                id: string;
+                sku: string | null;
+                name_ar: string;
+                name_en: string;
+            }[];
+        };
+        ReportDrilldownDescriptor: {
+            /** @enum {string} */
+            resource: "orders" | "journal_entries";
+            endpoint: string;
+            parameters: {
+                [key: string]: string;
+            };
+        };
+        CommercialReportDrilldown: {
+            documents: components["schemas"]["ReportDrilldownDescriptor"];
+            journals: components["schemas"]["ReportDrilldownDescriptor"];
+        };
         SalesReportRow: {
             key: string;
             name_ar: string;
@@ -17480,6 +17674,7 @@ export interface components {
             net_sales: components["schemas"]["ExactDecimal"];
             order_count: number;
             average_order_value: components["schemas"]["ExactDecimal"];
+            drilldown: components["schemas"]["CommercialReportDrilldown"];
         };
         SalesReportTotals: {
             gross_sales: components["schemas"]["ExactDecimal"];
@@ -17514,6 +17709,8 @@ export interface components {
             gross_profit: components["schemas"]["ExactDecimal"];
             margin_percent: components["schemas"]["ExactDecimal"] | null;
             inventory_write_downs: components["schemas"]["ExactDecimal"];
+            /** @description Present on detail rows; omitted from the aggregate totals object. */
+            drilldown?: components["schemas"]["CommercialReportDrilldown"];
         };
         ProfitabilityReport: {
             /** Format: date */
@@ -17565,6 +17762,20 @@ export interface components {
             touches_open_period: boolean;
             current: components["schemas"]["ProfitLossPeriod"];
             previous: components["schemas"]["ProfitLossPeriod"];
+            pagination: components["schemas"]["ReportPagination"];
+            data: components["schemas"]["ProfitLossDetailRow"][];
+        };
+        ProfitLossDetailRow: {
+            /** Format: uuid */
+            account_id: string;
+            account_code: string;
+            name_ar: string;
+            name_en: string;
+            /** @enum {string} */
+            section: "revenue" | "returns" | "cost_of_goods_sold" | "inventory_write_downs" | "other_income" | "expenses";
+            current_amount: components["schemas"]["ExactDecimal"];
+            previous_amount: components["schemas"]["ExactDecimal"];
+            drilldown: components["schemas"]["ReportDrilldownDescriptor"];
         };
         TrialBalanceReportRow: {
             /** Format: uuid */

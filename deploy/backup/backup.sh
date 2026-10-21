@@ -57,16 +57,25 @@ for file in "$local_dir"/shubayr-*.dump*; do
   base="$(basename "$file")"; when="${base:8:15}"
   if older "$when"; then rm -f "$file"; log "  removed local ${base}"; fi
 done
+if ! db_listing="$(rclone lsf "${BACKUP_TARGET}/db" --files-only --include 'shubayr-*')"; then
+  log "ERROR: retention could not list ${BACKUP_TARGET}/db"
+  exit 1
+fi
 while read -r base; do
   [ -n "$base" ] || continue
   when="${base:8:15}"
   if older "$when"; then rclone deletefile "${BACKUP_TARGET}/db/${base}"; log "  removed ${base}"; fi
-done < <(rclone lsf "${BACKUP_TARGET}/db" --files-only --include 'shubayr-*')
+done <<< "$db_listing"
+rclone mkdir "${BACKUP_TARGET}/media/deleted"
+if ! deleted_media_listing="$(rclone lsf "${BACKUP_TARGET}/media/deleted" --dirs-only 2>/dev/null)"; then
+  log "ERROR: retention could not list ${BACKUP_TARGET}/media/deleted"
+  exit 1
+fi
 while read -r dir; do
   dir="${dir%/}"
   [ -n "$dir" ] || continue
   if older "$dir"; then rclone purge "${BACKUP_TARGET}/media/deleted/${dir}"; log "  removed media/deleted/${dir}"; fi
-done < <(rclone lsf "${BACKUP_TARGET}/media/deleted" --dirs-only 2>/dev/null || true)
+done <<< "$deleted_media_listing"
 
 /usr/local/bin/target-size.sh --record
 date +%s > /backups/last-success

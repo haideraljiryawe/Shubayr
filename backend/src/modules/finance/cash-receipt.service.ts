@@ -133,7 +133,7 @@ export class CashReceiptService {
           (await separationOfDutiesLevel(tx)) === 'strict'
         ) {
           throw forbidden(
-            'SEPARATION_OF_DUTIES_VIOLATION',
+            'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
             'Strict separation of duties requires another user to allocate the receipt after it is created',
           );
         }
@@ -319,7 +319,7 @@ export class CashReceiptService {
           (await separationOfDutiesLevel(tx)) === 'strict'
         ) {
           throw forbidden(
-            'SEPARATION_OF_DUTIES_VIOLATION',
+            'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
             'Strict separation of duties requires another user to allocate the receipt',
           );
         }

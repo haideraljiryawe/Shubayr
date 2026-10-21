@@ -15,6 +15,7 @@
     "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\"",
     "typecheck": "tsc --noEmit",
+    "contract:error-codes": "node scripts/check-error-codes.mjs",
     "test": "jest --runInBand && node --test test/openapi-response-validator.spec.mjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

@@ -10,6 +10,7 @@ import { MediaService } from '../media/media.service';
 import { BannerQueryDto } from './dto/banner-query.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import { SwapDefaultBannerDto } from './dto/swap-default-banner.dto';
 
 type BannerSchedule = {
   starts_at?: string | Date | null;
@@ -59,13 +60,18 @@ export class BannersService {
         orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }, { id: 'asc' }],
       }),
     ]);
-    return { page, per_page, total, data: await this.presentMany(data, at) };
+    return {
+      page,
+      per_page,
+      total,
+      data: await this.presentMany(data, at, this.prisma, true),
+    };
   }
 
   async getAdmin(id: string, at = new Date()) {
     const banner = await this.prisma.banner.findUnique({ where: { id } });
     if (!banner) throw new NotFoundException('Banner not found');
-    return (await this.presentMany([banner], at))[0];
+    return (await this.presentMany([banner], at, this.prisma, true))[0];
   }
 
   async create(input: CreateBannerDto) {
@@ -90,7 +96,7 @@ export class BannersService {
         ends_at: input.ends_at ? new Date(input.ends_at) : null,
       },
     });
-    return (await this.presentMany([banner], new Date()))[0];
+    return (await this.presentMany([banner], new Date(), this.prisma, true))[0];
   }
 
   async update(id: string, input: UpdateBannerDto) {
@@ -144,7 +150,7 @@ export class BannersService {
       await this.protectDefaultMinimum(tx, usableBefore, at);
       return updated;
     });
-    return (await this.presentMany([banner], at))[0];
+    return (await this.presentMany([banner], at, this.prisma, true))[0];
   }
 
   async reorder(ids: string[]) {
@@ -170,7 +176,54 @@ export class BannersService {
       const rows = await tx.banner.findMany({
         orderBy: [{ sort_order: 'asc' }, { id: 'asc' }],
       });
-      return this.presentMany(rows, new Date(), tx);
+      return this.presentMany(rows, new Date(), tx, true);
+    });
+  }
+
+  async swapDefault(input: SwapDefaultBannerDto) {
+    if (input.outgoing_id === input.incoming_id) {
+      throw invalid(
+        'BANNER_DEFAULT_SWAP_INVALID',
+        'Outgoing and incoming banners must be different',
+      );
+    }
+    const at = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockDefaults(tx);
+      const [outgoing, incoming] = await Promise.all([
+        tx.banner.findUnique({ where: { id: input.outgoing_id } }),
+        tx.banner.findUnique({ where: { id: input.incoming_id } }),
+      ]);
+      if (!outgoing || !incoming)
+        throw new NotFoundException('Banner not found');
+      if (!outgoing.is_default || incoming.is_default) {
+        throw invalid(
+          'BANNER_DEFAULT_SWAP_INVALID',
+          'Swap requires one current default and one non-default banner',
+        );
+      }
+      if (!this.isUsable(incoming, at)) {
+        throw invalid(
+          'BANNER_DEFAULT_REPLACEMENT_NOT_USABLE',
+          'The replacement default banner must be active and within its schedule',
+        );
+      }
+      await tx.banner.update({
+        where: { id: outgoing.id },
+        data: { is_default: false },
+      });
+      await tx.banner.update({
+        where: { id: incoming.id },
+        data: {
+          is_default: true,
+          default_priority: input.default_priority ?? outgoing.default_priority,
+        },
+      });
+      const rows = await tx.banner.findMany({
+        where: { id: { in: [outgoing.id, incoming.id] } },
+        orderBy: [{ default_priority: 'asc' }, { id: 'asc' }],
+      });
+      return this.presentMany(rows, at, tx, true);
     });
   }
 
@@ -192,6 +245,7 @@ export class BannersService {
     banners: Banner[],
     at: Date,
     db: PrismaService | Prisma.TransactionClient = this.prisma,
+    rawAdmin = false,
   ) {
     const productIds = banners
       .filter((banner) => banner.action_type === 'product')
@@ -203,33 +257,39 @@ export class BannersService {
       .flatMap((banner) =>
         banner.action_target_id ? [banner.action_target_id] : [],
       );
-    const [products, categories, allCategories] = await Promise.all([
-      db.product.findMany({
-        where: { id: { in: productIds } },
-        select: {
-          id: true,
-          category_id: true,
-          name_ar: true,
-          name_en: true,
-          status: true,
-          published_at: true,
-        },
-      }),
-      db.category.findMany({
-        where: { id: { in: categoryIds } },
-        select: {
-          id: true,
-          parent_id: true,
-          slug: true,
-          name_ar: true,
-          name_en: true,
-          is_visible: true,
-        },
-      }),
-      db.category.findMany({
-        select: { id: true, parent_id: true, is_visible: true },
-      }),
-    ]);
+    const [products, categories, allCategories, usableDefaultCount] =
+      await Promise.all([
+        db.product.findMany({
+          where: { id: { in: productIds } },
+          select: {
+            id: true,
+            category_id: true,
+            name_ar: true,
+            name_en: true,
+            status: true,
+            published_at: true,
+          },
+        }),
+        db.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: {
+            id: true,
+            parent_id: true,
+            slug: true,
+            name_ar: true,
+            name_en: true,
+            is_visible: true,
+          },
+        }),
+        db.category.findMany({
+          select: { id: true, parent_id: true, is_visible: true },
+        }),
+        rawAdmin
+          ? db.banner.count({
+              where: { is_default: true, ...this.usableWhere(at) },
+            })
+          : Promise.resolve(0),
+      ]);
     const visibleCategories = this.visibleCategoryIds(allCategories);
     const productById = new Map(
       products.map((product) => [product.id, product]),
@@ -270,36 +330,59 @@ export class BannersService {
       return {
         ...banner,
         internal_name: this.clean(banner.internal_name) ?? banner.title,
-        title_ar:
-          this.clean(banner.title_ar) ??
-          this.clean(banner.title_en) ??
-          banner.title,
-        title_en:
-          this.clean(banner.title_en) ??
-          this.clean(banner.title_ar) ??
-          banner.title,
-        subtitle_ar:
-          this.clean(banner.subtitle_ar) ??
-          this.clean(banner.subtitle_en) ??
-          this.clean(banner.subtitle),
-        subtitle_en:
-          this.clean(banner.subtitle_en) ??
-          this.clean(banner.subtitle_ar) ??
-          this.clean(banner.subtitle),
-        cta_label_ar:
-          this.clean(banner.cta_label_ar) ??
-          this.clean(banner.cta_label_en) ??
-          this.clean(banner.cta_text),
-        cta_label_en:
-          this.clean(banner.cta_label_en) ??
-          this.clean(banner.cta_label_ar) ??
-          this.clean(banner.cta_text),
+        title_ar: rawAdmin
+          ? this.clean(banner.title_ar)
+          : (this.clean(banner.title_ar) ??
+            this.clean(banner.title_en) ??
+            banner.title),
+        title_en: rawAdmin
+          ? this.clean(banner.title_en)
+          : (this.clean(banner.title_en) ??
+            this.clean(banner.title_ar) ??
+            banner.title),
+        subtitle_ar: rawAdmin
+          ? this.clean(banner.subtitle_ar)
+          : (this.clean(banner.subtitle_ar) ??
+            this.clean(banner.subtitle_en) ??
+            this.clean(banner.subtitle)),
+        subtitle_en: rawAdmin
+          ? this.clean(banner.subtitle_en)
+          : (this.clean(banner.subtitle_en) ??
+            this.clean(banner.subtitle_ar) ??
+            this.clean(banner.subtitle)),
+        cta_label_ar: rawAdmin
+          ? this.clean(banner.cta_label_ar)
+          : (this.clean(banner.cta_label_ar) ??
+            this.clean(banner.cta_label_en) ??
+            this.clean(banner.cta_text)),
+        cta_label_en: rawAdmin
+          ? this.clean(banner.cta_label_en)
+          : (this.clean(banner.cta_label_en) ??
+            this.clean(banner.cta_label_ar) ??
+            this.clean(banner.cta_text)),
         effective_status: this.effectiveStatus(banner, at),
         action: {
           type,
           url: type === 'url' ? banner.link_url : null,
           target,
         },
+        ...(rawAdmin
+          ? {
+              removal: {
+                allowed: !(
+                  banner.is_default &&
+                  this.isUsable(banner, at) &&
+                  usableDefaultCount <= 2
+                ),
+                reason_code:
+                  banner.is_default &&
+                  this.isUsable(banner, at) &&
+                  usableDefaultCount <= 2
+                    ? 'BANNER_DEFAULT_MINIMUM_REQUIRED'
+                    : null,
+              },
+            }
+          : {}),
       };
     });
   }
@@ -396,6 +479,14 @@ export class BannersService {
         { OR: [{ ends_at: null }, { ends_at: { gte: at } }] },
       ],
     };
+  }
+
+  private isUsable(banner: Banner, at: Date) {
+    return (
+      banner.is_active &&
+      (!banner.starts_at || banner.starts_at <= at) &&
+      (!banner.ends_at || banner.ends_at >= at)
+    );
   }
 
   private async protectDefaultMinimum(

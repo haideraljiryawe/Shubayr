@@ -770,7 +770,7 @@ const strictError = await request('/admin/custody-exceptions/goods-loss', {
 });
 check(
   strictError.code,
-  'SEPARATION_OF_DUTIES_VIOLATION',
+  'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
   'strict separation refuses the handover actor',
 );
 await db.query(

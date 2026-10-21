@@ -235,6 +235,40 @@ async function createTrip(label, fare) {
   });
 }
 
+const inactiveDriver = await request('/admin/external-drivers', {
+  token: adminToken,
+  method: 'POST',
+  expected: 201,
+  body: {
+    name: 'C8 Inactive Courier Fixture',
+    phone: `+96475${Date.now()}`.slice(0, 16),
+  },
+});
+await request(`/admin/external-drivers/${inactiveDriver.id}`, {
+  token: adminToken,
+  method: 'PATCH',
+  body: { is_active: false },
+});
+const inactiveDriverError = await request('/admin/external-driver-trips', {
+  token: adminToken,
+  method: 'POST',
+  expected: 404,
+  body: {
+    operation_id: `c8-inactive-${randomUUID()}`,
+    driver_party_id: inactiveDriver.id,
+    fare_bearer: 'store',
+    fare_amount_iqd: '0',
+    fare_settlement_method: 'payable',
+    failure_cancellation_agreement: 'No fare for inactive test driver',
+    document_date: today,
+  },
+});
+check(
+  inactiveDriverError.code,
+  'ACTIVE_EXTERNAL_DRIVER_NOT_FOUND',
+  'inactive external driver has a declared error code',
+);
+
 async function addOrder(
   trip,
   order,

@@ -122,7 +122,10 @@ export function BannerFormDialog({
   }
 
   async function submit() {
-    const found = validateBanner(form, { hasImage });
+    const allowStoredLegacyTitle = Boolean(
+      original?.title.trim() && !original.title_ar && !original.title_en,
+    );
+    const found = validateBanner(form, { hasImage, allowStoredLegacyTitle });
     setProblems(found);
     if (found.length) return;
     if (original) {
