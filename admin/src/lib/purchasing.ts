@@ -1,5 +1,5 @@
 import type { components } from "@/types/api";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, isSeparationRefusal } from "@/lib/api/errors";
 
 /* ---------------------------------------------------------------------------
  * Purchasing and suppliers (API 9.0, build phase 6).
@@ -481,7 +481,7 @@ export function agingTotals(lines: ReadonlyArray<{ bucket: AgingBucket; currency
 
 /** The server's refusals worth their own message. */
 export function isSeparationOfDuties(error: unknown): boolean {
-  return error instanceof ApiError && error.code === "SEPARATION_OF_DUTIES_VIOLATION";
+  return isSeparationRefusal(error);
 }
 
 export function isRateOverrideForbidden(error: unknown): boolean {

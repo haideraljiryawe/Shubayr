@@ -56,7 +56,7 @@ export function toApiError(status: number, body: unknown): ApiError {
 
 /** The translator the describers need (next-intl's `t`, scoped to "errors"). */
 export interface ErrorTranslator {
-  (key: string): string;
+  (key: string, values?: Record<string, string | number>): string;
   has(key: string): boolean;
 }
 
@@ -98,12 +98,18 @@ export const FIELD_CODE_MESSAGES: Record<string, string> = {
   isBoolean: "yesNo",
 };
 
-/** The message for one field error, in the person's language. */
-export function describeFieldError(t: ErrorTranslator, error: Pick<FieldError, "code">): string {
+/** The message for one field error, in the person's language, with the API's bounds when it sends them (17.9.0). */
+export function describeFieldError(t: ErrorTranslator, error: Pick<FieldError, "code"> & Partial<Pick<FieldError, "min" | "max">>): string {
   const field = FIELD_CODE_MESSAGES[error.code];
-  if (field) return t(`fields.${field}`);
-  if (t.has(`codes.${error.code}`)) return t(`codes.${error.code}`);
-  return t("fields.invalid");
+  const message = field ? t(`fields.${field}`) : t.has(`codes.${error.code}`) ? t(`codes.${error.code}`) : t("fields.invalid");
+  const bounds = boundsText(t, error);
+  return bounds ? `${message} ${bounds}` : message;
+}
+
+/** "Allowed: 0 to 25000." from a field error's min/max, or null without both. */
+function boundsText(t: ErrorTranslator, error: Partial<Pick<FieldError, "min" | "max">>): string | null {
+  if (error.min === undefined || error.min === null || error.max === undefined || error.max === null) return null;
+  return t("fields.bounds", { min: String(error.min), max: String(error.max) });
 }
 
 /**
@@ -134,7 +140,10 @@ export function errorCode(error: unknown): string | undefined {
  */
 export function describeError(t: ErrorTranslator, error: unknown): string {
   const code = errorCode(error);
-  if (code && t.has(`codes.${code}`)) return t(`codes.${code}`);
+  if (code && t.has(`codes.${code}`)) {
+    const bounds = error instanceof ApiError ? error.errors.map((row) => boundsText(t, row)).find(Boolean) : null;
+    return bounds ? `${t(`codes.${code}`)} ${bounds}` : t(`codes.${code}`);
+  }
   return t(errorKind(error));
 }
 
@@ -180,4 +189,15 @@ export function errorKind(error: unknown): ErrorKind {
     default:
       return "unknown";
   }
+}
+
+/**
+ * Separation-of-duties refusals (contract 17.9.0): routes changed in 17.9.0
+ * answer STRICT_SEPARATION_OF_DUTIES_REQUIRED; unchanged routes keep the
+ * deprecated SEPARATION_OF_DUTIES_VIOLATION. Both mean the same here.
+ */
+export const SEPARATION_CODES = ["STRICT_SEPARATION_OF_DUTIES_REQUIRED", "SEPARATION_OF_DUTIES_VIOLATION"] as const;
+
+export function isSeparationRefusal(error: unknown): boolean {
+  return error instanceof ApiError && (SEPARATION_CODES as readonly string[]).includes(error.code ?? "");
 }
