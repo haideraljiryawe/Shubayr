@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, ArrowDown, ArrowUp, Copy, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Copy, Eye, EyeOff, Pencil, Plus, Repeat, ShieldAlert, Star, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Card, Select } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
@@ -15,9 +15,11 @@ import {
   baghdadText,
   bannerName,
   defaultsInFeedOrder,
+  displayTitle,
   duplicateBody,
   filterBanners,
   nextSortOrder,
+  removalBlocked,
   reorderIds,
   scheduleModeOf,
   targetName,
@@ -27,9 +29,15 @@ import {
 } from "@/lib/banners";
 import type { CategoryOption } from "@/components/catalog/banner-target-picker";
 import { BannerFormDialog } from "./banner-form";
+import { DefaultSwapDialog } from "./default-swap-dialog";
 import { STATUS_TONE } from "./status";
 
-type Dialog = { kind: "new" } | { kind: "edit"; banner: Banner } | { kind: "delete"; banner: Banner } | null;
+type Dialog =
+  | { kind: "new" }
+  | { kind: "edit"; banner: Banner }
+  | { kind: "delete"; banner: Banner }
+  | { kind: "swap"; banner: Banner }
+  | null;
 
 /**
  * The home banners in the order the store shows them. Each row has its
@@ -76,6 +84,11 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
     // The complete order in one atomic call: it all applies or none of it.
     void act(`move-${banner.id}`, () => unwrap(browserApi.PUT("/admin/banners/order", { body: { ids } })), t("moved", { title: bannerName(banner) }));
   }
+
+  // Raw stored text (17.9.0): this language, else the other, as customers see it.
+  const pick = (ar: string | null, en: string | null) => ((locale === "ar" ? ar || en : en || ar) ?? "").trim();
+  const subtitleOf = (banner: Banner) => pick(banner.subtitle_ar, banner.subtitle_en) || (banner.subtitle ?? "");
+  const ctaOf = (banner: Banner) => pick(banner.cta_label_ar, banner.cta_label_en) || (banner.cta_text ?? "");
 
   const actionText = (banner: Banner) => {
     const target = banner.action.target;
@@ -155,6 +168,7 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
             const index = banners.findIndex((item) => item.id === banner.id);
             const status = banner.effective_status;
             const target = banner.action.target;
+            const blocked = removalBlocked(banner);
             const targetGone = (banner.action_type === "product" || banner.action_type === "category") && (!target || !target.available);
             const pending = busy !== null;
             return (
@@ -181,8 +195,8 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
                     </span>
                     {banner.show_text ? (
                       <span className="line-clamp-1 text-sm text-text-muted" dir="auto">
-                        {locale === "ar" ? banner.title_ar : banner.title_en}
-                        {(locale === "ar" ? banner.subtitle_ar : banner.subtitle_en) ? ` — ${locale === "ar" ? banner.subtitle_ar : banner.subtitle_en}` : ""}
+                        {displayTitle(banner, locale)}
+                        {subtitleOf(banner) ? ` — ${subtitleOf(banner)}` : ""}
                       </span>
                     ) : null}
                     <span className="text-xs text-text-muted" data-testid="banner-position">
@@ -193,14 +207,18 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
                     </span>
                     <span className="text-xs text-text-muted" data-testid="banner-link-text" data-action={banner.action_type}>
                       {actionText(banner)}
-                      {banner.show_text && banner.action_type !== "none" && (locale === "ar" ? banner.cta_label_ar : banner.cta_label_en)
-                        ? ` · ${t("buttonLabel", { label: (locale === "ar" ? banner.cta_label_ar : banner.cta_label_en) ?? "" })}`
-                        : ""}
+                      {banner.show_text && banner.action_type !== "none" && ctaOf(banner) ? ` · ${t("buttonLabel", { label: ctaOf(banner) })}` : ""}
                     </span>
                     {targetGone ? (
                       <span className="flex items-center gap-1 text-xs font-semibold text-warning-dark" data-testid="banner-target-unavailable">
                         <AlertTriangle className="size-3.5" aria-hidden />
                         {t(`target.unavailableHint.${banner.action_type as "product" | "category"}`)}
+                      </span>
+                    ) : null}
+                    {blocked ? (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-warning-dark" data-testid="banner-removal-blocked">
+                        <ShieldAlert className="size-3.5" aria-hidden />
+                        {t("defaults.lastTwo")}
                       </span>
                     ) : null}
                   </div>
@@ -226,7 +244,7 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={pending}
+                      disabled={pending || (banner.is_active && blocked)}
                       pending={busy === `toggle-${banner.id}`}
                       onClick={() =>
                         void act(
@@ -257,11 +275,17 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
                       <Copy className="size-4" aria-hidden />
                       {t("duplicate")}
                     </Button>
+                    {banner.is_default ? (
+                      <Button size="sm" variant="ghost" disabled={pending} onClick={() => setDialog({ kind: "swap", banner })} data-testid="banner-swap-open">
+                        <Repeat className="size-4" aria-hidden />
+                        {t("swap.open")}
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="ghost"
                       className="text-error-dark"
-                      disabled={pending}
+                      disabled={pending || blocked}
                       onClick={() => setDialog({ kind: "delete", banner })}
                       data-testid="banner-delete"
                     >
@@ -285,6 +309,19 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
           onClose={() => setDialog(null)}
           onSaved={(saved, created) => {
             toast(created ? t("created", { title: bannerName(saved) }) : t("saved", { title: bannerName(saved) }));
+            setDialog(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {dialog?.kind === "swap" ? (
+        <DefaultSwapDialog
+          outgoing={dialog.banner}
+          banners={banners}
+          onClose={() => setDialog(null)}
+          onSwapped={(incoming) => {
+            toast(t("swap.done", { outgoing: bannerName(dialog.banner), incoming: bannerName(incoming) }));
             setDialog(null);
             router.refresh();
           }}

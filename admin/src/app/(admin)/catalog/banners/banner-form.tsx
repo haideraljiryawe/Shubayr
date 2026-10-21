@@ -22,8 +22,10 @@ import {
   createBody,
   formFromBanner,
   formTarget,
+  isLegacyOnly,
   modeChoices,
   patchBody,
+  removalBlocked,
   scheduleOf,
   switchMode,
   targetName,
@@ -212,6 +214,11 @@ export function BannerFormDialog({
             <Input value={form.ctaEn} dir="ltr" lang="en" onChange={(e) => set({ ctaEn: e.target.value })} data-testid="banner-cta-en" />
           </Field>
         </div>
+        {original && isLegacyOnly(original) ? (
+          <Alert tone="info" data-testid="banner-legacy-title">
+            {t("form.legacyTitle", { title: original.title })}
+          </Alert>
+        ) : null}
         <p className="flex items-start gap-2 text-xs text-text-muted" data-testid="banner-fallback-note">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {t("form.fallback", { max: TITLE_MAX })}
@@ -315,6 +322,11 @@ export function BannerFormDialog({
         <p className="-mt-2 text-xs text-text-muted" data-testid="banner-default-rule">
           {t("form.defaultRule")}
         </p>
+        {original && removalBlocked(original) ? (
+          <Alert tone="info" data-testid="banner-form-removal-blocked">
+            {t("form.lastTwoDefaults")}
+          </Alert>
+        ) : null}
         {form.isDefault ? (
           <Field label={t("form.defaultPriority")} name="default_priority" error={problem("defaultPriority")} hint={t("form.defaultPriorityHint")}>
             <Input

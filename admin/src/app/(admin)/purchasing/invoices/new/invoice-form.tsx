@@ -331,7 +331,7 @@ export function InvoiceForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, postedLines, rate, usdCentral]);
 
-  /** What "paid now" pays: the invoice total in its currency, or null when it can't be known exactly before posting. */
+  /** A preview of what "paid now" pays (the server computes the exact amount), or null when only the server can. */
   const paidAmount = useMemo(
     () => paidNowAmount(preview.lines.map((row) => row.lineTotal), state.landed, state.currency),
     [preview.lines, state.landed, state.currency],
@@ -350,7 +350,6 @@ export function InvoiceForm({
     if (!state.defaultLocationId) found.location = t("errors.location");
     if (postedLines.length === 0) found.lines = state.lines.length ? t("errors.noQuantities") : t("errors.noLines");
     if (state.payment === "now" && !state.cashAccountId) found.cashAccount = t("payNow.errors.account");
-    if (state.payment === "now" && paidAmount === null) found.cashAccount = t("payNow.errors.amountUnknown");
     for (const row of preview.lines) {
       const k = `line-${row.line.key}`;
       if (!row.line.sku) found[`${k}-sku`] = t("errors.sku");
@@ -367,7 +366,7 @@ export function InvoiceForm({
     if (state.landed.length && preview.landedIqd === null && state.method === "manual") found.allocation = t("errors.manualNeedsRate");
     return found;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, postedLines, preview, central, overridden, today, windowDays, paidAmount]);
+  }, [state, postedLines, preview, central, overridden, today, windowDays]);
 
   function toReview() {
     setShowErrors(true);
@@ -418,7 +417,7 @@ export function InvoiceForm({
   async function confirm() {
     if (!review) return;
     const account = (cashAccounts ?? []).find((row) => row.id === state.cashAccountId);
-    const payNow = state.payment === "now" && account && paidAmount !== null;
+    const payNow = state.payment === "now" && account;
     const result = await posting.post(review.operationId, async () => {
       if (payNow) {
         // One atomic call: invoice, stock, payment and allocation commit
@@ -429,7 +428,9 @@ export function InvoiceForm({
             params: { header: { "Idempotency-Key": review.operationId } },
             body: {
               invoice: invoiceBody(),
-              payment: { cash_account_id: account.id, currency_code: account.currency_code, amount: paidAmount },
+              // The server computes the exact full settlement — landed costs and
+              // currency conversion included — so nothing is left owed (17.9.0).
+              payment: { cash_account_id: account.id, currency_code: account.currency_code, pay_full_invoice_total: true },
             },
           }),
         )) as unknown as PaidNowResult;
@@ -467,7 +468,9 @@ export function InvoiceForm({
   /* ------------------------------------------------------------- render */
 
   const supplier = supplierList.find((row) => row.id === state.supplierId);
-  const payable = (cashAccounts ?? []).filter((account) => account.is_active && account.currency_code === state.currency);
+  // The server converts between currencies for "paid now", so any active account can pay.
+  const payable = (cashAccounts ?? []).filter((account) => account.is_active);
+  const payingAccount = payable.find((row) => row.id === state.cashAccountId);
   const precision = precisionOf(state.currency);
   const money = (value: bigint | null, currency: string) =>
     value === null ? t("atPosting") : moneyText(value, currency, precisionOf(currency), locale);
@@ -829,13 +832,13 @@ export function InvoiceForm({
           </label>
           {state.payment === "now" ? (
             <p className="text-sm" data-testid="invoice-paid-amount">
-              {paidAmount !== null
+              {paidAmount !== null && (!payingAccount || payingAccount.currency_code === state.currency)
                 ? t("payNow.amount", { amount: moneyText(toFixed(paidAmount), state.currency, precision, locale) })
-                : t("payNow.amountUnknown")}
+                : t("payNow.amountByServer")}
             </p>
           ) : null}
           {state.payment === "now" ? (
-            <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount", { currency: state.currency })}>
+            <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount")}>
               <Select value={state.cashAccountId} disabled={locked} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="invoice-cash-account">
                 <option value="">{t("payNow.pickAccount")}</option>
                 {payable.map((account) => (
