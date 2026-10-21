@@ -62,6 +62,7 @@ export class AdminBannersController {
   }
 
   @Post('defaults/swap')
+  @HttpCode(200)
   swapDefault(@Body() input: SwapDefaultBannerDto) {
     return this.banners.swapDefault(input);
   }
