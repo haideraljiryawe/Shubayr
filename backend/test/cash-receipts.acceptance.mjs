@@ -350,7 +350,7 @@ await request(`/admin/cash-receipts/${receipt.id}/allocations`, {
     ],
   },
 });
-const strictCreateError = await request('/admin/cash-receipts', {
+const custodyLimitError = await request('/admin/cash-receipts', {
   token: adminToken,
   method: 'POST',
   expected: 409,
@@ -363,9 +363,9 @@ const strictCreateError = await request('/admin/cash-receipts', {
   },
 });
 check(
-  strictCreateError.code,
-  'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
-  'strict separation requires another user for initial allocation',
+  custodyLimitError.code,
+  'RECEIPT_EXCEEDS_CASH_CUSTODY',
+  'a receipt cannot exceed the remaining party custody',
 );
 
 const laterInput = {
