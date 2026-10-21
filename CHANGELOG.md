@@ -1,5 +1,28 @@
 # Changelog
 
+## 17.9.0 - 2026-10-21
+
+### Added
+
+- Field-specific delivery validation codes and distinct custody-self versus
+  strict separation-of-duties refusal codes, with structured safe bounds.
+- A contract-wide backend error-code registry and CI drift check covering HTTP,
+  catalog-import row, notification-provider and push-test code paths.
+- Raw bilingual Admin banner reads, removal-protection reasons and an atomic
+  default-banner replacement operation.
+- Server-computed full-invoice settlement for atomic paid-now purchases,
+  including landed costs and cross-currency conversion.
+- Server-paginated P&L account details, commercial-report drill-down metadata,
+  and report-scoped category/SKU pickers.
+
+### Changed
+
+- Purchase-invoice lists can filter by category or SKU.
+- Backup retention now fails the run when either remote `rclone lsf` listing
+  fails, so the existing heartbeat reports a failed backup.
+- The API contract is version 17.9.0. All response and request additions are
+  backward compatible and staff-facing; customer mobile shapes are unchanged.
+
 ## 17.8.1 - 2026-10-20
 
 ### Fixed

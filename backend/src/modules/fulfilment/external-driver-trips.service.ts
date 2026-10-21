@@ -8,7 +8,7 @@ import { Prisma } from '../../generated/prisma/client';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { assertDifferentActor } from '../../common/access/separation-of-duties';
 import { PrismaService } from '../../database/prisma.service';
-import { conflict, invalid } from '../../common/http/api-error';
+import { conflict, invalid, notFound } from '../../common/http/api-error';
 import { actorDisplayName, actorSelect } from '../../common/users/actor-name';
 import { AuditService } from '../audit/audit.service';
 import { businessDateText, parseBusinessDate } from '../finance/business-date';
@@ -178,7 +178,10 @@ export class ExternalDriverTripsService {
           where: { id: input.driver_party_id },
         });
         if (!party || party.kind !== 'external_driver' || !party.is_active) {
-          throw new NotFoundException('Active external driver not found');
+          throw notFound(
+            'ACTIVE_EXTERNAL_DRIVER_NOT_FOUND',
+            'Active external driver not found',
+          );
         }
         if (input.fare_cash_account_id) {
           await this.cashAccount(tx, input.fare_cash_account_id);

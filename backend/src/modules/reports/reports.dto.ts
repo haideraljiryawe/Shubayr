@@ -55,6 +55,35 @@ export class ProfitabilityReportQueryDto extends PageQueryDto {
 export class ProfitLossQueryDto {
   @Matches(DATE) from!: string;
   @Matches(DATE) to!: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  per_page?: number;
+}
+
+const PICKER_REPORTS = [
+  'sales',
+  'profitability',
+  'purchases',
+  'stock_movement',
+  'inventory_valuation',
+] as const;
+
+export class ReportCatalogPickerQueryDto {
+  @IsIn(PICKER_REPORTS)
+  report_type!: (typeof PICKER_REPORTS)[number];
+  @IsIn(['category', 'sku']) kind!: 'category' | 'sku';
+  @IsOptional() @IsString() @MaxLength(160) q?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  per_page?: number;
 }
 
 export class AsOfReportQueryDto extends PageQueryDto {

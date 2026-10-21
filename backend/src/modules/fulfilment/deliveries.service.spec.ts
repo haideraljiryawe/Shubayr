@@ -403,6 +403,62 @@ describe('DeliveriesService delivery-agent picker', () => {
   });
 });
 
+describe('DeliveriesService field-level validation codes', () => {
+  const service = new DeliveriesService({} as never, {} as never, {} as never);
+
+  it('identifies both delivery-party selector fields', async () => {
+    await expect(
+      service.assign('staff-1', 'delivery-1', {}),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'DELIVERY_PARTY_SELECTOR_INVALID',
+        errors: [
+          expect.objectContaining({ field: 'agent_id' }),
+          expect.objectContaining({ field: 'party_id' }),
+        ],
+      },
+    });
+  });
+
+  it('returns structured date and amount bounds for inverted collection filters', async () => {
+    await expect(
+      service.listUnconfirmed({
+        date_from: '2026-10-21',
+        date_to: '2026-10-20',
+        sort_by: 'date',
+        sort_direction: 'desc',
+        page: 1,
+        per_page: 20,
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'DELIVERY_COLLECTION_DATE_RANGE_INVALID',
+        errors: [
+          expect.objectContaining({
+            field: 'date_to',
+            min: '2026-10-21',
+          }),
+        ],
+      },
+    });
+    await expect(
+      service.listUnconfirmed({
+        amount_min: 20,
+        amount_max: 10,
+        sort_by: 'date',
+        sort_direction: 'desc',
+        page: 1,
+        per_page: 20,
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'DELIVERY_COLLECTION_AMOUNT_RANGE_INVALID',
+        errors: [expect.objectContaining({ field: 'amount_max', min: 20 })],
+      },
+    });
+  });
+});
+
 describe('DeliveriesService attempt history', () => {
   type AttemptTestDelivery = {
     id: string;

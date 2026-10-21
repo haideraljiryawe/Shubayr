@@ -75,4 +75,30 @@ describe('CashReceiptService business dates', () => {
       'Allocating a new receipt requires cash_receipts.allocate',
     );
   });
+
+  it('uses a custody-specific code when a party acts on its own cash', () => {
+    const service = new CashReceiptService(
+      {} as PrismaService,
+      {} as AuditService,
+      {} as DateRulesService,
+      {} as LedgerService,
+      {} as DocumentNumberService,
+      {} as OperationService,
+    );
+
+    try {
+      (
+        service as unknown as {
+          assertPartyActor(actorId: string, partyUserId: string): void;
+        }
+      ).assertPartyActor('same-user', 'same-user');
+      throw new Error('expected self-custody refusal');
+    } catch (error) {
+      expect(error).toMatchObject({
+        response: expect.objectContaining({
+          code: 'SELF_CUSTODY_CASH_ACTION_FORBIDDEN',
+        }) as Record<string, unknown>,
+      });
+    }
+  });
 });

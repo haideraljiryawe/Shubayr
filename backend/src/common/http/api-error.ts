@@ -12,6 +12,8 @@ export type ApiFieldError = {
   field: string;
   code: string;
   message: string;
+  min?: string | number;
+  max?: string | number;
   governorate_id?: string;
   governorate_code?: string;
   governorate_name_ar?: string;
@@ -75,9 +77,10 @@ export function forbidden(code: string, message: string): ForbiddenException {
 export function invalid(
   code: string,
   message: string,
+  errors: ApiFieldError[] = [],
 ): UnprocessableEntityException {
   return new UnprocessableEntityException(
-    codedError(HttpStatus.UNPROCESSABLE_ENTITY, code, message),
+    codedError(HttpStatus.UNPROCESSABLE_ENTITY, code, message, errors),
   );
 }
 

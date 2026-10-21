@@ -834,6 +834,7 @@ export class CustodyExceptionsService {
             actor.id,
             exception.party.user_id,
             'A delivery party cannot reverse an exception in their own custody',
+            'SELF_CUSTODY_CASH_ACTION_FORBIDDEN',
           );
         }
         if (
@@ -1188,6 +1189,7 @@ export class CustodyExceptionsService {
         actorId,
         partyUserId,
         'A delivery party cannot approve an exception in their own custody',
+        'SELF_CUSTODY_CASH_ACTION_FORBIDDEN',
       );
     }
     if ((await separationOfDutiesLevel(tx)) !== 'strict') return;
@@ -1196,6 +1198,7 @@ export class CustodyExceptionsService {
         actorId,
         deliveryActorId,
         'Strict separation of duties requires another user to record the exception',
+        'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
       );
       return;
     }
@@ -1213,6 +1216,7 @@ export class CustodyExceptionsService {
         actorId,
         handover.user_id,
         'Strict separation of duties requires another user to record the exception',
+        'STRICT_SEPARATION_OF_DUTIES_REQUIRED',
       );
     }
   }
