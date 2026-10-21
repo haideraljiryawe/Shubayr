@@ -17,7 +17,7 @@ jobs:
         with: { python-version: '3.12' }
       - uses: actions/setup-node@v4
         with:
-          node-version-file: backend/.nvmrc
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - name: Validate the OpenAPI contract

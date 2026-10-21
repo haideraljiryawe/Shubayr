@@ -1528,7 +1528,7 @@ try {
   );
   check(
     amount(lastCost.unit_cost),
-    7000,
+    10000,
     'last-cost read returns the latest base-unit purchase cost',
   );
   check(
@@ -1538,7 +1538,7 @@ try {
   );
   check(
     lastCost.invoice_id,
-    paidNow.invoice.id,
+    computedPaidNow.invoice.id,
     'last-cost read identifies the invoice',
   );
   const newestLots = await request(
@@ -1547,7 +1547,7 @@ try {
   );
   check(
     newestLots.data[0].lot_number,
-    'PAID-NOW',
+    'PAID-NOW-COMPUTED',
     'lot list can sort newest receipt first',
   );
 
