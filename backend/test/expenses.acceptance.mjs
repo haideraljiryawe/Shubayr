@@ -466,12 +466,13 @@ const owedDraft = await request('/admin/expenses', {
   key: key('owed-create'),
   expected: 201,
   body: {
-    category_id: electricity.id,
+    category_id: rent.id,
     amount: '300000',
     currency_code: 'IQD',
     payment_mode: 'owed',
-    payee: 'National Grid',
-    description: 'Accrued electricity expense',
+    payee: 'Section 17 landlord',
+    description: 'Section 17 rent worked example',
+    reference_number: 'SECTION29-RENT-300000',
     document_date: today,
   },
 });
@@ -512,7 +513,7 @@ check(
 check(
   partOne.balance_currency,
   200000,
-  'first partial payment leaves the exact balance',
+  'section 17 rent: paying 100,000 leaves the exact 200,000 liability',
 );
 await request(`/admin/expenses/${owedDraft.id}/payments`, {
   token: approver,
@@ -530,6 +531,11 @@ const paid = await request(`/admin/expenses/${owedDraft.id}/payments`, {
 });
 check(paid.balance_currency, 0, 'two payments clear the accrued expense');
 check(paid.payments.length, 2, 'two immutable payment documents are retained');
+check(
+  paid.payments.reduce((sum, payment) => sum + payment.amount_currency, 0),
+  300000,
+  'section 17 rent: later payment clears 200,000 without recounting the 300,000 expense',
+);
 
 const reversal = await request(`/admin/expenses/${cashDraft.id}/reverse`, {
   token: approver,

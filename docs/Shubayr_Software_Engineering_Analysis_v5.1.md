@@ -1238,6 +1238,11 @@ Before delivery, the following are automated as tests (and walked through in UAT
 
 تُؤتمت اختبارات القبول التي حددها الفريق قبل التسليم وتُراجع في اختبار المستخدم: فصل أدوار العمل عن التسوق ومنع تعديل حساب المتابعة، والتنافس على آخر كمية، ومنع التكرار، وصحة الحجز والصرف واختيار الدفعات، واختبارات الكلفة والعملات والمورّدين والعهد والمرتجعات والأجور والمقاصة والسائق الخارجي والإقفال والمصاريف وحماية الحقول. يجب أن تتطابق الكميات والقيم وإجماليات المستندات آليًا، ولا تُسلم وظائف الترحيل والتصحيح قبل نجاح اختباراتها.
 
+> **Historical status note:** Section 30 records the build state when this
+> approved analysis was issued. It is retained unchanged as project history;
+> use the repository `CHANGELOG.md`, current CI and tagged acceptance artifact
+> for the implemented release status.
+
 # 30. Current Build Status
 
 حالة البناء الحالية

@@ -66,7 +66,10 @@ function assertionCount(output) {
 
 function gitValue(args) {
   try {
-    return execFileSync('git', args, { encoding: 'utf8' }).trim();
+    return execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
   } catch {
     return null;
   }
@@ -370,6 +373,9 @@ try {
   await run('test/reports-part2.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase11-12-completion.acceptance.mjs', [], acceptanceEnv);
   await run('test/report-export-permissions.acceptance.mjs', [], acceptanceEnv);
+  // Final cross-pack gate: all earlier scenarios have posted into the same
+  // real database, so prove the release examples and ledger invariants last.
+  await run('test/section29-release.acceptance.mjs', [], acceptanceEnv);
 } catch (error) {
   suiteError = error;
   throw error;

@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to publish (e.g. v1.0.0-rc1); the current commit is built"
+        description: "Existing release tag to verify and publish (e.g. v1.0.0-rc3)"
         required: true
 
 permissions:
