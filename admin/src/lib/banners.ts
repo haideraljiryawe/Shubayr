@@ -3,7 +3,7 @@ import { storeDateTimeLocal, storeLocalToIso } from "@/lib/finance/dates";
 import { STORE_TIME_ZONE } from "@/lib/store-time";
 
 /* ---------------------------------------------------------------------------
- * Home banners (NOTE-001, contract 17.7.0), kept pure for unit tests.
+ * Home banners (NOTE-001, contracts 17.7.0 and 17.9.0), kept pure for unit tests.
  *
  * - Status is the API's `effective_status`, computed on server time. The
  *   admin never works it out itself.
@@ -14,14 +14,17 @@ import { STORE_TIME_ZONE } from "@/lib/store-time";
  * - On click: none, a web link, a product, a category or the offers page. The
  *   API validates the target and returns it resolved, with `available=false`
  *   when customers can no longer see it.
- * - Arabic and English text. The API fills a missing language from the other
- *   one, then from the legacy single-language fields, so admin reads show the
- *   text customers will see. The legacy `title`/`subtitle`/`cta_text` are kept
+ * - Arabic and English text. Admin reads (AdminBanner, 17.9.0) return what is
+ *   stored, null included, so a missing translation shows as an empty field.
+ *   Customers get the other language's text in its place, then the legacy
+ *   single-language fields. The legacy `title`/`subtitle`/`cta_text` are kept
  *   in step (Arabic first) for clients that still read them.
  * - Defaults: when no regular banner runs, the feed shows the first two usable
  *   defaults (by priority); with one regular banner it adds one default. Once
  *   two usable defaults exist, the API refuses (409) a change that would leave
- *   fewer than two.
+ *   fewer than two; each banner says so up front (`removal`), and one default
+ *   is replaced by another in a single atomic call
+ *   (POST /admin/banners/defaults/swap).
  * - Order is replaced in one atomic call (PUT /admin/banners/order).
  * ------------------------------------------------------------------------- */
 
@@ -78,6 +81,37 @@ export function defaultsInFeedOrder<T extends Pick<Banner, "is_default" | "effec
 
 /** The name the admin shows for a banner. */
 export const bannerName = (banner: Pick<Banner, "internal_name" | "title">) => banner.internal_name || banner.title;
+
+/** The title customers see in `locale`: that language, else the other, else the legacy title. */
+export function displayTitle(banner: Pick<Banner, "title" | "title_ar" | "title_en">, locale: string): string {
+  const ar = banner.title_ar?.trim();
+  const en = banner.title_en?.trim();
+  return (locale === "ar" ? ar || en : en || ar) || banner.title;
+}
+
+/** An older banner with only the legacy single-language title (no Arabic or English stored). */
+export const isLegacyOnly = (banner: Pick<Banner, "title" | "title_ar" | "title_en">) =>
+  Boolean(banner.title.trim()) && !banner.title_ar?.trim() && !banner.title_en?.trim();
+
+/** The API refuses to delete or switch this banner off (one of the last two usable defaults). */
+export const removalBlocked = (banner: Pick<Banner, "removal">) => banner.removal?.allowed === false;
+
+/** Banners that can step in for a default: not a default yet, enabled and in date now. */
+export function swapCandidates<T extends Pick<Banner, "id" | "is_default" | "effective_status">>(list: readonly T[], outgoing: Pick<Banner, "id">): T[] {
+  return list.filter((banner) => banner.id !== outgoing.id && !banner.is_default && banner.effective_status === "active");
+}
+
+export type BannerDefaultSwap = components["schemas"]["BannerDefaultSwap"];
+
+/** The swap request; the incoming banner keeps the outgoing priority unless another is given. */
+export function swapBody(outgoing: Pick<Banner, "id">, incomingId: string, priority?: string): BannerDefaultSwap {
+  const typed = priority?.trim();
+  return {
+    outgoing_id: outgoing.id,
+    incoming_id: incomingId,
+    ...(typed && /^\d{1,6}$/.test(typed) ? { default_priority: Number(typed) } : {}),
+  };
+}
 
 export function targetName(target: Pick<BannerTarget, "name_ar" | "name_en">, locale: string): string {
   return (locale === "ar" ? target.name_ar || target.name_en : target.name_en || target.name_ar) ?? "";

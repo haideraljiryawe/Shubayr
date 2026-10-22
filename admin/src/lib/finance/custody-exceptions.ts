@@ -75,18 +75,22 @@ export type ExceptionRefusal =
   | "noValue"
   | "inactiveAccount"
   | "duplicateHolding"
+  | "ownCustody"
   | "separation";
 
 /**
  * Refusals by the API's error code — never by its English message (NOTE-012).
- * Both "a party can't act on its own custody" and "strict separation needs
- * another recorder" come as SEPARATION_OF_DUTIES_VIOLATION, so they share
- * the "separation" message until the API tells them apart.
+ * Since 17.9.0 the API tells "a party can't act on its own custody"
+ * (SELF_CUSTODY_CASH_ACTION_FORBIDDEN) apart from "strict separation needs
+ * another recorder" (STRICT_SEPARATION_OF_DUTIES_REQUIRED; older routes still
+ * say SEPARATION_OF_DUTIES_VIOLATION).
  */
 const CODES: Record<string, ExceptionRefusal> = {
   RECEIPT_REVERSAL_REQUIRED: "receiptConsumed",
   SELF_REVERSAL_FORBIDDEN: "ownException",
   SEPARATION_OF_DUTIES_VIOLATION: "separation",
+  STRICT_SEPARATION_OF_DUTIES_REQUIRED: "separation",
+  SELF_CUSTODY_CASH_ACTION_FORBIDDEN: "ownCustody",
   CUSTODY_EXCEPTION_ALREADY_REVERSED: "alreadyReversed",
   GOODS_NOT_IN_CUSTODY: "notInCustody",
   GOODS_LOSS_STATUS_INVALID: "notInCustody",

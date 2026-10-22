@@ -140,6 +140,7 @@ const REFUSALS: Record<string, ReceiptRefusal> = {
   SELF_REVERSAL_FORBIDDEN: "ownReceipt",
   SELF_CUSTODY_CASH_ACTION_FORBIDDEN: "ownCustody",
   SEPARATION_OF_DUTIES_VIOLATION: "strictAllocation",
+  STRICT_SEPARATION_OF_DUTIES_REQUIRED: "strictAllocation",
   RECEIPT_REVERSAL_ALREADY_REVERSED: "alreadyReversed",
   RECEIPT_ALLOCATION_REVERSED: "reversedReceipt",
   DELIVERY_PARTY_INACTIVE: "inactiveParty",

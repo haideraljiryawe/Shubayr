@@ -1,5 +1,5 @@
 import type { components } from "@/types/api";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, isSeparationRefusal } from "@/lib/api/errors";
 
 /* ---------------------------------------------------------------------------
  * Order operations: which buttons a staff member sees on an order.
@@ -310,7 +310,7 @@ export function belowCostBreaches(error: unknown): BelowCostBreach[] | null {
 }
 
 export function isSelfApprovalRefused(error: unknown): boolean {
-  return error instanceof ApiError && error.code === "SEPARATION_OF_DUTIES_VIOLATION";
+  return isSeparationRefusal(error);
 }
 
 export function needsAttentionRefusal(error: unknown): boolean {

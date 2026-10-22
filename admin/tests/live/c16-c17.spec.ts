@@ -181,6 +181,13 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     const stored = (await allBanners(request)).find((row) => row.internal_name === productBanner)!;
     created.push(stored.id);
     expect(stored.action).toMatchObject({ type: "product", target: { id: shown.id, available: true } });
+    // Raw admin translations (17.9.0): only Arabic was typed, so English reads back empty.
+    expect((await api(request, "GET", `/admin/banners/${stored.id}`)).body).toMatchObject({ title_ar: `وصل ${run}`, title_en: null });
+    await productRow.getByTestId("banner-edit").click();
+    await expect(form.getByTestId("banner-title-ar")).toHaveValue(`وصل ${run}`);
+    await expect(form.getByTestId("banner-title-en")).toHaveValue("");
+    await form.getByRole("button", { name: "إلغاء" }).last().click();
+    await expect(form).toBeHidden();
 
     // A hidden product is still a valid target, but the row warns that customers can't see it.
     const hiddenBanner = await api(request, "POST", "/admin/banners", {
@@ -240,14 +247,40 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await expect(page.getByTestId("banner-defaults-summary")).toHaveAttribute("data-usable", "2");
     await expect(page.getByTestId("banner-defaults-short")).toHaveCount(0);
 
-    // 3. Deleting one of the last two defaults: the API refuses, the dialog says why.
-    await page.getByTestId("banner-row").filter({ hasText: firstDefault }).getByTestId("banner-delete").click();
-    const confirm = page.getByTestId("confirm-dialog");
-    await expect(confirm).toContainText("بانر افتراضي");
-    await confirm.getByTestId("confirm-submit").click();
-    await expect(confirm.getByTestId("form-error")).toHaveAttribute("data-code", "BANNER_DEFAULT_MINIMUM_REQUIRED");
-    await confirm.getByRole("button", { name: "إلغاء" }).click();
-    expect((await api(request, "GET", `/admin/banners/${one.id}`)).status).toBe(200);
+    // 3. The last two defaults are protected up front (removal.allowed=false):
+    //    no delete, no switch-off — and one is replaced by another in one call.
+    const protectedRow = page.getByTestId("banner-row").filter({ hasText: firstDefault });
+    await expect(protectedRow.getByTestId("banner-removal-blocked")).toBeVisible();
+    await expect(protectedRow.getByTestId("banner-delete")).toBeDisabled();
+    await expect(protectedRow.getByTestId("banner-toggle")).toBeDisabled();
+    const incomingName = `${DEFAULT_PREFIX} ${run} incoming`;
+    const incoming = await api(request, "POST", "/admin/banners", {
+      title: incomingName,
+      internal_name: incomingName,
+      image_url: picture,
+      show_text: false,
+      is_active: true,
+    });
+    expect(incoming.status, JSON.stringify(incoming.body)).toBe(201);
+    created.push(incoming.body.id);
+    await page.reload();
+    await page.getByTestId("banner-row").filter({ hasText: firstDefault }).getByTestId("banner-swap-open").click();
+    const swap = page.getByTestId("banner-swap");
+    await swap.getByTestId("banner-swap-incoming").selectOption(incoming.body.id);
+    await expect(swap.getByTestId("banner-swap-priority")).toHaveValue("1");
+    const swapCalls: string[] = [];
+    page.on("request", (sent) => {
+      if (/\/api\/proxy\/admin\/banners/.test(sent.url()) && sent.method() !== "GET") swapCalls.push(`${sent.method()} ${new URL(sent.url()).pathname}`);
+    });
+    await swap.getByTestId("dialog-submit").click();
+    await expect(swap).toBeHidden();
+    expect(swapCalls).toEqual(["POST /api/proxy/admin/banners/defaults/swap"]);
+    const afterSwap = await allBanners(request);
+    expect(afterSwap.find((row) => row.id === incoming.body.id)).toMatchObject({ is_default: true });
+    expect(afterSwap.find((row) => row.id === one.id)).toMatchObject({ is_default: false });
+    expect((await usableDefaults(request)).length).toBe(2);
+    // The replaced banner is a regular one now: it can be deleted.
+    await expect(page.getByTestId("banner-row").filter({ hasText: firstDefault }).getByTestId("banner-delete")).toBeEnabled();
 
     // 4. Reorder: one atomic call with the whole order.
     const writes: string[] = [];
@@ -358,6 +391,15 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   const supplier = await newSupplier(request, `A12 Najaf Supply ${run}`, phone);
   const product = await restockable(request, "RST");
   const account = await till(request);
+  // A USD rate for the landed cost below (newer than any earlier spec's).
+  const rate = await api(request, "POST", "/admin/exchange-rates", {
+    currency_code: "USD",
+    rate: "1500",
+    basis: 1,
+    effective_at: new Date().toISOString(),
+    reason: `A12 paid-now landed cost ${run}`,
+  });
+  expect(rate.status, JSON.stringify(rate.body)).toBe(201);
 
   await uiLoginAsAdmin(page);
   // 1. Owed. The supplier is found by typing part of its phone — a server search.
@@ -397,17 +439,29 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await form.getByTestId("invoice-payment-now").check();
   await form.getByTestId("invoice-cash-account").selectOption(account);
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("24,000");
+  // Freight paid in USD on this IQD invoice: only the server knows the exact
+  // total (17.9.0 pay_full_invoice_total), and paid now still works.
+  await form.getByTestId("invoice-add-cost").click();
+  await form.getByTestId("landed-kind").fill("Freight");
+  await form.getByTestId("landed-currency").selectOption("USD");
+  await form.getByTestId("landed-amount").fill("2");
+  await expect(form.getByTestId("invoice-paid-amount")).toContainText("الخادم");
   await form.getByTestId("invoice-review-button").click();
-  const posts: string[] = [];
+  const posts: Array<{ path: string; payment: Record<string, unknown> }> = [];
   page.on("request", (sent) => {
-    if (sent.method() === "POST" && /\/api\/proxy\/admin\/(purchase-invoices|supplier-payments)/.test(sent.url())) posts.push(new URL(sent.url()).pathname);
+    if (sent.method() === "POST" && /\/api\/proxy\/admin\/(purchase-invoices|supplier-payments)/.test(sent.url())) {
+      posts.push({ path: new URL(sent.url()).pathname, payment: (sent.postDataJSON() as { payment?: Record<string, unknown> })?.payment ?? {} });
+    }
   });
   await form.getByTestId("invoice-confirm").click();
   await expect(form.getByTestId("invoice-paid-now")).toHaveAttribute("data-settlement", "paid");
-  expect(posts).toEqual(["/api/proxy/admin/purchase-invoices/paid-now"]);
+  expect(posts.map((post) => post.path)).toEqual(["/api/proxy/admin/purchase-invoices/paid-now"]);
+  expect(posts[0].payment).toMatchObject({ pay_full_invoice_total: true });
+  expect(posts[0].payment).not.toHaveProperty("amount");
   const paidHref = (await page.getByTestId("restock-open-invoice").getAttribute("href")) ?? "";
   const paid = (await api(request, "GET", `/admin/purchase-invoices/${paidHref.split("/").pop()}`)).body;
-  expect(paid).toMatchObject({ settlement_status: "paid", remaining_currency: 0, total_cost: 24000 });
+  // 3 × 8,000 + 2 USD × 1,500 = 27,000 IQD, all settled.
+  expect(paid).toMatchObject({ settlement_status: "paid", remaining_currency: 0, total_cost: 27000 });
 
   // 3. "Recent" with nothing typed is the API's order: this supplier, just bought from, comes first.
   await page.goto("/purchasing/invoices/new");

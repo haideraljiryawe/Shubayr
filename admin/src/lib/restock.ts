@@ -107,10 +107,12 @@ export function startingCost(last: LastCost | null, currency: CurrencyCode): str
 /* ------------------------------------------------------------- paid now */
 
 /**
- * The amount "paid now" settles: the invoice total in its own currency (lines
- * plus landed costs), which the API requires exactly. Only when every landed
- * cost is in the invoice's currency can it be known exactly before posting;
- * otherwise null, and the invoice is recorded as owed and paid afterwards.
+ * The amount "paid now" will settle, shown before posting: the invoice total
+ * in its own currency (lines plus landed costs). The request itself asks the
+ * server to pay the full total (pay_full_invoice_total, 17.9.0), which also
+ * converts landed costs in another currency; this preview is only possible
+ * when every landed cost is in the invoice's currency, otherwise null and the
+ * form says the server computes it.
  */
 export function paidNowAmount(
   lineTotals: readonly bigint[],
