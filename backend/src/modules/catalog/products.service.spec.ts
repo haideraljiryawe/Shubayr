@@ -53,6 +53,7 @@ describe('ProductsService', () => {
       .mockResolvedValueOnce([{ id: 'product-page-id', total: 10_000n }]);
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
       $queryRaw: queryRaw,
       product: { findMany: jest.fn().mockResolvedValue([]) },
     };
@@ -92,6 +93,7 @@ describe('ProductsService', () => {
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
@@ -119,6 +121,7 @@ describe('ProductsService', () => {
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
@@ -142,6 +145,7 @@ describe('ProductsService', () => {
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
@@ -161,6 +165,34 @@ describe('ProductsService', () => {
       )
       .join('\n');
     expect(sql).toContain('translate(regexp_replace');
+  });
+
+  it('uses the indexed product id when a SKU or barcode matches exactly', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([{ id: 'product-id', total: 1n }]);
+    const service = new ProductsService(
+      {
+        storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        productVariant: {
+          findFirst: jest.fn().mockResolvedValue({ product_id: 'product-id' }),
+        },
+        $queryRaw: queryRaw,
+        product: { findMany: jest.fn().mockResolvedValue([]) },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.listAdmin({ q: 'SKU-100', page: 1, per_page: 20 });
+
+    const sql = queryRaw.mock.calls
+      .map(([statement]) =>
+        (statement as { strings: string[] }).strings.join('?'),
+      )
+      .join('\n');
+    expect(sql).toContain('p.id = ?::uuid');
+    expect(sql).not.toContain('search_variant.sku ILIKE');
   });
 
   it('hard-deletes an unreferenced product and clears transient cart/media data', async () => {

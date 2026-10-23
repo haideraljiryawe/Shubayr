@@ -1000,22 +1000,36 @@ export class ProductsService {
     const candidateConditions: Prisma.Sql[] = [];
     const availabilityConditions: Prisma.Sql[] = [];
     const q = query.q?.trim().replace(/\s+/g, ' ');
+    const exactIdentifier = q
+      ? await this.prisma.productVariant.findFirst({
+          where: { OR: [{ sku: q }, { barcode: q }] },
+          select: { product_id: true },
+        })
+      : null;
     if (q) {
       const pattern = `%${q}%`;
       const arabicNameMatch = /[\u0600-\u06ff]/u.test(q)
         ? Prisma.sql`${normalizedArabicSql(Prisma.sql`p.name_ar`)} LIKE ${`%${normalizeCatalogSearch(q)}%`}`
         : Prisma.sql`p.name_ar ILIKE ${pattern}`;
-      candidateConditions.push(Prisma.sql`(
-        p.name_en ILIKE ${pattern}
-        OR ${arabicNameMatch}
-        OR p.description ILIKE ${pattern}
-        OR EXISTS (
-          SELECT 1 FROM product_variants search_variant
-          WHERE search_variant.product_id = p.id
-            AND (search_variant.sku ILIKE ${pattern}
-              OR search_variant.barcode ILIKE ${pattern})
-        )
-      )`);
+      // An exact SKU/barcode is an unambiguous picker selection. Resolve it
+      // through the unique identifier indexes and avoid evaluating the broad
+      // substring search across the whole catalog. Partial terms retain the
+      // name/SKU/barcode search behaviour below.
+      candidateConditions.push(
+        exactIdentifier
+          ? Prisma.sql`p.id = ${exactIdentifier.product_id}::uuid`
+          : Prisma.sql`(
+              p.name_en ILIKE ${pattern}
+              OR ${arabicNameMatch}
+              OR p.description ILIKE ${pattern}
+              OR EXISTS (
+                SELECT 1 FROM product_variants search_variant
+                WHERE search_variant.product_id = p.id
+                  AND (search_variant.sku ILIKE ${pattern}
+                    OR search_variant.barcode ILIKE ${pattern})
+              )
+            )`,
+      );
     }
     if (query.category_id) {
       candidateConditions.push(
