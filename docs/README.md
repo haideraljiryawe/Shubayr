@@ -10,6 +10,7 @@ its Section 30 build-status narrative is historical. Use the repository
 - [Approved software analysis v5.1](Shubayr_Software_Engineering_Analysis_v5.1.md)
 - [Architecture and mandatory rules](ARCHITECTURE.md)
 - [API standards](API_STANDARDS.md)
+- [Staff and customer session policy](security/session-policy.md)
 - [OpenAPI contract](../api/openapi.yaml)
 - [Product decisions](decisions/2026-10-12.md) and
   [phase-10 exclusion](decisions/2026-10-17.md)

@@ -40,6 +40,10 @@
 - Purchase-invoice remaining balance now includes linked cost corrections at
   the invoice's stored exchange rate, while the original invoice and actual
   payment documents remain immutable.
+- Web Admin refreshes no longer sign staff out when concurrent requests cross
+  server processes or when a deploy briefly makes the API unavailable. The
+  existing short-lived access, rotating refresh and reuse controls remain in
+  force; contract 17.9.0 is unchanged.
 
 ## 17.9.0 - 2026-10-21
 

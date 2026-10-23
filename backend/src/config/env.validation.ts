@@ -54,6 +54,11 @@ const schema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_TTL: Joi.string().default('15m'),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
+  ADMIN_REFRESH_ROTATION_GRACE_SECONDS: Joi.number()
+    .integer()
+    .min(1)
+    .max(120)
+    .default(30),
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)
