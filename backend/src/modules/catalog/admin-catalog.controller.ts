@@ -177,4 +177,12 @@ export class AdminProductsController {
   archive(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.products.archive(id);
   }
+
+  @Post(':id/delete')
+  deleteOrArchive(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+  ) {
+    return this.products.deleteOrArchive(id, request.user.id);
+  }
 }

@@ -90,6 +90,135 @@ describe('ProductsService', () => {
     );
   });
 
+  it('excludes archived products by default in the SQL-paginated admin list', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([{ total: 0n }])
+      .mockResolvedValueOnce([]);
+    const service = new ProductsService(
+      {
+        storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        $queryRaw: queryRaw,
+        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
+        product: { findMany: jest.fn().mockResolvedValue([]) },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.listAdmin({ page: 1, per_page: 20 });
+
+    const sql = queryRaw.mock.calls
+      .map(([statement]) =>
+        (statement as { strings: string[] }).strings.join('?'),
+      )
+      .join('\n');
+    expect(sql).toContain('p.status IN');
+    const values = queryRaw.mock.calls.flatMap(
+      ([statement]) => (statement as { values: unknown[] }).values,
+    );
+    expect(values).toEqual(expect.arrayContaining(['active', 'hidden']));
+    expect(values).not.toContain('archived');
+  });
+
+  it('hard-deletes an unreferenced product and clears transient cart/media data', async () => {
+    const tx = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'product-id',
+          status: 'hidden',
+          images: [{ url: 'http://api/media/media-id' }],
+          _count: {
+            purchase_invoice_items: 0,
+            inventory_batches: 0,
+            order_items: 0,
+            product_reviews: 0,
+            price_approval_requests: 0,
+          },
+        }),
+        delete: jest.fn(),
+      },
+      banner: { count: jest.fn().mockResolvedValue(0) },
+      cartItem: { deleteMany: jest.fn() },
+      wishlistItem: { deleteMany: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn((work: (client: typeof tx) => unknown) => work(tx)),
+      mediaObject: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'media-id' }),
+      },
+    };
+    const media = { remove: jest.fn() };
+    const audit = { record: jest.fn() };
+    const search = { indexProduct: jest.fn() };
+    const service = new ProductsService(
+      prisma as never,
+      media as never,
+      audit as never,
+      search as never,
+    );
+
+    await expect(
+      service.deleteOrArchive('product-id', 'actor-id'),
+    ).resolves.toEqual({ outcome: 'deleted', reasons: [] });
+    expect(tx.cartItem.deleteMany).toHaveBeenCalledWith({
+      where: { product_id: 'product-id' },
+    });
+    expect(tx.product.delete).toHaveBeenCalledWith({
+      where: { id: 'product-id' },
+    });
+    expect(media.remove).toHaveBeenCalledWith('media-id');
+    expect(audit.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'catalog.product.delete_unreferenced' }),
+    );
+  });
+
+  it('archives a referenced product and explains every blocking reference', async () => {
+    const tx = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'product-id',
+          status: 'active',
+          images: [],
+          _count: {
+            purchase_invoice_items: 1,
+            inventory_batches: 1,
+            order_items: 1,
+            product_reviews: 0,
+            price_approval_requests: 0,
+          },
+        }),
+        update: jest.fn(),
+      },
+      banner: { count: jest.fn().mockResolvedValue(0) },
+    };
+    const audit = { record: jest.fn() };
+    const service = new ProductsService(
+      {
+        $transaction: jest.fn((work: (client: typeof tx) => unknown) =>
+          work(tx),
+        ),
+      } as never,
+      {} as never,
+      audit as never,
+      { indexProduct: jest.fn() } as never,
+    );
+
+    await expect(
+      service.deleteOrArchive('product-id', 'actor-id'),
+    ).resolves.toEqual({
+      outcome: 'archived',
+      reasons: ['order_history', 'inventory_history', 'purchase_history'],
+    });
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: { id: 'product-id' },
+      data: { status: 'archived', search_sync_required: true },
+    });
+  });
+
   it('applies a bulk change once and reports an unpublishable id separately', async () => {
     const rows = [
       {

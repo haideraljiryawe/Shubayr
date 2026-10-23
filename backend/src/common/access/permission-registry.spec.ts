@@ -1,5 +1,7 @@
 import {
   PERMISSION_DEPENDENCIES,
+  PERMISSION_KEYS,
+  permissionPresentation,
   SEEDED_PRESET_GRANTS,
   type PermissionKey,
 } from './permission-registry';
@@ -32,5 +34,18 @@ describe('seeded permission presets', () => {
 
   it('lets expenses.create use the scoped form options without broad reads', () => {
     expect(PERMISSION_DEPENDENCIES['expenses.create']).toEqual([]);
+  });
+});
+
+describe('permission presentation metadata', () => {
+  it('has non-technical Arabic and English labels and descriptions for every key', () => {
+    for (const key of PERMISSION_KEYS) {
+      const metadata = permissionPresentation(key);
+      expect(metadata.name_ar).toMatch(/[\u0600-\u06ff]/);
+      expect(metadata.name_ar).not.toContain(key);
+      expect(metadata.name_en).not.toContain('.');
+      expect(metadata.description_ar).toMatch(/[\u0600-\u06ff]/);
+      expect(metadata.description_en).toMatch(/\.$/);
+    }
   });
 });

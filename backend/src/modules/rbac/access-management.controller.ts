@@ -117,8 +117,8 @@ export class PermissionsController {
   constructor(private readonly access: AccessManagementService) {}
 
   @Get()
-  list() {
-    return this.access.permissions();
+  list(@Query('q') q?: string) {
+    return this.access.permissions(q);
   }
 }
 

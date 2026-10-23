@@ -1130,6 +1130,8 @@ export class CatalogImportService {
           url: string;
         }> = [];
         const unmatched: string[] = [];
+        const failed: Array<{ file: string; code: string; message: string }> =
+          [];
         const sorted = entries.sort((left, right) =>
           left.name.localeCompare(right.name, 'en', { numeric: true }),
         );
@@ -1146,7 +1148,18 @@ export class CatalogImportService {
             continue;
           }
           const bytes = await entry.async('nodebuffer');
-          const uploaded = await this.media.uploadCatalogImage(bytes, actor.id);
+          let uploaded: { public_url: string };
+          try {
+            uploaded = await this.media.uploadCatalogImage(bytes, actor.id);
+          } catch {
+            failed.push({
+              file: entry.name,
+              code: 'CATALOG_IMAGE_PROCESSING_FAILED',
+              message:
+                'The image could not be decoded and stored as a square catalog image',
+            });
+            continue;
+          }
           let sortOrder = nextOrder.get(variant.product_id);
           if (sortOrder === undefined) {
             const aggregate = await tx.productImage.aggregate({
@@ -1172,7 +1185,7 @@ export class CatalogImportService {
             url: uploaded.public_url,
           });
         }
-        const result = { operation_id: operationId, matched, unmatched };
+        const result = { operation_id: operationId, matched, unmatched, failed };
         await this.audit.record(tx, {
           actorId: actor.id,
           action: 'catalog.images.bulk_upload',
@@ -1181,6 +1194,7 @@ export class CatalogImportService {
             operation_id: operationId,
             matched: matched.length,
             unmatched,
+            failed,
           }),
         });
         return result;

@@ -28,6 +28,7 @@ import { businessDate } from '../finance/business-date';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OperationService } from '../finance/operation.service';
 import { BulkProductDto } from './dto/bulk-product.dto';
+import { normalizeCatalogSearch, normalizedArabicSql } from './arabic-search';
 
 export type FixedPriceApprovalPayload = {
   product_id: string;
@@ -755,6 +756,92 @@ export class ProductsService {
     await this.search?.indexProduct(id);
   }
 
+  async deleteOrArchive(
+    id: string,
+    actorId: string,
+  ): Promise<{ outcome: 'deleted' | 'archived'; reasons: string[] }> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          images: { select: { url: true } },
+          _count: {
+            select: {
+              purchase_invoice_items: true,
+              inventory_batches: true,
+              order_items: true,
+              product_reviews: true,
+              price_approval_requests: true,
+            },
+          },
+        },
+      });
+      if (!product) throw new NotFoundException('Product not found');
+
+      const bannerReferences = await tx.banner.count({
+        where: { action_type: 'product', action_target_id: id },
+      });
+      const reasons = [
+        ...(product._count.order_items ? ['order_history'] : []),
+        ...(product._count.inventory_batches ? ['inventory_history'] : []),
+        ...(product._count.purchase_invoice_items ? ['purchase_history'] : []),
+        ...(product._count.product_reviews ? ['product_reviews'] : []),
+        ...(product._count.price_approval_requests
+          ? ['price_approval_history']
+          : []),
+        ...(bannerReferences ? ['banner_action'] : []),
+      ];
+
+      if (reasons.length) {
+        await tx.product.update({
+          where: { id },
+          data: { status: 'archived', search_sync_required: true },
+        });
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.product.archive_referenced',
+          entityType: 'product',
+          entityId: id,
+          before: { status: product.status },
+          after: { status: 'archived', reasons },
+        });
+        return { outcome: 'archived' as const, reasons, mediaUrls: [] };
+      }
+
+      // Cart and wishlist rows are transient, so clearing them is safe. All
+      // financial, order, inventory and approval references above block hard
+      // deletion and preserve the product as archived instead.
+      await tx.cartItem.deleteMany({ where: { product_id: id } });
+      await tx.wishlistItem.deleteMany({ where: { product_id: id } });
+      await tx.product.delete({ where: { id } });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'catalog.product.delete_unreferenced',
+        entityType: 'product',
+        entityId: id,
+        before: { status: product.status },
+        after: { deleted: true },
+      });
+      return {
+        outcome: 'deleted' as const,
+        reasons: [],
+        mediaUrls: product.images.map(({ url }) => url),
+      };
+    });
+
+    for (const url of result.mediaUrls) {
+      const media = await this.prisma.mediaObject.findUnique({
+        where: { public_url: url },
+        select: { id: true },
+      });
+      if (media) await this.media.remove(media.id);
+    }
+    await this.search?.indexProduct(id);
+    return { outcome: result.outcome, reasons: result.reasons };
+  }
+
   async availability(id: string, enforcePublicVisibility = false) {
     const product = await this.prisma.product.findUnique({
       where: { id },
@@ -880,12 +967,16 @@ export class ProductsService {
     const defaultThreshold = await this.defaultLowStockThreshold();
     const today = businessDate();
     const conditions: Prisma.Sql[] = [];
-    const q = query.q?.trim();
+    const q = query.q?.trim().replace(/\s+/g, ' ');
     if (q) {
       const pattern = `%${q}%`;
+      const normalizedPattern = `%${normalizeCatalogSearch(q)}%`;
+      const normalizedArabicName = normalizedArabicSql(
+        Prisma.sql`p.name_ar`,
+      );
       conditions.push(Prisma.sql`(
         p.name_en ILIKE ${pattern}
-        OR p.name_ar ILIKE ${pattern}
+        OR ${normalizedArabicName} LIKE ${normalizedPattern}
         OR p.description ILIKE ${pattern}
         OR EXISTS (
           SELECT 1 FROM product_variants search_variant
@@ -905,10 +996,13 @@ export class ProductsService {
         )})`,
       );
     }
-    if (query.status?.length) {
+    const statuses = query.status?.length
+      ? query.status
+      : (['active', 'hidden'] as const);
+    if (statuses.length) {
       conditions.push(
         Prisma.sql`p.status IN (${Prisma.join(
-          query.status.map((status) => Prisma.sql`${status}`),
+          statuses.map((status) => Prisma.sql`${status}`),
         )})`,
       );
     }
