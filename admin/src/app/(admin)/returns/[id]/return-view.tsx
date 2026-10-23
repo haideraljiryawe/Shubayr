@@ -20,6 +20,7 @@ import {
 } from "@/lib/returns";
 import { ReturnStatusBadge } from "../status-badge";
 import { ApprovePanel, InspectPanel, ReceivePanel, RefundPanel } from "./action-panels";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export interface CustomerInfo {
   name: string | null;
@@ -132,52 +133,52 @@ export function ReturnView({
 
       <Card className="overflow-x-auto">
         <h2 className="mb-2 font-bold">{t("detail.lines")}</h2>
-        <table className="w-full text-sm" data-testid="return-lines">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("detail.product")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("detail.reasonCode")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.requested")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.approved")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.unitPrice")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.discountShare")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.netPaid")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.lineRefund")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("detail.points")}</th>
-              {inspected ? <th className="px-3 py-2 text-start font-semibold">{t("detail.inspection")}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="return-lines">
+          <THead>
+            <Tr>
+              <Th>{t("detail.product")}</Th>
+              <Th>{t("detail.reasonCode")}</Th>
+              <Th>{t("detail.requested")}</Th>
+              <Th>{t("detail.approved")}</Th>
+              <Th>{t("detail.unitPrice")}</Th>
+              <Th>{t("detail.discountShare")}</Th>
+              <Th>{t("detail.netPaid")}</Th>
+              <Th>{t("detail.lineRefund")}</Th>
+              <Th>{t("detail.points")}</Th>
+              {inspected ? <Th>{t("detail.inspection")}</Th> : null}
+            </Tr>
+          </THead>
+          <TBody>
             {ret.items.map((item) => (
-              <tr key={item.id} className="border-t border-border align-top" data-testid="return-line" data-item={item.id}>
-                <td className="px-3 py-2">
+              <Tr key={item.id} className="align-top" data-testid="return-line" data-item={item.id}>
+                <Td>
                   <span className="font-medium">{name(item)}</span>
                   <span className="block text-xs text-text-muted">{item.customer_reason}</span>
-                </td>
-                <td className="px-3 py-2">{t(`reasonCodes.${item.reason_code}`)}</td>
-                <td className="px-3 py-2 text-end" dir="ltr" data-testid="return-line-requested">
+                </Td>
+                <Td>{t(`reasonCodes.${item.reason_code}`)}</Td>
+                <Td dir="ltr" data-testid="return-line-requested">
                   {quantityText(item.quantity, item)}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr" data-testid="return-line-approved">
+                </Td>
+                <Td dir="ltr" data-testid="return-line-approved">
                   {reviewed ? quantityText(item.approved_quantity, item) : "—"}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">
+                </Td>
+                <Td dir="ltr">
                   {money(item.unit_price)}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">
+                </Td>
+                <Td dir="ltr">
                   {money(item.discount_share)}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr" data-testid="return-line-net">
+                </Td>
+                <Td dir="ltr" data-testid="return-line-net">
                   {money(item.net_amount)}
-                </td>
-                <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="return-line-refund">
+                </Td>
+                <Td className="font-semibold" dir="ltr" data-testid="return-line-refund">
                   {reviewed ? money(item.approved_refund) : "—"}
-                </td>
-                <td className="px-3 py-2 text-end text-xs" data-testid="return-line-points">
+                </Td>
+                <Td data-testid="return-line-points">
                   {t("detail.pointsShare", { earned: item.earned_points_share, redeemed: item.redeemed_points_share })}
-                </td>
+                </Td>
                 {inspected ? (
-                  <td className="px-3 py-2" data-testid="return-line-inspection">
+                  <Td data-testid="return-line-inspection">
                     {item.condition ? t(`conditions.${item.condition}`) : "—"}
                     {item.inspection_location ? (
                       <span className="block text-xs text-text-muted" dir="ltr">
@@ -185,12 +186,12 @@ export function ReturnView({
                       </span>
                     ) : null}
                     {item.condition ? <span className="block text-xs text-text-muted">{item.restock ? t("detail.restocked") : t("detail.writtenDown")}</span> : null}
-                  </td>
+                  </Td>
                 ) : null}
-              </tr>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         <p className="mt-2 text-xs text-text-muted">{t("detail.netPaidHint")}</p>
       </Card>
 

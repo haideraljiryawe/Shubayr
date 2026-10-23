@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, Button, buttonClasses, Card, Input, Select } from "@/components/ui";
+import { Alert, Button, buttonClasses, Card, Input, Select, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -16,6 +16,7 @@ import { storeDay } from "@/lib/finance/dates";
 import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, quantityRule, toMilli, type LocationInfo, type Opening } from "@/lib/inventory";
 import { isBlankQuantity, linesToPost } from "@/lib/restock";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 /** The location new lines start with: the only sellable one, if there is exactly one. */
 function defaultLocationId(locations: readonly LocationInfo[]): string {
@@ -163,31 +164,31 @@ export function OpeningForm({
     return (
       <Card className="flex flex-col gap-4" data-testid="opening-preview">
         <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.location")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.quantity")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.unitCost")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.location")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.quantity")}</Th>
+              <Th>{t("columns.unitCost")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {reviewed.map((line) => (
-              <tr key={line.key} className="border-t border-border" data-testid="opening-preview-line" data-sku={line.sku?.sku}>
-                <td className="px-3 py-2 font-semibold" dir="ltr">{line.sku?.sku}</td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(byId.get(line.locationId))}</td>
-                <td className="px-3 py-2" dir="ltr">
+              <Tr key={line.key} data-testid="opening-preview-line" data-sku={line.sku?.sku}>
+                <Td className="font-semibold" dir="ltr">{line.sku?.sku}</Td>
+                <Td dir="ltr">{locationLabel(byId.get(line.locationId))}</Td>
+                <Td dir="ltr">
                   {line.lotNumber || t("lotAutomatic")}
                   {line.expiry ? <span className="block text-xs text-text-muted">{t("expires", { date: line.expiry })}</span> : null}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)} {unitName(line.sku?.baseUnit)}</td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatCost(line.unitCost, locale)}</td>
-              </tr>
+                </Td>
+                <Td dir="ltr">{formatQuantity(line.quantity, locale)} {unitName(line.sku?.baseUnit)}</Td>
+                <Td dir="ltr">{formatCost(line.unitCost, locale)}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         <p className="text-sm">
           {t("opening.value")}{" "}
           <span className="font-bold" dir="ltr" data-testid="opening-preview-value">
@@ -347,11 +348,11 @@ export function OpeningForm({
         </Field>
       </Card>
       {formError ? <Alert data-testid="opening-form-error">{formError}</Alert> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" data-testid="opening-review">
           {t("review")}
         </Button>
-      </div>
+      </ActionBar>
     </form>
   );
 }

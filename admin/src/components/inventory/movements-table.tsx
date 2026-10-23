@@ -124,7 +124,6 @@ export function MovementsTable({
     {
       key: "quantity",
       header: t("columns.quantity"),
-      className: "text-end",
       cell: (row) => (
         <span className="font-semibold" dir="ltr" data-testid="movement-quantity">
           {formatQuantity(row.quantity, locale)}
@@ -136,7 +135,6 @@ export function MovementsTable({
           {
             key: "cost",
             header: t("columns.unitCost"),
-            className: "text-end",
             cell: (row: Movement) => (
               <span dir="ltr" className="text-xs" data-testid="movement-cost">
                 {formatCost(row.unit_cost_iqd, locale)}

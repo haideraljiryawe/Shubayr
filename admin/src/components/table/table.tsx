@@ -38,8 +38,8 @@ export function TableCard({
   children,
   className,
   pending = false,
-  "data-testid": testId,
-}: {
+  ...rest
+}: Omit<HTMLAttributes<HTMLElement>, "title"> & {
   /** Title, status and context links of the thing the table belongs to. */
   title?: ReactNode;
   /** Card-level tools: search, filters, parent actions. */
@@ -48,15 +48,14 @@ export function TableCard({
   children: ReactNode;
   className?: string;
   pending?: boolean;
-  "data-testid"?: string;
 }) {
   return (
     <section
+      {...rest}
       className={cn(
         "flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
         className,
       )}
-      data-testid={testId}
     >
       {title || toolbar ? (
         <div

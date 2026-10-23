@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Plus, Trash2, UserPlus } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -953,11 +953,11 @@ export function InvoiceForm({
           ) : null}
         </Card>
       ) : (
-        <div className="flex justify-end">
+        <ActionBar>
           <Button onClick={toReview} data-testid="invoice-review-button">
             {t("review")}
           </Button>
-        </div>
+        </ActionBar>
       )}
     </div>
   );

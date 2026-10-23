@@ -7,6 +7,7 @@ import { DecimalInput } from "@/components/forms/decimal-input";
 import { useStoreDateTime } from "@/components/orders/use-store-date";
 import { ALLOCATION_DECIMALS, autoAllocate, type AllocationPlan, type Unsettled, type UnsettledRow } from "@/lib/finance/cash-receipts";
 import { moneyText, toFixed } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 /**
  * A party's unsettled collections, oldest first, with what to allocate to
@@ -59,34 +60,34 @@ export function AllocationTable({
             </Button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("order")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("collectedAt")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("collected")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("settled")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("unsettled")}</th>
-                  <th className="w-44 px-3 py-2 text-start font-semibold">{t("allocate")}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table minWidth="40rem">
+              <THead>
+                <Tr>
+                  <Th>{t("order")}</Th>
+                  <Th>{t("collectedAt")}</Th>
+                  <Th>{t("collected")}</Th>
+                  <Th>{t("settled")}</Th>
+                  <Th>{t("unsettled")}</Th>
+                  <Th className="w-44">{t("allocate")}</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {suggestions.map((suggestion, index) => {
                   const row = rows[index];
                   return (
-                    <tr key={row.orderId} className="border-t border-border" data-testid="allocation-row" data-order={row.orderNumber}>
-                      <td className="px-3 py-2">
+                    <Tr key={row.orderId} data-testid="allocation-row" data-order={row.orderNumber}>
+                      <Td>
                         <Link href={`/orders/${row.orderId}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                           {row.orderNumber}
                         </Link>
-                      </td>
-                      <td className="px-3 py-2">{dateTime(suggestion.collected_at)}</td>
-                      <td className="px-3 py-2 text-end" dir="ltr">{money(toFixed(suggestion.collected_amount_iqd))}</td>
-                      <td className="px-3 py-2 text-end" dir="ltr">{money(toFixed(suggestion.allocated_amount_iqd))}</td>
-                      <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="allocation-unsettled">
+                      </Td>
+                      <Td>{dateTime(suggestion.collected_at)}</Td>
+                      <Td dir="ltr">{money(toFixed(suggestion.collected_amount_iqd))}</Td>
+                      <Td dir="ltr">{money(toFixed(suggestion.allocated_amount_iqd))}</Td>
+                      <Td className="font-semibold" dir="ltr" data-testid="allocation-unsettled">
                         {money(row.unsettled)}
-                      </td>
-                      <td className="px-3 py-2">
+                      </Td>
+                      <Td>
                         <DecimalInput
                           key={`${row.orderId}-${generation}`}
                           value={applied[row.orderId] ?? ""}
@@ -97,12 +98,12 @@ export function AllocationTable({
                           onValueChange={(_, text) => onApplied({ ...applied, [row.orderId]: text.trim() }, false)}
                           data-testid="allocation-amount"
                         />
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   );
                 })}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
         </>
       )}

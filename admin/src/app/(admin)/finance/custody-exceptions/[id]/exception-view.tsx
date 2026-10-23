@@ -13,6 +13,7 @@ import { OperationKey } from "@/lib/finance/cash-receipts";
 import type { CustodyException } from "@/lib/finance/custody-exceptions";
 import { entryHref } from "@/lib/finance/links";
 import { moneyText, toFixed } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export function ExceptionView({ exception, canReverse, canViewLedger }: { exception: CustodyException; canReverse: boolean; canViewLedger: boolean }) {
   const t = useTranslations("custodyExceptions");
@@ -87,40 +88,40 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
       {exception.lines.length ? (
         <Card className="overflow-x-auto">
           <h2 className="mb-2 font-bold">{t("detail.lines")}</h2>
-          <table className="w-full text-sm">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("create.product")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("create.lot")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("detail.quantity")}</th>
-                {exception.type === "return_against_uncollected" ? <th className="px-3 py-2 text-end font-semibold">{t("detail.returnAmount")}</th> : null}
-                {exception.lines[0]?.location ? <th className="px-3 py-2 text-start font-semibold">{t("create.location")}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>{t("create.product")}</Th>
+                <Th>{t("create.lot")}</Th>
+                <Th>{t("detail.quantity")}</Th>
+                {exception.type === "return_against_uncollected" ? <Th>{t("detail.returnAmount")}</Th> : null}
+                {exception.lines[0]?.location ? <Th>{t("create.location")}</Th> : null}
+              </Tr>
+            </THead>
+            <TBody>
               {exception.lines.map((line) => (
-                <tr key={line.id} className="border-t border-border" data-testid="exception-line">
-                  <td className="px-3 py-2">{locale === "ar" ? line.order_item.product_name_ar : line.order_item.product_name_en}</td>
-                  <td className="px-3 py-2" dir="ltr">
+                <Tr key={line.id} data-testid="exception-line">
+                  <Td>{locale === "ar" ? line.order_item.product_name_ar : line.order_item.product_name_en}</Td>
+                  <Td dir="ltr">
                     {line.batch.lot_number ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  </Td>
+                  <Td dir="ltr">
                     {line.quantity}
-                  </td>
+                  </Td>
                   {exception.type === "return_against_uncollected" ? (
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    <Td dir="ltr">
                       {money(line.return_amount_iqd)}
-                    </td>
+                    </Td>
                   ) : null}
                   {line.location ? (
-                    <td className="px-3 py-2" dir="ltr">
+                    <Td dir="ltr">
                       {line.location.code}
-                    </td>
+                    </Td>
                   ) : null}
-                </tr>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </Card>
       ) : null}
 

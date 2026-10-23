@@ -15,7 +15,7 @@ export { Select, type SelectProps } from "./select";
 export { Dialog, DialogShell, type DialogShellProps } from "./dialog";
 export { FilePicker } from "./file-picker";
 export { ActionBar } from "./action-bar";
-export { TabStrip, TabLink } from "./tab-strip";
+export { TabStrip, TabLink, TabButton } from "./tab-strip";
 
 /* ---------------------------------------------------------------------------
  * The admin's small UI kit. It draws only on the shared design tokens

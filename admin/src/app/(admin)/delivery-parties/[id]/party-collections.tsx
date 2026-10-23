@@ -59,11 +59,10 @@ export function PartyCollections({
         </Badge>
       ),
     },
-    { key: "due", header: t("fields.due"), className: "text-end", cell: (row) => <span dir="ltr">{money(row, row.due_amount)}</span> },
+    { key: "due", header: t("fields.due"), cell: (row) => <span dir="ltr">{money(row, row.due_amount)}</span> },
     {
       key: "collected",
       header: t("summary.collected"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="party-collection-collected">
           {money(row, row.collected_amount)}
@@ -73,7 +72,6 @@ export function PartyCollections({
     {
       key: "shortfall",
       header: t("summary.shortfall"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" className={row.status === "confirmed_short" ? "font-bold text-error-dark" : undefined} data-testid="party-collection-shortfall">
           {row.status === "confirmed_short" ? money(row, row.shortfall_amount) : "—"}
@@ -84,7 +82,6 @@ export function PartyCollections({
       // The shortfall still expected after returns and fee refunds (13.3).
       key: "uncollected",
       header: t("summary.uncollected"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="party-collection-uncollected">
           {row.status === "confirmed_short" ? money(row, row.uncollected_amount_iqd) : "—"}

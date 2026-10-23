@@ -25,8 +25,9 @@ import {
 } from "@/lib/finance/custody-exceptions";
 import { OperationKey } from "@/lib/finance/cash-receipts";
 import { fixedText, moneyText, toFixed } from "@/lib/purchasing";
-import { cn } from "@/lib/cn";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { TabButton, TabStrip } from "@/components/ui/tab-strip";
 
 type AdminOrder = components["schemas"]["AdminOrder"];
 
@@ -93,23 +94,13 @@ export function ExceptionForm({
       </Card>
 
       {allowed.length > 1 ? (
-        <nav className="flex gap-1 overflow-x-auto border-b border-border" aria-label={t("kinds")}>
+        <TabStrip label={t("kinds")} className="mb-0">
           {allowed.map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-current={type === kind ? "page" : undefined}
-              onClick={() => setType(kind)}
-              data-testid={`exception-type-${kind}`}
-              className={cn(
-                "-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold",
-                type === kind ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text",
-              )}
-            >
+            <TabButton key={kind} current={type === kind} onClick={() => setType(kind)} data-testid={`exception-type-${kind}`}>
               {t(`types.${kind}`)}
-            </button>
+            </TabButton>
           ))}
-        </nav>
+        </TabStrip>
       ) : null}
 
       {type === "goods_loss" ? (
@@ -197,26 +188,26 @@ function HoldingsTable({
   const locale = useLocale();
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] text-sm" data-testid="exception-holdings">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-3 py-2 text-start font-semibold">{t("product")}</th>
-            <th className="px-3 py-2 text-start font-semibold">{t("lot")}</th>
-            <th className="px-3 py-2 text-end font-semibold">{t("held")}</th>
-            <th className="w-40 px-3 py-2 text-start font-semibold">{label}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table minWidth="36rem" data-testid="exception-holdings">
+        <THead>
+          <Tr>
+            <Th>{t("product")}</Th>
+            <Th>{t("lot")}</Th>
+            <Th>{t("held")}</Th>
+            <Th className="w-40">{label}</Th>
+          </Tr>
+        </THead>
+        <TBody>
           {holdings.map((holding) => (
-            <tr key={holding.holding_id} className="border-t border-border" data-testid="exception-holding" data-holding={holding.holding_id}>
-              <td className="px-3 py-2">{locale === "ar" ? holding.product.name_ar : holding.product.name_en}</td>
-              <td className="px-3 py-2" dir="ltr">
+            <Tr key={holding.holding_id} data-testid="exception-holding" data-holding={holding.holding_id}>
+              <Td>{locale === "ar" ? holding.product.name_ar : holding.product.name_en}</Td>
+              <Td dir="ltr">
                 {holding.lot_number ?? "—"} <span className="text-text-muted">{holding.sku}</span>
-              </td>
-              <td className="px-3 py-2 text-end" dir="ltr">
+              </Td>
+              <Td dir="ltr">
                 {holding.quantity}
-              </td>
-              <td className="px-3 py-2">
+              </Td>
+              <Td>
                 <DecimalInput
                   key={`${holding.holding_id}-${generation}`}
                   value={typed[holding.holding_id] ?? ""}
@@ -227,11 +218,11 @@ function HoldingsTable({
                   onValueChange={(_, text) => onTyped({ ...typed, [holding.holding_id]: text.trim() })}
                   data-testid="exception-quantity"
                 />
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

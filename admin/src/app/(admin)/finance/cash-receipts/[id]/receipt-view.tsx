@@ -15,6 +15,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { allocationPlan, OperationKey, unsettledRows, type CashReceipt, type Unsettled } from "@/lib/finance/cash-receipts";
 import { entryHref } from "@/lib/finance/links";
 import { fixedText, moneyText, toFixed } from "@/lib/purchasing";
+import { Table, TBody, Tr, Td } from "@/components/table/table";
 
 type Notice = { kind: "allocated" | "reversed"; number: string };
 
@@ -134,22 +135,22 @@ export function ReceiptView({
                 <span className="text-text-muted">{day(batch.document_date)}</span>
                 {batch.active ? null : <Badge tone="neutral">{t("batchInactive")}</Badge>}
               </p>
-              <table className="w-full text-sm">
-                <tbody>
+              <Table>
+                <TBody>
                   {batch.allocations.map((allocation) => (
-                    <tr key={allocation.id} className="border-t border-border" data-testid="receipt-allocation" data-order={allocation.order.order_number}>
-                      <td className="py-1">
+                    <Tr key={allocation.id} data-testid="receipt-allocation" data-order={allocation.order.order_number}>
+                      <Td>
                         <Link href={`/orders/${allocation.order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="receipt-allocation-order">
                           {allocation.order.order_number}
                         </Link>
-                      </td>
-                      <td className="py-1 text-end" dir="ltr" data-testid="receipt-allocation-amount">
+                      </Td>
+                      <Td dir="ltr" data-testid="receipt-allocation-amount">
                         {money(allocation.amount_iqd)}
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </div>
           ))
         )}

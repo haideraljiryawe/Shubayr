@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Clock, Plus, Sparkles, Trash2, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
@@ -50,6 +50,7 @@ import { decimalPlaces, formatAmount, formatRate } from "@/lib/finance/money";
 import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 import { limitBody, limitDraft, limitPatch, switchLimit, validateLimit, type PurchaseLimitDraft } from "@/lib/purchase-limit";
 import { parseLocalizedDecimal } from "@/lib/number";
+import { AmountInput } from "@/components/forms/amount-input";
 
 type Status = "active" | "hidden" | "archived";
 type FieldMessages = Partial<Record<keyof VariantDraft, string>>;
@@ -373,7 +374,7 @@ export function ProductEditor({
               error={error("price")}
               hint={t("fields.priceHint")}
             >
-              <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
+              <NumberInput grouping value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
             </Field>
           </div>
           {groups.length === 0 ? (
@@ -456,13 +457,11 @@ export function ProductEditor({
           <p className="-mt-1 text-xs text-text-muted">{t("limit.hint")}</p>
           {limit.enabled ? (
             <Field label={t("limit.max")} name="purchase_limit_max_quantity" error={error("purchase_limit_max_quantity")} hint={t("limit.maxHint")}>
-              <Input
+              <AmountInput
                 className="w-40"
-                inputMode="decimal"
-                dir="ltr"
                 value={limit.max}
-                onChange={(e) => {
-                  const max = e.target.value;
+                onValueChange={(value) => {
+                  const max = value;
                   setLimit((current) => ({ ...current, max }));
                   clearLimitError();
                 }}
@@ -518,12 +517,12 @@ export function ProductEditor({
         )}
 
         {/* The save row stays in reach on a long form and on a tablet. */}
-        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
-          {settled === "busy" ? (
-            <span className="me-auto text-sm text-text-muted" aria-live="polite">
-              {t("imagesUploading")}
-            </span>
-          ) : null}
+        <ActionBar
+          data-testid="product-actions"
+          start={
+            settled === "busy" ? <span aria-live="polite">{t("imagesUploading")}</span> : null
+          }
+        >
           {product ? null : (
             <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
               {t("createAndAnother")}
@@ -532,7 +531,7 @@ export function ProductEditor({
           <Button type="submit" pending={api.pending} data-testid="product-save">
             {product ? t("save") : t("create")}
           </Button>
-        </div>
+        </ActionBar>
       </form>
 
       {/* Outside the product form: the dialog is a form of its own. */}
@@ -706,11 +705,10 @@ function VariantCard({
                 : t("variant.inheritsPriceUnknown")
             }
           >
-            <Input
+            <AmountInput
               value={draft.selling_price}
-              dir="ltr"
               inputMode="numeric"
-              onChange={(e) => onChange({ selling_price: e.target.value })}
+              onValueChange={(value) => onChange({ selling_price: value })}
               data-testid={id("price")}
             />
           </Field>
@@ -725,11 +723,9 @@ function VariantCard({
               : t("variant.thresholdInherit")
           }
         >
-          <Input
+          <AmountInput
             value={draft.low_stock_threshold}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ low_stock_threshold: e.target.value })}
+            onValueChange={(value) => onChange({ low_stock_threshold: value })}
             data-testid={id("threshold")}
           />
         </Field>
@@ -845,11 +841,9 @@ function LinkedPricing({
           error={errors.reference_price}
           hint={t("variant.referenceHint")}
         >
-          <Input
+          <AmountInput
             value={draft.reference_price}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ reference_price: e.target.value })}
+            onValueChange={(value) => onChange({ reference_price: value })}
             data-testid={id("reference")}
           />
         </Field>

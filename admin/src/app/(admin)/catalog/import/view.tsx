@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCircle2, Download, FileSpreadsheet, RotateCw, Upload } from "lucide-react";
-import { Alert, Badge, Button, buttonClasses, Card, Input } from "@/components/ui";
+import { Alert, Badge, Button, buttonClasses, Card, FilePicker, Input } from "@/components/ui";
+import { Field } from "@/components/forms/field";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -41,6 +42,7 @@ import {
 import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 const PREVIEW_PAGE = 50;
 
@@ -300,21 +302,18 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
 
         <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-lg font-semibold">{t("upload.title")}</h2>
-          <label className="flex flex-col gap-1 text-sm font-semibold">
-            {t("upload.file")}
-            <Input
-              type="file"
+          <Field label={t("upload.file")} hint={t("upload.fileHint")} name="file">
+            <FilePicker
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="h-auto py-2"
               disabled={busy}
-              onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
+              selected={file}
+              onFiles={(files) => {
+                setFile(files[0] ?? null);
                 setProblem(null);
               }}
               data-testid="import-file"
             />
-            <span className="font-normal text-text-muted">{t("upload.fileHint")}</span>
-          </label>
+          </Field>
           <label className="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
             <input
               type="checkbox"
@@ -507,40 +506,40 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
               ) : null}
 
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[600px] text-sm" data-testid="import-preview">
-                  <thead className="bg-card text-text-muted">
-                    <tr>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.where")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.sku")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.action")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.issues")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table minWidth="600px" data-testid="import-preview">
+                  <THead>
+                    <Tr>
+                      <Th>{t("preview.columns.where")}</Th>
+                      <Th>{t("preview.columns.sku")}</Th>
+                      <Th>{t("preview.columns.action")}</Th>
+                      <Th>{t("preview.columns.issues")}</Th>
+                    </Tr>
+                  </THead>
+                  <TBody>
                     {pageRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="p-4 text-center text-text-muted">
+                      <Tr>
+                        <Td align="center" colSpan={4} className="text-text-muted">
                           {t("preview.empty")}
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     ) : (
                       pageRows.map((row) => (
-                        <tr
+                        <Tr
                           key={`${row.sheet}-${row.row}`}
-                          className="border-t border-border align-top"
+                          className="align-top"
                           data-testid="import-row"
                           data-action={row.action}
                           data-commit={row.commit_status}
                           data-sku={row.sku ?? ""}
                         >
-                          <td className="whitespace-nowrap p-2">
+                          <Td className="whitespace-nowrap">
                             <span className="font-semibold">{sheetName(row)}</span>
                             <span className="block text-text-muted">{t("preview.row", { row: row.row })}</span>
-                          </td>
-                          <td className="p-2 font-mono text-xs" dir="ltr">
+                          </Td>
+                          <Td className="font-mono" dir="ltr">
                             {row.sku ?? "—"}
-                          </td>
-                          <td className="p-2">
+                          </Td>
+                          <Td>
                             <Badge tone={actionTone(row.action)}>{t(`preview.actions.${row.action}`)}</Badge>
                             {row.action === "warning" && row.apply_action ? (
                               <span className="mt-1 block text-xs text-text-muted">{t(`preview.actions.${row.apply_action}`)}</span>
@@ -550,8 +549,8 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                 {t(`preview.commit.${row.commit_status}`)}
                               </Badge>
                             ) : null}
-                          </td>
-                          <td className="p-2">
+                          </Td>
+                          <Td>
                             {row.issues.length === 0 ? (
                               <span className="text-text-muted" dir="auto">
                                 {summary(row) ?? t("preview.fine")}
@@ -584,12 +583,12 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                 ))}
                               </ul>
                             )}
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TBody>
+                </Table>
               </div>
               {shown.length > PREVIEW_PAGE ? (
                 <div className="flex items-center justify-end gap-2 text-sm">

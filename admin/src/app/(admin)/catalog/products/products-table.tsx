@@ -292,6 +292,7 @@ export function ProductsTable({
     },
     {
       key: "actions",
+      align: "end",
       header: <span className="sr-only">{t("columns.actions")}</span>,
       cell: (product) => (
         <Link

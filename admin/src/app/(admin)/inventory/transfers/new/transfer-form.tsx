@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -22,6 +22,7 @@ import {
   type Transfer,
   type Warehouse,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 interface Line {
   row: Balance;
@@ -116,28 +117,28 @@ export function TransferForm({
     return (
       <Card className="flex flex-col gap-4" data-testid="transfer-preview">
         <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.from")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.to")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.quantity")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.from")}</Th>
+              <Th>{t("columns.to")}</Th>
+              <Th>{t("columns.quantity")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {lines.map((line) => (
-              <tr key={lineKey(line.row)} className="border-t border-border">
-                <td className="px-3 py-2 font-semibold" dir="ltr">{line.row.sku}</td>
-                <td className="px-3 py-2" dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.toLocationId])}</td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)}</td>
-              </tr>
+              <Tr key={lineKey(line.row)}>
+                <Td className="font-semibold" dir="ltr">{line.row.sku}</Td>
+                <Td dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</Td>
+                <Td dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</Td>
+                <Td dir="ltr">{locationLabel(locations[line.toLocationId])}</Td>
+                <Td dir="ltr">{formatQuantity(line.quantity, locale)}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         <p className="text-sm text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
@@ -247,11 +248,11 @@ export function TransferForm({
         </Field>
       </Card>
       {formError ? <Alert data-testid="transfer-form-error">{formError}</Alert> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" data-testid="transfer-review">
           {t("review")}
         </Button>
-      </div>
+      </ActionBar>
     </form>
   );
 }

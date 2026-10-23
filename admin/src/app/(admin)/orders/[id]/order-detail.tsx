@@ -59,6 +59,7 @@ import {
   type OrderAction,
   type OrderStatus,
 } from "@/lib/orders";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Notice =
   | { kind: "conflict"; status: OrderStatus | null }
@@ -510,42 +511,42 @@ export function OrderDetailView({
         <div className="flex flex-col gap-5 lg:col-span-2">
           <Card className="overflow-x-auto p-5">
             <h2 className="mb-3 font-bold">{t("detail.items")}</h2>
-            <table className="w-full text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="py-1 text-start font-semibold">
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>
                     {t("detail.items")}
-                  </th>
-                  <th className="py-1 text-center font-semibold">
+                  </Th>
+                  <Th align="center">
                     {t("detail.quantity")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
+                  </Th>
+                  <Th>
                     {t("detail.unitPrice")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
+                  </Th>
+                  <Th>
                     {t("detail.lineTotal")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {(order.items ?? []).map((item) => (
-                  <tr
+                  <Tr
                     key={item.id}
-                    className="border-t border-border"
+                   
                     data-testid="order-item"
                   >
-                    <td className="py-2">
+                    <Td>
                       {locale === "ar"
                         ? item.product_name_ar
                         : item.product_name_en}
-                    </td>
-                    <td className="py-2 text-center">{item.quantity}</td>
-                    <td className="py-2 text-end">{money(item.unit_price)}</td>
-                    <td className="py-2 text-end">{money(item.line_total)}</td>
-                  </tr>
+                    </Td>
+                    <Td align="center">{item.quantity}</Td>
+                    <Td>{money(item.unit_price)}</Td>
+                    <Td>{money(item.line_total)}</Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
             <dl className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
               <SummaryRow
                 label={t("detail.subtotal")}
@@ -780,7 +781,7 @@ export function OrderDetailView({
                   })}
                   name="adjusted_delivery_fee"
                 >
-                  <NumberInput
+                  <NumberInput grouping
                     value={adjustedDeliveryFee}
                     parse={{ integer: true, min: 0 }}
                     onValueChange={setAdjustedDeliveryFee}

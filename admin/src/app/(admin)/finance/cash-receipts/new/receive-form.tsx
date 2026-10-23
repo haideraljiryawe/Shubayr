@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { PartySearch } from "@/components/parties/party-search";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -277,11 +277,11 @@ function ReceiveForm({
               )}
             </Card>
           ) : (
-            <div className="flex justify-end">
+            <ActionBar>
               <Button onClick={toReview} disabled={cashAccounts === null || cashAccounts.length === 0} data-testid="receive-review-button">
                 {t("review")}
               </Button>
-            </div>
+            </ActionBar>
           )}
         </>
       ) : null}

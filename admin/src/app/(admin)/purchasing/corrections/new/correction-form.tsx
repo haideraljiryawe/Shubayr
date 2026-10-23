@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Button, Card, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -20,6 +20,7 @@ import {
   type AllocationMethod,
   type PurchaseInvoice,
 } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export interface LotFacts {
   warehouse: string;
@@ -188,34 +189,34 @@ export function CorrectionForm({
         <h2 className="mb-1 text-lg font-bold">{t("splitTitle")}</h2>
         <p className="mb-3 text-sm text-text-muted">{t("splitBody")}</p>
         {!facts ? <Alert tone="info" data-testid="correction-no-preview">{t("previewNeedsInventory")}</Alert> : null}
-        <table className="w-full min-w-[56rem] text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.received")}</th>
-              {kind === "late_landed_cost" && method === "manual" ? <th className="px-3 py-2 text-end font-semibold">{t("columns.manualShare")}</th> : null}
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.unitDifference")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.inStock")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.inCustody")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.sold")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.stockValue")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.custodyValue")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.cogsValue")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table minWidth="56rem">
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.received")}</Th>
+              {kind === "late_landed_cost" && method === "manual" ? <Th>{t("columns.manualShare")}</Th> : null}
+              <Th>{t("columns.unitDifference")}</Th>
+              <Th>{t("columns.inStock")}</Th>
+              <Th>{t("columns.inCustody")}</Th>
+              <Th>{t("columns.sold")}</Th>
+              <Th>{t("columns.stockValue")}</Th>
+              <Th>{t("columns.custodyValue")}</Th>
+              <Th>{t("columns.cogsValue")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {items.map((item, index) => {
               const row = split?.rows.find((entry) => entry.purchaseItemId === item.id);
               return (
-                <tr key={item.id} className="border-t border-border" data-testid="correction-line" data-sku={item.variant?.sku ?? ""}>
-                  <td className="px-3 py-2 font-semibold" dir="ltr">{item.variant?.sku ?? item.variant_id.slice(0, 8)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{fixedText(toFixed(item.quantity), 3)}</td>
+                <Tr key={item.id} data-testid="correction-line" data-sku={item.variant?.sku ?? ""}>
+                  <Td className="font-semibold" dir="ltr">{item.variant?.sku ?? item.variant_id.slice(0, 8)}</Td>
+                  <Td dir="ltr">{fixedText(toFixed(item.quantity), 3)}</Td>
                   {kind === "late_landed_cost" && method === "manual" ? (
-                    <td className="px-3 py-2 text-end">
+                    <Td>
                       <DecimalInput value={manual[item.id] ?? ""} parse={{ maxDecimals: 4 }} className="h-9 w-32" disabled={review !== null} onValueChange={(_, text) => setManual((current) => ({ ...current, [item.id]: text.trim() }))} data-testid="correction-manual" />
-                    </td>
+                    </Td>
                   ) : null}
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  <Td dir="ltr">
                     {kind === "cost_correction" ? (
                       <DecimalInput
                         value={unitInputs[item.id] ?? ""}
@@ -228,18 +229,18 @@ export function CorrectionForm({
                     ) : (
                       <span data-testid="correction-unit-value">{fixedText(units.units[index] ?? 0n, 4)}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr" data-testid="split-stock-qty">{row ? fixedText(row.warehouse, 3) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr" data-testid="split-custody-qty">{row ? fixedText(row.custody, 3) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr" data-testid="split-sold-qty">{row ? fixedText(row.sold, 3) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{row ? iqd(row.inventoryIqd) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{row ? iqd(row.custodyIqd) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{row ? iqd(row.cogsIqd) : "—"}</td>
-                </tr>
+                  </Td>
+                  <Td dir="ltr" data-testid="split-stock-qty">{row ? fixedText(row.warehouse, 3) : "—"}</Td>
+                  <Td dir="ltr" data-testid="split-custody-qty">{row ? fixedText(row.custody, 3) : "—"}</Td>
+                  <Td dir="ltr" data-testid="split-sold-qty">{row ? fixedText(row.sold, 3) : "—"}</Td>
+                  <Td dir="ltr">{row ? iqd(row.inventoryIqd) : "—"}</Td>
+                  <Td dir="ltr">{row ? iqd(row.custodyIqd) : "—"}</Td>
+                  <Td dir="ltr">{row ? iqd(row.cogsIqd) : "—"}</Td>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         {split ? (
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <Tile label={t("totals.stock")} value={iqd(split.inventoryIqd)} testId="split-stock" />
@@ -280,11 +281,11 @@ export function CorrectionForm({
           )}
         </Card>
       ) : (
-        <div className="flex justify-end">
+        <ActionBar>
           <Button onClick={toReview} data-testid="correction-review-button">
             {t("review")}
           </Button>
-        </div>
+        </ActionBar>
       )}
     </div>
   );

@@ -28,6 +28,7 @@ import {
   type SupplierCredit,
 } from "@/lib/purchasing";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export function SupplierDetail({
   supplier,
@@ -178,24 +179,24 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
       ) : statement.length === 0 ? (
         <p className="text-sm text-text-muted">{t("statementEmpty")}</p>
       ) : (
-        <table className="w-full min-w-[48rem] text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.date")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.document")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.debit")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.credit")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.balance")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.balanceIqd")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table minWidth="48rem">
+          <THead>
+            <Tr>
+              <Th>{t("columns.date")}</Th>
+              <Th>{t("columns.document")}</Th>
+              <Th>{t("columns.debit")}</Th>
+              <Th>{t("columns.credit")}</Th>
+              <Th>{t("columns.balance")}</Th>
+              <Th>{t("columns.balanceIqd")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {statement.map((line) => {
               const href = purchasingSourceHref(line.source_type, line.purchase_invoice_id ?? line.source_id);
               return (
-                <tr key={line.id} className="border-t border-border" data-testid="statement-line" data-source={line.source_type}>
-                  <td className="px-3 py-2 whitespace-nowrap">{day(line.document_date)}</td>
-                  <td className="px-3 py-2">
+                <Tr key={line.id} data-testid="statement-line" data-source={line.source_type}>
+                  <Td className="whitespace-nowrap">{day(line.document_date)}</Td>
+                  <Td>
                     {href ? (
                       <Link href={href} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                         {line.document_number}
@@ -204,20 +205,20 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
                       <span dir="ltr">{line.document_number}</span>
                     )}
                     <span className="block text-xs text-text-muted">{t.has(`source.${line.source_type}`) ? t(`source.${line.source_type}`) : line.source_type}</span>
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{line.debit_currency ? money(line.debit_currency, line.currency_code) : "—"}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{line.credit_currency ? money(line.credit_currency, line.currency_code) : "—"}</td>
-                  <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="statement-balance">
+                  </Td>
+                  <Td dir="ltr">{line.debit_currency ? money(line.debit_currency, line.currency_code) : "—"}</Td>
+                  <Td dir="ltr">{line.credit_currency ? money(line.credit_currency, line.currency_code) : "—"}</Td>
+                  <Td className="font-semibold" dir="ltr" data-testid="statement-balance">
                     {money(line.running_balance_currency, line.currency_code)}
-                  </td>
-                  <td className="px-3 py-2 text-end text-text-muted" dir="ltr" data-testid="statement-balance-iqd">
+                  </Td>
+                  <Td className="text-text-muted" dir="ltr" data-testid="statement-balance-iqd">
                     {money(line.running_balance_iqd, "IQD")}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       )}
     </Card>
   );
@@ -234,30 +235,30 @@ function InvoicesCard({ invoices }: { invoices: PurchaseInvoice[] }) {
       {invoices.length === 0 ? (
         <p className="text-sm text-text-muted">{t("noInvoices")}</p>
       ) : (
-        <table className="w-full min-w-[36rem] text-sm">
-          <tbody>
+        <Table minWidth="36rem">
+          <TBody>
             {invoices.map((invoice) => (
-              <tr key={invoice.id} className="border-t border-border first:border-t-0">
-                <td className="px-3 py-2">
+              <Tr key={invoice.id}>
+                <Td>
                   <Link href={`/purchasing/invoices/${invoice.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                     {invoice.document_number}
                   </Link>
                   {invoice.invoice_number ? <span className="ms-2 text-xs text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
-                </td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td>
                   <Badge tone={invoice.settlement_status === "paid" ? "success" : invoice.settlement_status === "partial" ? "warning" : "info"}>
                     {t(`settlement.${invoice.settlement_status ?? "open"}`)}
                   </Badge>
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">
+                </Td>
+                <Td dir="ltr">
                   {invoice.remaining_currency !== undefined
                     ? moneyText(toFixed(invoice.remaining_currency), invoice.currency_code, precisionOf(invoice.currency_code), locale)
                     : "—"}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       )}
     </Card>
   );

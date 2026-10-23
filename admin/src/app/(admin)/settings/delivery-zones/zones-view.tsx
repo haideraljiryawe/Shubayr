@@ -271,7 +271,7 @@ function ZoneForm({
           <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="zone-name-en" />
         </Field>
         <Field label={t("fields.fee")} name="fee_iqd" error={error("fee_iqd")} hint={t("fields.feeHint")}>
-          <NumberInput value={fee} parse={{ integer: true, min: 0 }} onValueChange={setFee} data-testid="zone-fee-input" />
+          <NumberInput grouping value={fee} parse={{ integer: true, min: 0 }} onValueChange={setFee} data-testid="zone-fee-input" />
         </Field>
         <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} data-testid="zone-active" />

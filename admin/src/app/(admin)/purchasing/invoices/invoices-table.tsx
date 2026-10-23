@@ -52,12 +52,11 @@ export function InvoicesTable({
       ),
     },
     ...(canViewTotals
-      ? [{ key: "total", header: t("columns.total"), className: "text-end", cell: (invoice: PurchaseInvoice) => <span dir="ltr" data-testid="invoice-row-total">{money(invoice.total_cost, invoice.currency_code)}</span> }]
+      ? [{ key: "total", header: t("columns.total"), cell: (invoice: PurchaseInvoice) => <span dir="ltr" data-testid="invoice-row-total">{money(invoice.total_cost, invoice.currency_code)}</span> }]
       : []),
     {
       key: "remaining",
       header: t("columns.remaining"),
-      className: "text-end",
       cell: (invoice) => (
         <span dir="ltr" data-testid="invoice-row-remaining">
           {money(invoice.remaining_currency, invoice.currency_code)}

@@ -25,7 +25,7 @@ export function TabStrip({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const current = ref.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    const current = ref.current?.querySelector<HTMLElement>('[aria-current="page"], [aria-pressed="true"]');
     current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, []);
   return (
@@ -37,6 +37,37 @@ export function TabStrip({
         {children}
       </div>
     </nav>
+  );
+}
+
+const TAB =
+  "inline-flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-label " +
+  "rounded-t-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary";
+const tabState = (current: boolean) =>
+  current ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text";
+
+/** An in-page tab that switches a view without navigating. */
+export function TabButton({
+  current,
+  onClick,
+  children,
+  "data-testid": testId,
+}: {
+  current: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  "data-testid"?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={current}
+      onClick={onClick}
+      data-testid={testId}
+      className={cn(TAB, tabState(current))}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -56,11 +87,7 @@ export function TabLink({
       href={href}
       aria-current={current ? "page" : undefined}
       data-testid={testId}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-label",
-        "rounded-t-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-        current ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text",
-      )}
+      className={cn(TAB, tabState(current))}
     >
       {children}
     </Link>

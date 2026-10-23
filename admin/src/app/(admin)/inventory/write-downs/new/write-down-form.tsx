@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -24,6 +24,7 @@ import {
   type Warehouse,
   type WriteDown,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 interface Line {
   row: Balance;
@@ -169,30 +170,30 @@ export function WriteDownForm({
             {t("writeDown.twoSteps", { count: moving.length })}
           </Alert>
         ) : null}
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.location")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.quantity")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.location")}</Th>
+              <Th>{t("columns.quantity")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {lines.map((line) => (
-              <tr key={lineKey(line.row)} className="border-t border-border">
-                <td className="px-3 py-2 font-semibold" dir="ltr">{line.row.sku}</td>
-                <td className="px-3 py-2" dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</td>
-                <td className="px-3 py-2" dir="ltr">
+              <Tr key={lineKey(line.row)}>
+                <Td className="font-semibold" dir="ltr">{line.row.sku}</Td>
+                <Td dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</Td>
+                <Td dir="ltr">
                   {writeDownNeedsMove(line.row)
                     ? `${locationLabel(locations[line.row.location_id], line.row.location_code)} → ${locationLabel(locations[line.moveToId])}`
                     : locationLabel(locations[line.row.location_id], line.row.location_code)}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)}</td>
-              </tr>
+                </Td>
+                <Td dir="ltr">{formatQuantity(line.quantity, locale)}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
         <p className="text-sm text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
@@ -322,11 +323,11 @@ export function WriteDownForm({
         </Field>
       </Card>
       {formError ? <Alert data-testid="write-down-form-error">{formError}</Alert> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" data-testid="write-down-review">
           {t("review")}
         </Button>
-      </div>
+      </ActionBar>
     </form>
   );
 }

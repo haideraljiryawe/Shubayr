@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input, Select } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -23,6 +23,7 @@ import {
   type SettingsErrors,
   type SettingsForm as Form,
 } from "@/lib/finance/settings";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export interface SettingsAudit {
   id: string;
@@ -136,20 +137,20 @@ export function SettingsForm({
       </Section>
 
       <Section title={t("sections.hours")}>
-        <table className="w-full text-sm" data-testid="business-hours">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("hours.day")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.closed")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.opens")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.closes")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="business-hours">
+          <THead>
+            <Tr>
+              <Th>{t("hours.day")}</Th>
+              <Th>{t("hours.closed")}</Th>
+              <Th>{t("hours.opens")}</Th>
+              <Th>{t("hours.closes")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {form.hours.map((row, index) => (
-              <tr key={row.weekday} className="border-t border-border" data-testid={`hours-${row.weekday}`}>
-                <td className="py-2 font-semibold">{weekdayName(row.weekday)}</td>
-                <td className="py-2">
+              <Tr key={row.weekday} data-testid={`hours-${row.weekday}`}>
+                <Td className="font-semibold">{weekdayName(row.weekday)}</Td>
+                <Td>
                   <input
                     type="checkbox"
                     className="size-4"
@@ -157,9 +158,9 @@ export function SettingsForm({
                     aria-label={t("hours.closedFor", { day: weekdayName(row.weekday) })}
                     onChange={(event) => update((draft) => void (draft.hours[index].is_closed = event.target.checked))}
                   />
-                </td>
+                </Td>
                 {(["opens_at", "closes_at"] as const).map((key) => (
-                  <td key={key} className="py-2 pe-2">
+                  <Td key={key} className="pe-2">
                     <Input
                       type="time"
                       className="h-9"
@@ -173,12 +174,12 @@ export function SettingsForm({
                         {error(`hours.${index}.${key}`)}
                       </span>
                     ) : null}
-                  </td>
+                  </Td>
                 ))}
-              </tr>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
 
         <div className="mt-4 flex flex-col gap-2" data-testid="closed-days">
           <h3 className="font-semibold">{t("closedDays.title")}</h3>
@@ -297,18 +298,18 @@ export function SettingsForm({
         </div>
       </Section>
 
-      <div className="sticky bottom-0 flex flex-col gap-2 border-t border-border bg-background/95 py-3">
+      <div className="flex flex-col gap-2">
         {Object.keys(errors).length ? (
           <Alert data-testid="settings-invalid">{t("fixErrors")}</Alert>
         ) : null}
         {unchanged ? <Alert tone="info">{t("noChanges")}</Alert> : null}
         <FormError kind={api.formError} code={api.formErrorCode} />
-        <div className="flex justify-end">
-          <Button type="submit" pending={api.pending} data-testid="settings-save">
-            {t("save")}
-          </Button>
-        </div>
       </div>
+      <ActionBar>
+        <Button type="submit" pending={api.pending} data-testid="settings-save">
+          {t("save")}
+        </Button>
+      </ActionBar>
 
       <Section title={t("history.title")}>
         {history === null ? (

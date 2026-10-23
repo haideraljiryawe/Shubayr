@@ -6,6 +6,7 @@ import { PageError } from "@/components/shell/page-error";
 import { load, serverApi } from "@/lib/api/server";
 import { storeDay } from "@/lib/finance/dates";
 import { periodRows, recentMonths } from "@/lib/finance/periods";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -27,29 +28,29 @@ export default async function PeriodsPage() {
     <>
       <PageHeader title={t("title")} description={t("description")} />
       <Card className="overflow-x-auto p-5">
-        <table className="w-full text-sm" data-testid="periods-table">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("columns.month")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.status")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.closedAt")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.reopened")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.closes")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="periods-table">
+          <THead>
+            <Tr>
+              <Th>{t("columns.month")}</Th>
+              <Th>{t("columns.status")}</Th>
+              <Th>{t("columns.closedAt")}</Th>
+              <Th>{t("columns.reopened")}</Th>
+              <Th>{t("columns.closes")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {rows.map((row) => (
-              <tr key={row.month} className="border-t border-border" data-testid="period-row" data-month={row.month} data-status={row.status}>
-                <td className="py-2">
+              <Tr key={row.month} data-testid="period-row" data-month={row.month} data-status={row.status}>
+                <Td>
                   <Link href={`/finance/periods/${row.month}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                     {row.month}
                   </Link>
-                </td>
-                <td className="py-2">
+                </Td>
+                <Td>
                   <Badge tone={row.status === "closed" ? "neutral" : "success"}>{t(`status.${row.status}`)}</Badge>
-                </td>
-                <td className="py-2">{row.status === "closed" ? when(row.closedAt) : "—"}</td>
-                <td className="py-2">
+                </Td>
+                <Td>{row.status === "closed" ? when(row.closedAt) : "—"}</Td>
+                <Td>
                   {row.reopenedAt ? (
                     <>
                       {when(row.reopenedAt)}
@@ -58,12 +59,12 @@ export default async function PeriodsPage() {
                   ) : (
                     "—"
                   )}
-                </td>
-                <td className="py-2">{row.closes.length || "—"}</td>
-              </tr>
+                </Td>
+                <Td>{row.closes.length || "—"}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
     </>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, Select } from "@/components/ui";
@@ -128,5 +130,37 @@ export function TableFooter({
         <span aria-hidden />
       )}
     </nav>
+  );
+}
+
+/**
+ * TableFooter for a server-rendered table whose page lives in the URL
+ * (`?page=`): changing page rewrites the query and keeps everything else.
+ */
+export function UrlTableFooter({
+  total,
+  page,
+  perPage,
+}: {
+  total: number;
+  page: number;
+  perPage: number;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [pending, startTransition] = useTransition();
+  return (
+    <TableFooter
+      total={total}
+      page={page}
+      perPage={perPage}
+      pending={pending}
+      onPage={(next) => {
+        const query = new URLSearchParams(searchParams.toString());
+        query.set("page", String(next));
+        startTransition(() => router.push(`${pathname}?${query.toString()}`, { scroll: false }));
+      }}
+    />
   );
 }

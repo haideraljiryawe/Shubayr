@@ -85,7 +85,7 @@ export function WorkPhonesView({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) => (
         <div className="flex justify-end gap-2">
           <Button

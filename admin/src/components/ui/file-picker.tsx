@@ -20,6 +20,9 @@ import { buttonClasses } from "./button-classes";
  * Accepted types, size checks and single/multiple rules stay with the caller.
  * ------------------------------------------------------------------------- */
 
+/** Anything with a filename: a File, or a file already uploaded. */
+type Named = { readonly name: string };
+
 export function FilePicker({
   accept,
   multiple = false,
@@ -42,7 +45,7 @@ export function FilePicker({
    * cleared after a successful upload). Left undefined, the picker remembers
    * the last selection itself.
    */
-  selected?: readonly File[] | File | null;
+  selected?: readonly Named[] | Named | null;
   id?: string;
   className?: string;
   "aria-describedby"?: string;
@@ -52,8 +55,8 @@ export function FilePicker({
   const t = useTranslations("filePicker");
   const input = useRef<HTMLInputElement>(null);
   const [own, setOwn] = useState<File[]>([]);
-  const files =
-    selected === undefined ? own : selected === null ? [] : Array.isArray(selected) ? selected : [selected as File];
+  const files: readonly Named[] =
+    selected === undefined ? own : selected === null ? [] : Array.isArray(selected) ? selected : [selected as Named];
   const statusId = `${id ?? testId ?? "file"}-status`;
 
   const status =

@@ -203,7 +203,7 @@ function TierForm({ tier, onClose, onSaved }: { tier: DiscountTier | null; onClo
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("fields.minimum")} name="min_subtotal_iqd" error={errors.min_subtotal_iqd ?? api.fieldErrors.min_subtotal_iqd} hint={t("fields.minimumHint")}>
-          <NumberInput value={minimum} parse={{ integer: true, min: 0 }} onValueChange={setMinimum} data-testid="tier-minimum" />
+          <NumberInput grouping value={minimum} parse={{ integer: true, min: 0 }} onValueChange={setMinimum} data-testid="tier-minimum" />
         </Field>
         <Field label={t("fields.percent")} name="percent" error={errors.percent ?? api.fieldErrors.percent} hint={t("fields.percentHint")}>
           <NumberInput value={percent} parse={{ maxDecimals: 2, min: 0 }} onValueChange={setPercent} data-testid="tier-percent" />

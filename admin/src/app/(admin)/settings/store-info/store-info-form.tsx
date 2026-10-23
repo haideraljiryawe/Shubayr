@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Input, Textarea, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
@@ -130,11 +130,11 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
       ))}
       {unchanged ? <Alert tone="info" data-testid="store-info-unchanged">{t("unchanged")}</Alert> : null}
       {formError ? <FormError kind={formError.kind} code={formError.errorCode} /> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" pending={pending} data-testid="store-info-save">
           {t("save")}
         </Button>
-      </div>
+      </ActionBar>
     </form>
   );
 }

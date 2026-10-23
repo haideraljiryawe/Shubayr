@@ -54,7 +54,7 @@ export function PresetTable({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) => (
         <Link
           href={`/presets/${row.id}`}

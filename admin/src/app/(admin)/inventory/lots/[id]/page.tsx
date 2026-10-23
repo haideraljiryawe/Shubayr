@@ -20,6 +20,7 @@ import {
   stockHref,
   UUID,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("inventory.lot");
@@ -147,33 +148,33 @@ export default async function LotPage({
 
         <Card className="overflow-x-auto">
           <h2 className="mb-3 font-bold">{t("lot.where")}</h2>
-          <table className="w-full min-w-[36rem] text-sm" data-testid="lot-balances">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.onHand")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.reserved")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.available")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table minWidth="36rem" data-testid="lot-balances">
+            <THead>
+              <Tr>
+                <Th>{t("columns.location")}</Th>
+                <Th>{t("columns.onHand")}</Th>
+                <Th>{t("columns.reserved")}</Th>
+                <Th>{t("columns.available")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {(row.batch_stock ?? []).map((balance) => (
-                <tr key={balance.id} className="border-t border-border" data-testid="lot-balance" data-location={balance.location.code}>
-                  <td className="px-3 py-2" dir="ltr">
+                <Tr key={balance.id} data-testid="lot-balance" data-location={balance.location.code}>
+                  <Td dir="ltr">
                     {locationLabel(locations.get(balance.location_id), balance.location.code ?? "")}
                     {balance.location.is_sellable ? null : (
                       <Badge tone="warning" className="ms-2">
                         {t("nonSellable")}
                       </Badge>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr" data-testid="lot-balance-on-hand">{qty(balance.quantity)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{qty(balance.reserved)}</td>
-                  <td className="px-3 py-2 text-end font-semibold" dir="ltr">{qty(balance.available)}</td>
-                </tr>
+                  </Td>
+                  <Td dir="ltr" data-testid="lot-balance-on-hand">{qty(balance.quantity)}</Td>
+                  <Td dir="ltr">{qty(balance.reserved)}</Td>
+                  <Td className="font-semibold" dir="ltr">{qty(balance.available)}</Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </Card>
 
         <section className="flex flex-col gap-3">

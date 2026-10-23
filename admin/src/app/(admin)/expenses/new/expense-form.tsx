@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, FilePicker, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { DocumentDateFields } from "@/components/purchasing/document-date";
@@ -31,6 +31,7 @@ import {
   type ExpenseFormProblem,
 } from "@/lib/expenses";
 import { ExpenseRefusalNotice } from "../refusal";
+import { AmountInput } from "@/components/forms/amount-input";
 
 interface Receipt {
   id: string;
@@ -169,7 +170,7 @@ export function ExpenseForm({
 
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("amount")} error={problem("amount") ? t(`problems.amount.${problem("amount")}`, { digits: precision }) : null}>
-            <Input inputMode="decimal" dir="ltr" value={form.amount} disabled={pending} onChange={(event) => set({ amount: event.target.value })} data-testid="expense-amount" />
+            <AmountInput value={form.amount} disabled={pending} onValueChange={(value) => set({ amount: value })} data-testid="expense-amount" />
           </Field>
           <Field label={t("currency")}>
             <Select value={form.currency} disabled={pending} onValueChange={(value) => set({ currency: value, cashAccountId: "" })} data-testid="expense-currency">
@@ -240,11 +241,11 @@ export function ExpenseForm({
         </div>
 
         <Field label={t("receipt")} hint={t("receiptHint")} error={upload && "error" in upload ? upload.error : null}>
-          <Input
-            type="file"
+          <FilePicker
             accept={RECEIPT_TYPES.join(",")}
             disabled={pending || Boolean(upload && "percent" in upload)}
-            onChange={(event) => void attach(event.target.files?.[0])}
+            selected={receipt}
+            onFiles={(files) => void attach(files[0])}
             data-testid="expense-receipt"
           />
         </Field>
@@ -298,12 +299,11 @@ export function ExpenseForm({
       </Card>
 
       {failure ? (expenseRefusal(failure) ? <ExpenseRefusalNotice error={failure} /> : <FormError kind={errorKind(failure)} />) : null}
-      <div className="flex justify-end gap-2">
+      <ActionBar start={t("draftHint")}>
         <Button type="submit" pending={pending} data-testid="expense-save">
           {t("saveDraft")}
         </Button>
-      </div>
-      <p className="text-end text-xs text-text-muted">{t("draftHint")}</p>
+      </ActionBar>
     </form>
   );
 }

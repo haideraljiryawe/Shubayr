@@ -77,7 +77,6 @@ export function UnconfirmedView({
     {
       key: "due",
       header: t("fields.due"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" className="font-semibold">
           {money(row)}
@@ -87,7 +86,7 @@ export function UnconfirmedView({
     {
       key: "actions",
       header: <span className="sr-only">{t("queue.columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) =>
         canConfirm ? (
           <Button

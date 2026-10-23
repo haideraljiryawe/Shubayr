@@ -25,6 +25,7 @@ import {
   type CancellationResolution,
 } from "@/lib/orders";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Done = (order: AdminOrder) => void;
 type Refused = (cause: unknown) => Promise<void>;
@@ -91,26 +92,26 @@ export function AttentionPanel({
       </h2>
       <p className="text-sm text-text-muted">{t("body")}</p>
       {shortLines.length ? (
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-2 py-1 text-start font-semibold">{t("columns.item")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.ordered")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.allocated")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.short")}</th>
-              <th className="px-2 py-1" />
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.item")}</Th>
+              <Th>{t("columns.ordered")}</Th>
+              <Th>{t("columns.allocated")}</Th>
+              <Th>{t("columns.short")}</Th>
+              <Th />
+            </Tr>
+          </THead>
+          <TBody>
             {shortLines.map((line) => (
-              <tr key={line.orderItemId} className="border-t border-border" data-testid="short-line">
-                <td className="px-2 py-2">{itemName(order, line.orderItemId, locale)}</td>
-                <td className="px-2 py-2 text-end" dir="ltr">{formatQuantity(line.requested, locale)}</td>
-                <td className="px-2 py-2 text-end" dir="ltr" data-testid="short-allocated">{formatQuantity(line.allocated, locale)}</td>
-                <td className="px-2 py-2 text-end font-semibold text-error-dark" dir="ltr" data-testid="short-quantity">
+              <Tr key={line.orderItemId} data-testid="short-line">
+                <Td>{itemName(order, line.orderItemId, locale)}</Td>
+                <Td dir="ltr">{formatQuantity(line.requested, locale)}</Td>
+                <Td dir="ltr" data-testid="short-allocated">{formatQuantity(line.allocated, locale)}</Td>
+                <Td className="font-semibold text-error-dark" dir="ltr" data-testid="short-quantity">
                   {formatQuantity(line.short, locale)}
-                </td>
-                <td className="px-2 py-2">
+                </Td>
+                <Td>
                   {canAct ? (
                     <div className="flex flex-wrap justify-end gap-1">
                       {toMilli(line.allocated) > 0 ? (
@@ -132,11 +133,11 @@ export function AttentionPanel({
                       </Button>
                     </div>
                   ) : null}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       ) : null}
       {proposal ? (
         <Alert tone={proposal.status === "pending" ? "info" : proposal.status === "accepted" ? "success" : "danger"} data-testid="reduction-proposal" data-status={proposal.status}>
@@ -403,36 +404,36 @@ export function BelowCostPanel({
         {t("title")}
       </h2>
       <p className="text-sm text-text-muted">{t("body")}</p>
-      <table className="w-full text-sm">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-2 py-1 text-start font-semibold">{t("columns.sku")}</th>
-            <th className="px-2 py-1 text-end font-semibold">{t("columns.price")}</th>
-            <th className="px-2 py-1 text-end font-semibold">{t("columns.threshold")}</th>
+      <Table>
+        <THead>
+          <Tr>
+            <Th>{t("columns.sku")}</Th>
+            <Th>{t("columns.price")}</Th>
+            <Th>{t("columns.threshold")}</Th>
             {showCost ? (
               <>
-                <th className="px-2 py-1 text-end font-semibold" data-testid="below-cost-cost-column">{t("columns.cost")}</th>
-                <th className="px-2 py-1 text-end font-semibold">{t("columns.minimum")}</th>
+                <Th data-testid="below-cost-cost-column">{t("columns.cost")}</Th>
+                <Th>{t("columns.minimum")}</Th>
               </>
             ) : null}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {breaches.map((row) => (
-            <tr key={row.variantId ?? row.sku} className="border-t border-border" data-testid="below-cost-row">
-              <td className="px-2 py-2 font-semibold" dir="ltr">{row.sku}</td>
-              <td className="px-2 py-2 text-end" dir="ltr">{money(row.price)}</td>
-              <td className="px-2 py-2 text-end" dir="ltr">{row.thresholdPercent === null ? "—" : `${row.thresholdPercent}%`}</td>
+            <Tr key={row.variantId ?? row.sku} data-testid="below-cost-row">
+              <Td className="font-semibold" dir="ltr">{row.sku}</Td>
+              <Td dir="ltr">{money(row.price)}</Td>
+              <Td dir="ltr">{row.thresholdPercent === null ? "—" : `${row.thresholdPercent}%`}</Td>
               {showCost ? (
                 <>
-                  <td className="px-2 py-2 text-end" dir="ltr">{money(row.cost)}</td>
-                  <td className="px-2 py-2 text-end" dir="ltr">{money(row.minimumPrice)}</td>
+                  <Td dir="ltr">{money(row.cost)}</Td>
+                  <Td dir="ltr">{money(row.minimumPrice)}</Td>
                 </>
               ) : null}
-            </tr>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
       {selfRefused ? (
         <Alert data-testid="below-cost-self-refused">{t("selfRefused")}</Alert>
       ) : null}

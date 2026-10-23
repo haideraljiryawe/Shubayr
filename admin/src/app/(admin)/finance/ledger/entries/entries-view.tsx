@@ -13,6 +13,7 @@ import {
 import { entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { formatAmount } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, TBody, Tr, Td } from "@/components/table/table";
 
 type Entry = components["schemas"]["JournalEntry"];
 type EntryPage = components["schemas"]["JournalEntryPage"];
@@ -89,11 +90,11 @@ export function EntriesView({
       key: "lines",
       header: t("columns.lines"),
       cell: (entry) => (
-        <table className="w-full text-xs">
-          <tbody>
+        <Table>
+          <TBody>
             {entry.lines.map((line) => (
-              <tr key={line.id}>
-                <td className="py-0.5 pe-2">
+              <Tr key={line.id}>
+                <Td className="pe-2">
                   <Link
                     href={entriesHref({ account_code: line.account.code })}
                     className="text-primary-dark hover:underline"
@@ -102,18 +103,18 @@ export function EntriesView({
                     {line.account.code}
                   </Link>{" "}
                   {accountName(line.account)}
-                </td>
-                <td className="py-0.5 text-end" dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</td>
-                <td className="py-0.5 text-end" dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</td>
-                <td className="py-0.5 ps-2 text-text-muted" dir="ltr">
+                </Td>
+                <Td dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</Td>
+                <Td dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</Td>
+                <Td className="ps-2 text-text-muted" dir="ltr">
                   {line.currency_code !== baseCode
                     ? `${formatAmount(line.original_amount, line.currency_code, 2, locale)} × ${line.exchange_rate}`
                     : ""}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       ),
     },
     {

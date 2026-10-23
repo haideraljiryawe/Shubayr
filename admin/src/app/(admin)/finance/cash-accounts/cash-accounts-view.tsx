@@ -20,6 +20,7 @@ import { decimalPlaces, formatAmount, isPositive } from "@/lib/finance/money";
 import { newOperationId } from "@/lib/finance/operations";
 import type { components } from "@/types/api";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type CashAccount = components["schemas"]["CashAccount"];
 
@@ -59,34 +60,34 @@ export function CashAccountsView({
         {accounts.length === 0 ? (
           <p className="text-sm text-text-muted" data-testid="accounts-empty">{t("empty")}</p>
         ) : (
-          <table className="w-full text-sm" data-testid="accounts-table">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="py-1 text-start font-semibold">{t("columns.name")}</th>
-                <th className="py-1 text-start font-semibold">{t("columns.kind")}</th>
-                <th className="py-1 text-end font-semibold">{t("columns.balance")}</th>
-                <th className="py-1 text-end font-semibold">{t("columns.baseBalance")}</th>
-                <th className="py-1 text-start font-semibold">{t("columns.status")}</th>
-                <th className="py-1" />
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="accounts-table">
+            <THead>
+              <Tr>
+                <Th>{t("columns.name")}</Th>
+                <Th>{t("columns.kind")}</Th>
+                <Th>{t("columns.balance")}</Th>
+                <Th>{t("columns.baseBalance")}</Th>
+                <Th>{t("columns.status")}</Th>
+                <Th />
+              </Tr>
+            </THead>
+            <TBody>
               {accounts.map((account) => (
-                <tr key={account.id} className="border-t border-border" data-testid="account-row" data-name={account.name}>
-                  <td className="py-2 font-semibold">{account.name}</td>
-                  <td className="py-2">{t(`kind.${account.kind}`)}</td>
-                  <td className="py-2 text-end" dir="ltr" data-testid="account-balance">
+                <Tr key={account.id} data-testid="account-row" data-name={account.name}>
+                  <Td className="font-semibold">{account.name}</Td>
+                  <Td>{t(`kind.${account.kind}`)}</Td>
+                  <Td dir="ltr" data-testid="account-balance">
                     {money(account.balance, account.currency_code)}
-                  </td>
-                  <td className="py-2 text-end text-text-muted" dir="ltr">
+                  </Td>
+                  <Td className="text-text-muted" dir="ltr">
                     {money(account.base_balance, account.base_currency_code)}
-                  </td>
-                  <td className="py-2">
+                  </Td>
+                  <Td>
                     <Badge tone={account.is_active ? "success" : "neutral"}>
                       {account.is_active ? t("active") : t("inactive")}
                     </Badge>
-                  </td>
-                  <td className="py-2">
+                  </Td>
+                  <Td>
                     {canManage ? <div className="flex flex-wrap justify-end gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setSelected({ id: account.id, mode: "edit" })} data-testid="account-edit">
                         {t("edit")}
@@ -98,11 +99,11 @@ export function CashAccountsView({
                         {t("delete")}
                       </Button>
                     </div> : null}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
 

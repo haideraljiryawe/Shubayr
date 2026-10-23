@@ -16,6 +16,7 @@ import { changeDirection, formatPercentChange, STALE_PREVIEW } from "@/lib/catal
 import { storeDateTimeLocal, storeDay, storeLocalToIso } from "@/lib/finance/dates";
 import { decimalPlaces, formatAmount, formatRate as rateText, isPositive, per100ToPer1 } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Currency = components["schemas"]["Currency"];
 type Preview = components["schemas"]["LinkedPricePreview"];
@@ -410,42 +411,42 @@ function LinkedPreviewPanel({
         </p>
       ) : (
         <div className="max-h-96 overflow-auto">
-          <table className="w-full text-sm" data-testid="preview-table">
-            <thead className="sticky top-0 bg-surface text-text-muted">
-              <tr>
-                <th className="py-1 text-start font-semibold">{tl("columns.sku")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.old")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.new")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.change")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="preview-table">
+            <THead className="sticky top-0">
+              <Tr>
+                <Th>{tl("columns.sku")}</Th>
+                <Th>{tl("columns.old")}</Th>
+                <Th>{tl("columns.new")}</Th>
+                <Th>{tl("columns.change")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {preview.items.map((item) => {
                 const direction = changeDirection(item.percent_change);
                 return (
-                  <tr
+                  <Tr
                     key={item.variant_id}
-                    className="border-t border-border"
+                   
                     data-testid="preview-row"
                     data-sku={item.sku}
                     data-direction={direction}
                     data-requires-approval={item.requires_below_cost_approval}
                   >
-                    <td className="py-1.5">
+                    <Td>
                       <code dir="ltr">{item.sku}</code>
                       {item.requires_below_cost_approval ? (
                         <Badge tone="warning" className="ms-2" data-testid="preview-below-cost">
                           {tl("belowCostApproval")}
                         </Badge>
                       ) : null}
-                    </td>
-                    <td className="py-1.5" dir="ltr" data-testid="preview-old">
+                    </Td>
+                    <Td dir="ltr" data-testid="preview-old">
                       {money(item.old_price)}
-                    </td>
-                    <td className="py-1.5 font-semibold" dir="ltr" data-testid="preview-new">
+                    </Td>
+                    <Td className="font-semibold" dir="ltr" data-testid="preview-new">
                       {money(item.new_price)}
-                    </td>
-                    <td
+                    </Td>
+                    <Td
                       className={`py-1.5 font-semibold ${direction === "down" ? "text-error-dark" : direction === "up" ? "text-success-dark" : "text-text-muted"}`}
                       dir="ltr"
                       data-testid="preview-change"
@@ -455,12 +456,12 @@ function LinkedPreviewPanel({
                         {direction === "down" ? <ArrowDown className="size-3.5" aria-hidden /> : null}
                         {direction === "new" ? tl("firstPrice") : formatPercentChange(item.percent_change)}
                       </span>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
     </section>

@@ -14,6 +14,7 @@ import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import type { PeriodClose, PeriodRow } from "@/lib/finance/periods";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Checklist = components["schemas"]["PeriodChecklist"];
 
@@ -193,27 +194,27 @@ export function PeriodView({
 function Differences({ rows }: { rows: Array<{ code: string; before: string; after: string }> }) {
   const t = useTranslations("periods");
   return (
-    <table className="mt-1 w-full text-sm" data-testid="differences">
-      <thead className="text-text-muted">
-        <tr>
-          <th className="py-1 text-start font-semibold">{t("differences.account")}</th>
-          <th className="py-1 text-end font-semibold">{t("differences.before")}</th>
-          <th className="py-1 text-end font-semibold">{t("differences.after")}</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table className="mt-1" data-testid="differences">
+      <THead>
+        <Tr>
+          <Th>{t("differences.account")}</Th>
+          <Th>{t("differences.before")}</Th>
+          <Th>{t("differences.after")}</Th>
+        </Tr>
+      </THead>
+      <TBody>
         {rows.map((row) => (
-          <tr key={row.code} className="border-t border-border">
-            <td className="py-1">
+          <Tr key={row.code}>
+            <Td>
               <Link href={`/finance/ledger/entries?account_code=${encodeURIComponent(row.code)}`} className="text-primary-dark hover:underline" dir="ltr">
                 {row.code}
               </Link>
-            </td>
-            <td className="py-1 text-end" dir="ltr">{row.before}</td>
-            <td className="py-1 text-end" dir="ltr">{row.after}</td>
-          </tr>
+            </Td>
+            <Td dir="ltr">{row.before}</Td>
+            <Td dir="ltr">{row.after}</Td>
+          </Tr>
         ))}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
 }

@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Badge, Card } from "@/components/ui";
 import { BASE_UNITS, type ProductVariant } from "@/lib/catalog";
 import { availabilityTone, formatQuantity, stockHref, type StockTotals } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 /**
  * Stock per SKU, read-only. Stock changes only through inventory documents
@@ -33,49 +34,49 @@ export async function VariantStock({
     <Card className="mb-6 overflow-x-auto" data-testid="variant-stock">
       <h2 className="font-bold">{t("productStock.title")}</h2>
       <p className="mb-3 text-sm text-text-muted">{t("productStock.body")}</p>
-      <table className="w-full min-w-[36rem] text-sm">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-            <th className="px-3 py-2 text-end font-semibold">{t("columns.available")}</th>
-            <th className="px-3 py-2 text-start font-semibold">{t("columns.state")}</th>
+      <Table minWidth="36rem">
+        <THead>
+          <Tr>
+            <Th>{t("columns.sku")}</Th>
+            <Th>{t("columns.available")}</Th>
+            <Th>{t("columns.state")}</Th>
             {totals ? (
               <>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.reserved")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.onHand")}</th>
-                <th className="px-3 py-2" />
+                <Th>{t("columns.reserved")}</Th>
+                <Th>{t("columns.onHand")}</Th>
+                <Th />
               </>
             ) : null}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {variants.map((variant) => {
             const row = variant.id ? totals?.[variant.id] : undefined;
             return (
-              <tr key={variant.id} className="border-t border-border" data-testid="variant-stock-row" data-sku={variant.sku}>
-                <td className="px-3 py-2 font-semibold" dir="ltr">{variant.sku}</td>
-                <td className="px-3 py-2 text-end" dir="ltr" data-testid="variant-stock-available">
+              <Tr key={variant.id} data-testid="variant-stock-row" data-sku={variant.sku}>
+                <Td className="font-semibold" dir="ltr">{variant.sku}</Td>
+                <Td dir="ltr" data-testid="variant-stock-available">
                   {qty(variant.available_qty ?? 0)} <span className="text-text-muted">{unitName(variant.base_unit)}</span>
-                </td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td>
                   <Badge tone={availabilityTone(variant.availability)}>{t(`availability.${variant.availability ?? "out_of_stock"}`)}</Badge>
-                </td>
+                </Td>
                 {totals ? (
                   <>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="variant-stock-reserved">{qty(row?.reserved ?? 0)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{qty(row?.onHand ?? 0)}</td>
-                    <td className="px-3 py-2 text-end">
+                    <Td dir="ltr" data-testid="variant-stock-reserved">{qty(row?.reserved ?? 0)}</Td>
+                    <Td dir="ltr">{qty(row?.onHand ?? 0)}</Td>
+                    <Td align="end">
                       <Link href={stockHref({ variant_id: variant.id })} className="font-semibold text-primary-dark hover:underline" data-testid="variant-stock-link">
                         {t("productStock.view")}
                       </Link>
-                    </td>
+                    </Td>
                   </>
                 ) : null}
-              </tr>
+              </Tr>
             );
           })}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </Card>
   );
 }
