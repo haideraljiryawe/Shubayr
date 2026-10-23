@@ -412,6 +412,10 @@ for inspection), or fails with both snapshots.
   `X-Frame-Options: DENY` from Caddy, plus the admin's own headers.
 - **Secure cookies:** the admin's session cookies are `httpOnly`,
   `SameSite=Strict` and `Secure` (`ADMIN_COOKIE_SECURE` is fixed to `true`).
+- **Session rotation:** keep `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` and
+  `ADMIN_REFRESH_ROTATION_GRACE_SECONDS` consistent on every API instance.
+  Deploy restarts do not end sessions while both JWT secrets stay unchanged;
+  see the [session policy](../security/session-policy.md).
 - **No secrets in git:** `.env.production` and `deploy/secrets/` are
   git-ignored; images contain no secrets; the Firebase key is set on the
   server only.

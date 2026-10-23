@@ -247,6 +247,74 @@ describe('AuthService', () => {
     );
   });
 
+  it('lets a concurrent admin refresh continue after another instance rotates first', async () => {
+    const id = '22222222-2222-4222-8222-222222222223';
+    const sessionId = '33333333-3333-4333-8333-333333333334';
+    const adminUser = { ...user, username: 'admin', role: null };
+    const oldToken = await jwt.signAsync(
+      {
+        sub: adminUser.id,
+        typ: 'refresh',
+        jti: id,
+        sid: sessionId,
+        surface: 'admin',
+        ver: 1,
+      },
+      { secret: refreshSecret, expiresIn: 3600 },
+    );
+    const rotatedAt = new Date();
+    const original = {
+      id,
+      session_id: sessionId,
+      user_id: adminUser.id,
+      token_hash: createHash('sha256').update(oldToken).digest('hex'),
+      expires_at: new Date(Date.now() + 3_600_000),
+      revoked_at: null,
+      created_at: new Date(Date.now() - 60_000),
+      surface: 'admin',
+      client: null,
+      session_version: 1,
+      user: adminUser,
+    };
+    const current = { ...original, revoked_at: rotatedAt };
+    const tx = {
+      refreshToken: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findUnique: jest.fn().mockResolvedValue(current),
+        findFirst: jest.fn().mockResolvedValue({ id: 'successor' }),
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const prisma = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue(original),
+      },
+      $transaction: jest.fn((operation: (client: typeof tx) => unknown) =>
+        operation(tx),
+      ),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      { sendOtp: jest.fn() } as never,
+    );
+
+    const result = await service.refresh({ refresh_token: oldToken });
+
+    expect(result.refresh_token).not.toBe(oldToken);
+    expect(tx.refreshToken.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          session_id: sessionId,
+          surface: 'admin',
+          revoked_at: null,
+        }) as object,
+      }),
+    );
+    expect(tx.refreshToken.create).toHaveBeenCalled();
+  });
+
   it('logs out one refresh family and only its bound devices', async () => {
     const tokenId = '22222222-2222-4222-8222-222222222222';
     const sessionId = '33333333-3333-4333-8333-333333333333';
