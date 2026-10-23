@@ -17,6 +17,7 @@ import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, quantityRule, toMilli, type LocationInfo, type Opening } from "@/lib/inventory";
 import { isBlankQuantity, linesToPost } from "@/lib/restock";
 import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 /** The location new lines start with: the only sellable one, if there is exactly one. */
 function defaultLocationId(locations: readonly LocationInfo[]): string {
@@ -63,6 +64,8 @@ export function OpeningForm({
   productHref?: string;
 }) {
   const t = useTranslations("inventory");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const unitName = useUnitName();
   const posting = usePosting<Opening>();
@@ -263,7 +266,7 @@ export function OpeningForm({
                 ) : null}
               </h2>
               {lines.length > 1 ? (
-                <Button size="sm" variant="ghost" onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))} aria-label={t("removeLine")}>
+                <Button size="sm" variant="ghost" onClick={() => confirmRemove({ onConfirm: () => setLines((current) => current.filter((row) => row.key !== line.key)) })} aria-label={t("removeLine")}>
                   <Trash2 className="size-4" aria-hidden />
                 </Button>
               ) : null}
@@ -331,7 +334,13 @@ export function OpeningForm({
         {blankCount && blankCount < lines.length ? (
           <Button
             variant="ghost"
-            onClick={() => setLines((current) => current.filter((line) => !isBlankQuantity(line.quantity)))}
+            onClick={() =>
+              confirmRemove({
+                title: tc("clearBlank"),
+                body: tc("clearBlankBody"),
+                onConfirm: () => setLines((current) => current.filter((line) => !isBlankQuantity(line.quantity))),
+              })
+            }
             data-testid="opening-remove-empty"
           >
             <Trash2 className="size-4" aria-hidden />
@@ -353,6 +362,7 @@ export function OpeningForm({
           {t("review")}
         </Button>
       </ActionBar>
+      {dialog}
     </form>
   );
 }

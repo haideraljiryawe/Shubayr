@@ -23,6 +23,7 @@ import {
   type Warehouse,
 } from "@/lib/inventory";
 import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 interface Line {
   row: Balance;
@@ -45,6 +46,8 @@ export function TransferForm({
   canSearchSku: boolean;
 }) {
   const t = useTranslations("inventory");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const posting = usePosting<Transfer>();
   const [lines, setLines] = useState<Line[]>([]);
@@ -206,7 +209,7 @@ export function TransferForm({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setLines((current) => current.filter((row) => lineKey(row.row) !== key))}
+                onClick={() => confirmRemove({ body: tc("named", { name: line.row.sku ?? "" }), onConfirm: () => setLines((current) => current.filter((row) => lineKey(row.row) !== key)) })}
                 aria-label={t("removeLine")}
               >
                 <Trash2 className="size-4" aria-hidden />
@@ -253,6 +256,7 @@ export function TransferForm({
           {t("review")}
         </Button>
       </ActionBar>
+      {dialog}
     </form>
   );
 }

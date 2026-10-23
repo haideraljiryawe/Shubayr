@@ -25,6 +25,7 @@ import {
   type WriteDown,
 } from "@/lib/inventory";
 import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 interface Line {
   row: Balance;
@@ -61,6 +62,8 @@ export function WriteDownForm({
   canTransfer: boolean;
 }) {
   const t = useTranslations("inventory");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const move = usePosting<Transfer>();
   const writeDown = usePosting<WriteDown>();
@@ -276,7 +279,7 @@ export function WriteDownForm({
                 <span className="text-text-muted" dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</span>
                 {needsMove ? <Badge tone="warning">{t("writeDown.onSellableShelf")}</Badge> : <Badge>{t("nonSellable")}</Badge>}
               </p>
-              <Button size="sm" variant="ghost" onClick={() => setLines((current) => current.filter((row) => lineKey(row.row) !== key))} aria-label={t("removeLine")}>
+              <Button size="sm" variant="ghost" onClick={() => confirmRemove({ body: tc("named", { name: line.row.sku ?? "" }), onConfirm: () => setLines((current) => current.filter((row) => lineKey(row.row) !== key)) })} aria-label={t("removeLine")}>
                 <Trash2 className="size-4" aria-hidden />
               </Button>
             </div>
@@ -328,6 +331,7 @@ export function WriteDownForm({
           {t("review")}
         </Button>
       </ActionBar>
+      {dialog}
     </form>
   );
 }

@@ -39,6 +39,7 @@ import {
   type PurchaseInvoice,
   type Supplier,
 } from "@/lib/purchasing";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 /* ---------------------------------------------------------------- state */
 
@@ -160,6 +161,8 @@ export function InvoiceForm({
   cashAccounts?: CashAccountOption[] | null;
 }) {
   const t = useTranslations("purchasing.invoice");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const format = useFormatter();
   const router = useRouter();
@@ -479,6 +482,7 @@ export function InvoiceForm({
 
   return (
     <div className="flex flex-col gap-6" data-testid="invoice-form" data-mode={restock ? "restock" : "invoice"}>
+      {dialog}
       {restock ? (
         <>
           <Alert tone="info" data-testid="restock-intro">
@@ -624,7 +628,12 @@ export function InvoiceForm({
                   ) : null}
                 </span>
                 {state.lines.length > 1 && !locked ? (
-                  <Button size="sm" variant="ghost" onClick={() => set({ lines: state.lines.filter((line) => line.key !== row.line.key) })} aria-label={t("removeLine")}>
+                  <Button size="sm" variant="ghost" onClick={() =>
+                      confirmRemove({
+                        body: row.line.sku ? tc("named", { name: row.line.sku.sku }) : tc("body"),
+                        onConfirm: () => set({ lines: state.lines.filter((line) => line.key !== row.line.key) }),
+                      })
+                    } aria-label={t("removeLine")}>
                     <Trash2 className="size-4" aria-hidden />
                   </Button>
                 ) : null}
@@ -750,7 +759,7 @@ export function InvoiceForm({
               <DecimalInput value={cost.amount} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLanded(cost.key, { amount: text.trim() })} data-testid="landed-amount" />
             </Field>
             {locked ? null : (
-              <Button className="self-end" variant="ghost" onClick={() => set({ landed: state.landed.filter((row) => row.key !== cost.key) })} aria-label={t("removeCost")}>
+              <Button className="self-end" variant="ghost" onClick={() => confirmRemove({ title: tc("costTitle"), body: tc("costBody"), onConfirm: () => set({ landed: state.landed.filter((row) => row.key !== cost.key) }) })} aria-label={t("removeCost")}>
                 <Trash2 className="size-4" aria-hidden />
               </Button>
             )}

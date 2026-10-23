@@ -5099,5 +5099,17 @@
     "chooseMany": "Choose files",
     "none": "No file selected",
     "count": "{count, plural, one {# file selected} other {# files selected}}"
+  },
+  "confirmRemove": {
+    "title": "Remove this line?",
+    "body": "Do you want to remove this line? What you entered in it is removed from the draft.",
+    "named": "Do you want to remove “{name}”? What you entered in it is removed from the draft.",
+    "action": "Remove",
+    "clearBlank": "Remove empty lines?",
+    "clearBlankBody": "Do you want to remove every line without a quantity?",
+    "variantTitle": "Remove this variant?",
+    "variantBody": "Do you want to remove this variant? It is only removed when you save the product.",
+    "costTitle": "Remove this cost?",
+    "costBody": "Do you want to remove this extra cost from the invoice?"
   }
 }

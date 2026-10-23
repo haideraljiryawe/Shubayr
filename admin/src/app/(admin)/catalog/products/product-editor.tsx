@@ -51,6 +51,7 @@ import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 import { limitBody, limitDraft, limitPatch, switchLimit, validateLimit, type PurchaseLimitDraft } from "@/lib/purchase-limit";
 import { parseLocalizedDecimal } from "@/lib/number";
 import { AmountInput } from "@/components/forms/amount-input";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 type Status = "active" | "hidden" | "archived";
 type FieldMessages = Partial<Record<keyof VariantDraft, string>>;
@@ -107,6 +108,8 @@ export function ProductEditor({
 }) {
   const t = useTranslations("products");
   const tErrors = useTranslations("errors");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
@@ -311,8 +314,9 @@ export function ProductEditor({
 
   return (
     <>
+      {dialog}
       <form
-        className="flex flex-col gap-6 pb-24"
+        className="flex flex-col gap-6"
         noValidate
         data-testid="product-editor"
         onSubmit={(event) => {
@@ -435,7 +439,13 @@ export function ProductEditor({
               errors={variantErrors[draft.key] ?? {}}
               canRemove={drafts.length > 1}
               onChange={(patch) => change(draft.key, patch)}
-              onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
+              onRemove={() =>
+                confirmRemove({
+                  title: tc("variantTitle"),
+                  body: tc("variantBody"),
+                  onConfirm: () => setDrafts((current) => current.filter((item) => item.key !== draft.key)),
+                })
+              }
             />
           ))}
         </Card>
