@@ -36,6 +36,10 @@
   --t-surface: #ffffff;
   --t-card: #f4f1ea;
   --t-border: #e5e1d8;
+  /* Form-control outline. --t-border is for dividers and card edges; a field
+     needs a boundary people can find (WCAG 1.4.11: 3.33:1 on --t-surface). */
+  --t-field-border: #948c7d;
+  --t-field-border-hover: #6b6457;
 
   /* --- Text ------------------------------------------------------------- */
   --t-text: #1f2937;
@@ -83,6 +87,8 @@
   --color-surface: var(--t-surface);
   --color-card: var(--t-card);
   --color-border: var(--t-border);
+  --color-field: var(--t-field-border);
+  --color-field-hover: var(--t-field-border-hover);
 
   --color-text: var(--t-text);
   --color-text-muted: var(--t-text-muted);

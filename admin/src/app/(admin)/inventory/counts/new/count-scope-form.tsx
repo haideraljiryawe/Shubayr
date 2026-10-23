@@ -90,7 +90,7 @@ export function CountScopeForm({
         </fieldset>
         {scope === "warehouse" ? (
           <Field label={t("filters.warehouse")} name="scope" error={errors.scope}>
-            <Select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} data-testid="count-warehouse">
+            <Select value={warehouseId} onValueChange={(value) => setWarehouseId(value)} data-testid="count-warehouse">
               <option value="">{t("pickWarehouse")}</option>
               {warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
@@ -102,7 +102,7 @@ export function CountScopeForm({
         ) : null}
         {scope === "location" ? (
           <Field label={t("filters.location")} name="scope" error={errors.scope}>
-            <Select value={locationId} onChange={(event) => setLocationId(event.target.value)} data-testid="count-location">
+            <Select value={locationId} onValueChange={(value) => setLocationId(value)} data-testid="count-location">
               <option value="">{t("pickLocation")}</option>
               {locations.map((info) => (
                 <option key={info.id} value={info.id}>

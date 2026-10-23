@@ -105,7 +105,7 @@ export function TripForm({
           <DecimalInput value="" parse={{ maxDecimals: 0 }} disabled={busy} onValueChange={(_, text) => setFare(text.trim())} data-testid="trip-fare" />
         </Field>
         <Field label={t("method")} name="fare_settlement_method" hint={t(`methodHints.${method}`)}>
-          <Select value={method} disabled={busy || bearer === "customer_direct"} onChange={(event) => setMethod(event.target.value as FareMethod)} data-testid="trip-method">
+          <Select value={method} disabled={busy || bearer === "customer_direct"} onValueChange={(value) => setMethod(value as FareMethod)} data-testid="trip-method">
             {FARE_METHODS[bearer].map((value) => (
               <option key={value} value={value}>
                 {tt(`methods.${value}`)}
@@ -115,7 +115,7 @@ export function TripForm({
         </Field>
         {method === "cash_account" ? (
           <Field label={t("cashAccount")} name="fare_cash_account_id">
-            <Select value={accountId} disabled={busy} onChange={(event) => setAccountId(event.target.value)} data-testid="trip-cash-account">
+            <Select value={accountId} disabled={busy} onValueChange={(value) => setAccountId(value)} data-testid="trip-cash-account">
               <option value="">{t("pickCash")}</option>
               {cashAccounts.map((account) => (
                 <option key={account.id} value={account.id}>

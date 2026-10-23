@@ -84,7 +84,6 @@ export function ExpensesView({
       key: "amount",
       sortKey: "amount",
       header: t("list.columns.amount"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="expense-row-amount">
           {amount(row.amount_currency, row.currency_code)}
@@ -95,7 +94,6 @@ export function ExpensesView({
     {
       key: "balance",
       header: t("list.columns.balance"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="expense-row-balance">
           {row.status === "posted" && row.balance_currency > 0 ? amount(row.balance_currency, row.currency_code) : "—"}

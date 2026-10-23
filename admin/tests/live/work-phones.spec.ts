@@ -7,6 +7,7 @@ import {
   requireLiveApi,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -36,7 +37,7 @@ test("registers a work phone with its person, then revokes it", async ({
   const form = page.getByTestId("work-phone-form");
   await form.getByTestId("input-phone").fill(local);
   await form.getByTestId("input-name").fill(name);
-  await form.getByTestId("input-role").selectOption("delivery_agent");
+  await choose(form.getByTestId("input-role"), "delivery_agent");
   await form.getByTestId("input-reason").fill("New courier for Kut");
   await form.getByTestId("work-phone-submit").click();
   await expect(page.getByTestId("toast")).toBeVisible();
@@ -56,7 +57,7 @@ test("registers a work phone with its person, then revokes it", async ({
   // Change the role by registering again.
   await page.getByTestId(`work-phone-change-${phone}`).click();
   await expect(form.getByTestId("input-phone")).toHaveValue(phone);
-  await form.getByTestId("input-role").selectOption("order_monitor");
+  await choose(form.getByTestId("input-role"), "order_monitor");
   await form.getByTestId("input-reason").fill("Moved to the order desk");
   await form.getByTestId("work-phone-submit").click();
   await expect(row).toContainText("مراقب طلبات");

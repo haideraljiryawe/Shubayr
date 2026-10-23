@@ -1,48 +1,30 @@
 import type {
   ButtonHTMLAttributes,
+  ComponentProps,
   HTMLAttributes,
-  InputHTMLAttributes,
   ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
 } from "react";
 import { cn } from "@/lib/cn";
+import { CONTROL } from "./control";
+import { buttonClasses, type ButtonVariant } from "./button-classes";
+
+export { buttonClasses, type ButtonVariant } from "./button-classes";
+
+export { CONTROL } from "./control";
+export { Select, type SelectProps } from "./select";
+export { Dialog, DialogShell, type DialogShellProps } from "./dialog";
+export { FilePicker } from "./file-picker";
+export { ActionBar } from "./action-bar";
+export { TabStrip, TabLink, TabButton } from "./tab-strip";
 
 /* ---------------------------------------------------------------------------
  * The admin's small UI kit. It draws only on the shared design tokens
- * (web/src/app/tokens.css): the same semantic utilities — bg-primary,
- * text-text-muted, rounded-md, shadow-sm — as the storefront's components, so
- * both apps look like one product without either copying the other's code.
+ * (web/src/app/tokens.css for colour, admin/src/app/globals.css for the type
+ * scale): the same semantic utilities — bg-primary, text-text-muted,
+ * border-field, text-body — everywhere, so equivalent controls look the same
+ * on every page and a token change reaches all of them (VIS-018). Pages
+ * compose these primitives; they do not restyle them.
  * ------------------------------------------------------------------------- */
-
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-
-const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  // primary-dark clears WCAG AA for body-size text on white (see tokens.css).
-  primary: "bg-primary-dark text-on-primary shadow-sm hover:opacity-95",
-  secondary: "bg-surface text-primary-dark border border-primary hover:bg-card",
-  ghost: "bg-transparent text-text hover:bg-card",
-  danger: "bg-error-dark text-white shadow-sm hover:opacity-95",
-};
-
-export function buttonClasses({
-  variant = "primary",
-  size = "md",
-  className,
-}: {
-  variant?: ButtonVariant;
-  size?: "sm" | "md";
-  className?: string;
-} = {}): string {
-  return cn(
-    "inline-flex items-center justify-center gap-2 rounded-md font-semibold",
-    "transition-colors duration-150 cursor-pointer whitespace-nowrap",
-    "disabled:cursor-not-allowed disabled:opacity-60",
-    size === "sm" ? "h-9 px-3 text-sm" : "h-11 px-5 text-sm",
-    BUTTON_VARIANTS[variant],
-    className,
-  );
-}
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -90,7 +72,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-surface p-5 shadow-sm",
+        "rounded-lg border border-border bg-surface p-5 text-body shadow-sm",
         className,
       )}
       {...props}
@@ -98,33 +80,14 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   );
 }
 
-const CONTROL =
-  "w-full rounded-md border border-border bg-surface px-3 text-sm text-text " +
-  "placeholder:text-text-muted/70 focus:border-primary focus:outline-none " +
-  "focus:ring-2 focus:ring-primary/25 disabled:bg-card disabled:text-text-muted " +
-  "aria-[invalid=true]:border-error aria-[invalid=true]:ring-error/20";
-
-export function Input({
-  className,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(CONTROL, "h-11", className)} {...props} />;
 }
 
-export function Textarea({
-  className,
-  ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (
     <textarea className={cn(CONTROL, "min-h-20 py-2", className)} {...props} />
   );
-}
-
-export function Select({
-  className,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(CONTROL, "h-11 pe-8", className)} {...props} />;
 }
 
 export type BadgeTone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -146,7 +109,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-badge whitespace-nowrap",
         BADGE_TONES[tone],
         className,
       )}
@@ -168,7 +131,7 @@ export function Alert({
     <div
       role={tone === "danger" ? "alert" : "status"}
       className={cn(
-        "rounded-md border px-4 py-3 text-sm",
+        "rounded-md border px-4 py-3 text-body",
         tone === "danger" && "border-error/40 bg-error/5 text-error-dark",
         tone === "info" && "border-info/30 bg-info/5 text-info-dark",
         tone === "success" &&
@@ -194,9 +157,9 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-text">{title}</h1>
+        <h1 className="text-page-title text-text">{title}</h1>
         {description ? (
-          <p className="text-sm text-text-muted">{description}</p>
+          <p className="text-body text-text-muted">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

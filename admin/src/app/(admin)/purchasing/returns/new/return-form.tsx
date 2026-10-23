@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Badge, Button, Card, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -13,6 +13,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { newOperationId } from "@/lib/finance/operations";
 import { formatQuantity, locationLabel, lotHref, toMilli, type Balance, type LocationInfo } from "@/lib/inventory";
 import { fixedText, moneyText, precisionOf, returnPreview, toFixed, type PurchaseInvoice } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 interface Posted {
   id: string;
@@ -119,35 +120,35 @@ export function ReturnForm({
         <h2 className="mb-1 text-lg font-bold">{t("lots")}</h2>
         <p className="mb-3 text-sm text-text-muted">{t("lotsBody")}</p>
         {missingBalances ? <Alert tone="info">{t("needsInventory")}</Alert> : null}
-        <table className="w-full min-w-[52rem] text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.onHand")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.reserved")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.available")}</th>
-              <th className="w-36 px-3 py-2 text-start font-semibold">{t("columns.return")}</th>
-              {canCost ? <th className="px-3 py-2 text-end font-semibold">{t("columns.lotCost")}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+        <Table minWidth="52rem">
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.location")}</Th>
+              <Th>{t("columns.onHand")}</Th>
+              <Th>{t("columns.reserved")}</Th>
+              <Th>{t("columns.available")}</Th>
+              <Th className="w-36">{t("columns.return")}</Th>
+              {canCost ? <Th>{t("columns.lotCost")}</Th> : null}
+            </Tr>
+          </THead>
+          <TBody>
             {rows.map((row) => (
-              <tr key={row.key} className="border-t border-border" data-testid="return-row" data-sku={row.item.variant?.sku ?? ""} data-location={row.balance.location_code}>
-                <td className="px-3 py-2 font-semibold" dir="ltr">{row.item.variant?.sku ?? row.balance.sku}</td>
-                <td className="px-3 py-2">
+              <Tr key={row.key} data-testid="return-row" data-sku={row.item.variant?.sku ?? ""} data-location={row.balance.location_code}>
+                <Td className="font-semibold" dir="ltr">{row.item.variant?.sku ?? row.balance.sku}</Td>
+                <Td>
                   {row.item.lot_id ? (
                     <Link href={lotHref(row.item.lot_id)} className="text-primary-dark hover:underline" dir="ltr">
                       {row.item.lot_number ?? t("noLotNumber")}
                     </Link>
                   ) : null}
-                </td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(locations[row.balance.location_id], row.balance.location_code)}</td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(row.balance.quantity, locale)}</td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(row.balance.reserved, locale)}</td>
-                <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="return-available">{formatQuantity(row.balance.available, locale)}</td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td dir="ltr">{locationLabel(locations[row.balance.location_id], row.balance.location_code)}</Td>
+                <Td dir="ltr">{formatQuantity(row.balance.quantity, locale)}</Td>
+                <Td dir="ltr">{formatQuantity(row.balance.reserved, locale)}</Td>
+                <Td className="font-semibold" dir="ltr" data-testid="return-available">{formatQuantity(row.balance.available, locale)}</Td>
+                <Td>
                   {toMilli(row.balance.available) > 0 ? (
                     <DecimalInput
                       value={quantities[row.key] ?? ""}
@@ -162,14 +163,14 @@ export function ReturnForm({
                       {toMilli(row.balance.reserved) > 0 ? t("allReserved") : t("nothingHere")}
                     </Badge>
                   )}
-                </td>
+                </Td>
                 {canCost ? (
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(toFixed(row.item.lot?.purchase_cost ?? 0), "IQD")}</td>
+                  <Td dir="ltr">{money(toFixed(row.item.lot?.purchase_cost ?? 0), "IQD")}</Td>
                 ) : null}
-              </tr>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
 
       <Card className="flex flex-col gap-3" data-testid="return-effect">
@@ -227,11 +228,11 @@ export function ReturnForm({
           )}
         </Card>
       ) : (
-        <div className="flex justify-end">
+        <ActionBar>
           <Button onClick={toReview} data-testid="return-review-button">
             {t("review")}
           </Button>
-        </div>
+        </ActionBar>
       )}
     </div>
   );

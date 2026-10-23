@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import ar from "../../src/messages/ar.json";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import { choose, optionCount, optionTexts } from "./controls";
 
 /**
  * Catalog v2 in the Web Admin, in a real browser, through the BFF, against a
@@ -99,7 +100,7 @@ test("categories stay two levels; re-parenting is blocked, worded by its code", 
   await expect(page.getByTestId(`category-row-${dept}`)).toBeVisible();
 
   await page.getByTestId(`category-add-child-${dept}`).click();
-  await expect(form.getByTestId("category-parent")).toHaveValue(/.+/);
+  await expect(form.getByTestId("category-parent")).toHaveAttribute("data-value", /.+/);
   await form.getByTestId("category-name-ar").fill(`فرعي ${run}`);
   await form.getByTestId("category-name-en").fill(`Child ${run}`);
   // The slug is normally generated; this test sets its own, under "advanced".
@@ -113,7 +114,7 @@ test("categories stay two levels; re-parenting is blocked, worded by its code", 
   await expect(page.getByTestId(`category-add-child-child-${run}`)).toHaveCount(0);
   // Its parent can only be a department — never a subcategory.
   await page.getByTestId(`category-edit-child-${run}`).click();
-  const options = await form.getByTestId("category-parent").locator("option").allTextContents();
+  const options = await optionTexts(form.getByTestId("category-parent"));
   expect(options).not.toContain(`Sub ${run}`);
   expect(options).not.toContain(`فرعي ${run}`);
   expect(options).toContain(`Shelf ${run}`);
@@ -131,7 +132,7 @@ test("categories stay two levels; re-parenting is blocked, worded by its code", 
   const loner = await category(request, "Loner");
   await page.reload();
   await page.getByTestId(`category-edit-${loner.slug}`).click();
-  await form.getByTestId("category-parent").selectOption({ label: `Shelf ${run}` });
+  await choose(form.getByTestId("category-parent"), { label: `Shelf ${run}` });
   await category(request, "Late", loner.id);
   await form.getByTestId("dialog-submit").click();
   const error = form.getByTestId("form-error");
@@ -139,7 +140,7 @@ test("categories stay two levels; re-parenting is blocked, worded by its code", 
   await expect(error).toHaveAttribute("data-code", "CATEGORY_MAX_DEPTH");
   await expect(error).toContainText(ar.errors.codes.CATEGORY_MAX_DEPTH);
   await expect(error).not.toContainText("A category with children cannot become a child");
-  await expect(form.getByTestId("category-parent")).toHaveValue(shelf.id);
+  await expect(form.getByTestId("category-parent")).toHaveAttribute("data-value", shelf.id);
   const unchanged = await api(request, "GET", "/admin/categories");
   expect(
     (unchanged.body as Array<{ id: string }>).some((node) => node.id === loner.id),
@@ -163,10 +164,10 @@ test("convert a category to a brand: preview, then an audited move", async ({ pa
   await dialog.getByTestId("convert-name-en").fill(`HP ${run}`);
   await dialog.getByTestId("convert-name-ar").fill(`إتش بي ${run}`);
   // The source cannot be its own target, and departments are not offered.
-  const targets = await dialog.getByTestId("convert-target").locator("option").allTextContents();
+  const targets = await optionTexts(dialog.getByTestId("convert-target"));
   expect(targets).not.toContain(`Hp ${run}`);
   expect(targets).not.toContain(`Laptops ${run}`);
-  await dialog.getByTestId("convert-target").selectOption({ label: `Gaming ${run}` });
+  await choose(dialog.getByTestId("convert-target"), { label: `Gaming ${run}` });
 
   // The preview names every effect, with the real product count, and changes nothing.
   await dialog.getByTestId("convert-preview").click();
@@ -269,8 +270,8 @@ test("the SKU editor: base unit, whole units, price override, low-stock threshol
   await page.getByTestId("product-name-ar").fill(`أرز ${run}`);
   await page.getByTestId("product-name-en").fill(`Rice ${run}`);
   // Only subcategories are offered; a department is not a valid home.
-  await expect(page.getByTestId("product-category").locator(`option[value="${shelf.id}"]`)).toHaveCount(0);
-  await page.getByTestId("product-category").selectOption(rice.id);
+  expect(await optionCount(page.getByTestId("product-category"), { value: shelf.id })).toBe(0);
+  await choose(page.getByTestId("product-category"), rice.id);
   await page.getByTestId("product-price").fill("4000");
 
   // SKU 1: by the piece — whole units forced — with its own price.
@@ -283,7 +284,7 @@ test("the SKU editor: base unit, whole units, price override, low-stock threshol
   // SKU 2: by the kilogram, fractions allowed, threshold in kilograms.
   await page.getByTestId("variant-add").click();
   await page.getByTestId("variant-sku-1").fill(`LIVE-KG-${run}`);
-  await page.getByTestId("variant-unit-1").selectOption("kg");
+  await choose(page.getByTestId("variant-unit-1"), "kg");
   await expect(page.getByTestId("variant-whole-1")).toBeEnabled();
   await expect(page.getByTestId("variant-whole-1")).not.toBeChecked();
   await page.getByTestId("variant-threshold-1").fill("2.5555");
@@ -319,10 +320,10 @@ test("the SKU editor: base unit, whole units, price override, low-stock threshol
 
   // The editor reloads what was stored, whatever order the SKUs come back in.
   const card = (sku: string) => page.locator("fieldset", { has: page.locator("legend code", { hasText: sku }) });
-  await expect(card(`LIVE-KG-${run}`).locator('[data-testid^="variant-unit-"]')).toHaveValue("kg");
+  await expect(card(`LIVE-KG-${run}`).locator('[data-testid^="variant-unit-"]')).toHaveAttribute("data-value", "kg");
   await expect(card(`LIVE-KG-${run}`).locator('[data-testid^="variant-threshold-"]')).toHaveValue("2.5");
   await expect(card(`LIVE-KG-${run}`).locator('[data-testid^="variant-whole-"]').first()).not.toBeChecked();
-  await expect(card(`LIVE-BAG-${run}`).locator('[data-testid^="variant-price-"]')).toHaveValue("18000");
+  await expect(card(`LIVE-BAG-${run}`).locator('[data-testid^="variant-price-"]')).toHaveValue("18,000");
 });
 
 /* ----------------------------------------------------------- linked prices */
@@ -369,11 +370,11 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
     await page.goto("/catalog/products/new");
     await page.getByTestId("product-name-ar").fill(`هاتف ${run}`);
     await page.getByTestId("product-name-en").fill(`Phone ${run}`);
-    await page.getByTestId("product-category").selectOption(sub.id);
+    await choose(page.getByTestId("product-category"), sub.id);
     await page.getByTestId("product-price").fill("1");
     await page.getByTestId("variant-sku-0").fill(sku);
     await page.getByTestId("variant-mode-linked-0").check();
-    await page.getByTestId("variant-currency-0").selectOption("USD");
+    await choose(page.getByTestId("variant-currency-0"), "USD");
     await page.getByTestId("variant-reference-0").fill("12");
     await expect(page.getByTestId("variant-rounding-0")).toContainText("250");
     await expect(page.getByTestId("variant-local-price-0")).toHaveAttribute("data-value", "18000");
@@ -388,7 +389,7 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
 
     const previewAt = async (value: string) => {
       await page.goto("/finance/currencies");
-      await page.getByTestId("rate-currency").selectOption("USD");
+      await choose(page.getByTestId("rate-currency"), "USD");
       await page.getByTestId("rate-value").fill(value);
       await page.getByTestId("rate-effective").fill(oneMinuteAgo());
       await page.getByTestId("rate-reason").fill(`Linked price check ${run}`);

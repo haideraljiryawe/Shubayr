@@ -6,6 +6,7 @@ import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { formatAmount } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Entry = components["schemas"]["JournalEntry"];
 
@@ -87,19 +88,19 @@ export function EntryView({
       </Card>
 
       <Card className="overflow-x-auto p-4">
-        <table className="w-full text-sm" data-testid="entry-lines">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("columns.account")}</th>
-              <th className="py-1 text-end font-semibold">{t("columns.debit")}</th>
-              <th className="py-1 text-end font-semibold">{t("columns.credit")}</th>
-              <th className="py-1 ps-3 text-start font-semibold">{t("detail.original")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="entry-lines">
+          <THead>
+            <Tr>
+              <Th>{t("columns.account")}</Th>
+              <Th>{t("columns.debit")}</Th>
+              <Th>{t("columns.credit")}</Th>
+              <Th className="ps-3">{t("detail.original")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {entry.lines.map((line) => (
-              <tr key={line.id} className="border-t border-border" data-testid="entry-line">
-                <td className="py-1.5">
+              <Tr key={line.id} data-testid="entry-line">
+                <Td>
                   <Link
                     href={`/finance/ledger/entries?account_code=${encodeURIComponent(line.account.code)}`}
                     className="text-primary-dark hover:underline"
@@ -109,18 +110,18 @@ export function EntryView({
                   </Link>{" "}
                   {locale === "ar" ? line.account.name_ar : line.account.name_en}
                   {line.memo ? <span className="block text-xs text-text-muted">{line.memo}</span> : null}
-                </td>
-                <td className="py-1.5 text-end" dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</td>
-                <td className="py-1.5 text-end" dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</td>
-                <td className="py-1.5 ps-3 text-text-muted" dir="ltr">
+                </Td>
+                <Td dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</Td>
+                <Td dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</Td>
+                <Td className="ps-3 text-text-muted" dir="ltr">
                   {line.currency_code !== baseCode
                     ? `${formatAmount(line.original_amount, line.currency_code, precisions[line.currency_code] ?? 2, locale)} × ${line.exchange_rate}`
                     : ""}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
     </div>
   );

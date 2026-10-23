@@ -23,6 +23,7 @@ import {
   type Transfer,
   type WriteDown,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("inventory");
@@ -172,63 +173,63 @@ export default async function InventoryDocumentPage({ params }: { params: Promis
         </Card>
 
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-sm" data-testid="document-lines-table">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
+          <Table minWidth="40rem" data-testid="document-lines-table">
+            <THead>
+              <Tr>
+                <Th>{t("columns.sku")}</Th>
+                <Th>{t("columns.lot")}</Th>
                 {type === "transfer" ? (
                   <>
-                    <th className="px-3 py-2 text-start font-semibold">{t("columns.from")}</th>
-                    <th className="px-3 py-2 text-start font-semibold">{t("columns.to")}</th>
+                    <Th>{t("columns.from")}</Th>
+                    <Th>{t("columns.to")}</Th>
                   </>
                 ) : (
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
+                  <Th>{t("columns.location")}</Th>
                 )}
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.quantity")}</th>
+                <Th>{t("columns.quantity")}</Th>
                 {canViewCost && type !== "transfer" ? (
-                  <th className="px-3 py-2 text-end font-semibold" data-testid="cost-column">{t("columns.unitCost")}</th>
+                  <Th data-testid="cost-column">{t("columns.unitCost")}</Th>
                 ) : null}
-                {canViewCost && type === "opening" ? <th className="px-3 py-2 text-end font-semibold">{t("columns.landed")}</th> : null}
-                {type === "opening" ? <th className="px-3 py-2 text-start font-semibold">{t("columns.expiry")}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
+                {canViewCost && type === "opening" ? <Th>{t("columns.landed")}</Th> : null}
+                {type === "opening" ? <Th>{t("columns.expiry")}</Th> : null}
+              </Tr>
+            </THead>
+            <TBody>
               {lines.map((line) => {
                 const lot = lots.get(line.batchId);
                 return (
-                  <tr key={line.id} className="border-t border-border" data-testid="document-line">
-                    <td className="px-3 py-2 font-semibold" dir="ltr">
+                  <Tr key={line.id} data-testid="document-line">
+                    <Td className="font-semibold" dir="ltr">
                       <Link href={stockHref({ variant_id: line.variantId })} className="hover:underline">
                         {lot?.sku ?? shortId(line.variantId)}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2">
+                    </Td>
+                    <Td>
                       <Link href={lotHref(line.batchId)} className="text-primary-dark hover:underline" dir="ltr" data-testid="document-lot">
                         {lot ? (lot.lotNumber ?? t("noLotNumber")) : shortId(line.batchId)}
                       </Link>
-                    </td>
+                    </Td>
                     {type === "transfer" ? (
                       <>
-                        <td className="px-3 py-2" dir="ltr">{where(line.fromId)}</td>
-                        <td className="px-3 py-2" dir="ltr" data-testid="document-to">{where(line.toId)}</td>
+                        <Td dir="ltr">{where(line.fromId)}</Td>
+                        <Td dir="ltr" data-testid="document-to">{where(line.toId)}</Td>
                       </>
                     ) : (
-                      <td className="px-3 py-2" dir="ltr">{where(line.locationId)}</td>
+                      <Td dir="ltr">{where(line.locationId)}</Td>
                     )}
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="document-quantity">
+                    <Td className="font-semibold" dir="ltr" data-testid="document-quantity">
                       {formatQuantity(line.quantity, locale)}
-                    </td>
+                    </Td>
                     {canViewCost && type !== "transfer" ? (
-                      <td className="px-3 py-2 text-end" dir="ltr" data-testid="document-cost">{formatCost(line.unitCost, locale)}</td>
+                      <Td dir="ltr" data-testid="document-cost">{formatCost(line.unitCost, locale)}</Td>
                     ) : null}
-                    {canViewCost && type === "opening" ? <td className="px-3 py-2 text-end" dir="ltr">{formatCost(line.landed, locale)}</td> : null}
-                    {type === "opening" ? <td className="px-3 py-2" dir="ltr">{line.expiry ? line.expiry.slice(0, 10) : "—"}</td> : null}
-                  </tr>
+                    {canViewCost && type === "opening" ? <Td dir="ltr">{formatCost(line.landed, locale)}</Td> : null}
+                    {type === "opening" ? <Td dir="ltr">{line.expiry ? line.expiry.slice(0, 10) : "—"}</Td> : null}
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </Card>
       </div>
     </>

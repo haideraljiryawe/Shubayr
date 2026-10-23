@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Clock, Plus, Sparkles, Trash2, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
@@ -50,6 +50,8 @@ import { decimalPlaces, formatAmount, formatRate } from "@/lib/finance/money";
 import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 import { limitBody, limitDraft, limitPatch, switchLimit, validateLimit, type PurchaseLimitDraft } from "@/lib/purchase-limit";
 import { parseLocalizedDecimal } from "@/lib/number";
+import { AmountInput } from "@/components/forms/amount-input";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 type Status = "active" | "hidden" | "archived";
 type FieldMessages = Partial<Record<keyof VariantDraft, string>>;
@@ -106,6 +108,8 @@ export function ProductEditor({
 }) {
   const t = useTranslations("products");
   const tErrors = useTranslations("errors");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
@@ -310,8 +314,9 @@ export function ProductEditor({
 
   return (
     <>
+      {dialog}
       <form
-        className="flex flex-col gap-6 pb-24"
+        className="flex flex-col gap-6"
         noValidate
         data-testid="product-editor"
         onSubmit={(event) => {
@@ -335,7 +340,7 @@ export function ProductEditor({
               <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
             </Field>
             <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
-              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
+              <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} data-testid="product-category">
                 <option value="">{t("chooseCategory")}</option>
                 {groups.map((group) => (
                   <optgroup key={group.department.id} label={nameOf(group.department)}>
@@ -350,7 +355,7 @@ export function ProductEditor({
             </Field>
             <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
               <div className="flex gap-2">
-                <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
+                <Select className="min-w-0 flex-1" value={brandId} onValueChange={(value) => setBrandId(value)} data-testid="product-brand">
                   <option value="">{t("noBrand")}</option>
                   {brands.map((brand) => (
                     <option key={brand.id} value={brand.id}>
@@ -373,7 +378,7 @@ export function ProductEditor({
               error={error("price")}
               hint={t("fields.priceHint")}
             >
-              <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
+              <NumberInput grouping value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
             </Field>
           </div>
           {groups.length === 0 ? (
@@ -434,7 +439,13 @@ export function ProductEditor({
               errors={variantErrors[draft.key] ?? {}}
               canRemove={drafts.length > 1}
               onChange={(patch) => change(draft.key, patch)}
-              onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
+              onRemove={() =>
+                confirmRemove({
+                  title: tc("variantTitle"),
+                  body: tc("variantBody"),
+                  onConfirm: () => setDrafts((current) => current.filter((item) => item.key !== draft.key)),
+                })
+              }
             />
           ))}
         </Card>
@@ -456,13 +467,11 @@ export function ProductEditor({
           <p className="-mt-1 text-xs text-text-muted">{t("limit.hint")}</p>
           {limit.enabled ? (
             <Field label={t("limit.max")} name="purchase_limit_max_quantity" error={error("purchase_limit_max_quantity")} hint={t("limit.maxHint")}>
-              <Input
+              <AmountInput
                 className="w-40"
-                inputMode="decimal"
-                dir="ltr"
                 value={limit.max}
-                onChange={(e) => {
-                  const max = e.target.value;
+                onValueChange={(value) => {
+                  const max = value;
                   setLimit((current) => ({ ...current, max }));
                   clearLimitError();
                 }}
@@ -518,12 +527,12 @@ export function ProductEditor({
         )}
 
         {/* The save row stays in reach on a long form and on a tablet. */}
-        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
-          {settled === "busy" ? (
-            <span className="me-auto text-sm text-text-muted" aria-live="polite">
-              {t("imagesUploading")}
-            </span>
-          ) : null}
+        <ActionBar
+          data-testid="product-actions"
+          start={
+            settled === "busy" ? <span aria-live="polite">{t("imagesUploading")}</span> : null
+          }
+        >
           {product ? null : (
             <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
               {t("createAndAnother")}
@@ -532,7 +541,7 @@ export function ProductEditor({
           <Button type="submit" pending={api.pending} data-testid="product-save">
             {product ? t("save") : t("create")}
           </Button>
-        </div>
+        </ActionBar>
       </form>
 
       {/* Outside the product form: the dialog is a form of its own. */}
@@ -680,8 +689,8 @@ function VariantCard({
         <Field label={t("variant.baseUnit")} name="base_unit" error={errors.base_unit}>
           <Select
             value={draft.base_unit}
-            onChange={(e) => {
-              const unit = e.target.value;
+            onValueChange={(value) => {
+              const unit = value;
               // Pieces are whole; switching to a weight or volume unit starts
               // from fractions allowed, the usual case for those.
               onChange({ base_unit: unit, whole_units_only: isPiece(unit) });
@@ -706,11 +715,10 @@ function VariantCard({
                 : t("variant.inheritsPriceUnknown")
             }
           >
-            <Input
+            <AmountInput
               value={draft.selling_price}
-              dir="ltr"
               inputMode="numeric"
-              onChange={(e) => onChange({ selling_price: e.target.value })}
+              onValueChange={(value) => onChange({ selling_price: value })}
               data-testid={id("price")}
             />
           </Field>
@@ -725,11 +733,9 @@ function VariantCard({
               : t("variant.thresholdInherit")
           }
         >
-          <Input
+          <AmountInput
             value={draft.low_stock_threshold}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ low_stock_threshold: e.target.value })}
+            onValueChange={(value) => onChange({ low_stock_threshold: value })}
             data-testid={id("threshold")}
           />
         </Field>
@@ -825,7 +831,7 @@ function LinkedPricing({
         <Field label={t("variant.referenceCurrency")} name="reference_currency_code" error={errors.reference_currency_code}>
           <Select
             value={draft.reference_currency_code}
-            onChange={(e) => onChange({ reference_currency_code: e.target.value })}
+            onValueChange={(value) => onChange({ reference_currency_code: value })}
             data-testid={id("currency")}
           >
             <option value="">{t("variant.chooseCurrency")}</option>
@@ -845,11 +851,9 @@ function LinkedPricing({
           error={errors.reference_price}
           hint={t("variant.referenceHint")}
         >
-          <Input
+          <AmountInput
             value={draft.reference_price}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ reference_price: e.target.value })}
+            onValueChange={(value) => onChange({ reference_price: value })}
             data-testid={id("reference")}
           />
         </Field>

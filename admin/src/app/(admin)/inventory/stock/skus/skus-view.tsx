@@ -9,6 +9,7 @@ import { DataTable, TableSearch, type Column, type TableState } from "@/componen
 import type { Product } from "@/lib/catalog";
 import { availabilityTone, formatQuantity, stockHref } from "@/lib/inventory";
 import { useUnitName } from "@/components/catalog/unit-name";
+import { Table, TBody, Tr, Td } from "@/components/table/table";
 
 export function SkusView({ rows, state, canRestock = false }: { rows: Product[]; state: TableState; canRestock?: boolean }) {
   const t = useTranslations("inventory");
@@ -39,32 +40,32 @@ export function SkusView({ rows, state, canRestock = false }: { rows: Product[];
       key: "skus",
       header: t("columns.skus"),
       cell: (product) => (
-        <table className="w-full text-sm">
-          <tbody>
+        <Table>
+          <TBody>
             {(product.variants ?? []).map((variant) => (
-              <tr key={variant.id} data-testid="sku-row" data-sku={variant.sku}>
-                <td className="py-1 pe-3 font-semibold" dir="ltr">
+              <Tr key={variant.id} data-testid="sku-row" data-sku={variant.sku}>
+                <Td className="pe-3 font-semibold" dir="ltr">
                   <Link href={stockHref({ variant_id: variant.id })} className="hover:underline" data-testid="sku-stock-link">
                     {variant.sku}
                   </Link>
-                </td>
-                <td className="py-1 pe-3 text-end" dir="ltr" data-testid="sku-available">
+                </Td>
+                <Td className="pe-3" dir="ltr" data-testid="sku-available">
                   {formatQuantity(variant.available_qty ?? 0, locale)} <span className="text-text-muted">{unitName(variant.base_unit)}</span>
-                </td>
-                <td className="py-1 pe-3">
+                </Td>
+                <Td className="pe-3">
                   <Badge tone={availabilityTone(variant.availability)} data-testid="sku-state" data-state={variant.availability}>
                     {t(`availability.${variant.availability ?? "out_of_stock"}`)}
                   </Badge>
-                </td>
-                <td className="py-1 text-xs text-text-muted">
+                </Td>
+                <Td className="text-text-muted">
                   {variant.low_stock_threshold !== null && variant.low_stock_threshold !== undefined
                     ? t("stock.threshold", { value: formatQuantity(variant.low_stock_threshold, locale), unit: variant.base_unit ?? "" })
                     : t("stock.thresholdDefault")}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       ),
     },
   ];

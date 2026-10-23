@@ -7,3 +7,49 @@
 
 /* Tailwind scans this app only; the imported tokens carry no class names. */
 @source "../";
+
+/* ----------------------------------------------------------------------------
+   The admin type scale (VIS-018) — the one place a text role's size, weight
+   and line height are set. Components use the role (text-body, text-control,
+   text-table-head …), never a raw size, so equivalent elements match on every
+   page while titles, labels and captions keep their hierarchy. Colours come
+   from tokens.css.
+   -------------------------------------------------------------------------- */
+@theme {
+  --text-page-title: 1.5rem;
+  --text-page-title--line-height: 2rem;
+  --text-page-title--font-weight: 700;
+
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.75rem;
+  --text-section--font-weight: 700;
+
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5rem;
+
+  /* Typed and displayed values in every control. */
+  --text-control: 0.875rem;
+  --text-control--line-height: 1.5rem;
+
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+  --text-label--font-weight: 600;
+
+  --text-table-head: 0.8125rem;
+  --text-table-head--line-height: 1.25rem;
+  --text-table-head--font-weight: 600;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+
+  --text-badge: 0.75rem;
+  --text-badge--line-height: 1.125rem;
+  --text-badge--font-weight: 600;
+}
+
+@layer utilities {
+  /* A horizontal strip (tabs) that scrolls sideways inside itself only. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

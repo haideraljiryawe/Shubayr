@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TableFooter } from "@/components/table/table-footer";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCheck } from "lucide-react";
 import { Alert, Button } from "@/components/ui";
@@ -83,7 +84,6 @@ export function InboxList({
     [onNavigate, router, t, toast],
   );
 
-  const pages = data ? Math.max(1, Math.ceil(data.total / perPage)) : 1;
   const hasUnread =
     (unread ?? 0) > 0 || Boolean(data?.data.some((item) => !item.read_at));
 
@@ -220,31 +220,13 @@ export function InboxList({
         </ul>
       )}
 
-      {!compact && data && pages > 1 ? (
-        <nav
-          className="flex items-center justify-between gap-2"
-          aria-label={t("pageOf", { page, pages })}
-        >
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-          >
-            {t("previous")}
-          </Button>
-          <span className="text-sm text-text-muted">
-            {t("pageOf", { page, pages })}
-          </span>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page >= pages}
-            onClick={() => setPage(page + 1)}
-          >
-            {t("next")}
-          </Button>
-        </nav>
+      {!compact && data && data.total > 0 ? (
+        <TableFooter
+          total={data.total}
+          page={page}
+          perPage={perPage}
+          onPage={setPage}
+        />
       ) : null}
     </div>
   );

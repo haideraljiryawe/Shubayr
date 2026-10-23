@@ -41,7 +41,7 @@ export function TripsView({ rows, state, driver, ignoredDates }: { rows: Trip[];
         </Link>
       ),
     },
-    { key: "orders", header: t("list.columns.orders"), className: "text-end", cell: (row) => <span dir="ltr">{row.orders.length}</span> },
+    { key: "orders", header: t("list.columns.orders"), cell: (row) => <span dir="ltr">{row.orders.length}</span> },
     {
       key: "fare",
       header: t("list.columns.fare"),
@@ -55,7 +55,6 @@ export function TripsView({ rows, state, driver, ignoredDates }: { rows: Trip[];
     {
       key: "outstanding",
       header: t("list.columns.outstanding"),
-      className: "text-end",
       cell: (row) => <span dir="ltr">{money(row.settlement.outstanding_cash_iqd)}</span>,
     },
     {

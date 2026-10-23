@@ -112,12 +112,11 @@ export function StockView({
         </div>
       ),
     },
-    { key: "onHand", header: t("columns.onHand"), className: "text-end", cell: (row) => <span dir="ltr" data-testid="stock-on-hand">{qty(row.quantity)}</span> },
-    { key: "reserved", header: t("columns.reserved"), className: "text-end", cell: (row) => <span dir="ltr" data-testid="stock-reserved">{qty(row.reserved)}</span> },
+    { key: "onHand", header: t("columns.onHand"), cell: (row) => <span dir="ltr" data-testid="stock-on-hand">{qty(row.quantity)}</span> },
+    { key: "reserved", header: t("columns.reserved"), cell: (row) => <span dir="ltr" data-testid="stock-reserved">{qty(row.reserved)}</span> },
     {
       key: "available",
       header: t("columns.available"),
-      className: "text-end",
       cell: (row) => (
         <span className="inline-flex items-center justify-end gap-1">
           {row.is_sellable && toMilli(row.available) <= 0 ? (
@@ -134,7 +133,6 @@ export function StockView({
     {
       key: "custody",
       header: <span title={t("custodyHint")}>{t("columns.custody")}</span>,
-      className: "text-end",
       cell: (row) => <span dir="ltr" className="text-text-muted" data-testid="stock-custody">{qty(row.custody)}</span>,
     },
     ...(canRestock
@@ -142,7 +140,7 @@ export function StockView({
           {
             key: "restock",
             header: <span className="sr-only">{t("restock")}</span>,
-            className: "text-end",
+            align: "end",
             cell: (row: Balance) => (
               <Link href={restockHref(row.product_id)} className={buttonClasses({ size: "sm", variant: "secondary" })} data-testid="stock-restock">
             <Truck className="size-4" aria-hidden />

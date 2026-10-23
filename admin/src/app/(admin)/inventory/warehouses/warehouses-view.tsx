@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MapPin, Plus } from "lucide-react";
-import { Badge, Button, Card, Input, Textarea } from "@/components/ui";
+import { Badge, Button, Input, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
 import { Field } from "@/components/forms/field";
@@ -16,6 +16,7 @@ import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { stockHref, type Warehouse, type WarehouseLocation } from "@/lib/inventory";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, TableCard, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Editing =
   | { kind: "warehouse"; warehouse: Warehouse | null }
@@ -61,10 +62,13 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
       {warehouses.length === 0 ? <p className="text-sm text-text-muted">{t("empty")}</p> : null}
 
       {warehouses.map((warehouse) => (
-        <Card key={warehouse.id} className="flex flex-col gap-4" data-testid="warehouse-card" data-code={warehouse.code}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <h2 className="flex flex-wrap items-center gap-2 text-lg font-bold">
+        <TableCard
+          key={warehouse.id}
+          data-testid="warehouse-card"
+          data-code={warehouse.code}
+          title={
+            <>
+              <h2 className="flex flex-wrap items-center gap-2 text-section">
                 <span dir="ltr">{warehouse.code}</span>
                 <span className="text-text-muted">·</span>
                 <span>{warehouse.name}</span>
@@ -72,66 +76,80 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
                   {warehouse.is_active ? t("active") : t("inactive")}
                 </Badge>
               </h2>
-              <Link href={stockHref({ warehouse_id: warehouse.id })} className="text-sm font-semibold text-primary-dark hover:underline">
+              <Link href={stockHref({ warehouse_id: warehouse.id })} className="text-label text-primary-dark hover:underline">
                 {t("viewStock")}
               </Link>
-            </div>
-            {canManage ? (
+            </>
+          }
+          toolbar={
+            canManage ? (
               <div className="flex flex-wrap gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: "warehouse", warehouse })} data-testid="warehouse-edit">
+                <Button size="sm" variant="secondary" onClick={() => setEditing({ kind: "warehouse", warehouse })} data-testid="warehouse-edit">
                   {t("edit")}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => void setActive("warehouse", warehouse.id!, !warehouse.is_active)} data-testid="warehouse-toggle">
+                <Button size="sm" variant="secondary" onClick={() => void setActive("warehouse", warehouse.id!, !warehouse.is_active)} data-testid="warehouse-toggle">
                   {warehouse.is_active ? t("deactivate") : t("activate")}
                 </Button>
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() => setDeleting({ kind: "warehouse", id: warehouse.id!, label: warehouse.code ?? "" })}
                   data-testid="warehouse-delete"
                 >
                   {t("delete")}
                 </Button>
               </div>
-            ) : null}
-          </div>
+            ) : null
+          }
+          footer={
+            canManage && warehouse.is_active ? (
+              <div className="border-t border-border px-4 py-3">
+                <Button size="sm" variant="secondary" onClick={() => setEditing({ kind: "location", warehouseId: warehouse.id!, location: null })} data-testid="location-new">
+                  <MapPin className="size-4" aria-hidden />
+                  {t("newLocation")}
+                </Button>
+              </div>
+            ) : null
+          }
+        >
           {toggleError && toggleError.id === warehouse.id ? (
-            <FormError kind={toggleError.kind} code={toggleError.code} />
+            <div className="px-4 pt-3">
+              <FormError kind={toggleError.kind} code={toggleError.code} />
+            </div>
           ) : null}
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] text-sm" data-testid="locations-table">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.code")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.description")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.sellable")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.status")}</th>
-                  <th className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
+            <Table minWidth="36rem" data-testid="locations-table">
+              <THead>
+                <Tr>
+                  <Th>{t("columns.code")}</Th>
+                  <Th>{t("columns.description")}</Th>
+                  <Th>{t("columns.sellable")}</Th>
+                  <Th>{t("columns.status")}</Th>
+                  <Th />
+                </Tr>
+              </THead>
+              <TBody>
                 {(warehouse.locations ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-4 text-center text-text-muted">
+                  <Tr>
+                    <Td align="center" colSpan={5} className="text-text-muted">
                       {t("noLocations")}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ) : (
                   (warehouse.locations ?? []).map((location) => (
-                    <tr key={location.id} className="border-t border-border" data-testid="location-row" data-code={location.code}>
-                      <td className="px-3 py-2 font-semibold" dir="ltr">
+                    <Tr key={location.id} data-testid="location-row" data-code={location.code}>
+                      <Td className="font-semibold" dir="ltr">
                         <Link href={stockHref({ location_id: location.id })} className="hover:underline">
                           {location.code}
                         </Link>
-                      </td>
-                      <td className="px-3 py-2 text-text-muted">{location.description || "—"}</td>
-                      <td className="px-3 py-2">
+                      </Td>
+                      <Td className="text-text-muted">{location.description || "—"}</Td>
+                      <Td>
                         <Badge tone={location.is_sellable ? "info" : "warning"} data-testid="location-sellable">
                           {location.is_sellable ? t("sellable") : t("nonSellable")}
                         </Badge>
-                      </td>
-                      <td className="px-3 py-2">
+                      </Td>
+                      <Td>
                         <Badge tone={location.is_active ? "success" : "neutral"} data-testid="location-status">
                           {location.is_active ? t("active") : t("inactive")}
                         </Badge>
@@ -140,8 +158,8 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
                             {toggleError.code && tErrors.has(`codes.${toggleError.code}`) ? tErrors(`codes.${toggleError.code}`) : tErrors(toggleError.kind)}
                           </span>
                         ) : null}
-                      </td>
-                      <td className="px-3 py-2">
+                      </Td>
+                      <Td>
                         {canManage ? (
                           <div className="flex flex-wrap justify-end gap-1">
                             <Button
@@ -165,22 +183,13 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
                             </Button>
                           </div>
                         ) : null}
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-          {canManage && warehouse.is_active ? (
-            <div>
-              <Button size="sm" variant="secondary" onClick={() => setEditing({ kind: "location", warehouseId: warehouse.id!, location: null })} data-testid="location-new">
-                <MapPin className="size-4" aria-hidden />
-                {t("newLocation")}
-              </Button>
-            </div>
-          ) : null}
-        </Card>
+              </TBody>
+            </Table>
+        </TableCard>
       ))}
 
       {editing?.kind === "warehouse" ? (

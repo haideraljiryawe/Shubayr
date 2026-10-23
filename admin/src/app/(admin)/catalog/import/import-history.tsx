@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Download, History } from "lucide-react";
-import { Badge, buttonClasses, Card } from "@/components/ui";
+import { Badge, buttonClasses } from "@/components/ui";
 import { commitOutcome, statusTone, type CatalogImportSummary } from "@/lib/catalog-import";
+import { Table, TableCard, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { UrlTableFooter } from "@/components/table/table-footer";
 
 /**
  * Past imports, newest first: when, who, the file, its state (partly applied
@@ -26,7 +28,6 @@ export function ImportHistory({
 }) {
   const t = useTranslations("catalogImport");
   const format = useFormatter();
-  const pages = Math.max(1, Math.ceil(total / perPage));
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short", numberingSystem: "latn" });
   const who = (item: CatalogImportSummary) =>
@@ -39,51 +40,54 @@ export function ImportHistory({
       </Badge>
     );
   };
-  const pageHref = (target: number) => `/catalog/import?page=${target}${openedId ? `&id=${openedId}` : ""}`;
 
   return (
-    <Card className="flex flex-col gap-3 p-4" data-testid="import-history">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <History className="size-5 text-primary" aria-hidden />
-        {t("history.title")}
-      </h2>
+    <TableCard
+      data-testid="import-history"
+      title={
+        <h2 className="flex items-center gap-2 text-section">
+          <History className="size-5 text-primary" aria-hidden />
+          {t("history.title")}
+        </h2>
+      }
+      footer={rows.length === 0 ? null : <UrlTableFooter total={total} page={page} perPage={perPage} />}
+    >
       {rows.length === 0 ? (
-        <p className="text-sm text-text-muted">{t("history.empty")}</p>
+        <p className="px-4 py-6 text-body text-text-muted">{t("history.empty")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="text-start text-text-muted">
-              <tr>
-                <th className="p-2 text-start font-medium">{t("history.columns.when")}</th>
-                <th className="p-2 text-start font-medium">{t("history.columns.file")}</th>
-                <th className="p-2 text-start font-medium">{t("history.columns.who")}</th>
-                <th className="p-2 text-start font-medium">{t("history.columns.status")}</th>
-                <th className="p-2 text-start font-medium">{t("history.columns.counts")}</th>
-                <th className="p-2 text-start font-medium">
+          <Table minWidth="640px">
+            <THead>
+              <Tr>
+                <Th>{t("history.columns.when")}</Th>
+                <Th>{t("history.columns.file")}</Th>
+                <Th>{t("history.columns.who")}</Th>
+                <Th>{t("history.columns.status")}</Th>
+                <Th>{t("history.columns.counts")}</Th>
+                <Th>
                   <span className="sr-only">{t("history.columns.actions")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </Th>
+              </Tr>
+            </THead>
+            <TBody>
               {rows.map((item) => (
-                <tr
+                <Tr
                   key={item.id}
                   className={`border-t border-border ${item.id === openedId ? "bg-primary/5" : ""}`}
                   data-testid="import-history-row"
                   data-id={item.id}
                   data-status={item.status}
                 >
-                  <td className="whitespace-nowrap p-2">{when(item.created_at)}</td>
-                  <td className="max-w-56 truncate p-2" dir="auto" title={item.file_name}>
+                  <Td className="whitespace-nowrap">{when(item.created_at)}</Td>
+                  <Td className="max-w-56 truncate" dir="auto" title={item.file_name}>
                     {item.file_name}
-                  </td>
-                  <td className="p-2" data-testid="import-history-who">
+                  </Td>
+                  <Td data-testid="import-history-who">
                     {who(item)}
-                  </td>
-                  <td className="p-2">
+                  </Td>
+                  <Td>
                     {statusBadge(item)}
-                  </td>
-                  <td className="whitespace-nowrap p-2 text-text-muted" data-testid="import-history-counts">
+                  </Td>
+                  <Td className="whitespace-nowrap text-text-muted" data-testid="import-history-counts">
                     {t("history.counts", {
                       create: item.create_count,
                       update: item.update_count,
@@ -91,8 +95,8 @@ export function ImportHistory({
                       error: item.error_count,
                     })}
                     {item.operation_id ? <span className="block">{t("history.applied", { count: item.applied_count })}</span> : null}
-                  </td>
-                  <td className="p-2">
+                  </Td>
+                  <Td>
                     <div className="flex items-center justify-end gap-1">
                       {item.error_report_key ? (
                         <a
@@ -117,30 +121,12 @@ export function ImportHistory({
                         </Link>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TBody>
+          </Table>
       )}
-      {pages > 1 ? (
-        <nav className="flex items-center justify-end gap-2 text-sm">
-          {page > 1 ? (
-            <Link href={pageHref(page - 1)} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              {t("history.previous")}
-            </Link>
-          ) : null}
-          <span className="text-text-muted" dir="ltr">
-            {page} / {pages}
-          </span>
-          {page < pages ? (
-            <Link href={pageHref(page + 1)} className={buttonClasses({ variant: "ghost", size: "sm" })}>
-              {t("history.next")}
-            </Link>
-          ) : null}
-        </nav>
-      ) : null}
-    </Card>
+    </TableCard>
   );
 }

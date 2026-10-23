@@ -92,7 +92,8 @@
     "reasonRequired": "Enter a reason of at least 3 characters.",
     "cancel": "Cancel",
     "save": "Save",
-    "switchLanguage": "Change language"
+    "switchLanguage": "Change language",
+    "close": "Close"
   },
   "errors": {
     "validation": "Some fields are not valid. Check them and try again.",
@@ -447,13 +448,15 @@
   },
   "table": {
     "pagination": "Pagination",
-    "range": "{from}–{to} of {total}",
-    "perPage": "Per page",
-    "previous": "Previous page",
-    "next": "Next page",
+    "empty": "No records",
+    "one": "1 record",
+    "all": "Total records: {total}",
+    "range": "Showing {from} to {to} of {total} records",
+    "perPage": "Records per page",
+    "previous": "Previous",
+    "next": "Next",
     "page": "Page {page} of {last}",
-    "goTo": "Page",
-    "go": "Go"
+    "pagePicker": "Choose page"
   },
   "permissions": {
     "filter": "Search permissions",
@@ -5090,5 +5093,23 @@
       "corrections_iqd": "Corrections",
       "total_iqd": "Total expense"
     }
+  },
+  "filePicker": {
+    "choose": "Choose file",
+    "chooseMany": "Choose files",
+    "none": "No file selected",
+    "count": "{count, plural, one {# file selected} other {# files selected}}"
+  },
+  "confirmRemove": {
+    "title": "Remove this line?",
+    "body": "Do you want to remove this line? What you entered in it is removed from the draft.",
+    "named": "Do you want to remove “{name}”? What you entered in it is removed from the draft.",
+    "action": "Remove",
+    "clearBlank": "Remove empty lines?",
+    "clearBlankBody": "Do you want to remove every line without a quantity?",
+    "variantTitle": "Remove this variant?",
+    "variantBody": "Do you want to remove this variant? It is only removed when you save the product.",
+    "costTitle": "Remove this cost?",
+    "costBody": "Do you want to remove this extra cost from the invoice?"
   }
 }

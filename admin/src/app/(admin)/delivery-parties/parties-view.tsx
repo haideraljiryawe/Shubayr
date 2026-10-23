@@ -86,7 +86,7 @@ export function PartiesView({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (party) => (
         <div className="flex flex-wrap justify-end gap-2">
           {canViewCustody ? (

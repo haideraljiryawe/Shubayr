@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type InputHTMLAttributes } from "react";
+import { useState, type FocusEvent, type InputHTMLAttributes } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui";
+import { AmountInput } from "./amount-input";
 import { parseLocalizedDecimal, type NumberParseOptions } from "@/lib/number";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
@@ -23,6 +24,7 @@ export function DecimalInput({
   onValueChange,
   parse,
   error,
+  grouping = true,
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type"> & {
   /** The initial text; the field is uncontrolled after that. */
@@ -32,6 +34,8 @@ export function DecimalInput({
   onValueChange: (value: string | null, text: string) => void;
   parse?: NumberParseOptions;
   error?: string | null;
+  /** Thousands grouping while typing (VIS-007); the parent still gets raw text. */
+  grouping?: boolean;
 }) {
   const t = useTranslations("numbers");
   const [text, setText] = useState(value);
@@ -52,31 +56,39 @@ export function DecimalInput({
   }
 
   const shown = message ?? error ?? null;
+  const shared = {
+    ...props,
+    "data-edited": edited ? "true" : "false",
+    "data-prefill": prefill,
+    "aria-invalid": shown ? true : undefined,
+    onBlur: (event: FocusEvent<HTMLInputElement>) => {
+      // An untouched prefilled field holds the parent's default, not input.
+      if (edited || prefill === undefined) evaluate(display, true);
+      props.onBlur?.(event);
+    },
+  };
+  const change = (next: string) => {
+    setEdited(true);
+    setText(next);
+    evaluate(next, false);
+  };
   return (
     <>
-      <Input
-        {...props}
-        type="text"
-        inputMode="decimal"
-        dir="ltr"
-        autoComplete="off"
-        value={display}
-        data-edited={edited ? "true" : "false"}
-        data-prefill={prefill}
-        aria-invalid={shown ? true : undefined}
-        onChange={(event) => {
-          setEdited(true);
-          setText(event.target.value);
-          evaluate(event.target.value, false);
-        }}
-        onBlur={(event) => {
-          // An untouched prefilled field holds the parent's default, not input.
-          if (edited || prefill === undefined) evaluate(event.target.value, true);
-          props.onBlur?.(event);
-        }}
-      />
+      {grouping ? (
+        <AmountInput {...shared} value={display} onValueChange={change} />
+      ) : (
+        <Input
+          {...shared}
+          type="text"
+          inputMode="decimal"
+          dir="ltr"
+          autoComplete="off"
+          value={display}
+          onChange={(event) => change(event.target.value)}
+        />
+      )}
       {shown ? (
-        <span role="alert" className="text-xs font-semibold text-error-dark" data-testid="number-error">
+        <span role="alert" className="text-caption font-semibold text-error-dark" data-testid="number-error">
           {shown}
         </span>
       ) : null}

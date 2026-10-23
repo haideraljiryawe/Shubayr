@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleHelp, ImageOff, Upload } from "lucide-react";
-import { Alert, Button, Card, Input } from "@/components/ui";
+import { Alert, Button, Card, FilePicker } from "@/components/ui";
+import { Field } from "@/components/forms/field";
 import { ApiError } from "@/lib/api/errors";
 import { groupMatched, looksLikeZip, type ImageResult } from "@/lib/catalog-import";
 import { postFile } from "@/lib/file-upload";
@@ -27,7 +28,6 @@ export function BulkImagesView() {
   const [result, setResult] = useState<ImageResult | null>(null);
   const operation = useRef(new OperationKey(() => `images-${crypto.randomUUID()}`));
   // Changing the key empties the file input after an upload.
-  const [inputKey, setInputKey] = useState(0);
 
   function errorText(cause: unknown): string {
     if (cause instanceof ApiError) {
@@ -59,7 +59,6 @@ export function BulkImagesView() {
       operation.current.reset();
       setResult(answer);
       setFile(null);
-      setInputKey((key) => key + 1);
     } catch (cause) {
       setProblem(errorText(cause));
     } finally {
@@ -73,21 +72,18 @@ export function BulkImagesView() {
     <div className="flex flex-col gap-6" data-testid="bulk-images">
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-4">
-          <label className="flex flex-col gap-1 text-sm font-semibold">
-            {t("file")}
-            <Input
-              key={inputKey}
-              type="file"
+          <Field label={t("file")} name="file">
+            <FilePicker
               accept=".zip,application/zip,application/x-zip-compressed"
-              className="h-auto py-2"
               disabled={upload !== null}
-              onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
+              selected={file}
+              onFiles={(files) => {
+                setFile(files[0] ?? null);
                 setProblem(null);
               }}
               data-testid="images-file"
             />
-          </label>
+          </Field>
           {upload ? (
             upload.phase === "uploading" ? (
               <div className="flex flex-col gap-1" data-testid="images-upload-progress">

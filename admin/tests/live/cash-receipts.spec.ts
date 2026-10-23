@@ -15,6 +15,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose, grouped } from "./controls";
 
 /**
  * Cash receipts from delivery parties (contract 13.2, phase 8c) in the Web
@@ -253,7 +254,7 @@ async function openReceive(
   const account = await till(request);
   await page.goto(`/finance/cash-receipts/new?party_id=${partyId}`);
   await expect(page.getByTestId("receive-form")).toBeVisible();
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
 }
 
 let driverA = { id: "", name: "" };
@@ -313,13 +314,13 @@ test("receive cash and auto-allocate across 3 orders with a remainder, then allo
       order.order_number,
     );
 
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("receive-all-held").click();
-  await expect(page.getByTestId("receive-amount")).toHaveValue(String(total));
+  await expect(page.getByTestId("receive-amount")).toHaveValue(grouped(total));
   await page.getByTestId("allocation-auto").click();
   const amounts = page.getByTestId("allocation-amount");
   for (const [index, order] of orders.entries())
-    await expect(amounts.nth(index)).toHaveValue(String(order.total));
+    await expect(amounts.nth(index)).toHaveValue(grouped(order.total));
   expect(
     digits(await page.getByTestId("allocation-unallocated").textContent()),
   ).toBe("0");
@@ -391,7 +392,7 @@ test("receive cash and auto-allocate across 3 orders with a remainder, then allo
     .click();
   await expect(
     page.getByTestId("receipt-allocate").getByTestId("allocation-amount"),
-  ).toHaveValue("5000");
+  ).toHaveValue("5,000");
   await page.getByTestId("allocate-submit").click();
   await expect(page.getByTestId("receipt-notice")).toHaveAttribute(
     "data-kind",
@@ -526,7 +527,7 @@ test("every refusal from the API is said in words", async ({
     .click();
   await expect(
     page.getByTestId("receipt-allocate").getByTestId("allocation-amount"),
-  ).toHaveValue("10000");
+  ).toHaveValue("10,000");
   // …of which 1,000 is allocated elsewhere meanwhile.
   const elsewhere = await api(
     request,

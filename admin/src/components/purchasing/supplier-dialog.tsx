@@ -90,7 +90,7 @@ export function SupplierDialog({
           <Input value={email} maxLength={160} dir="ltr" type="email" onChange={(event) => setEmail(event.target.value)} />
         </Field>
         <Field label={t("columns.currency")} name="default_currency" hint={t("currencyHint")}>
-          <Select value={currency} onChange={(event) => setCurrency(event.target.value as CurrencyCode)} data-testid="supplier-currency">
+          <Select value={currency} onValueChange={(value) => setCurrency(value as CurrencyCode)} data-testid="supplier-currency">
             <option value="IQD">IQD</option>
             <option value="USD">USD</option>
           </Select>

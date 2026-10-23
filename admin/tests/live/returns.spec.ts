@@ -15,6 +15,7 @@ import {
   switchUser,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose, optionCount } from "./controls";
 
 /**
  * Customer returns v2 (contract 17.0, phase 9) in the Web Admin, against a
@@ -240,21 +241,21 @@ test("approve part, receive, inspect into fitting locations and refund in cash â
 
   // Inspect: the piece is sellable (a sellable location), the rice damaged (a non-sellable one).
   const inspect = page.getByTestId("return-inspect-panel");
-  await inspect.getByTestId(`return-inspect-condition-${pieceLine}`).selectOption("sellable");
+  await choose(inspect.getByTestId(`return-inspect-condition-${pieceLine}`), "sellable");
   const pieceLocations = inspect.getByTestId(`return-inspect-location-${pieceLine}`);
-  await expect(pieceLocations.locator(`option[value="${bin.id}"]`)).toHaveCount(0);
-  await pieceLocations.selectOption(SELLABLE);
-  await inspect.getByTestId(`return-inspect-condition-${kgLine}`).selectOption("damaged");
+  expect(await optionCount(pieceLocations, { value: bin.id })).toBe(0);
+  await choose(pieceLocations, SELLABLE);
+  await choose(inspect.getByTestId(`return-inspect-condition-${kgLine}`), "damaged");
   const kgLocations = inspect.getByTestId(`return-inspect-location-${kgLine}`);
-  await expect(kgLocations.locator(`option[value="${SELLABLE}"]`)).toHaveCount(0);
-  await kgLocations.selectOption(bin.id);
+  expect(await optionCount(kgLocations, { value: SELLABLE })).toBe(0);
+  await choose(kgLocations, bin.id);
   await inspect.getByTestId("return-inspect-submit").click();
   await expect(page.getByTestId("return-status")).toHaveAttribute("data-status", "inspected");
   await expect(lines.locator(`[data-item="${kgLine}"]`).getByTestId("return-line-inspection")).toContainText(bin.code);
 
   // Refund from the till, once, even when clicked twice.
   const refund = page.getByTestId("return-refund-panel");
-  await refund.getByTestId("return-refund-cash-account").selectOption(account.id);
+  await choose(refund.getByTestId("return-refund-cash-account"), account.id);
   await refund.getByTestId("return-refund-submit").dblclick();
   await expect(page.getByTestId("return-status")).toHaveAttribute("data-status", "refunded");
   await expect(page.getByTestId("return-step-refund")).toHaveAttribute("data-state", "done");

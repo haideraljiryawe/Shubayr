@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, placeOrder, uiLogin } from "../live/helpers";
 import { catalogWorkbook, zip } from "../live/xlsx";
+import { choose, selectedValue } from "../live/controls";
 
 /**
  * The owner's guide screenshots (docs/owner-guide), in Arabic and English.
@@ -309,7 +310,7 @@ for (const locale of LOCALES) {
       for (let index = 0; index < 2; index += 1) {
         const line = lines.nth(index);
         const location = line.getByTestId("opening-location");
-        if (!(await location.inputValue())) await location.selectOption({ index: 1 });
+        if (!(await selectedValue(location))) await choose(location, { index: 1 });
         await line.getByTestId("opening-quantity").fill(String(8 + index * 4));
         await line.getByTestId("opening-cost").fill("240000");
       }

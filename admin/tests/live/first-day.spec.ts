@@ -2,6 +2,7 @@ import { deflateSync } from "node:zlib";
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, createStaff, requireLiveApi, uiLogin } from "./helpers";
+import { choose, selectedValue } from "./controls";
 
 /**
  * The shop owner's first day, end to end, in Arabic, at tablet width, through
@@ -222,8 +223,8 @@ test("the owner's first day: password → categories → brand → product with 
   await hydrated(page, "product-editor");
   await expectTabletRtl(page);
   await page.getByTestId("product-name-ar").fill(`هاتف تجريبي ${run}`);
-  await page.getByTestId("product-category").selectOption(state.subId);
-  await page.getByTestId("product-brand").selectOption(state.brandId);
+  await choose(page.getByTestId("product-category"), state.subId);
+  await choose(page.getByTestId("product-brand"), state.brandId);
   await page.getByTestId("product-price").fill("250000");
   await page.getByTestId("product-description").fill("هاتف للتجربة: شاشة ٦٫٥ بوصة.");
 
@@ -326,8 +327,8 @@ test("the owner's first day: password → categories → brand → product with 
     expect(sku, `line ${index} names one of the product's codes: ${picked}`).toBeTruthy();
     seen.push(sku!);
     const location = line.getByTestId("opening-location");
-    if (!(await location.inputValue())) {
-      await location.selectOption({ index: 1 });
+    if (!(await selectedValue(location))) {
+      await choose(location, { index: 1 });
     }
     await line.getByTestId("opening-quantity").fill(String(quantities.get(sku!)));
     await line.getByTestId("opening-cost").fill("200000");
@@ -393,7 +394,7 @@ test("a big catalog: status and stock filters, bulk publish / hide / move / bran
   await expectTabletRtl(page);
   const rows = page.getByTestId("products-table").getByTestId("table-row");
   await expect(rows).toHaveCount(3);
-  await expect(page.getByTestId("filter-status")).toHaveValue("hidden");
+  await expect(page.getByTestId("filter-status")).toHaveAttribute("data-value", "hidden");
 
   // Bulk publish all three.
   await page.getByTestId("products-select-all").check();
@@ -412,7 +413,7 @@ test("a big catalog: status and stock filters, bulk publish / hide / move / bran
   // Move two of them, and give all three the brand.
   await rows.nth(0).getByTestId("product-select").check();
   await rows.nth(1).getByTestId("product-select").check();
-  await page.getByTestId("bulk-category").selectOption(to.body.id);
+  await choose(page.getByTestId("bulk-category"), to.body.id);
   await page.getByTestId("bulk-category-apply").click();
   // Arabic counts two in the dual: «تم تعديل منتجين.»
   await expect(page.getByTestId("bulk-outcome").locator("p").first()).toHaveText("تم تعديل منتجين.");
@@ -422,7 +423,7 @@ test("a big catalog: status and stock filters, bulk publish / hide / move / bran
   await page.goto(`/catalog/products?q=${encodeURIComponent(run)}`);
   await hydrated(page, "products-table");
   await page.getByTestId("products-select-all").check();
-  await page.getByTestId("bulk-brand").selectOption(brand.body.id);
+  await choose(page.getByTestId("bulk-brand"), brand.body.id);
   await page.getByTestId("bulk-brand-apply").click();
   await expect(page.getByTestId("bulk-outcome")).toBeVisible();
   for (const id of ids) expect((await api(request, "GET", `/admin/products/${id}`)).body.brand_id).toBe(brand.body.id);

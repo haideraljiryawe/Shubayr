@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Plus, Trash2, UserPlus } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -39,6 +39,7 @@ import {
   type PurchaseInvoice,
   type Supplier,
 } from "@/lib/purchasing";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 /* ---------------------------------------------------------------- state */
 
@@ -160,6 +161,8 @@ export function InvoiceForm({
   cashAccounts?: CashAccountOption[] | null;
 }) {
   const t = useTranslations("purchasing.invoice");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const format = useFormatter();
   const router = useRouter();
@@ -479,6 +482,7 @@ export function InvoiceForm({
 
   return (
     <div className="flex flex-col gap-6" data-testid="invoice-form" data-mode={restock ? "restock" : "invoice"}>
+      {dialog}
       {restock ? (
         <>
           <Alert tone="info" data-testid="restock-intro">
@@ -539,7 +543,7 @@ export function InvoiceForm({
           testId="invoice"
         />
         <Field label={t("currency")} name="currency_code" hint={supplier ? t("supplierCurrency", { currency: supplier.default_currency }) : undefined}>
-          <Select value={state.currency} disabled={locked} onChange={(event) => set({ currency: event.target.value as CurrencyCode, rate: "" })} data-testid="invoice-currency">
+          <Select value={state.currency} disabled={locked} onValueChange={(value) => set({ currency: value as CurrencyCode, rate: "" })} data-testid="invoice-currency">
             <option value="IQD">IQD</option>
             <option value="USD">USD</option>
           </Select>
@@ -575,7 +579,7 @@ export function InvoiceForm({
           </Field>
         ) : null}
         <Field label={t("defaultLocation")} name="default_location_id" error={err("location")}>
-          <Select value={state.defaultLocationId} disabled={locked} onChange={(event) => set({ defaultLocationId: event.target.value })} data-testid="invoice-location">
+          <Select value={state.defaultLocationId} disabled={locked} onValueChange={(value) => set({ defaultLocationId: value })} data-testid="invoice-location">
             {locations.map((info) => (
               <option key={info.id} value={info.id}>
                 {locationLabel(info)}
@@ -624,7 +628,12 @@ export function InvoiceForm({
                   ) : null}
                 </span>
                 {state.lines.length > 1 && !locked ? (
-                  <Button size="sm" variant="ghost" onClick={() => set({ lines: state.lines.filter((line) => line.key !== row.line.key) })} aria-label={t("removeLine")}>
+                  <Button size="sm" variant="ghost" onClick={() =>
+                      confirmRemove({
+                        body: row.line.sku ? tc("named", { name: row.line.sku.sku }) : tc("body"),
+                        onConfirm: () => set({ lines: state.lines.filter((line) => line.key !== row.line.key) }),
+                      })
+                    } aria-label={t("removeLine")}>
                     <Trash2 className="size-4" aria-hidden />
                   </Button>
                 ) : null}
@@ -653,7 +662,7 @@ export function InvoiceForm({
                   <DecimalInput value={row.line.cost} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { cost: text.trim() })} data-testid="line-cost" />
                 </Field>
                 <Field label={t("lineLocation")} name="location_id">
-                  <Select value={row.line.locationId} disabled={locked} onChange={(event) => setLine(row.line.key, { locationId: event.target.value })} data-testid="line-location">
+                  <Select value={row.line.locationId} disabled={locked} onValueChange={(value) => setLine(row.line.key, { locationId: value })} data-testid="line-location">
                     <option value="">{t("useDefaultLocation")}</option>
                     {locations.map((info) => (
                       <option key={info.id} value={info.id}>
@@ -725,7 +734,7 @@ export function InvoiceForm({
             <p className="text-sm text-text-muted">{t("landedBody")}</p>
           </div>
           <Field label={t("allocation")} name="allocation_method">
-            <Select value={state.method} disabled={locked} onChange={(event) => set({ method: event.target.value as AllocationMethod })} data-testid="invoice-method">
+            <Select value={state.method} disabled={locked} onValueChange={(value) => set({ method: value as AllocationMethod })} data-testid="invoice-method">
               <option value="value">{t("method.value")}</option>
               <option value="quantity">{t("method.quantity")}</option>
               <option value="manual">{t("method.manual")}</option>
@@ -741,7 +750,7 @@ export function InvoiceForm({
               <Input value={cost.description} maxLength={300} disabled={locked} onChange={(event) => setLanded(cost.key, { description: event.target.value })} />
             </Field>
             <Field label={t("currency")} name="currency_code">
-              <Select value={cost.currency} disabled={locked} onChange={(event) => setLanded(cost.key, { currency: event.target.value as CurrencyCode })} data-testid="landed-currency">
+              <Select value={cost.currency} disabled={locked} onValueChange={(value) => setLanded(cost.key, { currency: value as CurrencyCode })} data-testid="landed-currency">
                 <option value="IQD">IQD</option>
                 <option value="USD">USD</option>
               </Select>
@@ -750,7 +759,7 @@ export function InvoiceForm({
               <DecimalInput value={cost.amount} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLanded(cost.key, { amount: text.trim() })} data-testid="landed-amount" />
             </Field>
             {locked ? null : (
-              <Button className="self-end" variant="ghost" onClick={() => set({ landed: state.landed.filter((row) => row.key !== cost.key) })} aria-label={t("removeCost")}>
+              <Button className="self-end" variant="ghost" onClick={() => confirmRemove({ title: tc("costTitle"), body: tc("costBody"), onConfirm: () => set({ landed: state.landed.filter((row) => row.key !== cost.key) }) })} aria-label={t("removeCost")}>
                 <Trash2 className="size-4" aria-hidden />
               </Button>
             )}
@@ -839,7 +848,7 @@ export function InvoiceForm({
           ) : null}
           {state.payment === "now" ? (
             <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount")}>
-              <Select value={state.cashAccountId} disabled={locked} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="invoice-cash-account">
+              <Select value={state.cashAccountId} disabled={locked} onValueChange={(value) => set({ cashAccountId: value })} data-testid="invoice-cash-account">
                 <option value="">{t("payNow.pickAccount")}</option>
                 {payable.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -953,11 +962,11 @@ export function InvoiceForm({
           ) : null}
         </Card>
       ) : (
-        <div className="flex justify-end">
+        <ActionBar>
           <Button onClick={toReview} data-testid="invoice-review-button">
             {t("review")}
           </Button>
-        </div>
+        </ActionBar>
       )}
     </div>
   );

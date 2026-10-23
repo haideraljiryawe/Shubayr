@@ -90,7 +90,7 @@ export function StaffTable({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (user) => (
         <Link
           href={`/staff/${user.id}`}

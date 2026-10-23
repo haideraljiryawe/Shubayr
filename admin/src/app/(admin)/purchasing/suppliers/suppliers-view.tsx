@@ -58,6 +58,7 @@ export function SuppliersView({ rows, state, canManage }: { rows: Supplier[]; st
       ? [
           {
             key: "actions",
+      align: "end" as const,
             header: <span className="sr-only">{t("columns.actions")}</span>,
             cell: (supplier: Supplier) => (
               <div className="flex justify-end gap-1">

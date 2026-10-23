@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/cn";
+import { TabStrip, TabLink } from "@/components/ui/tab-strip";
 
 export type SettingsView = "store" | "storeInfo" | "zones" | "governorates" | "discounts";
 
@@ -23,21 +22,17 @@ export function SettingsTabs({ active, permissions }: { active: SettingsView; pe
   const visible = TABS.filter((tab) => permissions.includes(tab.requires));
   if (visible.length < 2) return null;
   return (
-    <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-border" aria-label={t("label")}>
+    <TabStrip label={t("label")}>
       {visible.map((tab) => (
-        <Link
+        <TabLink
           key={tab.key}
           href={tab.href}
-          aria-current={tab.key === active ? "page" : undefined}
+          current={tab.key === active}
           data-testid={`settings-tab-${tab.key}`}
-          className={cn(
-            "-mb-px inline-flex items-center whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold",
-            tab.key === active ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text",
-          )}
         >
           {t(tab.key)}
-        </Link>
+        </TabLink>
       ))}
-    </nav>
+    </TabStrip>
   );
 }

@@ -7,6 +7,7 @@ import {
   uiLoginAsAdmin,
   unique,
 } from "./helpers";
+import { choose } from "./controls";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -91,7 +92,7 @@ test("the staff table pages, sorts and filters on the server", async ({
 }) => {
   await uiLoginAsAdmin(page);
   await page.goto("/staff?per_page=10");
-  await expect(page.getByTestId("table-range")).toContainText("1–");
+  await expect(page.getByTestId("table-range")).toHaveText(/^(عرض 1 إلى \d+ من أصل [\d,]+ سجلاً|إجمالي السجلات: \d+|سجل واحد)$/);
 
   await page.getByTestId("sort-username").click();
   await expect(page).toHaveURL(/sort=username&dir=asc/);
@@ -102,20 +103,15 @@ test("the staff table pages, sorts and filters on the server", async ({
     [...usernames].sort((a, b) => b.localeCompare(a, "ar")),
   );
 
-  await page.getByTestId("filter-status").selectOption("must_change");
+  await choose(page.getByTestId("filter-status"), "must_change");
   await expect(page).toHaveURL(/status=must_change/);
   for (const row of await page.getByTestId("table-row").all()) {
     await expect(row).toContainText("بانتظار تغيير كلمة المرور");
   }
 
-  // The page jump accepts Arabic digits and refuses an ambiguous separator.
-  const goTo = page.locator("#table-go-to");
-  await goTo.fill("1,5");
-  await goTo.blur();
-  await expect(page.getByTestId("number-error")).toBeVisible();
-  await goTo.fill("١");
-  await goTo.blur();
-  await expect(page.getByTestId("number-error")).toHaveCount(0);
+  // The shared footer (VIS-012): no separate jump-to-page field.
+  await expect(page.locator("#table-go-to")).toHaveCount(0);
+  await expect(page.getByTestId("table-footer")).toContainText("عدد السجلات في الصفحة");
 });
 
 test("deactivating needs a reason and a confirmation, then reactivates", async ({

@@ -101,9 +101,9 @@ const check = (ok, msg) => { if (!ok) throw new Error(`CHECK FAILED: ${msg}`); c
   await page.goto(`${admin}/catalog/products/new`);
   await hydrated(page, "product-editor");
   await page.getByTestId("product-name-ar").fill(`سماعة لاسلكية ${run}`);
-  const category = page.getByTestId("product-category");
-  const value = await category.locator("option", { hasText: `سماعات ${run}` }).getAttribute("value");
-  await category.selectOption(value);
+  // The admin's shared Select (a listbox, not a native <select>).
+  await page.getByTestId("product-category").click();
+  await page.getByRole("option", { name: `سماعات ${run}` }).click();
   await page.getByTestId("product-price").fill("45000");
   await page.getByTestId("variant-sku-0").fill(`HEADSET-${run}`.toUpperCase());
   await page.getByTestId("product-images").getByTestId("product-images-input").setInputFiles([

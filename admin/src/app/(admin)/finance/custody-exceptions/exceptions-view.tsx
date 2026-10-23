@@ -71,7 +71,7 @@ export function ExceptionsView({
         </Link>
       ),
     },
-    { key: "amount", header: t("list.columns.amount"), className: "text-end", cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
+    { key: "amount", header: t("list.columns.amount"), cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
     {
       key: "status",
       header: t("list.columns.status"),

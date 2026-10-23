@@ -3,6 +3,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { LAUNCH_MODULES } from "../../src/lib/modules";
 import { expect, test } from "./fixtures";
 import { API, activateStaff, adminApiToken, bearer, createStaff, placeOrder, randomWorkPhone, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * PR A12 (contracts 17.7.0 and 17.8.0) with exactly the launch module set
@@ -161,7 +162,7 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await page.getByTestId("banner-new").click();
     await form.getByTestId("banner-internal-name").fill(productBanner);
     await form.getByTestId("banner-title-ar").fill(`وصل ${run}`);
-    await form.getByTestId("banner-action").selectOption("product");
+    await choose(form.getByTestId("banner-action"), "product");
     await form.getByTestId("dialog-submit").click();
     await expect(form.getByTestId("banner-target-required")).toBeVisible();
     await form.getByTestId("banner-target-product-search").fill(shown.name_ar);
@@ -266,7 +267,7 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await page.reload();
     await page.getByTestId("banner-row").filter({ hasText: firstDefault }).getByTestId("banner-swap-open").click();
     const swap = page.getByTestId("banner-swap");
-    await swap.getByTestId("banner-swap-incoming").selectOption(incoming.body.id);
+    await choose(swap.getByTestId("banner-swap-incoming"), incoming.body.id);
     await expect(swap.getByTestId("banner-swap-priority")).toHaveValue("1");
     const swapCalls: string[] = [];
     page.on("request", (sent) => {
@@ -417,7 +418,7 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   expect(searches.some((query) => query.includes(`q=${phone.slice(-7)}`))).toBe(true);
   // Opening stock at 7,000 is the cost to start from (never purchased yet).
   const line = form.getByTestId("invoice-line").first();
-  await expect(line.getByTestId("line-cost")).toHaveValue("7000");
+  await expect(line.getByTestId("line-cost")).toHaveValue("7,000");
   await line.getByTestId("line-cost").fill("8000");
   await line.getByTestId("line-packs").fill("2");
   await form.getByTestId("invoice-payment-owed").check();
@@ -434,16 +435,16 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await expect(form.getByTestId("invoice-supplier-picked")).toHaveAttribute("data-supplier-id", supplier.id);
   const last = await api(request, "GET", `/admin/purchase-costs/variants/${product.variants[0].id}/last`);
   expect(last.body).toMatchObject({ unit_cost: 8000, currency_code: "IQD", supplier: { id: supplier.id } });
-  await expect(form.getByTestId("invoice-line").first().getByTestId("line-cost")).toHaveValue("8000");
+  await expect(form.getByTestId("invoice-line").first().getByTestId("line-cost")).toHaveValue("8,000");
   await form.getByTestId("invoice-line").first().getByTestId("line-packs").fill("3");
   await form.getByTestId("invoice-payment-now").check();
-  await form.getByTestId("invoice-cash-account").selectOption(account);
+  await choose(form.getByTestId("invoice-cash-account"), account);
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("24,000");
   // Freight paid in USD on this IQD invoice: only the server knows the exact
   // total (17.9.0 pay_full_invoice_total), and paid now still works.
   await form.getByTestId("invoice-add-cost").click();
   await form.getByTestId("landed-kind").fill("Freight");
-  await form.getByTestId("landed-currency").selectOption("USD");
+  await choose(form.getByTestId("landed-currency"), "USD");
   await form.getByTestId("landed-amount").fill("2");
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("الخادم");
   await form.getByTestId("invoice-review-button").click();
@@ -534,7 +535,7 @@ test("a courier company: created, handed an order, delivers it with the cash, an
   await confirmDialog(page);
   await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "dispatched");
   await page.getByTestId("order-action-deliver").click();
-  const deliver = page.locator("dialog[open]");
+  const deliver = page.getByRole("dialog");
   await expect(deliver.getByTestId("collection-fields")).toBeVisible();
   const due = digits(await deliver.getByTestId("collection-due").textContent());
   await deliver.getByTestId("collection-confirmed").check();
@@ -545,7 +546,7 @@ test("a courier company: created, handed an order, delivers it with the cash, an
   await page.goto(`/finance/cash-receipts/new?party_id=${partyId}`);
   await expect(page.getByTestId("receive-form")).toBeVisible();
   expect(digits(await page.getByTestId("receive-cash-held").textContent())).toBe(due);
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("receive-all-held").click();
   await page.getByTestId("allocation-auto").click();
   await page.getByTestId("receive-review-button").click();

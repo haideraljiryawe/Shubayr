@@ -84,6 +84,7 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
     },
     {
       key: "actions",
+      align: "end",
       header: <span className="sr-only">{t("columns.actions")}</span>,
       cell: (brand) => (
         <div className="flex flex-col items-end gap-1">
@@ -116,7 +117,6 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
           {rowError?.id === brand.id ? <FormError kind={rowError.kind} code={rowError.errorCode} /> : null}
         </div>
       ),
-      className: "text-end",
     },
   ];
 

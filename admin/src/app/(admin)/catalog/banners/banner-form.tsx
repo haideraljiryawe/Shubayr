@@ -281,7 +281,7 @@ export function BannerFormDialog({
       <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="banner-click">
         <legend className="px-1 text-sm font-semibold">{t("form.onClick")}</legend>
         <Field label={t("form.action")} name="action_type" hint={t(`actionHints.${form.action}`)}>
-          <Select value={form.action} onChange={(e) => set({ action: e.target.value as BannerActionType })} data-testid="banner-action">
+          <Select value={form.action} onValueChange={(value) => set({ action: value as BannerActionType })} data-testid="banner-action">
             {BANNER_ACTIONS.map((action) => (
               <option key={action} value={action}>
                 {t(`actions.${action}`)}

@@ -29,6 +29,8 @@ import {
   type ReturnCondition,
 } from "@/lib/returns";
 import type { CollectionChoice, LocationChoice } from "./return-view";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { AmountInput } from "@/components/forms/amount-input";
 
 /* ---------------------------------------------------------------------------
  * The four staff steps. Each posts once per operation id: the id is tied to
@@ -150,28 +152,28 @@ export function ApprovePanel({
 
       {decision === "approve" ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("product")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("requested")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("approvedQuantity")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("netPaid")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>{t("product")}</Th>
+                <Th>{t("requested")}</Th>
+                <Th>{t("approvedQuantity")}</Th>
+                <Th>{t("netPaid")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {ret.items.map((item) => {
                 const problem = lineProblem(item.id);
                 return (
-                  <tr key={item.id} className="border-t border-border align-top">
-                    <td className="px-3 py-2">
+                  <Tr key={item.id} className="align-top">
+                    <Td>
                       {itemName(item, locale)}
                       <span className="block text-xs text-text-muted">{item.customer_reason}</span>
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    </Td>
+                    <Td dir="ltr">
                       {quantityText(item.quantity, item)}
-                    </td>
-                    <td className="px-3 py-2">
+                    </Td>
+                    <Td>
                       <Field
                         label={<span className="sr-only">{t("approvedQuantity")}</span>}
                         hint={item.whole_units_only ? tq("wholeHint") : tq("decimalHint", { unit: item.base_unit })}
@@ -187,15 +189,15 @@ export function ApprovePanel({
                           data-testid={`return-approve-qty-${item.id}`}
                         />
                       </Field>
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    </Td>
+                    <Td dir="ltr">
                       {money(item.net_amount)}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
           <p className="mt-2 text-xs text-text-muted">{t("zeroHint")}</p>
         </div>
       ) : null}
@@ -217,7 +219,7 @@ export function ApprovePanel({
               {feeOverride ? (
                 <div className="grid gap-3 md:grid-cols-2">
                   <Field label={t("feeAmount")} error={formProblem("feeInvalid") ? t("feeInvalid") : null}>
-                    <Input inputMode="numeric" dir="ltr" value={feeAmount} disabled={step.busy} onChange={(event) => setFeeAmount(event.target.value)} data-testid="return-fee-amount" />
+                    <AmountInput inputMode="numeric" value={feeAmount} disabled={step.busy} onValueChange={(value) => setFeeAmount(value)} data-testid="return-fee-amount" />
                   </Field>
                   <Field label={t("feeReason")} error={formProblem("feeReason") ? t("feeReasonRequired") : null}>
                     <Input value={feeReason} maxLength={500} disabled={step.busy} onChange={(event) => setFeeReason(event.target.value)} data-testid="return-fee-reason" />
@@ -338,7 +340,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
                 <Select
                   value={choice.condition}
                   disabled={step.busy}
-                  onChange={(event) => choose(item.id, { condition: event.target.value as ReturnCondition | "" })}
+                  onValueChange={(value) => choose(item.id, { condition: value as ReturnCondition | "" })}
                   data-testid={`return-inspect-condition-${item.id}`}
                 >
                   <option value="">{t("chooseCondition")}</option>
@@ -357,7 +359,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
                 <Select
                   value={choice.locationId}
                   disabled={step.busy || !choice.condition}
-                  onChange={(event) => choose(item.id, { locationId: event.target.value })}
+                  onValueChange={(value) => choose(item.id, { locationId: value })}
                   data-testid={`return-inspect-location-${item.id}`}
                 >
                   <option value="">{choice.condition && !fits.length ? t("noFittingLocation") : t("chooseLocation")}</option>
@@ -469,7 +471,7 @@ export function RefundPanel({
               <Alert data-testid="return-refund-no-accounts">{t("cashAccountsForbidden")}</Alert>
             ) : (
               <Field label={t("cashAccount")} error={problems.includes("cashAccount") ? t("cashAccountRequired") : null}>
-                <Select value={cashAccountId} disabled={step.busy} onChange={(event) => setCashAccountId(event.target.value)} data-testid="return-refund-cash-account">
+                <Select value={cashAccountId} disabled={step.busy} onValueChange={(value) => setCashAccountId(value)} data-testid="return-refund-cash-account">
                   <option value="">{cashAccounts.length ? t("chooseCashAccount") : t("noCashAccounts")}</option>
                   {cashAccounts.map((account) => (
                     <option key={account.id} value={account.id}>

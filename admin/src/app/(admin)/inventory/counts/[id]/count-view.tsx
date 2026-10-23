@@ -35,6 +35,7 @@ import {
   type LocationInfo,
 } from "@/lib/inventory";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export interface ScopeRow {
   sku: string;
@@ -231,36 +232,36 @@ export function CountView({
           <InventoryPostingStatus state={posting.state} type="count" onRetry={() => undefined} onCheck={() => undefined} />
         ) : null}
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-sm" data-testid="count-lines">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.system")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.counted")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.difference")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table minWidth="40rem" data-testid="count-lines">
+            <THead>
+              <Tr>
+                <Th>{t("columns.sku")}</Th>
+                <Th>{t("columns.lot")}</Th>
+                <Th>{t("columns.location")}</Th>
+                <Th>{t("columns.system")}</Th>
+                <Th>{t("columns.counted")}</Th>
+                <Th>{t("columns.difference")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {approved.lines.map((line) => (
-                <tr key={line.id} className="border-t border-border" data-testid="count-line">
-                  <td className="px-3 py-2 font-semibold" dir="ltr">{rows[lineKey(line)]?.sku ?? shortId(line.variant_id)}</td>
-                  <td className="px-3 py-2" dir="ltr">
+                <Tr key={line.id} data-testid="count-line">
+                  <Td className="font-semibold" dir="ltr">{rows[lineKey(line)]?.sku ?? shortId(line.variant_id)}</Td>
+                  <Td dir="ltr">
                     <Link href={lotHref(line.batch_id)} className="text-primary-dark hover:underline">
                       {rows[lineKey(line)]?.lotNumber ?? shortId(line.batch_id)}
                     </Link>
-                  </td>
-                  <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.location_id], shortId(line.location_id))}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{qty(line.system_quantity)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{qty(line.counted_quantity)}</td>
-                  <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="count-difference">
+                  </Td>
+                  <Td dir="ltr">{locationLabel(locations[line.location_id], shortId(line.location_id))}</Td>
+                  <Td dir="ltr">{qty(line.system_quantity)}</Td>
+                  <Td dir="ltr">{qty(line.counted_quantity)}</Td>
+                  <Td className="font-semibold" dir="ltr" data-testid="count-difference">
                     <Difference value={line.difference} />
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </Card>
         <Card className="text-sm">
           {journal ? (
@@ -295,38 +296,38 @@ export function CountView({
         {count.lines.length === 0 ? (
           <p className="text-sm text-text-muted">{t("count.emptyScope")}</p>
         ) : (
-          <table className="w-full min-w-[48rem] text-sm" data-testid="count-lines">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.system")}</th>
-                <th className="w-36 px-3 py-2 text-start font-semibold">{t("columns.counted")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.difference")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.reserved")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table minWidth="48rem" data-testid="count-lines">
+            <THead>
+              <Tr>
+                <Th>{t("columns.sku")}</Th>
+                <Th>{t("columns.lot")}</Th>
+                <Th>{t("columns.location")}</Th>
+                <Th>{t("columns.system")}</Th>
+                <Th className="w-36">{t("columns.counted")}</Th>
+                <Th>{t("columns.difference")}</Th>
+                <Th>{t("columns.reserved")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {count.lines.map((line) => {
                 const key = lineKey(line);
                 const value = counted[key] ?? null;
                 const row = rows[key];
                 return (
-                  <tr key={line.id} className="border-t border-border align-top" data-testid="count-line" data-sku={row?.sku ?? ""} data-lot={row?.lotNumber ?? ""}>
-                    <td className="px-3 py-2 font-semibold" dir="ltr">
+                  <Tr key={line.id} className="align-top" data-testid="count-line" data-sku={row?.sku ?? ""} data-lot={row?.lotNumber ?? ""}>
+                    <Td className="font-semibold" dir="ltr">
                       <Link href={stockHref({ variant_id: line.variant_id })} className="hover:underline">
                         {row?.sku ?? shortId(line.variant_id)}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2" dir="ltr">
+                    </Td>
+                    <Td dir="ltr">
                       <Link href={lotHref(line.batch_id)} className="text-primary-dark hover:underline">
                         {row ? (row.lotNumber ?? t("noLotNumber")) : shortId(line.batch_id)}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.location_id], shortId(line.location_id))}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="count-system">{qty(line.system_quantity)}</td>
-                    <td className="px-3 py-2">
+                    </Td>
+                    <Td dir="ltr">{locationLabel(locations[line.location_id], shortId(line.location_id))}</Td>
+                    <Td dir="ltr" data-testid="count-system">{qty(line.system_quantity)}</Td>
+                    <Td>
                       <div className="flex flex-col gap-1">
                         <DecimalInput
                           key={`${key}:${generation}`}
@@ -344,23 +345,23 @@ export function CountView({
                           </Badge>
                         ) : null}
                       </div>
-                    </td>
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="count-difference">
+                    </Td>
+                    <Td className="font-semibold" dir="ltr" data-testid="count-difference">
                       {value === null ? "—" : <Difference value={countDifference(line.system_quantity, value)} />}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    </Td>
+                    <Td dir="ltr">
                       {qty(row?.reserved ?? 0)}
                       {releases[key] ? (
                         <span className="mt-1 block text-xs font-semibold text-warning-dark" data-testid="count-release-warning">
                           {t("count.releases", { quantity: qty(releases[key]) })}
                         </span>
                       ) : null}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
 

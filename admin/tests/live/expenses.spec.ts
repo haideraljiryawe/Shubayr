@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { ADMIN_PASSWORD, ADMIN_USERNAME, API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { choose, optionCount } from "./controls";
 
 /**
  * Expenses (contract 17.1) in the Web Admin against a real API: an owed
@@ -59,13 +60,13 @@ test.afterAll(async ({ request }) => {
 async function newExpense(page: Page, values: { category: string; amount: string; currency?: string; payee: string; description: string; mode: "paid_now" | "owed"; account?: string; receipt?: boolean }) {
   await page.goto("/expenses/new");
   const form = page.getByTestId("expense-form");
-  await form.getByTestId("expense-category").selectOption(values.category);
-  if (values.currency) await form.getByTestId("expense-currency").selectOption(values.currency);
+  await choose(form.getByTestId("expense-category"), values.category);
+  if (values.currency) await choose(form.getByTestId("expense-currency"), values.currency);
   await form.getByTestId("expense-amount").fill(values.amount);
   await form.getByTestId("expense-payee").fill(values.payee);
   await form.getByTestId("expense-description").fill(values.description);
   await form.getByTestId(`expense-mode-${values.mode}`).check();
-  if (values.account) await form.getByTestId("expense-cash-account").selectOption(values.account);
+  if (values.account) await choose(form.getByTestId("expense-cash-account"), values.account);
   if (values.receipt) {
     await form.getByTestId("expense-receipt").setInputFiles({ name: "receipt.png", mimeType: "image/png", buffer: PNG });
     await expect(form.getByTestId("expense-receipt-ready")).toContainText("receipt.png");
@@ -99,7 +100,7 @@ test("an owed expense: draft with its receipt, posted, paid in two parts", async
 
   // Part of it: more than owed is refused on the spot.
   const pay = page.getByTestId("expense-pay-panel");
-  await pay.getByTestId("expense-pay-account").selectOption(tillId);
+  await choose(pay.getByTestId("expense-pay-account"), tillId);
   await pay.getByTestId("expense-pay-amount").fill("1000001");
   await pay.getByTestId("expense-pay-submit").click();
   await expect(pay).toContainText("أكثر مما بقي مستحقًا");
@@ -110,8 +111,8 @@ test("an owed expense: draft with its receipt, posted, paid in two parts", async
   await expect(page.getByTestId("expense-payment")).toHaveCount(1);
 
   // The rest: the amount offered is what is still owed.
-  await expect(pay.getByTestId("expense-pay-amount")).toHaveValue("600000");
-  await pay.getByTestId("expense-pay-account").selectOption(tillId);
+  await expect(pay.getByTestId("expense-pay-amount")).toHaveValue("600,000");
+  await choose(pay.getByTestId("expense-pay-account"), tillId);
   await pay.getByTestId("expense-pay-submit").click();
   await expect(page.getByTestId("expense-payment")).toHaveCount(2);
   await expect(page.getByTestId("expense-pay-panel")).toHaveCount(0);
@@ -131,13 +132,13 @@ test("a USD expense at the central rate, paid now from a USD account", async ({ 
   await uiLoginAsAdmin(page);
   await page.goto("/expenses/new");
   const form = page.getByTestId("expense-form");
-  await form.getByTestId("expense-currency").selectOption("USD");
+  await choose(form.getByTestId("expense-currency"), "USD");
   await form.getByTestId("expense-amount").fill("45.50");
   await expect(form.getByTestId("expense-rate")).toContainText("1500");
   await expect(form.getByTestId("expense-rate-iqd")).toContainText("68,250");
   // Only USD cash accounts are offered for a USD expense.
   await form.getByTestId("expense-mode-paid_now").check();
-  await expect(form.getByTestId("expense-cash-account").locator(`option[value="${usdId}"]`)).toHaveCount(1);
+  expect(await optionCount(form.getByTestId("expense-cash-account"), { value: usdId })).toBe(1);
 
   const id = await newExpense(page, { category: categoryId, amount: "45.50", currency: "USD", payee: `Hosting ${run}`, description: "Server", mode: "paid_now", account: usdId });
   await expect(page.getByTestId("expense-amount")).toContainText("45.50 USD");
@@ -220,5 +221,5 @@ test("categories: create, rename, deactivate — then it can't be chosen for a n
   await renamed.getByTestId("expense-category-deactivate").click();
   await expect(renamed).toHaveAttribute("data-active", "false");
   await page.goto("/expenses/new");
-  await expect(page.getByTestId("expense-category").locator("option", { hasText: `وقود السيارة ${run}` })).toHaveCount(0);
+  expect(await optionCount(page.getByTestId("expense-category"), { hasText: `وقود السيارة ${run}` })).toBe(0);
 });
