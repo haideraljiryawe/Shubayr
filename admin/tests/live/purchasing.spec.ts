@@ -16,6 +16,7 @@ import {
   uiLoginAsAdmin,
   unique,
 } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * Purchasing and suppliers (API 9.0) in the Web Admin, in a real browser,
@@ -184,7 +185,7 @@ async function startPayment(
   await page.goto(
     `/purchasing/payments/new?supplier_id=${supplierId}&invoice_id=${invoiceId}`,
   );
-  await page.getByTestId("payment-cash").selectOption(cashId);
+  await choose(page.getByTestId("payment-cash"), cashId);
 }
 
 /**
@@ -526,8 +527,8 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
   await page.goto(
     `/purchasing/invoices/new?supplier_id=${state.usdSupplier!.id}`,
   );
-  await expect(page.getByTestId("invoice-currency")).toHaveValue("USD");
-  await expect(page.getByTestId("invoice-rate")).toHaveValue("1500");
+  await expect(page.getByTestId("invoice-currency")).toHaveAttribute("data-value", "USD");
+  await expect(page.getByTestId("invoice-rate")).toHaveValue("1,500");
   await fillLine(page, 0, d, "2", "1", "100");
   await expect(page.getByTestId("invoice-subtotal")).toHaveText("200.00 USD");
   await expect(page.getByTestId("invoice-total-iqd")).toHaveText("300,000 IQD");
@@ -547,7 +548,7 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
     await page.goto(
       `/purchasing/payments/new?supplier_id=${state.usdSupplier!.id}&invoice_id=${invoiceId}`,
     );
-    await page.getByTestId("payment-cash").selectOption(state.usdCash!);
+    await choose(page.getByTestId("payment-cash"), state.usdCash!);
     await page.getByTestId("payment-amount").fill("100");
     await overrideRate(page, rate);
     const row = page.locator(
@@ -723,7 +724,7 @@ test("an IQD invoice paid from a USD account at the payment-date rate, with no F
   await switchUser(page, state.payer!.username, state.payer!.password);
   await startPayment(page, state.iqdSupplier!.id, state.usdCash!, invoice.id);
   // The payment-date rate as recorded (1,500), not overridden.
-  await expect(page.getByTestId("payment-rate")).toHaveValue("1500");
+  await expect(page.getByTestId("payment-rate")).toHaveValue("1,500");
   const row = page.locator(
     `[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`,
   );
@@ -790,7 +791,7 @@ test("a rate typed before the day's rate arrives is kept, and is the one posted"
   await loaded;
   await expect(rate).toHaveAttribute("data-prefill", "1500");
   await page.keyboard.type("20");
-  await expect(rate).toHaveValue("1520");
+  await expect(rate).toHaveValue("1,520");
   await expect(rate).toHaveAttribute("data-edited", "true");
   await page.getByTestId("payment-amount").fill("100");
   const row = page.locator(
@@ -937,18 +938,17 @@ test("separation of duties: switching the level is saved and audited, and strict
   const level = async () =>
     (await api(request, "GET", "/admin/settings")).body.settings
       .separation_of_duties_level ?? "standard";
-  const choose = async (value: "standard" | "strict") => {
+  const chooseLevel = async (value: "standard" | "strict") => {
     await page.goto("/settings");
-    await page
-      .getByTestId("setting-separation_of_duties_level")
-      .selectOption(value);
+    await choose(page
+      .getByTestId("setting-separation_of_duties_level"), value);
     await page.getByTestId("settings-save").click();
     await expect.poll(level).toBe(value);
   };
   const before = await level();
   try {
     // invoiceFor() left the admin signed in.
-    await choose("strict");
+    await chooseLevel("strict");
     // Audited: the change history names the field.
     await page.goto("/settings");
     await expect(
@@ -962,7 +962,7 @@ test("separation of duties: switching the level is saved and audited, and strict
     expect(refused.status, JSON.stringify(refused.body)).toBe(403);
     expect(refused.body.code).toBe("SEPARATION_OF_DUTIES_VIOLATION");
 
-    await choose("standard");
+    await chooseLevel("standard");
     const allowed = await payOwn();
     expect(allowed.status, JSON.stringify(allowed.body)).toBe(201);
   } finally {
@@ -1093,7 +1093,7 @@ test("a late landed cost previews its 3-way split (stock 6, custody 2, sold 2) a
   await switchUser(page, state.payer!.username, state.payer!.password);
   await page.goto(`/purchasing/corrections/new?invoice_id=${invoiceId}`);
   await page.getByTestId("correction-total").fill("1000");
-  await page.getByTestId("correction-method").selectOption("quantity");
+  await choose(page.getByTestId("correction-method"), "quantity");
   const line = page.locator(
     `[data-testid="correction-line"][data-sku="${e.sku}"]`,
   );

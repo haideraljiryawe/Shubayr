@@ -171,8 +171,8 @@ async function findParty(page: Page, name: string) {
 }
 
 async function confirm(page: Page) {
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
-  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
 test("an external driver is added, edited and deactivated; a repeated phone warns; an unused driver is deleted", async ({
@@ -289,7 +289,7 @@ test("an order dispatched to an external driver is in that driver's custody; rem
   );
   // An external driver has no agent account, and dispatch is still open.
   await page.getByTestId("order-action-dispatch").click();
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expect(page.getByTestId("order-detail")).toHaveAttribute(
     "data-status",
     "dispatched",
@@ -373,9 +373,9 @@ test("the custody statement pages, filters by date and by order on the server", 
   const table = page.getByTestId("party-statement");
   const rows = table.getByTestId("table-row");
   await expect(rows).toHaveCount(10);
-  await expect(table.getByTestId("table-range")).toContainText("11");
+  await expect(table.getByTestId("table-range")).toHaveText("عرض 1 إلى 10 من أصل 11 سجلاً");
   await expect(rows.first().getByTestId("statement-running")).toHaveText("1");
-  await table.getByRole("button", { name: /الصفحة التالية|Next page/ }).click();
+  await table.getByTestId("table-next").click();
   await expect(page).toHaveURL(/page=2/);
   await expect(rows).toHaveCount(1);
   // The running balance carries across pages: the eleventh piece makes 11.

@@ -1,6 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { activateStaff, adminApiToken, API, bearer, createStaff, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * A below-cost linked-price publish (contract 11.0): the proposer's publish
@@ -84,7 +85,7 @@ test("a below-cost linked-price publish waits for another approver; the proposer
     // The proposer (admin) publishes 1 USD = 1,000 IQD: 12,000 < 50,000 cost.
     await uiLoginAsAdmin(page);
     await page.goto("/finance/currencies");
-    await page.getByTestId("rate-currency").selectOption("USD");
+    await choose(page.getByTestId("rate-currency"), "USD");
     await page.getByTestId("rate-value").fill("1000");
     await page.getByTestId("rate-effective").fill(minutesAgo(10));
     await page.getByTestId("rate-reason").fill(`Clearance ${run}`);

@@ -12,6 +12,7 @@ import {
   servedAddressId,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * Cash collected on delivery (contract 12.0) in the Web Admin, against a
@@ -187,7 +188,7 @@ async function cashHeld(
 async function openDeliver(page: Page, orderId: string) {
   await page.goto(`/orders/${orderId}`);
   await page.getByTestId("order-action-deliver").click();
-  const dialog = page.locator("dialog[open]");
+  const dialog = page.getByRole("dialog");
   await expect(dialog.getByTestId("collection-fields")).toBeVisible();
   return dialog;
 }
@@ -377,7 +378,7 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
   // Later full: the amount due, as pre-filled.
   await page.goto(queue);
   await row(full.order_number).getByTestId("unconfirmed-confirm").click();
-  let dialog = page.locator("dialog[open]");
+  let dialog = page.getByRole("dialog");
   await expect(dialog.getByTestId("collection-amount")).toHaveValue(
     String(full.total),
   );
@@ -391,7 +392,7 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
 
   // Later short: the shortfall is said before confirming.
   await row(short.order_number).getByTestId("unconfirmed-confirm").click();
-  dialog = page.locator("dialog[open]");
+  dialog = page.getByRole("dialog");
   await dialog
     .getByTestId("collection-amount")
     .fill(String(short.total - 2500));
@@ -432,7 +433,7 @@ test("a party's collections tab lists each order it delivered and what was colle
     page.getByTestId("party-collection-settlement").first(),
   ).toHaveAttribute("data-settlement", "unsettled");
 
-  await page.getByTestId("filter-status").selectOption("confirmed_short");
+  await choose(page.getByTestId("filter-status"), "confirmed_short");
   await expect(page).toHaveURL(/status=confirmed_short/);
   await expect(rows).toHaveCount(2);
   await expect(
@@ -458,7 +459,7 @@ test("a party's collections tab lists each order it delivered and what was colle
     `/delivery-parties/${driverId}?tab=collections&status=confirmed_full&page=9`,
   );
   await expect(rows).toHaveCount(2);
-  await expect(page.getByTestId("filter-status")).toHaveValue("confirmed_full");
+  await expect(page.getByTestId("filter-status")).toHaveAttribute("data-value", "confirmed_full");
   await page.reload();
   await expect(rows).toHaveCount(2);
 

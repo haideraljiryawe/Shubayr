@@ -17,6 +17,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * Custody exceptions (13.3) and external-driver trips (13.4) in the Web
@@ -316,7 +317,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
   await page.goto("/deliveries/trips/new");
   await pickParty(page, "trip-driver", driver.name, driver.id);
   await page.getByTestId("trip-bearer-customer_direct").check();
-  await expect(page.getByTestId("trip-method")).toHaveValue("customer_direct");
+  await expect(page.getByTestId("trip-method")).toHaveAttribute("data-value", "customer_direct");
   await page.getByTestId("trip-fare").fill("6000");
   await page.getByTestId("trip-submit").click();
   await expect(page.getByTestId("trip-view")).toHaveAttribute(
@@ -375,7 +376,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
   await expect(page.getByTestId("exception-collected")).toHaveValue(
     String(orders[1].total / 2),
   );
-  await page.getByTestId("exception-location").selectOption(LOCATION);
+  await choose(page.getByTestId("exception-location"), LOCATION);
   await page
     .getByTestId("exception-reason")
     .fill("Customer refused one piece at the door");
@@ -475,7 +476,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
     String(expected),
   );
   await page.getByTestId("receive-amount").fill(String(expected - 10000));
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("allocation-auto").click();
   await page.getByTestId("receive-review-button").click();
   await page.getByTestId("receive-confirm").click();
@@ -558,7 +559,7 @@ test("a store-borne loss, a fee refund capped at the fee, and a reversal never b
     "5000",
   );
   await page.getByTestId("exception-amount").fill("6000");
-  await page.getByTestId("exception-cash-account").selectOption(account);
+  await choose(page.getByTestId("exception-cash-account"), account);
   await page.getByTestId("exception-reason").fill("Delivered late");
   await page.getByTestId("exception-submit").click();
   await expect(page.getByTestId("exception-problems")).toBeVisible();
@@ -590,7 +591,7 @@ test("a store-borne loss, a fee refund capped at the fee, and a reversal never b
   );
   expect(elsewhere.status, JSON.stringify(elsewhere.body)).toBe(201);
   await page.getByTestId("exception-amount").fill("2000");
-  await page.getByTestId("exception-cash-account").selectOption(account);
+  await choose(page.getByTestId("exception-cash-account"), account);
   await page.getByTestId("exception-reason").fill("Delivered late");
   await page.getByTestId("exception-submit").click();
   await expect(page.getByTestId("exception-refusal")).toHaveAttribute(

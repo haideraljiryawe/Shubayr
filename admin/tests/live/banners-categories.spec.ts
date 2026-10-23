@@ -2,6 +2,7 @@ import { deflateSync } from "node:zlib";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * PR A9 in a real browser, through the BFF, against a real API:
@@ -253,7 +254,7 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await expect(form.getByTestId("banner-preview-phone")).toBeVisible();
     await expect(form.getByTestId("banner-preview-desktop")).toBeVisible();
     await expect(form.getByTestId("banner-preview-action")).toContainText("بلا إجراء");
-    await form.getByTestId("banner-action").selectOption("url");
+    await choose(form.getByTestId("banner-action"), "url");
     await form.getByTestId("banner-link").fill("/offers");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toContainText("أدخل عنوان ويب كاملًا");
@@ -351,9 +352,9 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     expect((await api(request, "GET", `/admin/banners/${copy.id}`)).status).toBe(404);
 
     // The status filter finds the disabled original.
-    await page.getByTestId("banner-filter").selectOption("disabled");
+    await choose(page.getByTestId("banner-filter"), "disabled");
     await expect(page.locator(`[data-banner-id="${mine.id}"]`)).toBeVisible();
-    await page.getByTestId("banner-filter").selectOption("active");
+    await choose(page.getByTestId("banner-filter"), "active");
     await expect(page.locator(`[data-banner-id="${mine.id}"]`)).toHaveCount(0);
   } finally {
     for (const id of createdBanners.splice(0)) await api(request, "DELETE", `/admin/banners/${id}`);

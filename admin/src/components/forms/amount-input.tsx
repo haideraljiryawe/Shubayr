@@ -61,7 +61,14 @@ export function AmountInput({
     const native = event.nativeEvent as InputEvent;
     const caret = input.selectionStart ?? input.value.length;
 
-    if (native.inputType === "insertFromPaste" || native.inputType === "insertFromDrop") {
+    // A paste, a drop, or text inserted in one go (autofill, IME, automation):
+    // judge the whole text's grouping rather than ignoring its commas.
+    const bulk =
+      native.inputType === "insertFromPaste" ||
+      native.inputType === "insertFromDrop" ||
+      native.inputType === "insertReplacementText" ||
+      (native.inputType === "insertText" && (native.data?.length ?? 0) > 1);
+    if (bulk) {
       const ungrouped = ungroupPasted(input.value);
       if (ungrouped === null) {
         setLiteral(true);

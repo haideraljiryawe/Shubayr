@@ -18,6 +18,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * Inventory (API 8.2) in the Web Admin, in a real browser, through the BFF,
@@ -241,10 +242,9 @@ test("opening stock: whole units per SKU, creates lots, and the store shows them
 
   // Line 1: the piece SKU, which refuses a fraction.
   await pickSku(lines.nth(0), "opening-sku", PIECE);
-  await lines
+  await choose(lines
     .nth(0)
-    .getByTestId("opening-location")
-    .selectOption(state.locations[SELL]!);
+    .getByTestId("opening-location"), state.locations[SELL]!);
   await lines.nth(0).getByTestId("opening-quantity").fill("1.5");
   await lines.nth(0).getByTestId("opening-quantity").blur();
   await expect(lines.nth(0).getByTestId("number-error")).toBeVisible();
@@ -255,10 +255,9 @@ test("opening stock: whole units per SKU, creates lots, and the store shows them
   // Line 2: the weighed SKU, which takes three decimals.
   await page.getByTestId("opening-add-line").click();
   await pickSku(lines.nth(1), "opening-sku", WEIGHED);
-  await lines
+  await choose(lines
     .nth(1)
-    .getByTestId("opening-location")
-    .selectOption(state.locations[SELL2]!);
+    .getByTestId("opening-location"), state.locations[SELL2]!);
   await lines.nth(1).getByTestId("opening-quantity").fill("5.5");
   await lines.nth(1).getByTestId("opening-cost").fill("2000");
   await lines.nth(1).getByTestId("opening-lot").fill(`B-${run}`);
@@ -323,9 +322,8 @@ test("double-submit creates one document, and a replayed operation returns the s
   await page.goto("/inventory/openings/new");
   const line = page.getByTestId("opening-line").first();
   await pickSku(line, "opening-sku", WEIGHED);
-  await line
-    .getByTestId("opening-location")
-    .selectOption(state.locations[EXTRA]!);
+  await choose(line
+    .getByTestId("opening-location"), state.locations[EXTRA]!);
   await line.getByTestId("opening-quantity").fill("0.25");
   await line.getByTestId("opening-cost").fill("2000");
   await page.getByTestId("opening-review").click();
@@ -411,17 +409,15 @@ test("transfer: reserved stock can't be moved, and the lot keeps its identity", 
 
   await uiLoginAsAdmin(page);
   await page.goto("/inventory/transfers/new");
-  await page
-    .getByTestId("picker-location")
-    .selectOption(state.locations[SELL]!);
+  await choose(page
+    .getByTestId("picker-location"), state.locations[SELL]!);
   const row = page.locator(`[data-testid="picker-row"][data-sku="${PIECE}"]`);
   await expect(row.getByTestId("picker-available")).toHaveText("7");
   await row.getByTestId("picker-add").click();
   const line = page.getByTestId("transfer-line");
   await line.getByTestId("transfer-quantity").fill("8");
-  await line
-    .getByTestId("transfer-destination")
-    .selectOption(state.locations[SELL2]!);
+  await choose(line
+    .getByTestId("transfer-destination"), state.locations[SELL2]!);
   await page
     .getByTestId("transfer-reason")
     .fill("Live test: rebalance shelves");
@@ -471,9 +467,8 @@ test("count: approve a shortage and a surplus, posted to the ledger", async ({
   await uiLoginAsAdmin(page);
   await page.goto("/inventory/counts/new");
   await page.getByTestId("count-scope-location").check();
-  await page
-    .getByTestId("count-location")
-    .selectOption(state.locations[SELL2]!);
+  await choose(page
+    .getByTestId("count-location"), state.locations[SELL2]!);
   await page.getByTestId("count-reason").fill("Live test: shelf count");
   await page.getByTestId("count-create").click();
   await expect(page.getByTestId("count-draft")).toBeVisible();
@@ -543,7 +538,7 @@ test("a stale count is refused, re-verified on a fresh snapshot, and its reserva
   await uiLoginAsAdmin(page);
   await page.goto("/inventory/counts/new");
   await page.getByTestId("count-scope-location").check();
-  await page.getByTestId("count-location").selectOption(state.locations[SELL]!);
+  await choose(page.getByTestId("count-location"), state.locations[SELL]!);
   await page.getByTestId("count-reason").fill("Live test: stale count");
   await page.getByTestId("count-create").click();
   await expect(page.getByTestId("count-draft")).toBeVisible();
@@ -613,18 +608,16 @@ test("write-down moves stock off the sellable shelf and posts the loss", async (
 }) => {
   await uiLoginAsAdmin(page);
   await page.goto("/inventory/write-downs/new");
-  await page
-    .getByTestId("picker-location")
-    .selectOption(state.locations[SELL2]!);
+  await choose(page
+    .getByTestId("picker-location"), state.locations[SELL2]!);
   await page
     .locator(`[data-testid="picker-row"][data-sku="${WEIGHED}"]`)
     .getByTestId("picker-add")
     .click();
   const line = page.getByTestId("write-down-line");
   await line.getByTestId("write-down-quantity").fill("2.25");
-  await line
-    .getByTestId("write-down-move-to")
-    .selectOption(state.locations[DAMAGED]!);
+  await choose(line
+    .getByTestId("write-down-move-to"), state.locations[DAMAGED]!);
   await page
     .getByTestId("write-down-reason")
     .fill("Live test: crushed in storage");

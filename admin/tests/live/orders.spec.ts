@@ -11,6 +11,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * Orders operations in a real browser, through the BFF, against a real API.
@@ -70,7 +71,7 @@ test("the list filters and pages on the server", async ({ page, request }) => {
   );
   await expect(page.getByTestId("table-row")).toHaveCount(1);
   // …and a status it is not in empties the table.
-  await page.getByTestId("filter-status").selectOption("delivered");
+  await choose(page.getByTestId("filter-status"), "delivered");
   await expect(page).toHaveURL(/status=delivered/);
   await expect(page.getByTestId("table-row")).toHaveCount(0);
 
