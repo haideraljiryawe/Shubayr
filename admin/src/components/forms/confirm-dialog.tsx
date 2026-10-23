@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Button, Textarea } from "@/components/ui";
+import { Button, DialogShell, Textarea } from "@/components/ui";
 import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { FormError } from "./form-error";
 import { Field } from "./field";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
 
 /**
- * Confirmation for destructive actions.
+ * The confirmation every destructive or irreversible action goes through,
+ * on the shared dialog shell (VIS-010): nothing happens until the person
+ * confirms; Cancel, Escape and the close button leave everything as it was.
  *
- * A native <dialog> opened modally, so focus is trapped and Escape cancels
- * without any extra code. Every destructive admin action is audited, and the
- * API requires a reason (3–500 characters) for it; the dialog collects that
- * reason and will not confirm without it. A failure stays inside the dialog
- * with the reason still typed.
+ * Audited admin actions need a reason (3–500 characters) and the dialog
+ * collects it (`requireReason`, the default); a plain confirmation — remove a
+ * line, discard a draft — passes `requireReason={false}`. A failure stays
+ * inside the dialog with the reason still typed.
  */
 export function ConfirmDialog({
   open,
@@ -35,30 +36,28 @@ export function ConfirmDialog({
   tone?: "danger" | "primary";
   requireReason?: boolean;
   /** Resolve to close; throw (an ApiError) to show the failure in place. */
-  onConfirm: (reason: string) => Promise<void>;
+  onConfirm: (reason: string) => Promise<void> | void;
   onClose: () => void;
   /** Extra controls, e.g. the new password in a reset. */
   children?: ReactNode;
 }) {
   const t = useTranslations("common");
-  const ref = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ErrorKind | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [reasonError, setReasonError] = useLocaleScopedState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
 
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
+  // A fresh start each time it opens.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
       setReason("");
       setError(null);
       setReasonError(null);
-      dialog.showModal();
     }
-    if (!open && dialog.open) dialog.close();
-  }, [open, setReasonError]);
+  }
 
   async function confirm() {
     const trimmed = reason.trim();
@@ -80,43 +79,17 @@ export function ConfirmDialog({
   }
 
   return (
-    <dialog
-      ref={ref}
+    <DialogShell
+      open={open}
       onClose={onClose}
-      data-testid="confirm-dialog"
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-0 text-text shadow-lg backdrop:bg-text/40"
-    >
-      <form
-        className="flex flex-col gap-4 p-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void confirm();
-        }}
-      >
-        <h2 className="text-lg font-bold">{title}</h2>
-        {body ? <div className="text-sm text-text-muted">{body}</div> : null}
-        {children}
-        {requireReason ? (
-          <Field
-            label={t("reason")}
-            error={reasonError}
-            hint={t("reasonHint")}
-            name="reason"
-          >
-            <Textarea
-              value={reason}
-              maxLength={500}
-              data-testid="confirm-reason"
-              onChange={(event) => {
-                setReason(event.target.value);
-                setReasonError(null);
-              }}
-            />
-          </Field>
-        ) : null}
-        <FormError kind={error} code={code} />
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={pending}>
+      title={title}
+      size="sm"
+      busy={pending}
+      onSubmit={() => void confirm()}
+      testId="confirm-dialog"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={pending} data-testid="confirm-cancel">
             {t("cancel")}
           </Button>
           <Button
@@ -127,8 +100,30 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </Button>
-        </div>
-      </form>
-    </dialog>
+        </>
+      }
+    >
+      {body ? <div className="text-body text-text-muted">{body}</div> : null}
+      {children}
+      {requireReason ? (
+        <Field
+          label={t("reason")}
+          error={reasonError}
+          hint={t("reasonHint")}
+          name="reason"
+        >
+          <Textarea
+            value={reason}
+            maxLength={500}
+            data-testid="confirm-reason"
+            onChange={(event) => {
+              setReason(event.target.value);
+              setReasonError(null);
+            }}
+          />
+        </Field>
+      ) : null}
+      <FormError kind={error} code={code} />
+    </DialogShell>
   );
 }

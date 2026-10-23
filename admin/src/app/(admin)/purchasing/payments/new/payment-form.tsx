@@ -183,8 +183,8 @@ export function PaymentForm({
           <Select
             value={supplierId}
             disabled={locked}
-            onChange={(event) => {
-              setSupplierId(event.target.value);
+            onValueChange={(value) => {
+              setSupplierId(value);
               setApplied({});
             }}
             data-testid="payment-supplier"
@@ -201,8 +201,8 @@ export function PaymentForm({
           <Select
             value={cashId}
             disabled={locked}
-            onChange={(event) => {
-              setCashId(event.target.value);
+            onValueChange={(value) => {
+              setCashId(value);
               setApplied({});
               setRate("");
             }}

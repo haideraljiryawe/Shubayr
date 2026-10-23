@@ -13,7 +13,7 @@ export function SupplierFilter({ suppliers, value }: { suppliers: Array<{ id: st
       <span>{t("columns.supplier")}</span>
       <Select
         value={value}
-        onChange={(event) => router.push(event.target.value ? `/purchasing/payments?supplier_id=${event.target.value}` : "/purchasing/payments")}
+        onValueChange={(value) => router.push(value ? `/purchasing/payments?supplier_id=${value}` : "/purchasing/payments")}
         data-testid="filter-supplier_id"
       >
         <option value="">{t("allSuppliers")}</option>

@@ -198,7 +198,7 @@ export function RetrievalView({
                             value={placements[line.id!] ?? ""}
                             disabled={review !== null}
                             className="h-9"
-                            onChange={(event) => setPlacements((current) => ({ ...current, [line.id!]: event.target.value }))}
+                            onValueChange={(value) => setPlacements((current) => ({ ...current, [line.id!]: value }))}
                             data-testid="retrieval-location"
                           >
                             {locations.map((info) => (

@@ -338,7 +338,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
                 <Select
                   value={choice.condition}
                   disabled={step.busy}
-                  onChange={(event) => choose(item.id, { condition: event.target.value as ReturnCondition | "" })}
+                  onValueChange={(value) => choose(item.id, { condition: value as ReturnCondition | "" })}
                   data-testid={`return-inspect-condition-${item.id}`}
                 >
                   <option value="">{t("chooseCondition")}</option>
@@ -357,7 +357,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
                 <Select
                   value={choice.locationId}
                   disabled={step.busy || !choice.condition}
-                  onChange={(event) => choose(item.id, { locationId: event.target.value })}
+                  onValueChange={(value) => choose(item.id, { locationId: value })}
                   data-testid={`return-inspect-location-${item.id}`}
                 >
                   <option value="">{choice.condition && !fits.length ? t("noFittingLocation") : t("chooseLocation")}</option>
@@ -469,7 +469,7 @@ export function RefundPanel({
               <Alert data-testid="return-refund-no-accounts">{t("cashAccountsForbidden")}</Alert>
             ) : (
               <Field label={t("cashAccount")} error={problems.includes("cashAccount") ? t("cashAccountRequired") : null}>
-                <Select value={cashAccountId} disabled={step.busy} onChange={(event) => setCashAccountId(event.target.value)} data-testid="return-refund-cash-account">
+                <Select value={cashAccountId} disabled={step.busy} onValueChange={(value) => setCashAccountId(value)} data-testid="return-refund-cash-account">
                   <option value="">{cashAccounts.length ? t("chooseCashAccount") : t("noCashAccounts")}</option>
                   {cashAccounts.map((account) => (
                     <option key={account.id} value={account.id}>

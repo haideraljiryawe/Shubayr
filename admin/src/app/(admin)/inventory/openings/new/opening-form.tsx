@@ -274,7 +274,7 @@ export function OpeningForm({
                 </div>
               </Field>
               <Field label={t("columns.location")} name="location" error={e.location}>
-                <Select value={line.locationId} onChange={(event) => patch(line.key, { locationId: event.target.value })} data-testid="opening-location">
+                <Select value={line.locationId} onValueChange={(value) => patch(line.key, { locationId: value })} data-testid="opening-location">
                   <option value="">{t("pickLocation")}</option>
                   {locations.map((info) => (
                     <option key={info.id} value={info.id}>

@@ -94,7 +94,7 @@ function CreateCategory({ accounts }: { accounts: Array<ExpenseCategory["ledger_
           <Input dir="ltr" maxLength={160} value={names.en} disabled={pending} onChange={(event) => setNames({ ...names, en: event.target.value })} data-testid="expense-category-name-en" />
         </Field>
         <Field label={t("account")} hint={t("accountHint")}>
-          <Select value={accountId} disabled={pending} onChange={(event) => setAccountId(event.target.value)} data-testid="expense-category-account">
+          <Select value={accountId} disabled={pending} onValueChange={(value) => setAccountId(value)} data-testid="expense-category-account">
             <option value="">{t("newAccount")}</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>

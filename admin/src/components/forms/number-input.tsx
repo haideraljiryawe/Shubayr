@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type InputHTMLAttributes } from "react";
+import { useState, type FocusEvent, type InputHTMLAttributes } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui";
+import { AmountInput } from "./amount-input";
 import { parseLocalizedNumber, type NumberParseOptions } from "@/lib/number";
 
 /**
@@ -19,6 +20,7 @@ export function NumberInput({
   onValueChange,
   parse,
   onInvalidChange,
+  grouping = false,
   ...props
 }: Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -29,6 +31,8 @@ export function NumberInput({
   parse?: NumberParseOptions;
   /** Reports the current parse error (null when valid) to the parent form. */
   onInvalidChange?: (message: string | null) => void;
+  /** Thousands grouping while typing (VIS-007) — for prices, fees, amounts. */
+  grouping?: boolean;
 }) {
   const t = useTranslations("numbers");
   const [text, setText] = useState(value === null ? "" : String(value));
@@ -48,29 +52,42 @@ export function NumberInput({
     }
   }
 
+  const shared = {
+    ...props,
+    "aria-invalid": message ? true : props["aria-invalid"],
+    onBlur: (event: FocusEvent<HTMLInputElement>) => {
+      evaluate(text, true);
+      props.onBlur?.(event);
+    },
+  };
+  const change = (next: string) => {
+    setText(next);
+    evaluate(next, false);
+  };
   return (
     <>
-      <Input
-        {...props}
-        type="text"
-        inputMode={parse?.integer ? "numeric" : "decimal"}
-        dir="ltr"
-        autoComplete="off"
-        value={text}
-        aria-invalid={message ? true : props["aria-invalid"]}
-        onChange={(event) => {
-          setText(event.target.value);
-          evaluate(event.target.value, false);
-        }}
-        onBlur={(event) => {
-          evaluate(event.target.value, true);
-          props.onBlur?.(event);
-        }}
-      />
+      {grouping ? (
+        <AmountInput
+          {...shared}
+          inputMode={parse?.integer ? "numeric" : "decimal"}
+          value={text}
+          onValueChange={change}
+        />
+      ) : (
+        <Input
+          {...shared}
+          type="text"
+          inputMode={parse?.integer ? "numeric" : "decimal"}
+          dir="ltr"
+          autoComplete="off"
+          value={text}
+          onChange={(event) => change(event.target.value)}
+        />
+      )}
       {message ? (
         <span
           role="alert"
-          className="text-xs font-semibold text-error-dark"
+          className="text-caption font-semibold text-error-dark"
           data-testid="number-error"
         >
           {message}

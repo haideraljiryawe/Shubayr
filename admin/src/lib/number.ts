@@ -131,3 +131,66 @@ export function parseLocalizedDecimal(
   const text = fraction !== undefined ? `${integer}.${fraction}` : integer;
   return { ok: true, value: negative ? `-${text}` : text };
 }
+
+/* ---------------------------------------------------------------------------
+ * Thousands grouping for amount and quantity fields (VIS-007).
+ *
+ * The field SHOWS "1,250,000" but the form only ever receives the raw text
+ * "1250000", so nothing downstream parses a comma. The grouping marks are
+ * ours: a comma the person types is ignored, and a pasted comma is accepted
+ * only where it sits on a real thousands boundary ("1,250,000"). Anything
+ * else ("1,5") is kept verbatim so parseLocalizedNumber still refuses it as
+ * ambiguous — the rule above still holds, the field just stops guessing.
+ * Never use this for phone numbers, SKUs, barcodes or codes.
+ * ------------------------------------------------------------------------- */
+
+/** Every mark a person might use to group thousands. */
+const GROUP_MARKS = /[,،٬]/g;
+
+/** Latin digits and point: Arabic-Indic/Persian digits and «٫» normalized. */
+export function normalizeAmountText(text: string): string {
+  return normalizeDigits(text.replace(/[‎‏؜]/g, "")).replace(/٫/g, ".").replace(/^−/, "-");
+}
+
+/** "1234567.50" → "1,234,567.50"; text that is not a plain number is returned unchanged. */
+export function groupDigits(raw: string): string {
+  const match = /^(-?)(\d+)(\.\d*)?$/.exec(raw);
+  if (!match) return raw;
+  const [, sign, whole, fraction = ""] = match;
+  return `${sign}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
+}
+
+/**
+ * Pasted or dropped text → raw text. Grouping marks are removed only when
+ * every one of them sits on a thousands boundary of the whole part; returns
+ * null when they do not, so the caller keeps the text as typed.
+ */
+export function ungroupPasted(text: string): string | null {
+  const normalized = normalizeAmountText(text).trim();
+  if (!/[,،٬]/.test(normalized)) return normalized;
+  if (/^-?\d{1,3}([,،٬]\d{3})+(\.\d*)?$/.test(normalized)) {
+    return normalized.replace(GROUP_MARKS, "");
+  }
+  return null;
+}
+
+/** Strip the grouping this field inserted itself. */
+export function stripGrouping(text: string): string {
+  return normalizeAmountText(text).replace(GROUP_MARKS, "");
+}
+
+/** How many raw characters (everything but grouping marks) precede `caret`. */
+export function rawCaret(text: string, caret: number): number {
+  return text.slice(0, caret).replace(GROUP_MARKS, "").length;
+}
+
+/** The position in grouped `display` that follows `rawIndex` raw characters. */
+export function displayCaret(display: string, rawIndex: number): number {
+  if (rawIndex <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < display.length; i += 1) {
+    if (!/[,،٬]/.test(display[i])) seen += 1;
+    if (seen === rawIndex) return i + 1;
+  }
+  return display.length;
+}

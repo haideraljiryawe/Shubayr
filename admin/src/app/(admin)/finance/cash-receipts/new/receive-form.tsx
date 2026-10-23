@@ -196,7 +196,7 @@ function ReceiveForm({
               </div>
             </Field>
             <Field label={t("cashAccount")} name="cash_account_id" error={attempted && !cashId ? t("errors.cash") : null}>
-              <Select value={cashId} disabled={locked || !cashAccounts?.length} onChange={(event) => setCashId(event.target.value)} data-testid="receive-cash-account">
+              <Select value={cashId} disabled={locked || !cashAccounts?.length} onValueChange={(value) => setCashId(value)} data-testid="receive-cash-account">
                 <option value="">{t("pickCash")}</option>
                 {(cashAccounts ?? []).map((account) => (
                   <option key={account.id} value={account.id}>

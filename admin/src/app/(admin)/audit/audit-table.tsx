@@ -181,7 +181,7 @@ function ListFilter({
         value={current}
         dir="ltr"
         data-testid={`filter-${name}`}
-        onChange={(event) => update({ [name]: event.target.value || null })}
+        onValueChange={(value) => update({ [name]: value || null })}
       >
         <option value="">{any}</option>
         {options.map((value) => (

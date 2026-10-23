@@ -283,7 +283,7 @@ function RegisterForm({
             <Select
               value={role}
               data-testid="input-role"
-              onChange={(event) => setRole(event.target.value as WorkRole)}
+              onValueChange={(value) => setRole(value as WorkRole)}
             >
               {WORK_ROLES.map((option) => (
                 <option key={option} value={option}>

@@ -362,7 +362,7 @@ function AllocateCredit({
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           <Field label={t("invoice")} name="invoice_id">
-            <Select value={invoiceId} onChange={(event) => setInvoiceId(event.target.value)} data-testid="credit-invoice">
+            <Select value={invoiceId} onValueChange={(value) => setInvoiceId(value)} data-testid="credit-invoice">
               {invoices.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.document_number}
@@ -494,7 +494,7 @@ function OpeningBalanceCard({
         >
           <div className="grid gap-4 md:grid-cols-3">
             <Field label={t("currency")} name="currency_code">
-              <Select value={currency} onChange={(event) => { setCurrency(event.target.value as CurrencyCode); setRate(null); }} data-testid="opening-currency">
+              <Select value={currency} onValueChange={(value) => { setCurrency(value as CurrencyCode); setRate(null); }} data-testid="opening-currency">
                 <option value="IQD">IQD</option>
                 <option value="USD">USD</option>
               </Select>

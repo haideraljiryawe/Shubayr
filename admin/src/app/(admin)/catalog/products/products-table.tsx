@@ -341,7 +341,7 @@ export function ProductsTable({
             <Select
               className="h-9 w-auto min-w-40"
               value={moveTo}
-              onChange={(e) => setMoveTo(e.target.value)}
+              onValueChange={(value) => setMoveTo(value)}
               aria-label={t("bulk.moveTo")}
               disabled={busy}
               data-testid="bulk-category"
@@ -371,7 +371,7 @@ export function ProductsTable({
             <Select
               className="h-9 w-auto min-w-40"
               value={brandTo}
-              onChange={(e) => setBrandTo(e.target.value)}
+              onValueChange={(value) => setBrandTo(value)}
               aria-label={t("bulk.brandTo")}
               disabled={busy}
               data-testid="bulk-brand"

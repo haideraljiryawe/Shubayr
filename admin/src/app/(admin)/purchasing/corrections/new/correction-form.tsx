@@ -146,7 +146,7 @@ export function CorrectionForm({
     <div className="flex flex-col gap-6" data-testid="correction-form">
       <Card className="grid gap-4 md:grid-cols-3">
         <Field label={t("kind")} name="kind">
-          <Select value={kind} disabled={review !== null} onChange={(event) => setKind(event.target.value as Kind)} data-testid="correction-kind">
+          <Select value={kind} disabled={review !== null} onValueChange={(value) => setKind(value as Kind)} data-testid="correction-kind">
             <option value="late_landed_cost">{t("kinds.late_landed_cost")}</option>
             <option value="cost_correction">{t("kinds.cost_correction")}</option>
           </Select>
@@ -157,7 +157,7 @@ export function CorrectionForm({
               <DecimalInput value={total} parse={{ maxDecimals: 4 }} disabled={review !== null} onValueChange={(_, text) => setTotal(text.trim())} data-testid="correction-total" />
             </Field>
             <Field label={t("method")} name="allocation_method" hint={canCost ? undefined : t("valueNeedsCost")}>
-              <Select value={method} disabled={review !== null} onChange={(event) => setMethod(event.target.value as AllocationMethod)} data-testid="correction-method">
+              <Select value={method} disabled={review !== null} onValueChange={(value) => setMethod(value as AllocationMethod)} data-testid="correction-method">
                 {canCost ? <option value="value">{t("methods.value")}</option> : null}
                 <option value="quantity">{t("methods.quantity")}</option>
                 <option value="manual">{t("methods.manual")}</option>

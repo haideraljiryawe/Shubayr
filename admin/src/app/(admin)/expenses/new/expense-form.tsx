@@ -156,7 +156,7 @@ export function ExpenseForm({
             testId="expense-date"
           />
           <Field label={t("category")} error={problem("categoryId") ? t("problems.required") : null}>
-            <Select value={form.categoryId} disabled={pending} onChange={(event) => set({ categoryId: event.target.value })} data-testid="expense-category">
+            <Select value={form.categoryId} disabled={pending} onValueChange={(value) => set({ categoryId: value })} data-testid="expense-category">
               <option value="">{t("choose")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -172,7 +172,7 @@ export function ExpenseForm({
             <Input inputMode="decimal" dir="ltr" value={form.amount} disabled={pending} onChange={(event) => set({ amount: event.target.value })} data-testid="expense-amount" />
           </Field>
           <Field label={t("currency")}>
-            <Select value={form.currency} disabled={pending} onChange={(event) => set({ currency: event.target.value, cashAccountId: "" })} data-testid="expense-currency">
+            <Select value={form.currency} disabled={pending} onValueChange={(value) => set({ currency: value, cashAccountId: "" })} data-testid="expense-currency">
               {currencies.map((currency) => (
                 <option key={currency.code} value={currency.code}>
                   {currency.code}
@@ -214,7 +214,7 @@ export function ExpenseForm({
           ) : null}
           {form.payeeKind === "supplier" && suppliers ? (
             <Field label={<span className="sr-only">{t("supplier")}</span>} error={problem("supplierId") ? t("problems.required") : null}>
-              <Select value={form.supplierId} onChange={(event) => set({ supplierId: event.target.value })} data-testid="expense-supplier">
+              <Select value={form.supplierId} onValueChange={(value) => set({ supplierId: value })} data-testid="expense-supplier">
                 <option value="">{t("chooseSupplier")}</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
@@ -284,7 +284,7 @@ export function ExpenseForm({
             <Alert data-testid="expense-no-accounts">{t("cashAccountsForbidden")}</Alert>
           ) : (
             <Field label={t("cashAccount")} hint={t("cashAccountHint", { currency: form.currency })} error={problem("cashAccountId") ? t(`problems.cash.${problem("cashAccountId")}`) : null}>
-              <Select value={form.cashAccountId} disabled={pending} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="expense-cash-account">
+              <Select value={form.cashAccountId} disabled={pending} onValueChange={(value) => set({ cashAccountId: value })} data-testid="expense-cash-account">
                 <option value="">{accounts.length ? t("choose") : t("noAccountInCurrency", { currency: form.currency })}</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>

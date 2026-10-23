@@ -335,7 +335,7 @@ export function ProductEditor({
               <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
             </Field>
             <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
-              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
+              <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} data-testid="product-category">
                 <option value="">{t("chooseCategory")}</option>
                 {groups.map((group) => (
                   <optgroup key={group.department.id} label={nameOf(group.department)}>
@@ -350,7 +350,7 @@ export function ProductEditor({
             </Field>
             <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
               <div className="flex gap-2">
-                <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
+                <Select className="min-w-0 flex-1" value={brandId} onValueChange={(value) => setBrandId(value)} data-testid="product-brand">
                   <option value="">{t("noBrand")}</option>
                   {brands.map((brand) => (
                     <option key={brand.id} value={brand.id}>
@@ -680,8 +680,8 @@ function VariantCard({
         <Field label={t("variant.baseUnit")} name="base_unit" error={errors.base_unit}>
           <Select
             value={draft.base_unit}
-            onChange={(e) => {
-              const unit = e.target.value;
+            onValueChange={(value) => {
+              const unit = value;
               // Pieces are whole; switching to a weight or volume unit starts
               // from fractions allowed, the usual case for those.
               onChange({ base_unit: unit, whole_units_only: isPiece(unit) });
@@ -825,7 +825,7 @@ function LinkedPricing({
         <Field label={t("variant.referenceCurrency")} name="reference_currency_code" error={errors.reference_currency_code}>
           <Select
             value={draft.reference_currency_code}
-            onChange={(e) => onChange({ reference_currency_code: e.target.value })}
+            onValueChange={(value) => onChange({ reference_currency_code: value })}
             data-testid={id("currency")}
           >
             <option value="">{t("variant.chooseCurrency")}</option>

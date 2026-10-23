@@ -189,8 +189,8 @@ export function RateForm({
           <Field label={t("form.currency")} name="currency_code" error={api.fieldErrors.currency_code}>
             <Select
               value={code}
-              onChange={(event) => {
-                setCode(event.target.value);
+              onValueChange={(value) => {
+                setCode(value);
                 edited();
               }}
               data-testid="rate-currency"

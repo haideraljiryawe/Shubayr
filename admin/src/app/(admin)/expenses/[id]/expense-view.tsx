@@ -463,7 +463,7 @@ function PayPanel({
           <Input inputMode="decimal" dir="ltr" value={amount} disabled={write.pending || blocked} onChange={(event) => setAmount(event.target.value)} data-testid="expense-pay-amount" />
         </Field>
         <Field label={tf("cashAccount")} error={attempted && !accountId ? tf("problems.cash.required") : null}>
-          <Select value={accountId} disabled={write.pending || blocked || !cashAccounts} onChange={(event) => setAccountId(event.target.value)} data-testid="expense-pay-account">
+          <Select value={accountId} disabled={write.pending || blocked || !cashAccounts} onValueChange={(value) => setAccountId(value)} data-testid="expense-pay-account">
             <option value="">{accounts.length ? tf("choose") : tf("noAccountInCurrency", { currency: expense.currency_code })}</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>

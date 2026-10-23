@@ -448,7 +448,7 @@ function ReturnForm({
       <HoldingsTable holdings={kept} typed={typed} generation={0} onTyped={setTyped} locked={busy || delivered} label={t("returnedQuantity")} />
       <div className="grid gap-4 md:grid-cols-3">
         <Field label={t("location")} name="location_id">
-          <Select value={locationId} disabled={busy || posted} onChange={(event) => setLocationId(event.target.value)} data-testid="exception-location">
+          <Select value={locationId} disabled={busy || posted} onValueChange={(value) => setLocationId(value)} data-testid="exception-location">
             <option value="">{t("pickLocation")}</option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
@@ -590,7 +590,7 @@ function RefundForm({
         </Field>
         {method === "cash_account" ? (
           <Field label={t("cashAccount")} name="cash_account_id">
-            <Select value={accountId} disabled={busy || posted} onChange={(event) => setAccountId(event.target.value)} data-testid="exception-cash-account">
+            <Select value={accountId} disabled={busy || posted} onValueChange={(value) => setAccountId(value)} data-testid="exception-cash-account">
               <option value="">{t("pickCash")}</option>
               {cashAccounts.map((account) => (
                 <option key={account.id} value={account.id}>

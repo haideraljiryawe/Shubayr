@@ -174,13 +174,13 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
             <Input value={name} maxLength={160} onChange={(event) => { setName(event.target.value); api.clearField("name"); }} data-testid="account-name" />
           </Field>
           <Field label={t("columns.kind")} name="kind" error={api.fieldErrors.kind}>
-            <Select value={kind} onChange={(event) => setKind(event.target.value as "cash" | "bank")} data-testid="account-kind">
+            <Select value={kind} onValueChange={(value) => setKind(value as "cash" | "bank")} data-testid="account-kind">
               <option value="cash">{t("kind.cash")}</option>
               <option value="bank">{t("kind.bank")}</option>
             </Select>
           </Field>
           <Field label={t("currency")} name="currency_code" error={api.fieldErrors.currency_code}>
-            <Select value={code} onChange={(event) => setCode(event.target.value)} data-testid="account-currency">
+            <Select value={code} onValueChange={(value) => setCode(value)} data-testid="account-currency">
               {(enabled.length ? enabled : [{ code: "IQD" }]).map((currency) => (
                 <option key={currency.code} value={currency.code}>{currency.code}</option>
               ))}
@@ -419,14 +419,14 @@ function TransferPanel({
           <form className="flex flex-col gap-4" noValidate onSubmit={(event) => { event.preventDefault(); toReview(); }}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("transfer.from")} name="from_account_id" error={server.from_account_id}>
-                <Select value={fromId} onChange={(event) => { setFromId(event.target.value); setToId(""); }} data-testid="transfer-from">
+                <Select value={fromId} onValueChange={(value) => { setFromId(value); setToId(""); }} data-testid="transfer-from">
                   {active.map((account) => (
                     <option key={account.id} value={account.id}>{account.name} · {account.currency_code}</option>
                   ))}
                 </Select>
               </Field>
               <Field label={t("transfer.to")} name="to_account_id" error={errors.to_account_id ?? server.to_account_id} hint={t("transfer.sameCurrency")}>
-                <Select value={toId} onChange={(event) => setToId(event.target.value)} data-testid="transfer-to">
+                <Select value={toId} onValueChange={(value) => setToId(value)} data-testid="transfer-to">
                   <option value="">{t("transfer.pick")}</option>
                   {targets.map((account) => (
                     <option key={account.id} value={account.id}>{account.name} · {account.currency_code}</option>

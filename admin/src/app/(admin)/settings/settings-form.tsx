@@ -266,9 +266,9 @@ export function SettingsForm({
             <Select
               value={form.separationOfDutiesLevel}
               data-testid="setting-separation_of_duties_level"
-              onChange={(event) =>
+              onValueChange={(value) =>
                 update((draft) =>
-                  void (draft.separationOfDutiesLevel = event.target.value as "standard" | "strict"),
+                  void (draft.separationOfDutiesLevel = value as "standard" | "strict"),
                 )
               }
             >

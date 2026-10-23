@@ -293,7 +293,7 @@ export function WriteDownForm({
                   <Select
                     value={line.moveToId}
                     disabled={!canTransfer}
-                    onChange={(event) => patch(key, { moveToId: event.target.value })}
+                    onValueChange={(value) => patch(key, { moveToId: value })}
                     data-testid="write-down-move-to"
                   >
                     <option value="">{quarantine.length ? t("pickLocation") : t("writeDown.noQuarantine")}</option>

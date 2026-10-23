@@ -539,7 +539,7 @@ export function InvoiceForm({
           testId="invoice"
         />
         <Field label={t("currency")} name="currency_code" hint={supplier ? t("supplierCurrency", { currency: supplier.default_currency }) : undefined}>
-          <Select value={state.currency} disabled={locked} onChange={(event) => set({ currency: event.target.value as CurrencyCode, rate: "" })} data-testid="invoice-currency">
+          <Select value={state.currency} disabled={locked} onValueChange={(value) => set({ currency: value as CurrencyCode, rate: "" })} data-testid="invoice-currency">
             <option value="IQD">IQD</option>
             <option value="USD">USD</option>
           </Select>
@@ -575,7 +575,7 @@ export function InvoiceForm({
           </Field>
         ) : null}
         <Field label={t("defaultLocation")} name="default_location_id" error={err("location")}>
-          <Select value={state.defaultLocationId} disabled={locked} onChange={(event) => set({ defaultLocationId: event.target.value })} data-testid="invoice-location">
+          <Select value={state.defaultLocationId} disabled={locked} onValueChange={(value) => set({ defaultLocationId: value })} data-testid="invoice-location">
             {locations.map((info) => (
               <option key={info.id} value={info.id}>
                 {locationLabel(info)}
@@ -653,7 +653,7 @@ export function InvoiceForm({
                   <DecimalInput value={row.line.cost} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { cost: text.trim() })} data-testid="line-cost" />
                 </Field>
                 <Field label={t("lineLocation")} name="location_id">
-                  <Select value={row.line.locationId} disabled={locked} onChange={(event) => setLine(row.line.key, { locationId: event.target.value })} data-testid="line-location">
+                  <Select value={row.line.locationId} disabled={locked} onValueChange={(value) => setLine(row.line.key, { locationId: value })} data-testid="line-location">
                     <option value="">{t("useDefaultLocation")}</option>
                     {locations.map((info) => (
                       <option key={info.id} value={info.id}>
@@ -725,7 +725,7 @@ export function InvoiceForm({
             <p className="text-sm text-text-muted">{t("landedBody")}</p>
           </div>
           <Field label={t("allocation")} name="allocation_method">
-            <Select value={state.method} disabled={locked} onChange={(event) => set({ method: event.target.value as AllocationMethod })} data-testid="invoice-method">
+            <Select value={state.method} disabled={locked} onValueChange={(value) => set({ method: value as AllocationMethod })} data-testid="invoice-method">
               <option value="value">{t("method.value")}</option>
               <option value="quantity">{t("method.quantity")}</option>
               <option value="manual">{t("method.manual")}</option>
@@ -741,7 +741,7 @@ export function InvoiceForm({
               <Input value={cost.description} maxLength={300} disabled={locked} onChange={(event) => setLanded(cost.key, { description: event.target.value })} />
             </Field>
             <Field label={t("currency")} name="currency_code">
-              <Select value={cost.currency} disabled={locked} onChange={(event) => setLanded(cost.key, { currency: event.target.value as CurrencyCode })} data-testid="landed-currency">
+              <Select value={cost.currency} disabled={locked} onValueChange={(value) => setLanded(cost.key, { currency: value as CurrencyCode })} data-testid="landed-currency">
                 <option value="IQD">IQD</option>
                 <option value="USD">USD</option>
               </Select>
@@ -839,7 +839,7 @@ export function InvoiceForm({
           ) : null}
           {state.payment === "now" ? (
             <Field label={t("payNow.account")} name="cash_account_id" error={err("cashAccount")} hint={payable.length ? undefined : t("payNow.noAccount")}>
-              <Select value={state.cashAccountId} disabled={locked} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="invoice-cash-account">
+              <Select value={state.cashAccountId} disabled={locked} onValueChange={(value) => set({ cashAccountId: value })} data-testid="invoice-cash-account">
                 <option value="">{t("payNow.pickAccount")}</option>
                 {payable.map((account) => (
                   <option key={account.id} value={account.id}>

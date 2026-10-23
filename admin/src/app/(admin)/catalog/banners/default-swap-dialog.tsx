@@ -63,7 +63,7 @@ export function DefaultSwapDialog({
       ) : (
         <>
           <Field label={t("incoming")} name="incoming_id" error={problem === "incoming" ? t("pick") : (api.fieldErrors.incoming_id ?? null)}>
-            <Select value={incomingId} onChange={(e) => setIncomingId(e.target.value)} data-testid="banner-swap-incoming">
+            <Select value={incomingId} onValueChange={(value) => setIncomingId(value)} data-testid="banner-swap-incoming">
               {candidates.map((banner) => (
                 <option key={banner.id} value={banner.id}>
                   {bannerName(banner)}

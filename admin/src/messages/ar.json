@@ -92,7 +92,8 @@
     "reasonRequired": "اكتب سببًا من 3 أحرف على الأقل.",
     "cancel": "إلغاء",
     "save": "حفظ",
-    "switchLanguage": "تغيير اللغة"
+    "switchLanguage": "تغيير اللغة",
+    "close": "إغلاق"
   },
   "errors": {
     "validation": "بعض الحقول غير صحيحة. راجعها ثم أعد المحاولة.",
@@ -447,13 +448,15 @@
   },
   "table": {
     "pagination": "التنقل بين الصفحات",
-    "range": "{from}–{to} من {total}",
-    "perPage": "لكل صفحة",
-    "previous": "الصفحة السابقة",
-    "next": "الصفحة التالية",
-    "page": "صفحة {page} من {last}",
-    "goTo": "صفحة",
-    "go": "انتقال"
+    "empty": "لا توجد سجلات",
+    "one": "سجل واحد",
+    "all": "إجمالي السجلات: {total}",
+    "range": "عرض {from} إلى {to} من أصل {total} سجلاً",
+    "perPage": "عدد السجلات في الصفحة",
+    "previous": "السابق",
+    "next": "التالي",
+    "page": "الصفحة {page} من {last}",
+    "pagePicker": "اختيار الصفحة"
   },
   "permissions": {
     "filter": "ابحث في الصلاحيات",
@@ -5090,5 +5093,11 @@
       "corrections_iqd": "التصحيحات",
       "total_iqd": "إجمالي المصروف"
     }
+  },
+  "filePicker": {
+    "choose": "اختيار ملف",
+    "chooseMany": "اختيار ملفات",
+    "none": "لم يتم اختيار أي ملف",
+    "count": "{count, plural, two {ملفان محددان} few {# ملفات محددة} many {# ملفًا محددًا} other {# ملف محدد}}"
   }
 }

@@ -125,7 +125,7 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
       <div className="flex flex-wrap items-end justify-between gap-3">
         <label className="flex flex-col gap-1 text-sm font-semibold">
           {t("filter.label")}
-          <Select value={filter} onChange={(e) => setFilter(e.target.value as BannerStatus | "")} data-testid="banner-filter">
+          <Select value={filter} onValueChange={(value) => setFilter(value as BannerStatus | "")} data-testid="banner-filter">
             <option value="">{t("filter.all", { count: banners.length })}</option>
             {BANNER_STATUSES.map((status) => (
               <option key={status} value={status}>

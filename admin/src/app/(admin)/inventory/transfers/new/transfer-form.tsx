@@ -221,7 +221,7 @@ export function TransferForm({
                 <DecimalInput value={line.quantity ?? ""} parse={{ maxDecimals: 3 }} onValueChange={(quantity) => patch(key, { quantity })} data-testid="transfer-quantity" />
               </Field>
               <Field label={t("columns.to")} name="to" error={e.to}>
-                <Select value={line.toLocationId} onChange={(event) => patch(key, { toLocationId: event.target.value })} data-testid="transfer-destination">
+                <Select value={line.toLocationId} onValueChange={(value) => patch(key, { toLocationId: value })} data-testid="transfer-destination">
                   <option value="">{t("pickLocation")}</option>
                   {active
                     .filter((info) => info.id !== line.row.location_id)

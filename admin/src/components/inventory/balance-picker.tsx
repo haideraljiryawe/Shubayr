@@ -96,8 +96,8 @@ export function BalancePicker({
           <span>{t("filters.warehouse")}</span>
           <Select
             value={warehouseId}
-            onChange={(event) => {
-              setWarehouseId(event.target.value);
+            onValueChange={(value) => {
+              setWarehouseId(value);
               setLocationId("");
               setPage(1);
             }}
@@ -115,8 +115,8 @@ export function BalancePicker({
           <span>{t("filters.location")}</span>
           <Select
             value={locationId}
-            onChange={(event) => {
-              setLocationId(event.target.value);
+            onValueChange={(value) => {
+              setLocationId(value);
               setPage(1);
             }}
             data-testid="picker-location"

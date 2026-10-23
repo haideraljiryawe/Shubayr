@@ -542,7 +542,7 @@ function CategoryForm({
         <Select
           value={parentId}
           disabled={lock === "hasChildren"}
-          onChange={(e) => setParentId(e.target.value)}
+          onValueChange={(value) => setParentId(value)}
           data-testid="category-parent"
         >
           <option value="">{t("noParent")}</option>
@@ -721,7 +721,7 @@ function ConvertDialog({
               <Input value={slug} dir="ltr" onChange={(e) => setSlug(e.target.value)} data-testid="convert-slug" />
             </Field>
             <Field label={t("fields.target")} name="target_category_id" error={error("target_category_id")} hint={t("convert.targetHint")}>
-              <Select value={target} onChange={(e) => setTarget(e.target.value)} data-testid="convert-target">
+              <Select value={target} onValueChange={(value) => setTarget(value)} data-testid="convert-target">
                 <option value="">{t("convert.chooseTarget")}</option>
                 {groups.map((group) => (
                   <optgroup key={group.department.id} label={nameOf(group.department, locale)}>
