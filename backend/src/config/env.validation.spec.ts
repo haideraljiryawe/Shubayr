@@ -23,6 +23,7 @@ describe('validateEnvironment SMS gateway', () => {
     });
     expect(result.SMS_GATEWAY_URL).toBe('disabled');
     expect(result.SMS_GATEWAY_TIMEOUT_MS).toBe(10_000);
+    expect(result.ADMIN_REFRESH_ROTATION_GRACE_SECONDS).toBe(30);
   });
 
   it('requires a token for a configured production gateway', () => {
@@ -43,5 +44,15 @@ describe('validateEnvironment SMS gateway', () => {
         SMS_GATEWAY_TIMEOUT_MS: 999,
       }),
     ).toThrow(/SMS_GATEWAY_TIMEOUT_MS/);
+  });
+
+  it('bounds the Admin refresh concurrency grace', () => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        SMS_GATEWAY_URL: 'disabled',
+        ADMIN_REFRESH_ROTATION_GRACE_SECONDS: 121,
+      }),
+    ).toThrow(/ADMIN_REFRESH_ROTATION_GRACE_SECONDS/);
   });
 });

@@ -315,6 +315,63 @@ describe('AuthService', () => {
     expect(tx.refreshToken.create).toHaveBeenCalled();
   });
 
+  it('ends one admin session family when a rotated token is replayed after the grace', async () => {
+    const id = '22222222-2222-4222-8222-222222222224';
+    const sessionId = '33333333-3333-4333-8333-333333333335';
+    const adminUser = { ...user, username: 'admin', role: null };
+    const oldToken = await jwt.signAsync(
+      {
+        sub: adminUser.id,
+        typ: 'refresh',
+        jti: id,
+        sid: sessionId,
+        surface: 'admin',
+        ver: 1,
+      },
+      { secret: refreshSecret, expiresIn: 3600 },
+    );
+    const revokeFamily = jest.fn().mockResolvedValue({ count: 1 });
+    const prisma = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id,
+          session_id: sessionId,
+          user_id: adminUser.id,
+          token_hash: createHash('sha256').update(oldToken).digest('hex'),
+          expires_at: new Date(Date.now() + 3_600_000),
+          revoked_at: new Date(Date.now() - 31_000),
+          created_at: new Date(Date.now() - 60_000),
+          surface: 'admin',
+          client: null,
+          session_version: 1,
+          user: adminUser,
+        }),
+        findFirst: jest.fn(),
+        updateMany: revokeFamily,
+      },
+      $transaction: jest.fn(),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      { sendOtp: jest.fn() } as never,
+    );
+
+    await expect(service.refresh({ refresh_token: oldToken })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(revokeFamily).toHaveBeenCalledWith({
+      where: {
+        user_id: adminUser.id,
+        session_id: sessionId,
+        revoked_at: null,
+      },
+      data: { revoked_at: expect.any(Date) as Date },
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('logs out one refresh family and only its bound devices', async () => {
     const tokenId = '22222222-2222-4222-8222-222222222222';
     const sessionId = '33333333-3333-4333-8333-333333333333';
