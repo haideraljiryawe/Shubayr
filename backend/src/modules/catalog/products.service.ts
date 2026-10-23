@@ -997,14 +997,15 @@ export class ProductsService {
     const offset = (page - 1) * per_page;
     const defaultThreshold = await this.defaultLowStockThreshold();
     const today = businessDate();
-    const conditions: Prisma.Sql[] = [];
+    const candidateConditions: Prisma.Sql[] = [];
+    const availabilityConditions: Prisma.Sql[] = [];
     const q = query.q?.trim().replace(/\s+/g, ' ');
     if (q) {
       const pattern = `%${q}%`;
       const arabicNameMatch = /[\u0600-\u06ff]/u.test(q)
         ? Prisma.sql`${normalizedArabicSql(Prisma.sql`p.name_ar`)} LIKE ${`%${normalizeCatalogSearch(q)}%`}`
         : Prisma.sql`p.name_ar ILIKE ${pattern}`;
-      conditions.push(Prisma.sql`(
+      candidateConditions.push(Prisma.sql`(
         p.name_en ILIKE ${pattern}
         OR ${arabicNameMatch}
         OR p.description ILIKE ${pattern}
@@ -1017,10 +1018,12 @@ export class ProductsService {
       )`);
     }
     if (query.category_id) {
-      conditions.push(Prisma.sql`p.category_id = ${query.category_id}::uuid`);
+      candidateConditions.push(
+        Prisma.sql`p.category_id = ${query.category_id}::uuid`,
+      );
     }
     if (query.brand_id?.length) {
-      conditions.push(
+      candidateConditions.push(
         Prisma.sql`p.brand_id IN (${Prisma.join(
           query.brand_id.map((id) => Prisma.sql`${id}::uuid`),
         )})`,
@@ -1030,27 +1033,27 @@ export class ProductsService {
       ? query.status
       : (['active', 'hidden'] as const);
     if (statuses.length) {
-      conditions.push(
+      candidateConditions.push(
         Prisma.sql`p.status IN (${Prisma.join(
           statuses.map((status) => Prisma.sql`${status}`),
         )})`,
       );
     }
     if (query.min_price !== undefined) {
-      conditions.push(Prisma.sql`p.price >= ${query.min_price}`);
+      candidateConditions.push(Prisma.sql`p.price >= ${query.min_price}`);
     }
     if (query.max_price !== undefined) {
-      conditions.push(Prisma.sql`p.price <= ${query.max_price}`);
+      candidateConditions.push(Prisma.sql`p.price <= ${query.max_price}`);
     }
     if (query.has_image !== undefined) {
-      conditions.push(
+      candidateConditions.push(
         query.has_image
           ? Prisma.sql`EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`
           : Prisma.sql`NOT EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`,
       );
     }
     if (query.availability?.length) {
-      conditions.push(
+      availabilityConditions.push(
         Prisma.sql`COALESCE(pa.availability, 'out_of_stock') IN (${Prisma.join(
           query.availability.map((state) => Prisma.sql`${state}`),
         )})`,
@@ -1058,17 +1061,24 @@ export class ProductsService {
     }
     if (query.on_sale === true) {
       const now = new Date();
-      conditions.push(Prisma.sql`
+      candidateConditions.push(Prisma.sql`
         p.discount_type IS NOT NULL
         AND (p.discount_starts_at IS NULL OR p.discount_starts_at <= ${now})
         AND (p.discount_ends_at IS NULL OR p.discount_ends_at >= ${now})
       `);
     }
-    const where = conditions.length
-      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+    const candidateWhere = candidateConditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(candidateConditions, ' AND ')}`
+      : Prisma.empty;
+    const availabilityWhere = availabilityConditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(availabilityConditions, ' AND ')}`
       : Prisma.empty;
     const stockCte = Prisma.sql`
-      WITH variant_availability AS (
+      WITH candidate_products AS MATERIALIZED (
+        SELECT p.id
+        FROM products p
+        ${candidateWhere}
+      ), variant_availability AS (
         SELECT
           pv.product_id,
           pv.id AS variant_id,
@@ -1083,7 +1093,8 @@ export class ProductsService {
             END
           ), 0), 0) AS available_qty,
           COALESCE(pv.low_stock_threshold, ${defaultThreshold}) AS threshold
-        FROM product_variants pv
+        FROM candidate_products candidate
+        JOIN product_variants pv ON pv.product_id = candidate.id
         LEFT JOIN inventory_batches ib ON ib.variant_id = pv.id
         LEFT JOIN batch_stock bs ON bs.batch_id = ib.id
         LEFT JOIN warehouse_locations wl ON wl.id = bs.location_id
@@ -1118,24 +1129,33 @@ export class ProductsService {
                   : sort === 'sku_desc'
                     ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) DESC NULLS LAST, p.id DESC`
                     : Prisma.sql`p.created_at DESC, p.id DESC`;
-    const [countRows, idRows] = await this.prisma.$transaction([
-      this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
-        ${stockCte}
-        SELECT COUNT(*)::bigint AS total
-        FROM products p
-        LEFT JOIN product_availability pa ON pa.product_id = p.id
-        ${where}
-      `),
-      this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        ${stockCte}
-        SELECT p.id
-        FROM products p
-        LEFT JOIN product_availability pa ON pa.product_id = p.id
-        ${where}
-        ORDER BY ${orderBy}
-        LIMIT ${per_page} OFFSET ${offset}
-      `),
-    ]);
+    const idRows = await this.prisma.$queryRaw<
+      Array<{ id: string; total: bigint }>
+    >(Prisma.sql`
+      ${stockCte}
+      SELECT p.id, COUNT(*) OVER()::bigint AS total
+      FROM candidate_products candidate
+      JOIN products p ON p.id = candidate.id
+      LEFT JOIN product_availability pa ON pa.product_id = p.id
+      ${availabilityWhere}
+      ORDER BY ${orderBy}
+      LIMIT ${per_page} OFFSET ${offset}
+    `);
+    const total =
+      idRows[0]?.total ??
+      (page > 1
+        ? (
+            await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+              ${stockCte}
+              SELECT COUNT(*)::bigint AS total
+              FROM candidate_products candidate
+              JOIN products p ON p.id = candidate.id
+              LEFT JOIN product_availability pa ON pa.product_id = p.id
+              ${availabilityWhere}
+            `)
+          )[0]?.total
+        : 0n) ??
+      0n;
     const ids = idRows.map(({ id }) => id);
     const rows = ids.length
       ? await this.prisma.product.findMany({
@@ -1154,7 +1174,7 @@ export class ProductsService {
     return {
       page,
       per_page,
-      total: Number(countRows[0]?.total ?? 0),
+      total: Number(total),
       data,
       facets: { brands: [] },
     };

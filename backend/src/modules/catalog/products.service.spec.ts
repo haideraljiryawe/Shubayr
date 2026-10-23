@@ -50,14 +50,10 @@ describe('ProductsService', () => {
   it('pages and filters the admin catalog in SQL, including SKU and barcode search', async () => {
     const queryRaw = jest
       .fn()
-      .mockResolvedValueOnce([{ total: 10_000n }])
-      .mockResolvedValueOnce([{ id: 'product-page-id' }]);
+      .mockResolvedValueOnce([{ id: 'product-page-id', total: 10_000n }]);
     const prisma = {
       storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
       $queryRaw: queryRaw,
-      $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
-        Promise.all(operations),
-      ),
       product: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const service = new ProductsService(
@@ -92,17 +88,11 @@ describe('ProductsService', () => {
   });
 
   it('excludes archived products by default in the SQL-paginated admin list', async () => {
-    const queryRaw = jest
-      .fn()
-      .mockResolvedValueOnce([{ total: 0n }])
-      .mockResolvedValueOnce([]);
+    const queryRaw = jest.fn().mockResolvedValueOnce([]);
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
-        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
-          Promise.all(operations),
-        ),
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
       {} as never,
@@ -125,17 +115,11 @@ describe('ProductsService', () => {
   });
 
   it('keeps ASCII and SKU searches off the Arabic normalization expression', async () => {
-    const queryRaw = jest
-      .fn()
-      .mockResolvedValueOnce([{ total: 0n }])
-      .mockResolvedValueOnce([]);
+    const queryRaw = jest.fn().mockResolvedValueOnce([]);
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
-        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
-          Promise.all(operations),
-        ),
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
       {} as never,
@@ -154,17 +138,11 @@ describe('ProductsService', () => {
   });
 
   it('uses search-only normalization for Arabic names', async () => {
-    const queryRaw = jest
-      .fn()
-      .mockResolvedValueOnce([{ total: 0n }])
-      .mockResolvedValueOnce([]);
+    const queryRaw = jest.fn().mockResolvedValueOnce([]);
     const service = new ProductsService(
       {
         storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
         $queryRaw: queryRaw,
-        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
-          Promise.all(operations),
-        ),
         product: { findMany: jest.fn().mockResolvedValue([]) },
       } as never,
       {} as never,
