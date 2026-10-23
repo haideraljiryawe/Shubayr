@@ -1,15 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ADMIN_MODULES, API_URL, ADMIN_ORIGIN, COOKIE_SECURE } from "@/lib/config";
+import {
+  ADMIN_MODULES,
+  API_URL,
+  ADMIN_ORIGIN,
+  COOKIE_SECURE,
+} from "@/lib/config";
 import { isRouteEnabled, parseModules } from "@/lib/modules";
-import { contentSecurityPolicy, newNonce, originOf } from "@/lib/security-headers";
+import {
+  contentSecurityPolicy,
+  newNonce,
+  originOf,
+} from "@/lib/security-headers";
 import { clientForwardHeaders } from "@/lib/session/forwarding";
-import { refreshSession } from "@/lib/session/refresh";
+import { RefreshUnavailableError, refreshSession } from "@/lib/session/refresh";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
   clearedCookies,
   needsRefresh,
   sessionCookies,
+  type TokenPair,
 } from "@/lib/session/tokens";
 
 /* ---------------------------------------------------------------------------
@@ -40,7 +50,8 @@ const ENABLED_MODULES = parseModules(ADMIN_MODULES);
 /** On to the page — or to the "not enabled" page for a module that is off. */
 function proceed(request: NextRequest): NextResponse {
   const init = { request: { headers: request.headers } };
-  if (isRouteEnabled(request.nextUrl.pathname, ENABLED_MODULES)) return NextResponse.next(init);
+  if (isRouteEnabled(request.nextUrl.pathname, ENABLED_MODULES))
+    return NextResponse.next(init);
   const url = request.nextUrl.clone();
   url.pathname = "/module-disabled";
   url.search = "";
@@ -82,8 +93,34 @@ async function gate(request: NextRequest): Promise<NextResponse> {
     return proceed(request);
   }
 
-  const pair = refresh ? await refreshSession(refresh, fetch, clientForwardHeaders(request.headers)) : null;
-  if (!pair) return isPublic ? NextResponse.next({ request: { headers: request.headers } }) : toLogin(request);
+  let pair: TokenPair | null = null;
+  try {
+    pair = refresh
+      ? await refreshSession(
+          refresh,
+          fetch,
+          clientForwardHeaders(request.headers),
+        )
+      : null;
+  } catch (error) {
+    if (!(error instanceof RefreshUnavailableError)) throw error;
+    // A deploy restart, timeout or DNS failure is not proof that the refresh
+    // token is invalid. Keep both cookies and make the interruption explicit;
+    // a retry can renew the same session when the API returns.
+    return NextResponse.json(
+      {
+        status: 503,
+        code: "API_UNAVAILABLE",
+        message: "The authentication service is temporarily unavailable",
+        errors: [],
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!pair)
+    return isPublic
+      ? NextResponse.next({ request: { headers: request.headers } })
+      : toLogin(request);
 
   if (isPublic) {
     const response = NextResponse.redirect(new URL("/", request.url));

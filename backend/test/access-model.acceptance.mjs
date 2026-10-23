@@ -67,13 +67,29 @@ check(
   'admin',
   'password login creates an admin session',
 );
-const refreshedAdmin = await request('/auth/refresh', {
-  method: 'POST',
-  expected: 200,
-  body: { refresh_token: adminSession.refresh_token },
-});
+// VIS-017 reproduction: two BFF processes can reach the API with the same
+// refresh token at access-token expiry. Both must receive a usable successor;
+// the losing rotation must not answer 401 and clear the winner's cookies.
+const [refreshedAdmin, parallelAdmin] = await Promise.all([
+  request('/auth/refresh', {
+    method: 'POST',
+    expected: 200,
+    body: { refresh_token: adminSession.refresh_token },
+  }),
+  request('/auth/refresh', {
+    method: 'POST',
+    expected: 200,
+    body: { refresh_token: adminSession.refresh_token },
+  }),
+]);
+check(
+  refreshedAdmin.refresh_token === parallelAdmin.refresh_token,
+  false,
+  'parallel admin refreshes receive independent live successors',
+);
 const admin = refreshedAdmin.access_token;
 await request('/admin/staff', { token: admin });
+await request('/admin/staff', { token: parallelAdmin.access_token });
 
 // The same database user has a customer phone, but its app token has no admin grants.
 const adminApp = await otpLogin('+9647700000001');

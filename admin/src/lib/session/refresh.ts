@@ -22,6 +22,14 @@ interface Entry {
 
 const inflight = new Map<string, Entry>();
 
+/** A transient API/network failure is not proof that a session ended. */
+export class RefreshUnavailableError extends Error {
+  constructor() {
+    super("The authentication service is temporarily unavailable");
+    this.name = "RefreshUnavailableError";
+  }
+}
+
 function prune(now: number): void {
   for (const [key, entry] of inflight) {
     if (now - entry.at > REMEMBER_MS) inflight.delete(key);
@@ -46,7 +54,7 @@ async function callRefresh(
       ? { access_token: pair.access_token, refresh_token: pair.refresh_token }
       : null;
   } catch {
-    return null;
+    throw new RefreshUnavailableError();
   }
 }
 
@@ -62,10 +70,15 @@ export function refreshSession(
   if (existing) return existing.promise;
   const promise = callRefresh(refreshToken, fetcher, forwarded);
   inflight.set(refreshToken, { promise, at: now });
-  // A failed refresh is not worth remembering: let the next caller retry.
-  void promise.then((pair) => {
-    if (!pair) inflight.delete(refreshToken);
-  });
+  // A refused or unavailable refresh is not worth remembering: let the next
+  // request retry. Successful rotations stay briefly so late requests in this
+  // process receive the same pair.
+  void promise.then(
+    (pair) => {
+      if (!pair) inflight.delete(refreshToken);
+    },
+    () => inflight.delete(refreshToken),
+  );
   return promise;
 }
 

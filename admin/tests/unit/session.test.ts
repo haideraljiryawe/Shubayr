@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { __resetRefreshCache, refreshSession } from "@/lib/session/refresh";
+import {
+  __resetRefreshCache,
+  RefreshUnavailableError,
+  refreshSession,
+} from "@/lib/session/refresh";
 import { isBinaryProxyPath, isProxyablePath } from "@/lib/session/proxy-paths";
 import {
   ACCESS_COOKIE,
@@ -132,13 +136,13 @@ describe("refreshSession", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it("treats a network failure as no session", async () => {
+  it("distinguishes a network failure from a refused session", async () => {
     const fetcher = vi.fn(async () => {
       throw new TypeError("offline");
     });
     await expect(
       refreshSession("r", fetcher as unknown as typeof fetch),
-    ).resolves.toBeNull();
+    ).rejects.toBeInstanceOf(RefreshUnavailableError);
   });
 });
 
@@ -193,9 +197,15 @@ describe("isBinaryProxyPath", () => {
   const id = "10000000-0000-4000-8000-000000000001";
 
   it("keeps only the GET report download response byte-for-byte", () => {
-    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "GET")).toBe(true);
-    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "POST")).toBe(false);
-    expect(isBinaryProxyPath(`/admin/reports/exports/${id}/progress`, "GET")).toBe(false);
+    expect(
+      isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "GET"),
+    ).toBe(true);
+    expect(
+      isBinaryProxyPath(`/admin/reports/exports/${id}/download`, "POST"),
+    ).toBe(false);
+    expect(
+      isBinaryProxyPath(`/admin/reports/exports/${id}/progress`, "GET"),
+    ).toBe(false);
     expect(isBinaryProxyPath("/admin/products", "GET")).toBe(false);
   });
 });
