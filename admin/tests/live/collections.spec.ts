@@ -12,7 +12,7 @@ import {
   servedAddressId,
   uiLoginAsAdmin,
 } from "./helpers";
-import { choose } from "./controls";
+import { choose, grouped } from "./controls";
 
 /**
  * Cash collected on delivery (contract 12.0) in the Web Admin, against a
@@ -208,7 +208,7 @@ test("staff deliver for an external driver: the amount is pre-filled, a shortfal
     money(order.total),
   );
   await expect(dialog.getByTestId("collection-amount")).toHaveValue(
-    String(order.total),
+    grouped(order.total),
   );
   await expect(dialog.getByTestId("collection-preview")).toHaveAttribute(
     "data-state",
@@ -380,7 +380,7 @@ test("an unconfirmed delivery is confirmed later from the queue, in full and sho
   await row(full.order_number).getByTestId("unconfirmed-confirm").click();
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByTestId("collection-amount")).toHaveValue(
-    String(full.total),
+    grouped(full.total),
   );
   await expect(dialog.getByTestId("collection-unconfirmed")).toHaveCount(0);
   await dialog.getByTestId("confirm-submit").click();

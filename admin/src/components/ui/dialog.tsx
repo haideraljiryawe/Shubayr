@@ -46,6 +46,11 @@ export interface DialogShellProps {
   testId?: string;
   /** Close on a click outside (off for forms). */
   dismissOnOutsideClick?: boolean;
+  /**
+   * Skip the browser's own constraint check on submit (the default: form
+   * dialogs validate in code). Pass false when the fields rely on `required`.
+   */
+  noValidate?: boolean;
 }
 
 export function DialogShell({
@@ -60,6 +65,7 @@ export function DialogShell({
   onSubmit,
   testId,
   dismissOnOutsideClick = !onSubmit,
+  noValidate = true,
 }: DialogShellProps) {
   const t = useTranslations("common");
   const dir = localeDirection[useLocale() as Locale];
@@ -129,7 +135,7 @@ export function DialogShell({
         >
           {onSubmit ? (
             <form
-              noValidate
+              noValidate={noValidate}
               className="flex min-h-0 flex-1 flex-col"
               onSubmit={(event: FormEvent) => {
                 event.preventDefault();

@@ -17,7 +17,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
-import { choose } from "./controls";
+import { choose, grouped } from "./controls";
 
 /**
  * Custody exceptions (13.3) and external-driver trips (13.4) in the Web
@@ -362,7 +362,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
   // 1: delivered in full.
   await row(orders[0]).getByTestId("trip-order-deliver").click();
   await expect(page.getByTestId("collection-amount")).toHaveValue(
-    String(orders[0].total),
+    grouped(orders[0].total),
   );
   await page.getByTestId("trip-deliver-confirm").click();
   await expect(
@@ -374,7 +374,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
   await expect(page.getByTestId("exception-return")).toBeVisible();
   await page.getByTestId("exception-quantity").first().fill("1");
   await expect(page.getByTestId("exception-collected")).toHaveValue(
-    String(orders[1].total / 2),
+    grouped(orders[1].total / 2),
   );
   await choose(page.getByTestId("exception-location"), LOCATION);
   await page
@@ -473,7 +473,7 @@ test("a customer-paid trip with three orders: handover, outcomes, the settlement
     driver.id,
   );
   await expect(page.getByTestId("receive-amount")).toHaveValue(
-    String(expected),
+    grouped(expected),
   );
   await page.getByTestId("receive-amount").fill(String(expected - 10000));
   await choose(page.getByTestId("receive-cash-account"), account);

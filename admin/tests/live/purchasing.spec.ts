@@ -16,7 +16,7 @@ import {
   uiLoginAsAdmin,
   unique,
 } from "./helpers";
-import { choose } from "./controls";
+import { choose, grouped } from "./controls";
 
 /**
  * Purchasing and suppliers (API 9.0) in the Web Admin, in a real browser,
@@ -198,7 +198,7 @@ async function overrideRate(page: Page, value: string) {
   await expect(field).toBeEnabled();
   await expect(field).toHaveValue(/^\d/);
   await field.fill(value);
-  await expect(field).toHaveValue(value);
+  await expect(field).toHaveValue(grouped(value));
 }
 
 /** Review, confirm, and hand back what the API posted. */

@@ -63,3 +63,11 @@ export async function optionCount(select: Locator, match: { value: string } | { 
   await close(select);
   return count;
 }
+
+/** How a grouped amount field shows a raw number: "90000" → "90,000" (VIS-007). */
+export function grouped(value: number | string): string {
+  const [whole, fraction] = String(value).split(".");
+  const sign = whole.startsWith("-") ? "-" : "";
+  const digits = whole.replace(/^-/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fraction === undefined ? `${sign}${digits}` : `${sign}${digits}.${fraction}`;
+}

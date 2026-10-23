@@ -15,7 +15,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
-import { choose } from "./controls";
+import { choose, grouped } from "./controls";
 
 /**
  * Cash receipts from delivery parties (contract 13.2, phase 8c) in the Web
@@ -316,11 +316,11 @@ test("receive cash and auto-allocate across 3 orders with a remainder, then allo
 
   await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("receive-all-held").click();
-  await expect(page.getByTestId("receive-amount")).toHaveValue(String(total));
+  await expect(page.getByTestId("receive-amount")).toHaveValue(grouped(total));
   await page.getByTestId("allocation-auto").click();
   const amounts = page.getByTestId("allocation-amount");
   for (const [index, order] of orders.entries())
-    await expect(amounts.nth(index)).toHaveValue(String(order.total));
+    await expect(amounts.nth(index)).toHaveValue(grouped(order.total));
   expect(
     digits(await page.getByTestId("allocation-unallocated").textContent()),
   ).toBe("0");

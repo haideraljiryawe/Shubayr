@@ -86,6 +86,8 @@ export function ConfirmDialog({
       size="sm"
       busy={pending}
       onSubmit={() => void confirm()}
+      // Extra controls (the order confirmation's contact fields) use `required`.
+      noValidate={false}
       testId="confirm-dialog"
       footer={
         <>
