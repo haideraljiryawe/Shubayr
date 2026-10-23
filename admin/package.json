@@ -15,6 +15,7 @@
     "gen:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.d.ts",
     "test": "vitest run",
     "test:live": "playwright test --config playwright.live.config.ts",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
     "docs:screenshots": "playwright test --config playwright.docs.config.ts"
   },
   "dependencies": {
