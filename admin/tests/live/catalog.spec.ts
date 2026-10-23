@@ -335,14 +335,14 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
   const settings = await api(request, "GET", "/admin/settings");
   const originalRounding = (settings.body.settings.sale_rounding_multiple as string | null) ?? "0";
   expect((await api(request, "PUT", "/admin/settings", { settings: { sale_rounding_multiple: "250" } })).status).toBe(200);
-  // Rates are dated in the past on purpose: the rate list orders by effective
-  // time, and a later spec (finance) records "the latest" rate at the current
-  // minute. This one's rates stay strictly before that.
+  // Make this setup rate the newest rate deterministically. The former
+  // five-minute backdate let a bootstrap or earlier live spec's 1,550 rate win,
+  // so the editor intermittently started at 18,750 instead of 18,000.
   const setup = await api(request, "POST", "/admin/exchange-rates", {
     currency_code: "USD",
     rate: "1500",
     basis: 1,
-    effective_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    effective_at: new Date().toISOString(),
     reason: `Live linked-price test ${run}`,
   });
   expect(setup.status).toBe(201);

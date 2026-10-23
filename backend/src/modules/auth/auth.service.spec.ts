@@ -58,6 +58,7 @@ const user = {
   locked_until: null,
   session_version: 1,
   permission_version: 1,
+  preferred_ui_language: 'ar',
   work_profile: null,
   created_at: new Date('2026-01-01T00:00:00Z'),
   role: {

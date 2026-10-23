@@ -1,6 +1,7 @@
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 jest.mock('../media/media.service', () => ({ MediaService: class {} }));
 
+import { ConflictException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
 const product = {
@@ -123,6 +124,67 @@ describe('ProductsService', () => {
     expect(values).not.toContain('archived');
   });
 
+  it('keeps ASCII and SKU searches off the Arabic normalization expression', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([{ total: 0n }])
+      .mockResolvedValueOnce([]);
+    const service = new ProductsService(
+      {
+        storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        $queryRaw: queryRaw,
+        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
+        product: { findMany: jest.fn().mockResolvedValue([]) },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.listAdmin({ q: 'SKU-100', page: 1, per_page: 20 });
+
+    const sql = queryRaw.mock.calls
+      .map(([statement]) =>
+        (statement as { strings: string[] }).strings.join('?'),
+      )
+      .join('\n');
+    expect(sql).toContain('p.name_ar ILIKE');
+    expect(sql).not.toContain('translate(regexp_replace');
+  });
+
+  it('uses search-only normalization for Arabic names', async () => {
+    const queryRaw = jest
+      .fn()
+      .mockResolvedValueOnce([{ total: 0n }])
+      .mockResolvedValueOnce([]);
+    const service = new ProductsService(
+      {
+        storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        $queryRaw: queryRaw,
+        $transaction: jest.fn((operations: Array<Promise<unknown>>) =>
+          Promise.all(operations),
+        ),
+        product: { findMany: jest.fn().mockResolvedValue([]) },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.listAdmin({
+      q: '\u0627\u062c\u0647\u0632\u0647',
+      page: 1,
+      per_page: 20,
+    });
+
+    const sql = queryRaw.mock.calls
+      .map(([statement]) =>
+        (statement as { strings: string[] }).strings.join('?'),
+      )
+      .join('\n');
+    expect(sql).toContain('translate(regexp_replace');
+  });
+
   it('hard-deletes an unreferenced product and clears transient cart/media data', async () => {
     const tx = {
       product: {
@@ -141,6 +203,7 @@ describe('ProductsService', () => {
         delete: jest.fn(),
       },
       banner: { count: jest.fn().mockResolvedValue(0) },
+      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
       cartItem: { deleteMany: jest.fn() },
       wishlistItem: { deleteMany: jest.fn() },
     };
@@ -156,7 +219,7 @@ describe('ProductsService', () => {
     const service = new ProductsService(
       prisma as never,
       media as never,
-      audit as never,
+      audit,
       search as never,
     );
 
@@ -172,8 +235,55 @@ describe('ProductsService', () => {
     expect(media.remove).toHaveBeenCalledWith('media-id');
     expect(audit.record).toHaveBeenCalledWith(
       tx,
-      expect.objectContaining({ action: 'catalog.product.delete_unreferenced' }),
+      expect.objectContaining({
+        action: 'catalog.product.delete_unreferenced',
+      }),
     );
+  });
+
+  it('keeps a successful hard-delete result when shared media cannot be removed', async () => {
+    const tx = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'product-id',
+          status: 'hidden',
+          images: [{ url: 'http://api/media/shared-media' }],
+          _count: {
+            purchase_invoice_items: 0,
+            inventory_batches: 0,
+            order_items: 0,
+            product_reviews: 0,
+            price_approval_requests: 0,
+          },
+        }),
+        delete: jest.fn(),
+      },
+      banner: { count: jest.fn().mockResolvedValue(0) },
+      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
+      cartItem: { deleteMany: jest.fn() },
+      wishlistItem: { deleteMany: jest.fn() },
+    };
+    const media = {
+      remove: jest.fn().mockRejectedValue(new ConflictException()),
+    };
+    const service = new ProductsService(
+      {
+        $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+          callback(tx),
+        ),
+        mediaObject: {
+          findUnique: jest.fn().mockResolvedValue({ id: 'shared-media' }),
+        },
+      } as never,
+      media as never,
+      { record: jest.fn() },
+      { indexProduct: jest.fn() } as never,
+    );
+
+    await expect(
+      service.deleteOrArchive('product-id', 'actor-id'),
+    ).resolves.toEqual({ outcome: 'deleted', reasons: [] });
+    expect(media.remove).toHaveBeenCalledWith('shared-media');
   });
 
   it('archives a referenced product and explains every blocking reference', async () => {
@@ -194,6 +304,7 @@ describe('ProductsService', () => {
         update: jest.fn(),
       },
       banner: { count: jest.fn().mockResolvedValue(0) },
+      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     const audit = { record: jest.fn() };
     const service = new ProductsService(
@@ -203,7 +314,7 @@ describe('ProductsService', () => {
         ),
       } as never,
       {} as never,
-      audit as never,
+      audit,
       { indexProduct: jest.fn() } as never,
     );
 
@@ -216,6 +327,47 @@ describe('ProductsService', () => {
     expect(tx.product.update).toHaveBeenCalledWith({
       where: { id: 'product-id' },
       data: { status: 'archived', search_sync_required: true },
+    });
+  });
+
+  it('archives a product with stock-control history even without a current batch', async () => {
+    const tx = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'product-id',
+          status: 'hidden',
+          images: [],
+          _count: {
+            purchase_invoice_items: 0,
+            inventory_batches: 0,
+            order_items: 0,
+            product_reviews: 0,
+            price_approval_requests: 0,
+          },
+        }),
+        update: jest.fn(),
+      },
+      banner: { count: jest.fn().mockResolvedValue(0) },
+      productVariant: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'variant-id' }),
+      },
+    };
+    const service = new ProductsService(
+      {
+        $transaction: jest.fn((work: (client: typeof tx) => unknown) =>
+          work(tx),
+        ),
+      } as never,
+      {} as never,
+      { record: jest.fn() },
+      { indexProduct: jest.fn() } as never,
+    );
+
+    await expect(
+      service.deleteOrArchive('product-id', 'actor-id'),
+    ).resolves.toEqual({
+      outcome: 'archived',
+      reasons: ['inventory_history'],
     });
   });
 

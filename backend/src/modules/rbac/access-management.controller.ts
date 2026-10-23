@@ -22,6 +22,7 @@ import {
   ReasonDto,
   RegisterWorkPhoneDto,
   PresetListQueryDto,
+  PermissionListQueryDto,
   SetStaffAccessDto,
   SetStaffPasswordDto,
   UpdatePresetDto,
@@ -117,8 +118,8 @@ export class PermissionsController {
   constructor(private readonly access: AccessManagementService) {}
 
   @Get()
-  list(@Query('q') q?: string) {
-    return this.access.permissions(q);
+  list(@Query() query: PermissionListQueryDto) {
+    return this.access.permissions(query.q);
   }
 }
 

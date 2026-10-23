@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.9.0
+  version: 17.10.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -86,6 +86,7 @@ x-error-codes:
   - BRAND_NOT_FOUND
   - CATALOG_IMPORT_ROW_FAILED
   - CATALOG_IMPORT_UNIQUE_CONFLICT
+  - CATALOG_IMAGE_PROCESSING_FAILED
   - CATEGORY_MAX_DEPTH
   - CATEGORY_NOT_FOUND
   - CONFLICT
@@ -158,6 +159,19 @@ x-deprecated-error-codes:
     description: Legacy generic code; retained on unchanged routes for backward compatibility.
 
 paths:
+  /version:
+    get:
+      tags: [Admin]
+      summary: Read the release tag and source commit running on this server
+      description: Values come from immutable image build metadata set by the release workflow.
+      security: []
+      responses:
+        "200":
+          description: Running release metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReleaseVersion" }
+
   # ---------------- AUTH ----------------
   /auth/request-otp:
     post:
@@ -326,7 +340,8 @@ paths:
       tags: [Auth]
       summary: Update the current user's profile
       description: >
-        Updates only the authenticated user's name and, when supplied, email.
+        Updates only the authenticated user's name, email, and preferred Admin
+        UI language. The language preference is returned on every /me read.
         Phone numbers cannot be changed here because a phone change requires
         re-verification through the OTP flow.
       requestBody:
@@ -4321,9 +4336,9 @@ paths:
     post:
       tags: [Admin, Catalog import]
       summary: Upload and attach a ZIP of SKU-named product images
-      description: Accepts SKU.jpg, SKU-2.jpg and later numbered images. Images are resized and compressed to WebP; unmatched files are returned in the report.
+      description: Accepts SKU.jpg, SKU-2.jpg and later numbered images. Every successfully stored image is center-cropped to a true square without stretching and compressed to WebP; square source framing is preserved. Files that cannot be processed are reported individually and the original non-square or invalid file is never attached as a fallback.
       x-permission: catalog.import
-      x-error-codes: [CATALOG_IMAGE_ZIP_INVALID]
+      x-error-codes: [CATALOG_IMAGE_ZIP_INVALID, CATALOG_IMAGE_PROCESSING_FAILED]
       parameters:
         - { name: operation_id, in: query, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
       requestBody:
@@ -4351,8 +4366,8 @@ paths:
   /admin/products:
     get:
       tags: [Admin]
-      summary: List all products, including hidden and archived products
-      description: Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory.
+      summary: List active and hidden products, with optional archived products
+      description: Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory. When status is omitted, archived products are excluded. Search matches normalized Arabic and English names, SKUs and barcodes without modifying stored catalog text.
       x-permission: catalog.products
       parameters:
         - { name: q, in: query, schema: { type: string } }
@@ -4463,6 +4478,22 @@ paths:
       parameters: [ { $ref: "#/components/parameters/PathId" } ]
       responses:
         "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/products/{id}/delete:
+    post:
+      tags: [Admin]
+      summary: Delete an unreferenced product or archive a referenced product
+      description: Hard-deletes only a product with no durable order, stock, purchase, review, price-approval, or banner-action references. Transient cart and wishlist rows are removed safely. Otherwise the product is archived and the response identifies every blocking reference kind.
+      x-permission: catalog.products
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "201":
+          description: Product deletion outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductDeleteResult" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -4914,6 +4945,11 @@ paths:
       summary: List the code-defined permission registry
       x-surface: admin
       x-permission: roles.manage
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 160 }
+          description: Case-insensitive search across the stable key and Arabic/English presentation metadata.
       responses:
         "200":
           description: All permissions
@@ -4921,7 +4957,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: "#/components/schemas/Permission" }
+                items: { $ref: "#/components/schemas/PermissionMetadata" }
         "403": { $ref: "#/components/responses/Forbidden" }
   /admin/work-phones:
     get:
@@ -6564,6 +6600,14 @@ components:
         refresh_token: { type: string }
         user: { $ref: "#/components/schemas/User" }
 
+    ReleaseVersion:
+      type: object
+      additionalProperties: false
+      required: [release, commit]
+      properties:
+        release: { type: string, description: Release tag embedded in the production image; `development` outside a tagged build. }
+        commit: { type: string, description: Full source commit embedded in the production image; `unknown` outside a tagged build. }
+
     RefreshTokenRequest:
       type: object
       additionalProperties: false
@@ -6581,7 +6625,7 @@ components:
     User:
       type: object
       additionalProperties: false
-      required: [id, name, phone, username, email, is_active, role, permissions, surface, client, must_change_password, permission_version, created_at]
+      required: [id, name, phone, username, email, is_active, role, permissions, surface, client, must_change_password, permission_version, preferred_ui_language, created_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: [string, "null"] }
@@ -6598,6 +6642,7 @@ components:
         client: { type: [string, "null"], enum: [mobile, web_store, null] }
         must_change_password: { type: boolean }
         permission_version: { type: integer, minimum: 1 }
+        preferred_ui_language: { type: string, enum: [ar, en], description: Staff member's preferred Web Admin language; defaults to Arabic. }
         created_at: { type: string, format: date-time }
 
     UserSelfUpdate:
@@ -6611,6 +6656,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
         email: { type: [string, "null"], format: email, maxLength: 160 }
+        preferred_ui_language: { type: string, enum: [ar, en] }
 
     GovernorateRecord:
       type: object
@@ -7327,7 +7373,7 @@ components:
     CatalogImageBulkResult:
       type: object
       additionalProperties: false
-      required: [operation_id, matched, unmatched]
+      required: [operation_id, matched, unmatched, failed]
       properties:
         operation_id: { type: string }
         matched:
@@ -7344,6 +7390,16 @@ components:
               product_name_en: { type: string }
               url: { type: string, format: uri }
         unmatched: { type: array, items: { type: string } }
+        failed:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [file, code, message]
+            properties:
+              file: { type: string }
+              code: { type: string, enum: [CATALOG_IMAGE_PROCESSING_FAILED] }
+              message: { type: string }
 
     ProductBulkInput:
       oneOf:
@@ -7388,6 +7444,19 @@ components:
               status: { type: string, enum: [updated, error] }
               code: { type: string }
               message: { type: string }
+
+    ProductDeleteResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, reasons]
+      properties:
+        outcome: { type: string, enum: [deleted, archived] }
+        reasons:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [order_history, inventory_history, purchase_history, product_reviews, price_approval_history, banner_action]
 
     ProductImage:
       type: object
@@ -11106,6 +11175,19 @@ components:
         group: { type: string, example: orders }
         description: { type: [string, "null"] }
 
+    PermissionMetadata:
+      type: object
+      additionalProperties: false
+      required: [key, group, description, name_ar, name_en, description_ar, description_en]
+      properties:
+        key: { type: string, example: "orders.confirm" }
+        group: { type: string, example: orders }
+        description: { type: [string, "null"] }
+        name_ar: { type: string }
+        name_en: { type: string }
+        description_ar: { type: string }
+        description_en: { type: string }
+
     Role:
       type: object
       properties:
@@ -11970,6 +12052,7 @@ components:
         logo_url: { type: string }
         primary_color: { type: string }
         currency: { type: string, example: IQD }
+        timezone: { type: string, example: Asia/Baghdad, description: Authoritative IANA store timezone used for business-date labels and client display. }
         default_low_stock_threshold: { type: string, pattern: '^\d+(?:\.\d{1,3})?$' }
         sale_rounding_multiple: { type: string, pattern: '^\d+$', description: "Zero uses base-currency precision; otherwise linked prices round upward to this multiple." }
         store_legal_name_ar: { type: [string, "null"], minLength: 1, maxLength: 160 }

@@ -1185,7 +1185,12 @@ export class CatalogImportService {
             url: uploaded.public_url,
           });
         }
-        const result = { operation_id: operationId, matched, unmatched, failed };
+        const result = {
+          operation_id: operationId,
+          matched,
+          unmatched,
+          failed,
+        };
         await this.audit.record(tx, {
           actorId: actor.id,
           action: 'catalog.images.bulk_upload',

@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   UnprocessableEntityException,
@@ -75,6 +76,8 @@ type PreparedVariant = {
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
@@ -783,9 +786,26 @@ export class ProductsService {
       const bannerReferences = await tx.banner.count({
         where: { action_type: 'product', action_target_id: id },
       });
+      const variantHistory = await tx.productVariant.findFirst({
+        where: {
+          product_id: id,
+          OR: [
+            { sku_cost: { isNot: null } },
+            { opening_lines: { some: {} } },
+            { transfer_lines: { some: {} } },
+            { count_lines: { some: {} } },
+            { write_down_lines: { some: {} } },
+            { scoped_counts: { some: {} } },
+            { retrieval_lines: { some: {} } },
+          ],
+        },
+        select: { id: true },
+      });
       const reasons = [
         ...(product._count.order_items ? ['order_history'] : []),
-        ...(product._count.inventory_batches ? ['inventory_history'] : []),
+        ...(product._count.inventory_batches || variantHistory
+          ? ['inventory_history']
+          : []),
         ...(product._count.purchase_invoice_items ? ['purchase_history'] : []),
         ...(product._count.product_reviews ? ['product_reviews'] : []),
         ...(product._count.price_approval_requests
@@ -836,7 +856,18 @@ export class ProductsService {
         where: { public_url: url },
         select: { id: true },
       });
-      if (media) await this.media.remove(media.id);
+      if (media) {
+        try {
+          await this.media.remove(media.id);
+        } catch (error) {
+          // The product deletion is already committed. A media object may also
+          // be shared by a banner/category, or storage cleanup may be briefly
+          // unavailable; retain it for the explicit orphan-cleanup endpoint.
+          this.logger.warn(
+            `Deferred media cleanup after product deletion: ${media.id} (${error instanceof Error ? error.name : 'unknown error'})`,
+          );
+        }
+      }
     }
     await this.search?.indexProduct(id);
     return { outcome: result.outcome, reasons: result.reasons };
@@ -970,13 +1001,12 @@ export class ProductsService {
     const q = query.q?.trim().replace(/\s+/g, ' ');
     if (q) {
       const pattern = `%${q}%`;
-      const normalizedPattern = `%${normalizeCatalogSearch(q)}%`;
-      const normalizedArabicName = normalizedArabicSql(
-        Prisma.sql`p.name_ar`,
-      );
+      const arabicNameMatch = /[\u0600-\u06ff]/u.test(q)
+        ? Prisma.sql`${normalizedArabicSql(Prisma.sql`p.name_ar`)} LIKE ${`%${normalizeCatalogSearch(q)}%`}`
+        : Prisma.sql`p.name_ar ILIKE ${pattern}`;
       conditions.push(Prisma.sql`(
         p.name_en ILIKE ${pattern}
-        OR ${normalizedArabicName} LIKE ${normalizedPattern}
+        OR ${arabicNameMatch}
         OR p.description ILIKE ${pattern}
         OR EXISTS (
           SELECT 1 FROM product_variants search_variant
