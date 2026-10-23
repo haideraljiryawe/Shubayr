@@ -757,6 +757,63 @@ try {
     'non-sellable stock is cleared by write-down',
   );
 
+  // Section 16.3 worked example: two 10,000 units share a 2,000 discount.
+  // Returning one consumes exactly one stored 9,000 net-paid share and never
+  // reprices the unit that remains with the customer.
+  const workedOrder = await seedDeliveredOrder({
+    customerId,
+    adminId,
+    partyId,
+    quantity: 2,
+    wholeUnitsOnly: true,
+    baseUnit: 'piece',
+    lineTotal: 20000,
+    tierShare: 2000,
+    netPaid: 18000,
+  });
+  const workedReturn = await openReturn(customer, workedOrder, 1, 'defect');
+  check(
+    workedReturn.expected_refund,
+    9000,
+    'section 16.3 one of two discounted units refunds exactly 9,000',
+  );
+  const workedApproved = await approve(admin, workedReturn, 1);
+  await receive(admin, workedApproved);
+  const workedInspected = await inspect(
+    admin,
+    workedApproved,
+    'sellable',
+    sellableLocation,
+  );
+  check(
+    workedInspected.refund_amount,
+    9000,
+    'section 16.3 inspection preserves the stored 9,000 share',
+  );
+  const workedRefunded = await request(`/returns/${workedReturn.id}/refund`, {
+    token: admin,
+    method: 'POST',
+    body: financial(randomUUID(), {
+      method: 'cash_account',
+      cash_account_id: cashAccountId,
+    }),
+  });
+  check(
+    workedRefunded.refund_payments[0].amount_iqd,
+    9000,
+    'section 16.3 refund voucher pays exactly 9,000',
+  );
+  check(
+    Number(
+      await scalar(
+        'SELECT net_paid_total-approved_refund AS value FROM order_items JOIN return_items ON return_items.order_item_id=order_items.id WHERE return_items.return_id=$1',
+        [workedReturn.id],
+      ),
+    ),
+    9000,
+    'section 16.3 kept unit retains its 9,000 net-paid share',
+  );
+
   const expiredOrder = await seedDeliveredOrder({
     customerId,
     adminId,

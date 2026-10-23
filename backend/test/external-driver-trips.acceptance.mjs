@@ -704,6 +704,96 @@ check(
   'per-party collection read shows fare netting and settlement',
 );
 
+// Section 14.4 worked examples, with the published figures rather than only
+// equivalent smaller/larger scenarios.
+const workedStoreTrip = await createTrip('section29-store-fare', {
+  bearer: 'store',
+  amount: 3000,
+  method: 'driver_keeps',
+});
+const workedStoreOrder = await readyOrder(
+  'section29-store-fare',
+  100000,
+  5000,
+);
+await addOrder(workedStoreTrip, workedStoreOrder, 3000);
+await startTrip(workedStoreTrip);
+await deliver(workedStoreOrder, 105000);
+await receive(102000, [[workedStoreOrder, 102000]]);
+const workedStoreClosed = (await closeTrip(workedStoreTrip)).result;
+check(
+  [
+    workedStoreClosed.settlement.expected_cash_iqd,
+    workedStoreClosed.settlement.received_cash_iqd,
+    workedStoreClosed.settlement.netted_fare_iqd,
+    workedStoreClosed.settlement.outstanding_cash_iqd,
+  ],
+  [105000, 102000, 3000, 0],
+  'section 14.4 example 1 receives 102,000 and nets one 3,000 store fare',
+);
+
+const workedDirectTrip = await createTrip('section29-direct-fare', {
+  bearer: 'customer_direct',
+  amount: 3000,
+  method: 'customer_direct',
+});
+const workedDirectOrder = await readyOrder(
+  'section29-direct-fare',
+  100000,
+  3000,
+);
+await addOrder(
+  workedDirectTrip,
+  workedDirectOrder,
+  3000,
+  'Customer accepted the 3,000 direct fare before dispatch',
+);
+await startTrip(workedDirectTrip);
+await deliverThroughTrip(
+  workedDirectTrip,
+  workedDirectOrder,
+  workedDirectOrder.total,
+);
+await receive(100000, [[workedDirectOrder, 100000]]);
+const workedDirectClosed = (await closeTrip(workedDirectTrip)).result;
+check(
+  [
+    workedDirectClosed.settlement.expected_cash_iqd,
+    workedDirectClosed.settlement.received_cash_iqd,
+    workedDirectClosed.fare.bearer,
+    workedDirectClosed.fare.accrual_journal_entry_id,
+    workedDirectClosed.fare.payment_journal_entry_id,
+    workedDirectClosed.fare.netting_journal_entry_id,
+  ],
+  [100000, 100000, 'customer_direct', null, null, null],
+  'section 14.4 example 2 keeps the customer-paid 3,000 outside store accounts',
+);
+
+const workedMultiTrip = await createTrip('section29-multi-fare', {
+  bearer: 'store',
+  amount: 10000,
+  method: 'driver_keeps',
+});
+const workedMultiA = await readyOrder('section29-multi-a', 100000);
+const workedMultiB = await readyOrder('section29-multi-b', 50000);
+await addOrder(workedMultiTrip, workedMultiA, 5000);
+await addOrder(workedMultiTrip, workedMultiB, 5000);
+await startTrip(workedMultiTrip);
+await deliver(workedMultiA, 100000);
+await deliver(workedMultiB, 50000);
+await receive(100000, [[workedMultiA, 100000]]);
+const workedMultiClosed = (await closeTrip(workedMultiTrip)).result;
+check(
+  [
+    workedMultiClosed.settlement.expected_cash_iqd,
+    workedMultiClosed.settlement.received_cash_iqd,
+    workedMultiClosed.settlement.netted_fare_iqd,
+    workedMultiClosed.settlement.outstanding_cash_iqd,
+  ],
+  [150000, 100000, 10000, 40000],
+  'section 14.4 example 3 leaves exactly 40,000 after 100,000 cash and 10,000 fare netting',
+);
+
 const exceptionTrip = await createTrip('exceptions', {
   bearer: 'store',
   amount: 0,

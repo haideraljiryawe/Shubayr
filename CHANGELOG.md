@@ -1,5 +1,46 @@
 # Changelog
 
+## Release 1 candidate - 2026-10-22
+
+### Acceptance and operations
+
+- Section 29 is traced claim by claim to real-database acceptance evidence;
+  phase-10 wages and agent netting are explicitly excluded by the approved
+  2026-10-17 decision rather than reported as implemented.
+- The release-tag workflow runs the complete acceptance suite against the
+  exact tagged commit and retains a machine-readable result with tag, commit,
+  contract version, pack/assertion counts, timestamps and per-pack outcomes.
+- Arabic-primary and English owner UAT scripts cover every launch module, the
+  specification's worked figures, production backup/restore and final sign-off.
+- A maintained documentation index and production operations runbook link the
+  architecture, API rules, deploy, backup, restore, rollback, monitoring,
+  owner guide and release evidence.
+
+### Release 1 scope since contract 10.x
+
+- Real catalog/stock/order flows now include permissions and work phones,
+  inventory lots and weighted-average costing, purchasing/supplier/FX records,
+  delivery custody and cash receipts, returns v2, loyalty and audited
+  correction-only accounting.
+- Delivery is priced by governorate zones; staff phone-confirm orders and may
+  adjust delivery fees; tiered automatic discounts snapshot exact return
+  shares. Catalog scale/import, banner/Recently Added behavior and purchase
+  limits are production-backed.
+- Expenses, prepaid schedules, owner money, monthly close and the full launch
+  report/dashboard/export set post from and reconcile to the double-entry
+  ledger.
+- API and worker process roles, FCM push, OTP failure handling, off-site backup
+  monitoring, production images and live Web/Admin/Mobile CI are release gates.
+- The Flutter customer app is on `main`. Delivery-agent application features
+  and wages remain future add-ons; external trip/custody Admin modules remain
+  off in the launch module list.
+
+### Fixed during candidate proof
+
+- Purchase-invoice remaining balance now includes linked cost corrections at
+  the invoice's stored exchange rate, while the original invoice and actual
+  payment documents remain immutable.
+
 ## 17.9.0 - 2026-10-21
 
 ### Added
