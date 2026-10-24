@@ -84,7 +84,7 @@ export function StockView({
             {row.lot_number ?? t("noLotNumber")}
           </Link>
           {row.expiry_date ? (
-            <span className="text-xs text-text-muted" dir="ltr">
+            <span className="text-caption text-text-muted" dir="ltr">
               {t("expires", { date: row.expiry_date.slice(0, 10) })}
             </span>
           ) : null}
@@ -195,7 +195,7 @@ export function StockView({
               <button
                 key={chip.key}
                 type="button"
-                className="inline-flex h-11 cursor-pointer items-center gap-1 self-end rounded-full bg-info/10 px-3 text-sm font-semibold text-info-dark"
+                className="inline-flex h-11 cursor-pointer items-center gap-1 self-end rounded-full bg-info/10 px-3 text-label text-info-dark"
                 onClick={() => update({ [chip.key]: null })}
                 data-testid={`chip-${chip.key}`}
               >
@@ -228,9 +228,9 @@ function SummaryCard({ summary, canRestock }: { summary: SkuSummary; canRestock:
     <Card className="flex flex-col gap-4" data-testid="sku-summary">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold" dir="ltr">{summary.sku ?? summary.variantId.slice(0, 8)}</h2>
+          <h2 className="text-section" dir="ltr">{summary.sku ?? summary.variantId.slice(0, 8)}</h2>
           {catalog ? (
-            <Link href={`/catalog/products/${catalog.productId}`} className="text-sm text-primary-dark hover:underline">
+            <Link href={`/catalog/products/${catalog.productId}`} className="text-body text-primary-dark hover:underline">
               {(locale === "ar" ? catalog.productName.ar : catalog.productName.en) || catalog.productName.en}
             </Link>
           ) : null}
@@ -246,7 +246,7 @@ function SummaryCard({ summary, canRestock }: { summary: SkuSummary; canRestock:
             <Badge tone={availabilityTone(catalog.availability)} data-testid="sku-availability" data-state={catalog.availability}>
               {t(`availability.${catalog.availability}`)}
             </Badge>
-            <span className="text-xs text-text-muted">
+            <span className="text-caption text-text-muted">
               {catalog.threshold !== null
                 ? t("stock.threshold", { value: qty(catalog.threshold), unit: unitName(catalog.baseUnit) })
                 : t("stock.thresholdDefault")}
@@ -257,19 +257,19 @@ function SummaryCard({ summary, canRestock }: { summary: SkuSummary; canRestock:
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {tiles.map((tile) => (
           <div key={tile.key} className="rounded-md bg-card p-3">
-            <dt className="text-xs text-text-muted">{t(`columns.${tile.key}`)}</dt>
-            <dd className="text-lg font-bold" dir="ltr" data-testid={`summary-${tile.key}`}>
+            <dt className="text-caption text-text-muted">{t(`columns.${tile.key}`)}</dt>
+            <dd className="text-section" dir="ltr" data-testid={`summary-${tile.key}`}>
               {qty(tile.value)}
             </dd>
           </div>
         ))}
       </dl>
       {catalog && catalog.availableQty !== null ? (
-        <p className="text-xs text-text-muted" data-testid="sku-catalog-available">
+        <p className="text-caption text-text-muted" data-testid="sku-catalog-available">
           {t("stock.catalogAvailable", { value: qty(catalog.availableQty) })}
         </p>
       ) : null}
-      {summary.complete ? null : <p className="text-xs text-warning-dark">{t("stock.partial")}</p>}
+      {summary.complete ? null : <p className="text-caption text-warning-dark">{t("stock.partial")}</p>}
     </Card>
   );
 }

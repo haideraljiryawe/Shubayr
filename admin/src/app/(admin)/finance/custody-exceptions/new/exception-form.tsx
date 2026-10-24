@@ -69,7 +69,7 @@ export function ExceptionForm({
 
   return (
     <div className="flex flex-col gap-6" data-testid="exception-form" data-order={order.id}>
-      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-body">
         <span>
           {t("order")}:{" "}
           <Link href={`/orders/${order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
@@ -290,23 +290,23 @@ function LossForm({
 
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-loss">
-      <p className="text-sm text-text-muted">{t("lossBody")}</p>
+      <p className="text-body text-text-muted">{t("lossBody")}</p>
       <HoldingsTable holdings={kept.holdings} typed={typed} generation={0} onTyped={setTyped} locked={busy || posted} label={t("lostQuantity")} />
-      <fieldset className="flex flex-col gap-2 text-sm" disabled={busy || posted}>
+      <fieldset className="flex flex-col gap-2 text-body" disabled={busy || posted}>
         <legend className="mb-1 font-semibold">{t("bearer")}</legend>
         {(["store", "party"] as const).map((value) => (
           <label key={value} className="flex items-start gap-2">
             <input type="radio" name="bearer" className="mt-1" checked={bearer === value} onChange={() => setBearer(value)} data-testid={`exception-bearer-${value}`} />
             <span className="flex flex-col">
               <span>{t(`bearers.${value}`)}</span>
-              <span className="text-xs text-text-muted">{t(`bearerHints.${value}`)}</span>
+              <span className="text-caption text-text-muted">{t(`bearerHints.${value}`)}</span>
             </span>
           </label>
         ))}
-        {attempted && !bearer ? <p className="text-xs font-semibold text-error-dark" data-testid="exception-bearer-error">{t("errors.bearer")}</p> : null}
+        {attempted && !bearer ? <p className="text-caption font-semibold text-error-dark" data-testid="exception-bearer-error">{t("errors.bearer")}</p> : null}
       </fieldset>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
-      {attempted && (plan.lines.length === 0 || plan.problems.length) ? <p className="text-sm font-semibold text-error-dark" role="alert">{t("errors.quantities")}</p> : null}
+      {attempted && (plan.lines.length === 0 || plan.problems.length) ? <p className="text-label text-error-dark" role="alert">{t("errors.quantities")}</p> : null}
       {operationId ? <ExceptionPostingStatus state={posting.state} partyId={partyId} onRetry={() => void submit()} onCheck={() => void posting.check(operationId)} /> : null}
       {posted ? null : (
         <div className="flex justify-end">
@@ -435,7 +435,7 @@ function ReturnForm({
   const shown = attempted && !posted ? problems() : [];
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-return">
-      <p className="text-sm text-text-muted">{t("returnBody")}</p>
+      <p className="text-body text-text-muted">{t("returnBody")}</p>
       <HoldingsTable holdings={kept} typed={typed} generation={0} onTyped={setTyped} locked={busy || delivered} label={t("returnedQuantity")} />
       <div className="grid gap-4 md:grid-cols-3">
         <Field label={t("location")} name="location_id">
@@ -458,7 +458,7 @@ function ReturnForm({
             data-testid="exception-collected"
           />
         </Field>
-        <div className="flex flex-col gap-1 text-sm">
+        <div className="flex flex-col gap-1 text-body">
           <span className="text-text-muted">{t("returnValue")}</span>
           <span className="font-bold" dir="ltr" data-testid="exception-return-value">
             {money(value)}
@@ -467,7 +467,7 @@ function ReturnForm({
       </div>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
       {shown.length ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="exception-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="exception-problems">
           {shown.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}
@@ -562,11 +562,11 @@ function RefundForm({
 
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-refund">
-      <p className="text-sm text-text-muted">{t("refundBody", { fee: money(toFixed(fee)) })}</p>
-      <p className="text-sm font-semibold" data-testid="exception-refund-cap" data-cap={fixedText(cap, 0)}>
+      <p className="text-body text-text-muted">{t("refundBody", { fee: money(toFixed(fee)) })}</p>
+      <p className="text-label" data-testid="exception-refund-cap" data-cap={fixedText(cap, 0)}>
         {t("refundCap", { cap: money(cap) })}
       </p>
-      <fieldset className="flex flex-col gap-2 text-sm" disabled={busy || posted}>
+      <fieldset className="flex flex-col gap-2 text-body" disabled={busy || posted}>
         <legend className="mb-1 font-semibold">{t("refundMethod")}</legend>
         {(["cash_account", "uncollected"] as const).map((value) => (
           <label key={value} className="flex items-start gap-2">
@@ -594,7 +594,7 @@ function RefundForm({
       </div>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
       {attempted && problems.length && !posted ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="exception-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="exception-problems">
           {problems.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}

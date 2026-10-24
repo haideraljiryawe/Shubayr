@@ -36,7 +36,7 @@ export function InvoicesTable({
           <Link href={`/purchasing/invoices/${invoice.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="invoice-link">
             {invoice.document_number}
           </Link>
-          {invoice.invoice_number ? <span className="text-xs text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
+          {invoice.invoice_number ? <span className="text-caption text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
         </div>
       ),
     },
@@ -45,7 +45,7 @@ export function InvoicesTable({
       key: "dates",
       header: t("columns.dates"),
       cell: (invoice) => (
-        <div className="flex flex-col text-xs">
+        <div className="flex flex-col text-caption">
           <span>{day(invoice.document_date)}</span>
           <span className="text-text-muted">{t("due", { date: day(invoice.due_date) })}</span>
         </div>

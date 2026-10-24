@@ -712,7 +712,7 @@ export function InvoiceForm({
 
       {/* ------------------------------------------- invoice products */}
       <Card className="flex flex-col gap-4" data-testid="invoice-products-section">
-        <h2 className="text-lg font-bold">{t("editor.listTitle")}</h2>
+        <h2 className="text-section">{t("editor.listTitle")}</h2>
         {locked ? null : (
           <InvoiceProductEditor
             ref={editorRef}
@@ -736,8 +736,8 @@ export function InvoiceForm({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold">{t("landedCosts")}</h2>
-            <p className="text-sm text-text-muted">{t("landedBody")}</p>
+            <h2 className="text-section">{t("landedCosts")}</h2>
+            <p className="text-body text-text-muted">{t("landedBody")}</p>
           </div>
           <Field label={t("allocation")} name="allocation_method">
             <Select value={state.method} disabled={locked} onValueChange={(value) => set({ method: value as AllocationMethod })} data-testid="invoice-method">
@@ -793,52 +793,52 @@ export function InvoiceForm({
 
       {/* --------------------------------------------------------- totals */}
       <Card className="flex flex-col gap-3" data-testid="invoice-totals">
-        <dl className="grid gap-3 text-sm sm:grid-cols-4">
+        <dl className="grid gap-3 text-body sm:grid-cols-4">
           <div>
             <dt className="text-text-muted">{t("subtotal")}</dt>
-            <dd className="text-lg font-bold" dir="ltr" data-testid="invoice-subtotal">
+            <dd className="text-section" dir="ltr" data-testid="invoice-subtotal">
               {moneyText(preview.subtotal, state.currency, precision, locale)}
             </dd>
           </div>
           <div>
             <dt className="text-text-muted">{t("landedTotal")}</dt>
-            <dd className="text-lg font-bold" dir="ltr" data-testid="invoice-landed-total">
+            <dd className="text-section" dir="ltr" data-testid="invoice-landed-total">
               {money(preview.landedIqd, "IQD")}
             </dd>
           </div>
           <div>
             <dt className="text-text-muted">{t("sharesTotal")}</dt>
-            <dd className="text-lg font-bold" dir="ltr" data-testid="invoice-shares-total">
+            <dd className="text-section" dir="ltr" data-testid="invoice-shares-total">
               {preview.shown ? moneyText(preview.shown.reduce((a, b) => a + b, 0n), "IQD", 0, locale) : t("atPosting")}
             </dd>
           </div>
           <div>
             <dt className="text-text-muted">{t("totalIqd")}</dt>
-            <dd className="text-lg font-bold" dir="ltr" data-testid="invoice-total-iqd">
+            <dd className="text-section" dir="ltr" data-testid="invoice-total-iqd">
               {money(preview.totalIqd, "IQD")}
             </dd>
           </div>
         </dl>
         {state.currency !== "IQD" ? (
-          <p className="text-xs text-text-muted" data-testid="invoice-rate-used">
+          <p className="text-caption text-text-muted" data-testid="invoice-rate-used">
             {rate ? t("rateUsed", { currency: state.currency, rate }) : t("rateAtPosting")}
             {overridden ? <Badge tone="warning" className="ms-2">{t("rateOverridden")}</Badge> : null}
           </p>
         ) : null}
-        {canCost ? null : <p className="text-xs text-text-muted">{t("costHiddenAfter")}</p>}
+        {canCost ? null : <p className="text-caption text-text-muted">{t("costHiddenAfter")}</p>}
       </Card>
 
       {cashAccounts ? (
         <Card className="flex flex-col gap-3" data-testid="invoice-payment">
-          <h2 className="text-lg font-bold">{t("payNow.title")}</h2>
-          <label className="flex items-start gap-2 text-sm">
+          <h2 className="text-section">{t("payNow.title")}</h2>
+          <label className="flex items-start gap-2 text-body">
             <input type="radio" name="invoice-payment" className="mt-1" checked={state.payment === "owed"} disabled={locked} onChange={() => set({ payment: "owed" })} data-testid="invoice-payment-owed" />
             <span>
               <span className="font-semibold">{t("payNow.owed")}</span>
               <span className="block text-text-muted">{t("payNow.owedHint")}</span>
             </span>
           </label>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="flex items-start gap-2 text-body">
             <input type="radio" name="invoice-payment" className="mt-1" checked={state.payment === "now"} disabled={locked} onChange={() => set({ payment: "now" })} data-testid="invoice-payment-now" />
             <span>
               <span className="font-semibold">{t("payNow.now")}</span>
@@ -846,7 +846,7 @@ export function InvoiceForm({
             </span>
           </label>
           {state.payment === "now" ? (
-            <p className="text-sm" data-testid="invoice-paid-amount">
+            <p className="text-body" data-testid="invoice-paid-amount">
               {paidAmount !== null && (!payingAccount || payingAccount.currency_code === state.currency)
                 ? t("payNow.amount", { amount: moneyText(toFixed(paidAmount), state.currency, precision, locale) })
                 : t("payNow.amountByServer")}
@@ -887,8 +887,8 @@ export function InvoiceForm({
       {/* --------------------------------------------------------- submit */}
       {review ? (
         <Card className="flex flex-col gap-3" data-testid="invoice-review">
-          <p className="text-sm">{t("editor.reviewBody", { count: postedLines.length, total: money(preview.totalIqd, "IQD") })}</p>
-          <ul className="flex flex-col gap-1 text-sm" data-testid="invoice-review-lines">
+          <p className="text-body">{t("editor.reviewBody", { count: postedLines.length, total: money(preview.totalIqd, "IQD") })}</p>
+          <ul className="flex flex-col gap-1 text-body" data-testid="invoice-review-lines">
             {postedLines.map((line) => (
               <li key={line.key} data-testid="invoice-review-line" data-sku={line.sku?.sku}>
                 <span className="font-semibold">{line.sku ? productLabel(line.sku) : ""}</span> ·{" "}
@@ -900,16 +900,16 @@ export function InvoiceForm({
             ))}
           </ul>
           {skipped ? (
-            <p className="text-xs text-text-muted" data-testid="invoice-review-skipped">
+            <p className="text-caption text-text-muted" data-testid="invoice-review-skipped">
               {t("editor.skipped", { count: skipped })}
             </p>
           ) : null}
           {state.payment === "now" ? (
-            <p className="text-sm" data-testid="invoice-review-payment">
+            <p className="text-body" data-testid="invoice-review-payment">
               {t("payNow.reviewPaid", { account: payable.find((row) => row.id === state.cashAccountId)?.name ?? "" })}
             </p>
           ) : (
-            <p className="text-sm" data-testid="invoice-review-payment">
+            <p className="text-body" data-testid="invoice-review-payment">
               {t("payNow.reviewOwed")}
             </p>
           )}
@@ -962,7 +962,7 @@ export function InvoiceForm({
             </Alert>
           ) : null}
           {posted && postedInvoice && !restock && state.payment === "now" ? (
-            <Link className="text-sm font-semibold text-primary-dark hover:underline" href={`/purchasing/invoices/${postedInvoice.id}`} data-testid="invoice-open">
+            <Link className="text-label text-primary-dark hover:underline" href={`/purchasing/invoices/${postedInvoice.id}`} data-testid="invoice-open">
               {t("openInvoice")}
             </Link>
           ) : null}
@@ -991,7 +991,7 @@ function DraftBar({
 }) {
   const t = useTranslations("purchasing.invoice.draft");
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-4 py-2 text-sm" data-testid="draft-bar">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-4 py-2 text-body" data-testid="draft-bar">
       <span data-testid="draft-status" data-status={saved.status}>
         {restoredAt ? <span data-testid="draft-restored">{t("restored", { at: when(restoredAt) })} · </span> : null}
         {saved.status === "saving"

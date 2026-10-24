@@ -82,8 +82,8 @@ function Panel({ title, body, children, testId }: { title: string; body: ReactNo
   return (
     <Card className="flex flex-col gap-4 border-primary/40" data-testid={testId}>
       <div>
-        <h2 className="text-lg font-bold">{title}</h2>
-        <p className="mt-1 text-sm text-text-muted">{body}</p>
+        <h2 className="text-section">{title}</h2>
+        <p className="mt-1 text-body text-text-muted">{body}</p>
       </div>
       {children}
     </Card>
@@ -140,7 +140,7 @@ export function ApprovePanel({
 
   return (
     <Panel title={t("title")} body={t("body")} testId="return-approve-panel">
-      <fieldset className="flex flex-wrap gap-4 text-sm" disabled={step.busy}>
+      <fieldset className="flex flex-wrap gap-4 text-body" disabled={step.busy}>
         <legend className="sr-only">{t("decision")}</legend>
         {(["approve", "reject"] as const).map((value) => (
           <label key={value} className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export function ApprovePanel({
                   <Tr key={item.id} className="align-top">
                     <Td>
                       {itemName(item, locale)}
-                      <span className="block text-xs text-text-muted">{item.customer_reason}</span>
+                      <span className="block text-caption text-text-muted">{item.customer_reason}</span>
                     </Td>
                     <Td dir="ltr">
                       {quantityText(item.quantity, item)}
@@ -198,7 +198,7 @@ export function ApprovePanel({
               })}
             </TBody>
           </Table>
-          <p className="mt-2 text-xs text-text-muted">{t("zeroHint")}</p>
+          <p className="mt-2 text-caption text-text-muted">{t("zeroHint")}</p>
         </div>
       ) : null}
 
@@ -207,7 +207,7 @@ export function ApprovePanel({
       </Field>
 
       {decision === "approve" ? (
-        <div className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm" data-testid="return-fee-section">
+        <div className="flex flex-col gap-2 rounded-md border border-border p-3 text-body" data-testid="return-fee-section">
           <p>{t("feePolicy")}</p>
           {deliveryFee !== null ? <p className="text-text-muted">{t("feeCharged", { fee: money(deliveryFee) })}</p> : null}
           {canOverrideFee ? (
@@ -261,7 +261,7 @@ export function ReceivePanel({ ret, onPosted }: { ret: Return; onPosted: () => v
 
   return (
     <Panel title={t("title")} body={t("body")} testId="return-receive-panel">
-      <ul className="flex flex-col gap-1 text-sm">
+      <ul className="flex flex-col gap-1 text-body">
         {inspectedLines(ret).map((item) => (
           <li key={item.id} className="flex justify-between gap-3">
             <span>{itemName(item, locale)}</span>
@@ -330,7 +330,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
           const problem = problems.find((entry) => entry.itemId === item.id)?.problem;
           return (
             <div key={item.id} className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-[2fr_1fr_1fr]" data-testid={`return-inspect-line-${item.id}`}>
-              <div className="text-sm">
+              <div className="text-body">
                 <p className="font-semibold">{itemName(item, locale)}</p>
                 <p className="text-text-muted" dir="ltr">
                   {quantityText(item.approved_quantity, item)}
@@ -374,7 +374,7 @@ export function InspectPanel({ ret, locations, onPosted }: { ret: Return; locati
           );
         })}
       </div>
-      <p className="text-xs text-text-muted" data-testid="return-inspect-cost">
+      <p className="text-caption text-text-muted" data-testid="return-inspect-cost">
         {t("costRule")}
       </p>
       <Field label={t("note")}>
@@ -429,10 +429,10 @@ export function RefundPanel({
 
   return (
     <Panel title={t("title")} body={t("body")} testId="return-refund-panel">
-      <div className="flex flex-col gap-1 text-sm">
+      <div className="flex flex-col gap-1 text-body">
         <p>
           {t("toPay")}{" "}
-          <span dir="ltr" className="text-base font-bold" data-testid="return-refund-to-pay">
+          <span dir="ltr" className="text-section" data-testid="return-refund-to-pay">
             {money(ret.cash_refund_amount)}
           </span>
         </p>
@@ -446,7 +446,7 @@ export function RefundPanel({
         </Alert>
       ) : (
         <>
-          <fieldset className="flex flex-col gap-2 text-sm" disabled={step.busy}>
+          <fieldset className="flex flex-col gap-2 text-body" disabled={step.busy}>
             <legend className="mb-1 font-semibold">{t("method")}</legend>
             <label className="flex items-center gap-2">
               <input type="radio" name="method" checked={method === "cash_account"} onChange={() => setMethod("cash_account")} data-testid="return-refund-method-cash" />
@@ -462,7 +462,7 @@ export function RefundPanel({
                 data-testid="return-refund-method-custody"
               />
               {t("methods.delivery_custody")}
-              {!collection ? <span className="text-xs text-text-muted">{t("custodyUnavailable")}</span> : null}
+              {!collection ? <span className="text-caption text-text-muted">{t("custodyUnavailable")}</span> : null}
             </label>
           </fieldset>
 
@@ -483,7 +483,7 @@ export function RefundPanel({
             )
           ) : collection ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <p className="text-sm" data-testid="return-refund-collection">
+              <p className="text-body" data-testid="return-refund-collection">
                 {t("collection", { collected: collection.collected === null ? "—" : money(collection.collected), status: t(`collectionStatuses.${collection.status}`) })}
               </p>
               <Field label={t("proof")} hint={t("proofHint")} error={problems.includes("proof") ? t("proofRequired") : null}>

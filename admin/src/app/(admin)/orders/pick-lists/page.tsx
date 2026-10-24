@@ -30,7 +30,7 @@ export default async function BatchPickListPage({ searchParams }: { searchParams
   if (!batch.ok) return <PageError error={batch.error} />;
   return (
     <>
-      <Link href="/orders" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline print:hidden">
+      <Link href="/orders" className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline print:hidden">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("back")}
       </Link>

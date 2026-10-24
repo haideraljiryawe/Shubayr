@@ -48,7 +48,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <Link href="/purchasing/invoices" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href="/purchasing/invoices" className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("back")}
       </Link>
@@ -77,7 +77,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       />
       <div className="flex flex-col gap-6" data-testid="invoice-detail" data-invoice-id={doc.id}>
         <Card>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
             <Item label={t("supplier")}>
               <Link href={`/purchasing/suppliers/${doc.supplier_id}`} className="font-semibold text-primary-dark hover:underline">
                 {doc.supplier?.name ?? doc.supplier_id.slice(0, 8)}
@@ -122,11 +122,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               )}
             </Item>
           </dl>
-          <p className="mt-3 text-xs text-text-muted">{t("readOnly")}</p>
+          <p className="mt-3 text-caption text-text-muted">{t("readOnly")}</p>
         </Card>
 
         <Card className="overflow-x-auto">
-          <h2 className="mb-3 text-lg font-bold">{t("lines")}</h2>
+          <h2 className="mb-3 text-section">{t("lines")}</h2>
           <Table minWidth="56rem" data-testid="invoice-lines">
             <THead>
               <Tr>
@@ -172,7 +172,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                     ) : (
                       "—"
                     )}
-                    {item.expiry_date ? <span className="block text-xs text-text-muted" dir="ltr">{item.expiry_date.slice(0, 10)}</span> : null}
+                    {item.expiry_date ? <span className="block text-caption text-text-muted" dir="ltr">{item.expiry_date.slice(0, 10)}</span> : null}
                   </Td>
                 </Tr>
               ))}
@@ -182,8 +182,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
         {canCost && (doc.landed_costs ?? []).length ? (
           <Card>
-            <h2 className="mb-3 text-lg font-bold">{t("landedCosts")}</h2>
-            <ul className="text-sm">
+            <h2 className="mb-3 text-section">{t("landedCosts")}</h2>
+            <ul className="text-body">
               {(doc.landed_costs ?? []).map((cost) => (
                 <li key={cost.id} className="flex justify-between border-t border-border py-2 first:border-t-0">
                   <span>{cost.kind}{cost.description ? ` · ${cost.description}` : ""}</span>
@@ -198,8 +198,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         ) : null}
 
         <Card>
-          <h2 className="mb-3 text-lg font-bold">{t("settlements")}</h2>
-          <ul className="flex flex-col gap-1 text-sm" data-testid="invoice-settlements">
+          <h2 className="mb-3 text-section">{t("settlements")}</h2>
+          <ul className="flex flex-col gap-1 text-body" data-testid="invoice-settlements">
             {(doc.payment_allocations ?? []).map((row) => (
               <li key={row.id} data-testid="invoice-payment">
                 {t("paidAmount", { amount: money(row.amount_invoice_currency, currency) })}

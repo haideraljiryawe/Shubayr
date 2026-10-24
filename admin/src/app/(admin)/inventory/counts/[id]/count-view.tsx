@@ -197,7 +197,7 @@ export function CountView({
 
   const header = (
     <Card>
-      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-text-muted">{t("columns.status")}</dt>
           <dd>
@@ -263,7 +263,7 @@ export function CountView({
             </TBody>
           </Table>
         </Card>
-        <Card className="text-sm">
+        <Card className="text-body">
           {journal ? (
             <p>
               {t("count.posted")}{" "}
@@ -294,7 +294,7 @@ export function CountView({
       ) : null}
       <Card className="overflow-x-auto">
         {count.lines.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("count.emptyScope")}</p>
+          <p className="text-body text-text-muted">{t("count.emptyScope")}</p>
         ) : (
           <Table minWidth="48rem" data-testid="count-lines">
             <THead>
@@ -352,7 +352,7 @@ export function CountView({
                     <Td dir="ltr">
                       {qty(row?.reserved ?? 0)}
                       {releases[key] ? (
-                        <span className="mt-1 block text-xs font-semibold text-warning-dark" data-testid="count-release-warning">
+                        <span className="mt-1 block text-caption font-semibold text-warning-dark" data-testid="count-release-warning">
                           {t("count.releases", { quantity: qty(releases[key]) })}
                         </span>
                       ) : null}
@@ -366,22 +366,22 @@ export function CountView({
       </Card>
 
       <Card className="flex flex-col gap-4">
-        <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4" data-testid="count-summary">
+        <dl className="grid grid-cols-2 gap-3 text-body sm:grid-cols-4" data-testid="count-summary">
           <div className="rounded-md bg-card p-3">
-            <dt className="text-xs text-text-muted">{t("count.shortage")}</dt>
-            <dd className="text-lg font-bold text-error-dark" dir="ltr" data-testid="count-shortage">{qty(summary.shortage)}</dd>
+            <dt className="text-caption text-text-muted">{t("count.shortage")}</dt>
+            <dd className="text-section text-error-dark" dir="ltr" data-testid="count-shortage">{qty(summary.shortage)}</dd>
           </div>
           <div className="rounded-md bg-card p-3">
-            <dt className="text-xs text-text-muted">{t("count.surplus")}</dt>
-            <dd className="text-lg font-bold text-success-dark" dir="ltr" data-testid="count-surplus">{qty(summary.surplus)}</dd>
+            <dt className="text-caption text-text-muted">{t("count.surplus")}</dt>
+            <dd className="text-section text-success-dark" dir="ltr" data-testid="count-surplus">{qty(summary.surplus)}</dd>
           </div>
           <div className="rounded-md bg-card p-3">
-            <dt className="text-xs text-text-muted">{t("count.changedLines")}</dt>
-            <dd className="text-lg font-bold" dir="ltr">{summary.changedLines}</dd>
+            <dt className="text-caption text-text-muted">{t("count.changedLines")}</dt>
+            <dd className="text-section" dir="ltr">{summary.changedLines}</dd>
           </div>
           <div className="rounded-md bg-card p-3">
-            <dt className="text-xs text-text-muted">{t("count.releasedTotal")}</dt>
-            <dd className="text-lg font-bold" dir="ltr">
+            <dt className="text-caption text-text-muted">{t("count.releasedTotal")}</dt>
+            <dd className="text-section" dir="ltr">
               {qty(Object.values(releases).reduce((sum, value) => sum + toMilli(value), 0) / 1000)}
             </dd>
           </div>
@@ -409,7 +409,7 @@ export function CountView({
                     {t("count.reverify")}
                   </Button>
                 ) : (
-                  <p className="mt-2 text-xs">{t("count.needsCountPermission")}</p>
+                  <p className="mt-2 text-caption">{t("count.needsCountPermission")}</p>
                 )}
                 <FormError kind={recount.error} />
               </Alert>
@@ -439,7 +439,7 @@ export function CountView({
             </div>
           </>
         ) : (
-          <p className="text-sm text-text-muted">{t("count.needsAdjustPermission")}</p>
+          <p className="text-body text-text-muted">{t("count.needsAdjustPermission")}</p>
         )}
       </Card>
     </div>
@@ -474,8 +474,8 @@ function ReleasedPanel({
   return (
     <Card className="flex flex-col gap-2" data-testid="count-released">
       <h2 className="font-bold">{t("count.releasedTitle")}</h2>
-      <p className="text-sm text-text-muted">{t("count.releasedBody")}</p>
-      <ul className="text-sm">
+      <p className="text-body text-text-muted">{t("count.releasedBody")}</p>
+      <ul className="text-body">
         {Object.entries(released).map(([key, quantity]) => {
           const [, locationId] = key.split(":");
           return (

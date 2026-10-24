@@ -117,8 +117,8 @@ export function ReturnForm({
   return (
     <div className="flex flex-col gap-6" data-testid="return-form">
       <Card className="overflow-x-auto">
-        <h2 className="mb-1 text-lg font-bold">{t("lots")}</h2>
-        <p className="mb-3 text-sm text-text-muted">{t("lotsBody")}</p>
+        <h2 className="mb-1 text-section">{t("lots")}</h2>
+        <p className="mb-3 text-body text-text-muted">{t("lotsBody")}</p>
         {missingBalances ? <Alert tone="info">{t("needsInventory")}</Alert> : null}
         <Table minWidth="52rem">
           <THead>
@@ -174,16 +174,16 @@ export function ReturnForm({
       </Card>
 
       <Card className="flex flex-col gap-3" data-testid="return-effect">
-        <h2 className="text-lg font-bold">{t("effect")}</h2>
+        <h2 className="text-section">{t("effect")}</h2>
         {preview ? (
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-3 text-body sm:grid-cols-4">
             <Tile label={t("valueIqd")} value={money(preview.totalIqd, "IQD")} testId="return-value-iqd" />
             <Tile label={t("valueIn", { currency })} value={money(preview.totalCurrency, currency)} testId="return-value" />
             <Tile label={t("payableAfter")} value={supplierBalance === null ? t("unknown") : money(preview.balanceAfter > 0n ? preview.balanceAfter : 0n, currency)} testId="return-payable-after" />
             <Tile label={t("creditAfter")} value={money(preview.credit, currency)} testId="return-credit" />
           </dl>
         ) : (
-          <p className="text-sm text-text-muted">{t("valuedAtPosting")}</p>
+          <p className="text-body text-text-muted">{t("valuedAtPosting")}</p>
         )}
       </Card>
 
@@ -210,7 +210,7 @@ export function ReturnForm({
         <Card className="flex flex-col gap-3" data-testid="return-review">
           <PurchasingPostingStatus state={posting.state} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
           {posted ? (
-            <p className="text-sm" data-testid="return-posted">
+            <p className="text-body" data-testid="return-posted">
               {t("postedSummary", {
                 value: money(toFixed(posted.total_currency), currency),
                 credit: money((posted.credits ?? []).reduce((sum, credit) => sum + toFixed(credit.amount_currency), 0n), currency),
@@ -241,7 +241,7 @@ export function ReturnForm({
 function Tile({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>

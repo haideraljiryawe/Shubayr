@@ -93,7 +93,7 @@ export function BalancePicker({
   return (
     <div className="flex flex-col gap-3" data-testid="balance-picker">
       <div className="grid gap-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm font-semibold">
+        <label className="flex flex-col gap-1 text-label">
           <span>{t("filters.warehouse")}</span>
           <Select
             value={warehouseId}
@@ -112,7 +112,7 @@ export function BalancePicker({
             ))}
           </Select>
         </label>
-        <label className="flex flex-col gap-1 text-sm font-semibold">
+        <label className="flex flex-col gap-1 text-label">
           <span>{t("filters.location")}</span>
           <Select
             value={locationId}
@@ -132,7 +132,7 @@ export function BalancePicker({
           </Select>
         </label>
         {canSearchSku ? (
-          <div className="flex flex-col gap-1 text-sm font-semibold">
+          <div className="flex flex-col gap-1 text-label">
             <span>{t("filters.sku")}</span>
             <SkuPicker
               value={sku}
@@ -179,7 +179,7 @@ export function BalancePicker({
                     <Td>
                       <span dir="ltr">{row.lot_number ?? t("noLotNumber")}</span>
                       {row.expiry_date ? (
-                        <span className="block text-xs text-text-muted" dir="ltr">
+                        <span className="block text-caption text-text-muted" dir="ltr">
                           {t("expires", { date: row.expiry_date.slice(0, 10) })}
                         </span>
                       ) : null}
@@ -205,7 +205,7 @@ export function BalancePicker({
                           {t("picker.add")}
                         </Button>
                       ) : (
-                        <span className="text-xs text-text-muted" data-testid="picker-unavailable">
+                        <span className="text-caption text-text-muted" data-testid="picker-unavailable">
                           {mode === "transfer" ? t("picker.allReserved") : t("picker.nothingOnHand")}
                         </span>
                       )}
@@ -217,7 +217,7 @@ export function BalancePicker({
           </TBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end gap-2 text-sm text-text-muted">
+      <div className="flex items-center justify-end gap-2 text-body text-text-muted">
         <Button size="sm" variant="ghost" disabled={page <= 1 || pending} onClick={() => setPage(page - 1)} aria-label={t("picker.previous")}>
           <ChevronRight className="size-4 ltr:rotate-180" aria-hidden />
         </Button>

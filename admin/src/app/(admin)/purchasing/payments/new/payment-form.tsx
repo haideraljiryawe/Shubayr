@@ -261,10 +261,10 @@ export function PaymentForm({
       </Card>
 
       <Card className="flex flex-col gap-3 overflow-x-auto" data-testid="payment-allocations">
-        <h2 className="text-lg font-bold">{t("allocations")}</h2>
-        <p className="text-sm text-text-muted">{t("allocationsBody")}</p>
+        <h2 className="text-section">{t("allocations")}</h2>
+        <p className="text-body text-text-muted">{t("allocationsBody")}</p>
         {loaded?.error ? <FormError kind={loaded.error} /> : null}
-        {supplierId && cash && open.length === 0 && loaded ? <p className="text-sm text-text-muted">{t("noOpenInvoices")}</p> : null}
+        {supplierId && cash && open.length === 0 && loaded ? <p className="text-body text-text-muted">{t("noOpenInvoices")}</p> : null}
         {rateCurrency !== "IQD" && central.status === "hidden" && !overridden ? (
           // Without the exchange-rate read permission there is no preview to
           // show; the server applies the payment-date rate when posting.
@@ -371,7 +371,7 @@ export function PaymentForm({
             </TBody>
           </Table>
         ) : null}
-        <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4" data-testid="payment-summary">
+        <dl className="grid grid-cols-2 gap-3 text-body sm:grid-cols-4" data-testid="payment-summary">
           <Tile label={t("summary.payment")} value={iqdMoney(preview.amountIqd)} />
           <Tile label={t("summary.allocated")} value={iqdMoney(preview.allocatedIqd)} />
           <Tile label={t("summary.fx")} value={ratesKnown && iqdKnown ? fxText(preview.fxIqd) : "—"} testId="payment-fx" />
@@ -395,14 +395,14 @@ export function PaymentForm({
 
       {review ? (
         <Card className="flex flex-col gap-3" data-testid="payment-review">
-          <p className="text-sm" data-testid="payment-review-body">
+          <p className="text-body" data-testid="payment-review-body">
             {ratesKnown && iqdKnown
               ? t("reviewBody", { amount: money(toFixed(amount || "0"), currency), fx: fxText(preview.fxIqd) })
               : t("reviewBodyServerRate", { amount: money(toFixed(amount || "0"), currency) })}
           </p>
           <PurchasingPostingStatus state={posting.state} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
           {posted ? (
-            <p className="text-sm" data-testid="payment-posted">
+            <p className="text-body" data-testid="payment-posted">
               {t("postedSummary", {
                 fx: fxText((posted.allocations ?? []).reduce((sum, row) => sum + toFixed(row.fx_difference_iqd), 0n)),
                 credit: money(toFixed(posted.unallocated_currency), posted.currency_code),
@@ -427,7 +427,7 @@ export function PaymentForm({
         </ActionBar>
       )}
       {presetInvoiceId && !applied[presetInvoiceId] && open.some((invoice) => invoice.id === presetInvoiceId) && !locked ? (
-        <p className="text-xs text-text-muted">{t("presetHint")}</p>
+        <p className="text-caption text-text-muted">{t("presetHint")}</p>
       ) : null}
     </div>
   );
@@ -436,7 +436,7 @@ export function PaymentForm({
 function Tile({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>

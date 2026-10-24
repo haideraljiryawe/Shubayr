@@ -131,7 +131,7 @@ export function StaffCreateForm({
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-lg font-bold">{t("accessTitle")}</h2>
+        <h2 className="mb-4 text-section">{t("accessTitle")}</h2>
         <AccessFields
           catalog={catalog}
           presetIds={presetIds}

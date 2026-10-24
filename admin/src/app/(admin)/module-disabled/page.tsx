@@ -19,7 +19,7 @@ export default async function ModuleDisabledPage() {
     <div data-testid="module-disabled">
       <PageHeader title={t("disabledTitle")} description={t("disabledBody")} />
       <Card className="flex flex-col items-start gap-3">
-        <p className="text-sm text-text-muted">{t("disabledHint")}</p>
+        <p className="text-body text-text-muted">{t("disabledHint")}</p>
         <Link href="/" className={buttonClasses({ variant: "secondary" })}>
           {t("backHome")}
         </Link>

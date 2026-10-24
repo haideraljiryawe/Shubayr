@@ -40,7 +40,7 @@ export function AllocationTable({
   return (
     <div className="flex flex-col gap-3" data-testid="allocation-table">
       {rows.length === 0 ? (
-        <p className="text-sm text-text-muted" data-testid="allocation-none">
+        <p className="text-body text-text-muted" data-testid="allocation-none">
           {t("none")}
         </p>
       ) : (
@@ -107,7 +107,7 @@ export function AllocationTable({
           </div>
         </>
       )}
-      <dl className="grid grid-cols-3 gap-3 text-sm" data-testid="allocation-summary">
+      <dl className="grid grid-cols-3 gap-3 text-body" data-testid="allocation-summary">
         <Tile label={t("amount")} value={money(plan.amount)} testId="allocation-total" />
         <Tile label={t("allocated")} value={money(plan.allocated)} testId="allocation-allocated" />
         <Tile label={t("unallocated")} value={money(plan.unallocated)} testId="allocation-unallocated" />
@@ -119,7 +119,7 @@ export function AllocationTable({
 function Tile({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>
@@ -132,7 +132,7 @@ export function AllocationProblems({ plan, show }: { plan: AllocationPlan; show:
   const t = useTranslations("cashReceipts.problems");
   if (!show || plan.problems.length === 0) return null;
   return (
-    <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="allocation-problems">
+    <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="allocation-problems">
       {plan.problems.map((problem, index) => (
         <li key={index} data-kind={problem.kind}>
           {"orderNumber" in problem ? t(problem.kind, { order: problem.orderNumber }) : t(problem.kind)}

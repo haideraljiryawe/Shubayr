@@ -93,8 +93,8 @@ export function DriverForm({
         }}
       >
         <div>
-          <h2 className="text-lg font-bold">{initial ? t("form.editTitle", { name: initial.name }) : t("form.createTitle")}</h2>
-          <p className="text-sm text-text-muted">{t("form.hint")}</p>
+          <h2 className="text-section">{initial ? t("form.editTitle", { name: initial.name }) : t("form.createTitle")}</h2>
+          <p className="text-body text-text-muted">{t("form.hint")}</p>
         </div>
         <FormError kind={form.formError} code={form.formErrorCode} />
         <div className="grid gap-4 md:grid-cols-3">

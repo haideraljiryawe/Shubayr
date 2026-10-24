@@ -37,7 +37,7 @@ export function EntryView({
         title={<span dir="ltr" data-testid="entry-number">{entry.document_number}</span>}
         description={source}
         actions={
-          <Link className="text-sm text-primary-dark hover:underline" href="/finance/ledger/entries">
+          <Link className="text-body text-primary-dark hover:underline" href="/finance/ledger/entries">
             {t("allEntries")}
           </Link>
         }
@@ -45,13 +45,13 @@ export function EntryView({
       <Alert tone="info">{t("readOnly")}</Alert>
 
       <Card className="p-4">
-        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-2 text-body sm:grid-cols-2">
           <Fact label={t("detail.accountingDate")} value={day(entry.accounting_date)} />
           <Fact label={t("detail.documentDate")} value={day(entry.document_date)} />
           <Fact label={t("detail.postedAt")} value={when(entry.posted_at)} />
           {entry.description ? <Fact label={t("detail.description")} value={entry.description} /> : null}
         </dl>
-        <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
+        <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-body">
           {document ? (
             <Link className="text-primary-dark hover:underline" href={document} data-testid="entry-document-link">
               {t("openDocument")}
@@ -109,7 +109,7 @@ export function EntryView({
                     {line.account.code}
                   </Link>{" "}
                   {locale === "ar" ? line.account.name_ar : line.account.name_en}
-                  {line.memo ? <span className="block text-xs text-text-muted">{line.memo}</span> : null}
+                  {line.memo ? <span className="block text-caption text-text-muted">{line.memo}</span> : null}
                 </Td>
                 <Td dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</Td>
                 <Td dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</Td>

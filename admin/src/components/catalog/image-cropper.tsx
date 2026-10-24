@@ -133,11 +133,11 @@ export function ImageCropper({
           />
         ) : null}
       </div>
-      <p id={id("help")} className="text-xs text-text-muted">
+      <p id={id("help")} className="text-caption text-text-muted">
         {safeArea ? t("dragHelpSafe") : t("dragHelp")}
       </p>
       <div className="flex flex-col gap-1">
-        <label htmlFor={id("size") ?? "image-size"} className="text-sm font-semibold">
+        <label htmlFor={id("size") ?? "image-size"} className="text-label">
           {t("size")}
         </label>
         <div className="flex items-center gap-2" dir="ltr">
@@ -177,7 +177,7 @@ export function ImageCropper({
           </Button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs text-text-muted" data-testid={id("size-value")}>
+          <span className="text-caption text-text-muted" data-testid={id("size-value")}>
             {t("sizeValue", { percent: Math.round(state.zoom * 100) })}
           </span>
           <Button size="sm" variant="ghost" onClick={() => onChange(CENTRED)} data-testid={id("centre")}>

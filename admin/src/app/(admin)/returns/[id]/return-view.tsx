@@ -91,7 +91,7 @@ export function ReturnView({
         </Alert>
       ) : null}
 
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("detail.status")}>
           <ReturnStatusBadge status={ret.status} testId="return-status" />
         </Item>
@@ -153,7 +153,7 @@ export function ReturnView({
               <Tr key={item.id} className="align-top" data-testid="return-line" data-item={item.id}>
                 <Td>
                   <span className="font-medium">{name(item)}</span>
-                  <span className="block text-xs text-text-muted">{item.customer_reason}</span>
+                  <span className="block text-caption text-text-muted">{item.customer_reason}</span>
                 </Td>
                 <Td>{t(`reasonCodes.${item.reason_code}`)}</Td>
                 <Td dir="ltr" data-testid="return-line-requested">
@@ -181,21 +181,21 @@ export function ReturnView({
                   <Td data-testid="return-line-inspection">
                     {item.condition ? t(`conditions.${item.condition}`) : "—"}
                     {item.inspection_location ? (
-                      <span className="block text-xs text-text-muted" dir="ltr">
+                      <span className="block text-caption text-text-muted" dir="ltr">
                         {item.inspection_location.code}
                       </span>
                     ) : null}
-                    {item.condition ? <span className="block text-xs text-text-muted">{item.restock ? t("detail.restocked") : t("detail.writtenDown")}</span> : null}
+                    {item.condition ? <span className="block text-caption text-text-muted">{item.restock ? t("detail.restocked") : t("detail.writtenDown")}</span> : null}
                   </Td>
                 ) : null}
               </Tr>
             ))}
           </TBody>
         </Table>
-        <p className="mt-2 text-xs text-text-muted">{t("detail.netPaidHint")}</p>
+        <p className="mt-2 text-caption text-text-muted">{t("detail.netPaidHint")}</p>
       </Card>
 
-      <Card className="flex flex-col gap-4 text-sm" data-testid="return-money">
+      <Card className="flex flex-col gap-4 text-body" data-testid="return-money">
         <h2 className="font-bold">{t("detail.money")}</h2>
         <dl className="grid gap-3 md:grid-cols-3">
           <Amount label={t("detail.expectedRefund")} value={money(ret.expected_refund)} testId="return-expected" />
@@ -209,7 +209,7 @@ export function ReturnView({
             </>
           ) : null}
         </dl>
-        <p className="text-xs text-text-muted" data-testid="return-fee-policy">
+        <p className="text-caption text-text-muted" data-testid="return-fee-policy">
           {reviewed ? (ret.delivery_fee_refund > 0 ? t("detail.feePolicyRefunded") : t("detail.feePolicyNone")) : t("detail.feePolicy")}
         </p>
         <div className="border-t border-border pt-3" data-testid="return-points">
@@ -221,7 +221,7 @@ export function ReturnView({
               net: ret.points_effect.net,
             })}
           </p>
-          <p className="mt-1 text-xs text-text-muted">{settled ? t("detail.pointsApplied") : t("detail.pointsPending")}</p>
+          <p className="mt-1 text-caption text-text-muted">{settled ? t("detail.pointsApplied") : t("detail.pointsPending")}</p>
         </div>
         {ret.refund_payments.length ? (
           <div className="border-t border-border pt-3" data-testid="return-payments">
@@ -253,13 +253,13 @@ export function ReturnView({
         ) : null}
       </Card>
 
-      <Card className="text-sm" data-testid="return-timeline">
+      <Card className="text-body" data-testid="return-timeline">
         <h2 className="mb-3 font-bold">{t("detail.timeline")}</h2>
         <ol className="flex flex-col gap-3 border-s border-border ps-4">
           {ret.events.map((event) => (
             <li key={event.id} data-testid="return-event" data-type={event.type}>
               <p className="font-semibold">{t(`events.${event.type}`)}</p>
-              <p className="text-xs text-text-muted">
+              <p className="text-caption text-text-muted">
                 {moment(event.created_at)} · {t(`actors.${eventActor(event, ret)}`)}
                 {event.document_date ? ` · ${t("detail.documentDate")}: ${day(event.document_date)}` : ""}
               </p>
@@ -285,7 +285,7 @@ function Steps({ ret }: { ret: Return }) {
             data-testid={`return-step-${action}`}
             data-state={state}
             className={cn(
-              "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+              "flex items-center gap-2 rounded-md border px-3 py-2 text-body",
               state === "done" && "border-success/40 bg-success/10",
               state === "current" && "border-primary bg-primary/10 font-semibold",
               state === "upcoming" && "border-border text-text-muted",
@@ -304,7 +304,7 @@ function Steps({ ret }: { ret: Return }) {
 function Item({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -313,8 +313,8 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
 function Amount({ label, value, testId, strong }: { label: string; value: string; testId: string; strong?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-text-muted">{label}</dt>
-      <dd dir="ltr" className={cn("text-start", strong && "text-base font-bold")} data-testid={testId}>
+      <dt className="text-caption text-text-muted">{label}</dt>
+      <dd dir="ltr" className={cn("text-start", strong && "text-section")} data-testid={testId}>
         {value}
       </dd>
     </div>

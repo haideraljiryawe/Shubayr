@@ -88,7 +88,7 @@ export function CurrenciesView({
   return (
     <div className="flex flex-col gap-6">
       <Card className="p-5">
-        <h2 className="mb-3 text-lg font-bold">{t("currencies")}</h2>
+        <h2 className="mb-3 text-section">{t("currencies")}</h2>
         <Table data-testid="currency-table">
           <THead>
             <Tr>
@@ -138,7 +138,7 @@ export function CurrenciesView({
             ))}
           </TBody>
         </Table>
-        <p className="mt-3 text-xs text-text-muted">{t("baseLocked")}</p>
+        <p className="mt-3 text-caption text-text-muted">{t("baseLocked")}</p>
       </Card>
 
       {staleLatest.map(({ code, latest }) => (
@@ -165,9 +165,9 @@ export function CurrenciesView({
       ) : null}
 
       <Card className="overflow-x-auto p-5">
-        <h2 className="mb-3 text-lg font-bold">{t("history.title")}</h2>
+        <h2 className="mb-3 text-section">{t("history.title")}</h2>
         {rates.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="rate-history-empty">{t("history.empty")}</p>
+          <p className="text-body text-text-muted" data-testid="rate-history-empty">{t("history.empty")}</p>
         ) : (
           <Table data-testid="rate-history">
             <THead>
@@ -186,7 +186,7 @@ export function CurrenciesView({
                   <Tr key={rate.id} className="align-top" data-testid="rate-row" data-rate={String(rate.rate)}>
                     <Td>
                       {dateTime(rate.effective_at)}
-                      <span className="block text-xs text-text-muted">
+                      <span className="block text-caption text-text-muted">
                         {t("history.recorded", { at: dateTime(rate.created_at) })}
                       </span>
                     </Td>

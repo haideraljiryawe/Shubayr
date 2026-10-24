@@ -113,8 +113,8 @@ export function PresetForm({
 
         <Card className="flex flex-col gap-3">
           <div>
-            <h2 className="text-lg font-bold">{t("permissionsTitle")}</h2>
-            <p className="text-sm text-text-muted">
+            <h2 className="text-section">{t("permissionsTitle")}</h2>
+            <p className="text-body text-text-muted">
               {t("permissionsHint", { count: keys.length })}
             </p>
           </div>
@@ -125,7 +125,7 @@ export function PresetForm({
           />
           {form.fieldErrors.permission_keys ? (
             <p
-              className="text-xs font-semibold text-error-dark"
+              className="text-caption font-semibold text-error-dark"
               data-testid="error-permission_keys"
             >
               {form.fieldErrors.permission_keys}

@@ -76,12 +76,12 @@ export function SkuPicker({
   if (value) {
     return (
       <div className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2" data-testid={`${testId}-picked`}>
-        <span className="flex min-w-0 flex-col text-sm">
+        <span className="flex min-w-0 flex-col text-body">
           <span className="font-semibold">
             {value.productName}
             {value.variantLabel ? <span className="font-normal text-text-muted"> · {value.variantLabel}</span> : null}
           </span>
-          <span className="text-xs text-text-muted">
+          <span className="text-caption text-text-muted">
             <span dir="ltr" className="font-semibold">{value.sku}</span> ·{" "}
             {value.wholeUnitsOnly ? t("wholeUnits", { unit: unitName(value.baseUnit) }) : t("decimal", { unit: unitName(value.baseUnit) })}
           </span>
@@ -115,9 +115,9 @@ export function SkuPicker({
         {view === "searching" ? <Spinner className="absolute end-3 top-1/2 -translate-y-1/2 text-text-muted" /> : null}
       </div>
       <div aria-live="polite" data-testid={`${testId}-state`} data-state={view}>
-        {view === "searching" ? <p className="text-xs text-text-muted">{t("searching")}</p> : null}
+        {view === "searching" ? <p className="text-caption text-text-muted">{t("searching")}</p> : null}
         {view === "failed" && search.status === "failed" ? (
-          <p className="flex flex-wrap items-center gap-2 text-xs font-semibold text-error-dark" role="alert">
+          <p className="flex flex-wrap items-center gap-2 text-caption font-semibold text-error-dark" role="alert">
             {t(search.reason)}
             {search.reason === "failed" ? (
               <Button size="sm" variant="ghost" onClick={() => setAttempt((value) => value + 1)} data-testid={`${testId}-retry`}>
@@ -127,7 +127,7 @@ export function SkuPicker({
             ) : null}
           </p>
         ) : null}
-        {view === "none" ? <p className="text-xs text-text-muted">{t("noMatches")}</p> : null}
+        {view === "none" ? <p className="text-caption text-text-muted">{t("noMatches")}</p> : null}
       </div>
       {view === "results" && search.status === "done" ? (
         <ul className="max-h-64 overflow-y-auto rounded-md border border-border" data-testid={`${testId}-results`}>
@@ -138,7 +138,7 @@ export function SkuPicker({
                 <li key={variant.id} className="border-t border-border first:border-t-0">
                   <button
                     type="button"
-                    className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-card"
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-body hover:bg-card"
                     data-testid={`${testId}-option`}
                     data-sku={variant.sku}
                     onClick={() => {
@@ -161,7 +161,7 @@ export function SkuPicker({
                         {nameOf(product)}
                         {attributes ? <span className="font-normal text-text-muted"> · {attributes}</span> : null}
                       </span>
-                      <span className="text-xs text-text-muted" dir="ltr">{variant.sku}</span>
+                      <span className="text-caption text-text-muted" dir="ltr">{variant.sku}</span>
                     </span>
                     <Badge>{unitName(variant.base_unit)}</Badge>
                   </button>

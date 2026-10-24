@@ -124,7 +124,7 @@ export function ReceiptsView({
             cell: (row) => (
               <Link
                 href={`${receiptHref(row.id)}#allocate`}
-                className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card"
+                className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card"
                 data-testid="receipt-row-allocate"
               >
                 {t("allocate")}

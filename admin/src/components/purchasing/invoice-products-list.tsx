@@ -91,8 +91,8 @@ export function InvoiceProductsList({
                   <span className="font-semibold text-text" data-testid="line-product">
                     {sku?.productName ?? "—"}
                   </span>
-                  {sku?.variantLabel ? <span className="text-xs text-text-muted">{sku.variantLabel}</span> : null}
-                  <span className="text-xs text-text-muted" dir="ltr">
+                  {sku?.variantLabel ? <span className="text-caption text-text-muted">{sku.variantLabel}</span> : null}
+                  <span className="text-caption text-text-muted" dir="ltr">
                     {sku?.sku}
                   </span>
                   {editing ? (
@@ -106,7 +106,7 @@ export function InvoiceProductsList({
                     </Badge>
                   ) : null}
                   {row.problems.map((problem) => (
-                    <span key={problem} className="text-xs font-semibold text-error-dark" data-testid="line-problem">
+                    <span key={problem} className="text-caption font-semibold text-error-dark" data-testid="line-problem">
                       {problem}
                     </span>
                   ))}
@@ -168,7 +168,7 @@ function Pairs({ items }: { items: ReadonlyArray<readonly [string, ReactNode, st
     <dl className="grid gap-1">
       {items.map(([label, value, testId]) => (
         <div key={testId} className="flex flex-wrap items-baseline gap-x-2">
-          <dt className="text-xs text-text-muted">{label}</dt>
+          <dt className="text-caption text-text-muted">{label}</dt>
           <dd className="font-semibold text-text" data-testid={testId}>
             {value}
           </dd>

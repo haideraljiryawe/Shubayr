@@ -138,11 +138,11 @@ function GovernorateForm({
           <Input value={nameEn} dir="ltr" maxLength={120} onChange={(e) => setNameEn(e.target.value)} data-testid="governorate-name-en" />
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-sm font-semibold">
+      <label className="flex items-center gap-2 text-label">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} data-testid="governorate-active" />
         {t("activeLabel")}
       </label>
-      <p className="-mt-2 text-xs text-text-muted">{t("activeHint")}</p>
+      <p className="-mt-2 text-caption text-text-muted">{t("activeHint")}</p>
       <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );

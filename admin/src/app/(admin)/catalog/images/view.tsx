@@ -89,7 +89,7 @@ export function BulkImagesView() {
           {upload ? (
             upload.phase === "uploading" ? (
               <div className="flex flex-col gap-1" data-testid="images-upload-progress">
-                <span className="text-sm">{t("uploading", { percent: upload.percent })}</span>
+                <span className="text-body">{t("uploading", { percent: upload.percent })}</span>
                 <div
                   className="h-2 overflow-hidden rounded-full bg-card"
                   role="progressbar"
@@ -102,7 +102,7 @@ export function BulkImagesView() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-text-muted" role="status" data-testid="images-processing">
+              <p className="text-body text-text-muted" role="status" data-testid="images-processing">
                 {t("processing")}
               </p>
             )
@@ -113,8 +113,8 @@ export function BulkImagesView() {
           </Button>
         </Card>
 
-        <Card className="flex flex-col gap-2 p-4 text-sm leading-relaxed" data-testid="images-help">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
+        <Card className="flex flex-col gap-2 p-4 text-body leading-relaxed" data-testid="images-help">
+          <h2 className="flex items-center gap-2 text-section font-semibold">
             <CircleHelp className="size-5 text-primary" aria-hidden />
             {t("naming.title")}
           </h2>
@@ -122,7 +122,7 @@ export function BulkImagesView() {
           <p className="text-text-muted">{t("naming.formats")}</p>
           <p className="text-text-muted">
             {t("naming.examples")}{" "}
-            <code dir="ltr" className="rounded bg-card px-1.5 py-0.5 text-xs">
+            <code dir="ltr" className="rounded bg-card px-1.5 py-0.5 text-caption">
               TSHIRT-RED-M.jpg, TSHIRT-RED-M-2.jpg, MUG-01.png
             </code>
           </p>
@@ -133,7 +133,7 @@ export function BulkImagesView() {
 
       {result ? (
         <Card className="flex flex-col gap-4 p-4" data-testid="images-result">
-          <h2 className="text-lg font-semibold">{t("result.title")}</h2>
+          <h2 className="text-section font-semibold">{t("result.title")}</h2>
           <Alert tone={result.unmatched.length || failedFiles.length ? "info" : "success"}>
             <p className="font-semibold" data-testid="images-matched-count" data-count={result.matched.length}>
               {t("result.matched", { count: result.matched.length })}
@@ -156,19 +156,19 @@ export function BulkImagesView() {
                         <img key={item.url} src={item.url} alt="" className="size-12 rounded border border-border object-cover" loading="lazy" />
                       ))}
                     </div>
-                    <div className="min-w-0 flex-1 text-sm">
+                    <div className="min-w-0 flex-1 text-body">
                       <p className="truncate font-semibold" dir="auto" title={locale === "ar" ? group.productNameAr : group.productNameEn}>
                         {locale === "ar" ? group.productNameAr : group.productNameEn}
                       </p>
-                      <p className="font-mono text-xs font-semibold" dir="ltr">
+                      <p className="font-mono text-caption font-semibold" dir="ltr">
                         {group.sku}
                       </p>
                       <p className="text-text-muted">{t("result.files", { count: group.files.length })}</p>
-                      <p className="truncate text-xs text-text-muted" dir="ltr" title={group.files.map((item) => item.file).join(", ")}>
+                      <p className="truncate text-caption text-text-muted" dir="ltr" title={group.files.map((item) => item.file).join(", ")}>
                         {group.files.map((item) => item.file).join(", ")}
                       </p>
                     </div>
-                    <Link href={`/catalog/products/${group.productId}`} className="shrink-0 text-sm font-semibold text-primary-dark hover:underline" data-testid="images-product-link">
+                    <Link href={`/catalog/products/${group.productId}`} className="shrink-0 text-label text-primary-dark hover:underline" data-testid="images-product-link">
                       {t("result.open")}
                     </Link>
                   </li>
@@ -183,10 +183,10 @@ export function BulkImagesView() {
                 <ImageOff className="size-4" aria-hidden />
                 {t("result.unmatchedTitle")}
               </h3>
-              <p className="text-sm text-text-muted">{t("result.unmatchedHelp")}</p>
+              <p className="text-body text-text-muted">{t("result.unmatchedHelp")}</p>
               <ul className="flex flex-wrap gap-2" data-testid="images-unmatched">
                 {result.unmatched.map((name) => (
-                  <li key={name} className="rounded bg-card px-2 py-1 font-mono text-xs" dir="ltr" data-testid="images-unmatched-file">
+                  <li key={name} className="rounded bg-card px-2 py-1 font-mono text-caption" dir="ltr" data-testid="images-unmatched-file">
                     {name}
                   </li>
                 ))}
@@ -199,10 +199,10 @@ export function BulkImagesView() {
                 <ImageOff className="size-4" aria-hidden />
                 {t("result.failedTitle", { count: failedFiles.length })}
               </h3>
-              <p className="text-sm text-text-muted">{t("result.failedHelp")}</p>
+              <p className="text-body text-text-muted">{t("result.failedHelp")}</p>
               <ul className="flex flex-wrap gap-2">
                 {failedFiles.map((item) => (
-                  <li key={item.file} className="rounded bg-error/5 px-2 py-1 font-mono text-xs text-error-dark" dir="ltr" data-testid="images-failed-file" data-code={item.code}>
+                  <li key={item.file} className="rounded bg-error/5 px-2 py-1 font-mono text-caption text-error-dark" dir="ltr" data-testid="images-failed-file" data-code={item.code}>
                     {item.file}
                   </li>
                 ))}

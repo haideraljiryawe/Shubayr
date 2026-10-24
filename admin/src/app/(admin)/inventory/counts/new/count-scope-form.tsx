@@ -72,9 +72,9 @@ export function CountScopeForm({
         }}
       >
         <fieldset className="flex flex-wrap gap-4">
-          <legend className="mb-2 text-sm font-semibold">{t("count.scope")}</legend>
+          <legend className="mb-2 text-label">{t("count.scope")}</legend>
           {(["warehouse", "location", "sku"] as const).map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm">
+            <label key={option} className="flex items-center gap-2 text-body">
               <input
                 type="radio"
                 name="scope"

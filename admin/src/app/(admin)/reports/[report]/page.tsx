@@ -72,8 +72,8 @@ async function Totals({ totals, locale }: { totals: Array<{ key: string; value: 
     <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label={t("totals")} data-testid="report-totals">
       {totals.map((total) => (
         <Card key={total.key} className="p-4">
-          <p className="text-xs font-semibold text-text-muted">{t(`fields.${total.key}`)}</p>
-          <p className="mt-1 text-lg font-bold tabular-nums" data-testid={`report-total-${total.key}`}>
+          <p className="text-caption font-semibold text-text-muted">{t(`fields.${total.key}`)}</p>
+          <p className="mt-1 text-section tabular-nums" data-testid={`report-total-${total.key}`}>
             {total.kind === "money" ? formatReportAmount(total.value as string | number | null, locale) : typeof total.value === "boolean" ? t(total.value ? "yes" : "no") : formatReportNumber(total.value as string | number | null, locale)}
           </p>
         </Card>

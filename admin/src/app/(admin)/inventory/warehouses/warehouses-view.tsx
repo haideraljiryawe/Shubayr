@@ -59,7 +59,7 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
           </Button>
         </div>
       ) : null}
-      {warehouses.length === 0 ? <p className="text-sm text-text-muted">{t("empty")}</p> : null}
+      {warehouses.length === 0 ? <p className="text-body text-text-muted">{t("empty")}</p> : null}
 
       {warehouses.map((warehouse) => (
         <TableCard
@@ -154,7 +154,7 @@ export function WarehousesView({ warehouses, canManage }: { warehouses: Warehous
                           {location.is_active ? t("active") : t("inactive")}
                         </Badge>
                         {toggleError && toggleError.id === location.id ? (
-                          <span className="mt-1 block text-xs font-semibold text-error-dark" role="alert" data-testid="location-toggle-error">
+                          <span className="mt-1 block text-caption font-semibold text-error-dark" role="alert" data-testid="location-toggle-error">
                             {toggleError.code && tErrors.has(`codes.${toggleError.code}`) ? tErrors(`codes.${toggleError.code}`) : tErrors(toggleError.kind)}
                           </span>
                         ) : null}
@@ -339,11 +339,11 @@ function LocationDialog({
       <Field label={t("columns.description")} name="description" error={api.fieldErrors.description}>
         <Textarea value={description} maxLength={500} onChange={(event) => setDescription(event.target.value)} data-testid="location-description" />
       </Field>
-      <label className="flex items-start gap-2 text-sm">
+      <label className="flex items-start gap-2 text-body">
         <input type="checkbox" className="mt-0.5 size-4" checked={sellable} onChange={(event) => setSellable(event.target.checked)} data-testid="location-sellable-input" />
         <span>
           <span className="font-semibold">{t("sellable")}</span>
-          <span className="block text-xs text-text-muted">{t("sellableHint")}</span>
+          <span className="block text-caption text-text-muted">{t("sellableHint")}</span>
         </span>
       </label>
       <FormError kind={api.formError} code={api.formErrorCode} />

@@ -17,7 +17,7 @@ export function CustodyExceptionLinks({ order, permissions }: { order: component
   const canView = permissions.includes("custody_exceptions.view");
   if (!order.delivery?.party || (!kinds.length && !canView)) return null;
   return (
-    <Card className="flex flex-col gap-2 p-5 text-sm" data-testid="order-exceptions">
+    <Card className="flex flex-col gap-2 p-5 text-body" data-testid="order-exceptions">
       <h2 className="font-bold">{t("orderPanel.title")}</h2>
       <div className="flex flex-wrap gap-3">
         {kinds.map((kind) => (

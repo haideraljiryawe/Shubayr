@@ -41,6 +41,6 @@ export async function ReportFilters({ definition, query, suppliers, warehouses, 
 }
 
 function Filter({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="flex min-w-40 flex-col gap-1 text-sm font-semibold"><span>{label}</span>{children}</label>;
+  return <label className="flex min-w-40 flex-col gap-1 text-label"><span>{label}</span>{children}</label>;
 }
 

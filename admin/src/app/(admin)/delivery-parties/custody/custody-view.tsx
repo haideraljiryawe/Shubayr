@@ -88,7 +88,7 @@ export function CustodyView({
               party.is_active && party.custody_summary.cash_held > 0 ? (
                 <Link
                   href={`/finance/cash-receipts/new?party_id=${party.id}`}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card"
+                  className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card"
                   data-testid="custody-receive"
                 >
                   {t("custodyOverview.receive")}

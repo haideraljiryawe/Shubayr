@@ -178,12 +178,12 @@ export function BannerFormDialog({
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="banner-text">
-        <legend className="px-1 text-sm font-semibold">{t("form.text")}</legend>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <legend className="px-1 text-label">{t("form.text")}</legend>
+        <label className="flex items-center gap-2 text-label">
           <input type="checkbox" checked={form.showText} onChange={(e) => set({ showText: e.target.checked })} data-testid="banner-show-text" />
           {t("form.showText")}
         </label>
-        <p className="-mt-2 text-xs text-text-muted">{form.showText ? t("form.showTextHint") : t("form.imageOnlyHint")}</p>
+        <p className="-mt-2 text-caption text-text-muted">{form.showText ? t("form.showTextHint") : t("form.imageOnlyHint")}</p>
         <div className="grid gap-4 md:grid-cols-2">
           <Field
             label={t("form.titleAr")}
@@ -219,7 +219,7 @@ export function BannerFormDialog({
             {t("form.legacyTitle", { title: original.title })}
           </Alert>
         ) : null}
-        <p className="flex items-start gap-2 text-xs text-text-muted" data-testid="banner-fallback-note">
+        <p className="flex items-start gap-2 text-caption text-text-muted" data-testid="banner-fallback-note">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {t("form.fallback", { max: TITLE_MAX })}
         </p>
@@ -241,7 +241,7 @@ export function BannerFormDialog({
         guidance={tImage("bannerGuidance", { width: BANNER_CROP.width, height: BANNER_CROP.width / 2, mb: MAX_UPLOAD_BYTES / 1024 / 1024 })}
         preview={(url) => (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-xs" role="radiogroup" aria-label={t("form.previewLanguage")}>
+            <div className="flex items-center gap-2 text-caption" role="radiogroup" aria-label={t("form.previewLanguage")}>
               <span className="font-semibold">{t("form.previewLanguage")}</span>
               {(["ar", "en"] as const).map((language) => (
                 <label key={language} className="flex items-center gap-1">
@@ -271,15 +271,15 @@ export function BannerFormDialog({
         testId="banner-image"
       />
       {problem("image") ? (
-        <p className="-mt-2 text-sm font-semibold text-error-dark" data-testid="banner-image-required">
+        <p className="-mt-2 text-label text-error-dark" data-testid="banner-image-required">
           {problem("image")}
         </p>
       ) : null}
-      {progress !== null ? <p className="text-sm text-text-muted">{tImage("uploading", { percent: progress })}</p> : null}
+      {progress !== null ? <p className="text-body text-text-muted">{tImage("uploading", { percent: progress })}</p> : null}
       {uploadFailed ? <Alert data-testid="banner-image-upload-failed">{tImage("uploadFailed")}</Alert> : null}
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="banner-click">
-        <legend className="px-1 text-sm font-semibold">{t("form.onClick")}</legend>
+        <legend className="px-1 text-label">{t("form.onClick")}</legend>
         <Field label={t("form.action")} name="action_type" hint={t(`actionHints.${form.action}`)}>
           <Select value={form.action} onValueChange={(value) => set({ action: value as BannerActionType })} data-testid="banner-action">
             {BANNER_ACTIONS.map((action) => (
@@ -296,7 +296,7 @@ export function BannerFormDialog({
         ) : null}
         {form.action === "product" || form.action === "category" ? (
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold">{t(`target.label.${form.action}`)}</span>
+            <span className="text-label">{t(`target.label.${form.action}`)}</span>
             <BannerTargetPicker
               key={form.action}
               kind={form.action}
@@ -305,7 +305,7 @@ export function BannerFormDialog({
               onChange={(picked) => set(form.action === "product" ? { product: picked } : { category: picked })}
             />
             {problem("target") ? (
-              <p className="text-sm font-semibold text-error-dark" data-testid="banner-target-required">
+              <p className="text-label text-error-dark" data-testid="banner-target-required">
                 {problem("target")}
               </p>
             ) : null}
@@ -314,12 +314,12 @@ export function BannerFormDialog({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="banner-default">
-        <legend className="px-1 text-sm font-semibold">{t("form.defaultLegend")}</legend>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <legend className="px-1 text-label">{t("form.defaultLegend")}</legend>
+        <label className="flex items-center gap-2 text-label">
           <input type="checkbox" checked={form.isDefault} onChange={(e) => set({ isDefault: e.target.checked })} data-testid="banner-is-default" />
           {t("form.isDefault")}
         </label>
-        <p className="-mt-2 text-xs text-text-muted" data-testid="banner-default-rule">
+        <p className="-mt-2 text-caption text-text-muted" data-testid="banner-default-rule">
           {t("form.defaultRule")}
         </p>
         {original && removalBlocked(original) ? (
@@ -342,16 +342,16 @@ export function BannerFormDialog({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="banner-schedule">
-        <legend className="px-1 text-sm font-semibold">{t("form.display")}</legend>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <legend className="px-1 text-label">{t("form.display")}</legend>
+        <label className="flex items-center gap-2 text-label">
           <input type="checkbox" checked={form.isActive} onChange={(e) => set({ isActive: e.target.checked })} data-testid="banner-enabled" />
           {t("form.enabled")}
         </label>
-        <p className="-mt-2 text-xs text-text-muted">{t("form.enabledHint")}</p>
+        <p className="-mt-2 text-caption text-text-muted">{t("form.enabledHint")}</p>
 
         <div className="flex flex-wrap gap-4" role="radiogroup" aria-label={t("form.scheduleMode")}>
           {modes.map((mode) => (
-            <label key={mode} className="flex items-center gap-2 text-sm">
+            <label key={mode} className="flex items-center gap-2 text-body">
               <input
                 type="radio"
                 name="banner-mode"
@@ -364,7 +364,7 @@ export function BannerFormDialog({
           ))}
         </div>
         {form.mode === "startOnly" || form.mode === "endOnly" ? (
-          <p className="text-xs text-text-muted" data-testid="banner-mode-partial">
+          <p className="text-caption text-text-muted" data-testid="banner-mode-partial">
             {t("form.partialNote")}
           </p>
         ) : null}
@@ -383,7 +383,7 @@ export function BannerFormDialog({
             ) : null}
           </div>
         ) : (
-          <p className="text-xs text-text-muted">{t("form.permanentHint")}</p>
+          <p className="text-caption text-text-muted">{t("form.permanentHint")}</p>
         )}
 
         {dropsStart || dropsEnd ? (
@@ -393,11 +393,11 @@ export function BannerFormDialog({
           </Alert>
         ) : null}
         {original ? (
-          <p className="flex items-center gap-2 text-sm" data-testid="banner-current-status" data-status={original.effective_status}>
+          <p className="flex items-center gap-2 text-body" data-testid="banner-current-status" data-status={original.effective_status}>
             {t("form.currentStatus")} <Badge tone={STATUS_TONE[original.effective_status]}>{t(`statuses.${original.effective_status}`)}</Badge>
           </p>
         ) : null}
-        <p className="text-xs text-text-muted">{t("form.statusFromServer")}</p>
+        <p className="text-caption text-text-muted">{t("form.statusFromServer")}</p>
       </fieldset>
 
       {noChanges ? (

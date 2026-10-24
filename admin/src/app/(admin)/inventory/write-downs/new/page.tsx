@@ -23,7 +23,7 @@ export default async function NewWriteDownPage() {
 
   return (
     <>
-      <Link href="/inventory/write-downs" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href="/inventory/write-downs" className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("documents.write_down")}
       </Link>

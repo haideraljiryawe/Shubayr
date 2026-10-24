@@ -64,7 +64,7 @@ export default async function NewOpeningPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <Link href={productHref ?? "/inventory/openings"} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={productHref ?? "/inventory/openings"} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {productHref ? t("backToProduct") : t("documents.opening")}
       </Link>

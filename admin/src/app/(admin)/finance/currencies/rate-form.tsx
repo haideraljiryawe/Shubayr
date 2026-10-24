@@ -160,14 +160,14 @@ export function RateForm({
       {waiting ? (
         <Alert tone="info" data-testid="price-approval-waiting" data-request={waiting.id}>
           <p className="font-semibold">{tl("waiting.title", { rate: waiting.rate })}</p>
-          <p className="mt-1 text-sm">{tl("waiting.body")}</p>
-          <p className="mt-2 text-sm">
+          <p className="mt-1 text-body">{tl("waiting.body")}</p>
+          <p className="mt-2 text-body">
             {tl("waiting.share")}{" "}
             <Link href={`/finance/price-approvals/${waiting.id}`} className="font-semibold underline" dir="ltr" data-testid="price-approval-link">
               /finance/price-approvals/{waiting.id}
             </Link>
           </p>
-          <ul className="mt-2 list-inside list-disc text-sm" data-testid="price-approval-waiting-items">
+          <ul className="mt-2 list-inside list-disc text-body" data-testid="price-approval-waiting-items">
             {waiting.items.map((item) => (
               <li key={item.variant_id} dir="ltr">
                 {item.sku}: {money(item.old_price)} → {money(item.new_price)}
@@ -185,7 +185,7 @@ export function RateForm({
           void submit();
         }}
       >
-        <h2 className="text-lg font-bold">{t("form.title")}</h2>
+        <h2 className="text-section">{t("form.title")}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("form.currency")} name="currency_code" error={api.fieldErrors.currency_code}>
             <Select
@@ -203,7 +203,7 @@ export function RateForm({
               ))}
             </Select>
           </Field>
-          <fieldset className="flex flex-col gap-1 text-sm font-semibold">
+          <fieldset className="flex flex-col gap-1 text-label">
             <legend className="mb-1">{t("form.basis")}</legend>
             {([1, 100] as const).map((value) => (
               <label key={value} className="flex items-center gap-2 font-normal">
@@ -241,7 +241,7 @@ export function RateForm({
           </Field>
         </div>
 
-        <p className="rounded-md bg-card px-4 py-3 text-sm" data-testid="rate-preview" aria-live="polite">
+        <p className="rounded-md bg-card px-4 py-3 text-body" data-testid="rate-preview" aria-live="polite">
           {perOne ? (
             <>
               {basis === 100 ? (
@@ -349,7 +349,7 @@ export function RateForm({
           )}
         </div>
         {preview && !canPublish ? (
-          <p className="text-end text-xs text-text-muted" data-testid="publish-forbidden">
+          <p className="text-end text-caption text-text-muted" data-testid="publish-forbidden">
             {tl("publishForbidden")}
           </p>
         ) : null}
@@ -389,7 +389,7 @@ function LinkedPreviewPanel({
       aria-live="polite"
     >
       <h3 className="font-bold">{tl("title")}</h3>
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+      <dl className="grid gap-x-6 gap-y-1 text-body sm:grid-cols-2">
         <div className="flex gap-2">
           <dt className="text-text-muted">{tl("rateChange")}</dt>
           <dd dir="ltr" data-testid="preview-rates">
@@ -406,7 +406,7 @@ function LinkedPreviewPanel({
         </div>
       </dl>
       {preview.items.length === 0 ? (
-        <p className="text-sm text-text-muted" data-testid="preview-empty">
+        <p className="text-body text-text-muted" data-testid="preview-empty">
           {tl("empty")}
         </p>
       ) : (

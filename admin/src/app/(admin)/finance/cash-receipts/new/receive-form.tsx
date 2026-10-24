@@ -141,12 +141,12 @@ function ReceiveForm({
             disabled={locked}
             onChange={(next) => router.push(next ? `/finance/cash-receipts/new?party_id=${next.id}` : "/finance/cash-receipts/new")}
           />
-          {attempted && !partyId ? <p className="text-xs font-semibold text-error-dark">{t("errors.party")}</p> : null}
+          {attempted && !partyId ? <p className="text-caption font-semibold text-error-dark">{t("errors.party")}</p> : null}
         </div>
         {party ? (
-          <div className="flex flex-col gap-1 text-sm md:col-span-2" data-testid="receive-held">
+          <div className="flex flex-col gap-1 text-body md:col-span-2" data-testid="receive-held">
             <span className="text-text-muted">{t("cashHeld")}</span>
-            <span className="text-xl font-bold" dir="ltr" data-testid="receive-cash-held">
+            <span className="text-section" dir="ltr" data-testid="receive-cash-held">
               {money(held ?? 0n)}
             </span>
             <Link href={`/delivery-parties/${party.id}`} className="font-semibold text-primary-dark hover:underline" data-testid="receive-party-link">
@@ -154,7 +154,7 @@ function ReceiveForm({
             </Link>
           </div>
         ) : (
-          <p className="self-center text-sm text-text-muted md:col-span-2">{t("pickPartyHint")}</p>
+          <p className="self-center text-body text-text-muted md:col-span-2">{t("pickPartyHint")}</p>
         )}
       </Card>
 
@@ -215,10 +215,10 @@ function ReceiveForm({
           </Card>
 
           <Card className="flex flex-col gap-3" data-testid="receive-allocations">
-            <h2 className="text-lg font-bold">{t("allocationsTitle")}</h2>
+            <h2 className="text-section">{t("allocationsTitle")}</h2>
             {canAllocate ? (
               <>
-                <p className="text-sm text-text-muted">{t("allocationsBody")}</p>
+                <p className="text-body text-text-muted">{t("allocationsBody")}</p>
                 <AllocationTable
                   suggestions={shown}
                   rows={rows}
@@ -233,7 +233,7 @@ function ReceiveForm({
                 />
               </>
             ) : (
-              <p className="text-sm text-text-muted" data-testid="receive-no-allocate">
+              <p className="text-body text-text-muted" data-testid="receive-no-allocate">
                 {t("noAllocatePermission")}
               </p>
             )}
@@ -242,7 +242,7 @@ function ReceiveForm({
 
           {review ? (
             <Card className="flex flex-col gap-3" data-testid="receive-review">
-              <p className="text-sm" data-testid="receive-review-body">
+              <p className="text-body" data-testid="receive-review-body">
                 {t("reviewBody", {
                   amount: money(plan.amount),
                   party: party.name,
@@ -253,7 +253,7 @@ function ReceiveForm({
               <ReceiptPostingStatus state={posting.state} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
               {posted ? (
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Link href={receiptHref(posted.id)} className="inline-flex h-10 items-center rounded-md px-4 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="receive-open-voucher">
+                  <Link href={receiptHref(posted.id)} className="inline-flex h-10 items-center rounded-md px-4 text-label text-primary-dark hover:bg-card" data-testid="receive-open-voucher">
                     {t("openVoucher", { number: posted.document_number })}
                   </Link>
                   <Button variant="secondary" onClick={onAnother} data-testid="receive-another">

@@ -60,7 +60,7 @@ export function BrandsView({ rows, state }: { rows: Brand[]; state: TableState }
       cell: (brand) => (
         <div className="flex flex-col" data-testid={`brand-row-${brand.slug}`}>
           <span className="font-semibold">{nameOf(brand)}</span>
-          <span className="text-xs text-text-muted">{locale === "ar" ? brand.name_en : brand.name_ar}</span>
+          <span className="text-caption text-text-muted">{locale === "ar" ? brand.name_en : brand.name_ar}</span>
         </div>
       ),
     },
@@ -284,16 +284,16 @@ function BrandForm({
         </Field>
       </div>
       <div className="flex flex-col gap-1.5" data-field="logo_url">
-        <p className="text-sm font-semibold">{t("fields.logo")}</p>
-        <p className="text-xs text-text-muted">{t("fields.logoHint")}</p>
+        <p className="text-label">{t("fields.logo")}</p>
+        <p className="text-caption text-text-muted">{t("fields.logoHint")}</p>
         <ImageManager images={logo} onChange={setLogo} onUploaded={(url) => uploads.current.push(url)} target={BRAND_CROP} transparent single testId="brand-logo" />
         {error("logo_url") ? (
-          <p className="text-xs font-semibold text-error-dark" data-testid="error-logo_url">
+          <p className="text-caption font-semibold text-error-dark" data-testid="error-logo_url">
             {error("logo_url")}
           </p>
         ) : null}
       </div>
-      <label className="flex items-center gap-2 text-sm font-semibold">
+      <label className="flex items-center gap-2 text-label">
         <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} data-testid="brand-visible" />
         {t("fields.visible")}
       </label>
@@ -303,7 +303,7 @@ function BrandForm({
         onToggle={(event) => setAdvanced(event.currentTarget.open)}
         data-testid="brand-advanced"
       >
-        <summary className="cursor-pointer text-sm font-semibold">{t("advanced")}</summary>
+        <summary className="cursor-pointer text-label">{t("advanced")}</summary>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
             <Input value={slug} dir="ltr" placeholder={brand ? undefined : suggested} onChange={(e) => setSlug(e.target.value)} data-testid="brand-slug" />

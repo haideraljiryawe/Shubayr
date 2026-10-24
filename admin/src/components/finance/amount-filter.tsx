@@ -19,7 +19,7 @@ export function AmountFilter({ name, label }: { name: string; label: string }) {
   }, [value]);
 
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-36">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-36">
       <span>{label}</span>
       <AmountInput
         value={value}

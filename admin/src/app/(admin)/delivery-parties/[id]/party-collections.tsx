@@ -96,7 +96,7 @@ export function PartyCollections({
           <span className="flex flex-col" data-testid="party-collection-settlement" data-settlement={row.settlement_status}>
             <span>{t(`settlement.${row.settlement_status}`)}</span>
             {row.unsettled_amount_iqd ? (
-              <span className="text-xs text-text-muted">
+              <span className="text-caption text-text-muted">
                 {t("settlement.unsettled_amount")}: <span dir="ltr">{formatMoney(row.unsettled_amount_iqd, "IQD", locale)}</span>
               </span>
             ) : null}
@@ -110,7 +110,7 @@ export function PartyCollections({
   return (
     <section className="flex flex-col gap-3" data-testid="party-collections" data-party={partyId}>
       {orderFilter ? (
-        <p className="text-sm" data-testid="party-collections-order-filter">
+        <p className="text-body" data-testid="party-collections-order-filter">
           {tParty("forOrder", { number: filteredOrder ?? "…" })}{" "}
           <Link href={`/delivery-parties/${partyId}?tab=collections`} className="font-semibold text-primary-dark hover:underline">
             {tParty("allOrders")}
@@ -144,8 +144,8 @@ export function PartyCollections({
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("filters.note")}</p>
-      <Link href={`/deliveries/unconfirmed?party_id=${partyId}`} className="text-sm font-semibold text-primary-dark hover:underline" data-testid="party-collections-to-confirm">
+      <p className="text-caption text-text-muted">{t("filters.note")}</p>
+      <Link href={`/deliveries/unconfirmed?party_id=${partyId}`} className="text-label text-primary-dark hover:underline" data-testid="party-collections-to-confirm">
         {tParty("toConfirm")}
       </Link>
     </section>

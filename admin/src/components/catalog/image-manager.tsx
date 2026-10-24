@@ -220,11 +220,11 @@ export function ImageManager({
         data-testid={`${testId}-drop`}
       >
         <ImagePlus className="size-7 text-text-muted" aria-hidden />
-        <p className="text-sm font-semibold">{single ? t("dropTitleSingle") : t("dropTitle")}</p>
-        <p className="max-w-prose text-xs text-text-muted" data-testid={`${testId}-guidance`}>
+        <p className="text-label">{single ? t("dropTitleSingle") : t("dropTitle")}</p>
+        <p className="max-w-prose text-caption text-text-muted" data-testid={`${testId}-guidance`}>
           {single ? t("guidanceSingle") : t("guidance")}
         </p>
-        <p className="text-xs text-text-muted">{single ? t("pickHintSingle") : t("pickHint", { max })}</p>
+        <p className="text-caption text-text-muted">{single ? t("pickHintSingle") : t("pickHint", { max })}</p>
         <Button
           variant="secondary"
           size="sm"
@@ -250,12 +250,12 @@ export function ImageManager({
         />
       </div>
       {notice ? (
-        <p className="text-sm text-warning-dark" role="status">
+        <p className="text-body text-warning-dark" role="status">
           {notice}
         </p>
       ) : null}
       {pending.length ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-3 py-2 text-sm" role="status" data-testid={`${testId}-pending-removal`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-3 py-2 text-body" role="status" data-testid={`${testId}-pending-removal`}>
           <span>{single ? t("pendingRemovalLogo") : t("pendingRemoval", { count: pending.length })}</span>
           <Button size="sm" variant="ghost" onClick={undoRemovals} disabled={disabled} data-testid={`${testId}-undo-removal`}>
             <Undo2 className="size-4" aria-hidden />
@@ -266,7 +266,7 @@ export function ImageManager({
 
       {images.length ? (
         <>
-          {single ? null : <p className="text-xs text-text-muted">{t("orderHint")}</p>}
+          {single ? null : <p className="text-caption text-text-muted">{t("orderHint")}</p>}
           <ol
             className={cn("grid gap-3", single ? "w-40 grid-cols-1" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4")}
             onPointerMove={(event) => dragOver(event.clientX, event.clientY)}
@@ -291,13 +291,13 @@ export function ImageManager({
                   {/* eslint-disable-next-line @next/next/no-img-element -- local previews and API media URLs */}
                   <img src={item.preview} alt={t("imageAlt", { number: index + 1 })} className="size-full object-contain" draggable={false} />
                   {index === 0 && !single ? (
-                    <span className="absolute start-2 top-2 rounded-full bg-primary-dark px-2 py-0.5 text-xs font-semibold text-on-primary" data-testid={`${testId}-main-badge`}>
+                    <span className="absolute start-2 top-2 rounded-full bg-primary-dark px-2 py-0.5 text-caption font-semibold text-on-primary" data-testid={`${testId}-main-badge`}>
                       {t("main")}
                     </span>
                   ) : null}
                   {item.phase === "processing" || item.phase === "uploading" ? (
                     <div className="absolute inset-x-0 bottom-0 bg-surface/90 px-2 py-1.5" aria-live="polite">
-                      <p className="text-xs font-semibold">
+                      <p className="text-caption font-semibold">
                         {item.phase === "processing" ? t("processing") : t("uploading", { progress: item.progress })}
                       </p>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border">
@@ -315,7 +315,7 @@ export function ImageManager({
                   ) : null}
                   {item.phase === "failed" ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface/90 p-2 text-center" role="alert">
-                      <p className="text-xs font-semibold text-error-dark" data-testid={`${testId}-failure-${index}`}>
+                      <p className="text-caption font-semibold text-error-dark" data-testid={`${testId}-failure-${index}`}>
                         {failureText(item.failure)}
                       </p>
                       {item.file ? (
@@ -395,7 +395,7 @@ export function ImageManager({
           </ol>
         </>
       ) : (
-        <p className="text-sm text-text-muted" data-testid={`${testId}-empty`}>
+        <p className="text-body text-text-muted" data-testid={`${testId}-empty`}>
           {single ? t("emptySingle") : t("empty")}
         </p>
       )}

@@ -85,8 +85,8 @@ export function CroppedImageField({
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid={testId}>
-      <legend className="px-1 text-sm font-semibold">{label}</legend>
-      <p className="text-xs text-text-muted" data-testid={`${testId}-guidance`}>
+      <legend className="px-1 text-label">{label}</legend>
+      <p className="text-caption text-text-muted" data-testid={`${testId}-guidance`}>
         {guidance}
       </p>
 
@@ -143,12 +143,12 @@ export function CroppedImageField({
         ) : null}
       </div>
       {value.kind === "remove" ? (
-        <p className="text-xs text-text-muted" data-testid={`${testId}-remove-note`}>
+        <p className="text-caption text-text-muted" data-testid={`${testId}-remove-note`}>
           {t("removeNote")}
         </p>
       ) : null}
       {value.kind === "new" ? (
-        <p className="text-xs text-text-muted" data-testid={`${testId}-pending`}>
+        <p className="text-caption text-text-muted" data-testid={`${testId}-pending`}>
           {t("pending", { width: value.cropped.size.width, height: value.cropped.size.height })}
         </p>
       ) : null}

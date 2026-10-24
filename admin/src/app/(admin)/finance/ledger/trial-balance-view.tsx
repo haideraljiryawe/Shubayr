@@ -45,7 +45,7 @@ export function TrialBalanceView({
     <Card className="flex flex-col gap-4 overflow-x-auto p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <DateFilter name="as_of" label={t("asOf")} />
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-body">
           <span className="text-text-muted">{asOf ? t("asOfDate", { date: asOf }) : t("asOfNow")}</span>
           <Badge tone={balance.balanced ? "success" : "danger"} data-testid="trial-balanced">
             {balance.balanced ? t("balanced") : t("unbalanced")}
