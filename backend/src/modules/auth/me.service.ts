@@ -9,18 +9,21 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UserSelfUpdateDto } from './dto/user-self-update.dto';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
+import { presetPresentation } from '../../common/access/permission-registry';
 
 const profileInclude = {
   role: true,
-} as const;
+  permission_presets: { include: { preset: true } },
+} satisfies Prisma.UserInclude;
 
-type UserWithAccess = Awaited<
-  ReturnType<PrismaService['user']['findUniqueOrThrow']>
-> & {
-  role: {
-    name: string;
-    role_permissions?: Array<{ permission: { key: string } }>;
-  } | null;
+type UserWithAccess = Prisma.UserGetPayload<{
+  include: typeof profileInclude;
+}> & {
+  role:
+    | (Prisma.UserGetPayload<{ include: { role: true } }>['role'] & {
+        role_permissions?: Array<{ permission: { key: string } }>;
+      })
+    | null;
 };
 
 @Injectable()
@@ -234,6 +237,16 @@ export class MeService {
     session: AuthenticatedRequestUser | string,
   ) {
     const legacy = typeof session === 'string';
+    const adminPresets =
+      !legacy && session.surface === 'admin'
+        ? {
+            presets: user.permission_presets.map(({ preset }) => ({
+              id: preset.id,
+              name: preset.name,
+              ...presetPresentation(preset.name),
+            })),
+          }
+        : {};
     return {
       id: user.id,
       name: user.name,
@@ -256,6 +269,7 @@ export class MeService {
         : session.permissionVersion,
       preferred_ui_language: user.preferred_ui_language,
       created_at: user.created_at,
+      ...adminPresets,
     };
   }
 }

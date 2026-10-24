@@ -34,6 +34,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 import { CatalogSearchService } from './catalog-search.service';
 import { BulkProductDto } from './dto/bulk-product.dto';
+import {
+  BulkProductDeleteDto,
+  ProductDeletePreviewListDto,
+} from './dto/product-delete.dto';
 
 @RequirePermissions('catalog.categories')
 @Controller('admin/categories')
@@ -134,6 +138,20 @@ export class AdminProductsController {
     return this.products.bulk(input, request.user.id);
   }
 
+  @Post('delete-preview')
+  @HttpCode(200)
+  deletePreviews(@Body() input: ProductDeletePreviewListDto) {
+    return this.products.deletePreviews(input);
+  }
+
+  @Post('bulk-delete')
+  bulkDelete(
+    @Req() request: Request & { user: AuthenticatedRequestUser },
+    @Body() input: BulkProductDeleteDto,
+  ) {
+    return this.products.bulkDelete(input, request.user.id);
+  }
+
   @Post('reindex')
   reindex() {
     return this.search.reindexAll();
@@ -184,5 +202,10 @@ export class AdminProductsController {
     @Req() request: Request & { user: AuthenticatedRequestUser },
   ) {
     return this.products.deleteOrArchive(id, request.user.id);
+  }
+
+  @Get(':id/delete-preview')
+  deletePreview(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.products.deletePreview(id);
   }
 }

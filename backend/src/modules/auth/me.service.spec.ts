@@ -20,6 +20,7 @@ const storedUser = {
       { permission: { key: 'returns.create' } },
     ],
   },
+  permission_presets: [{ preset: { id: 'preset-owner', name: 'super_admin' } }],
 };
 
 describe('MeService', () => {
@@ -73,6 +74,49 @@ describe('MeService', () => {
         preferred_ui_language: 'ar',
       }),
     );
+  });
+
+  it('returns localized assigned presets only on the admin surface', async () => {
+    const admin = await service.getCurrentUser({
+      id: 'current-user',
+      role: null,
+      surface: 'admin',
+      client: null,
+      permissions: ['orders.create'],
+      permissionVersion: 1,
+      sessionVersion: 1,
+      mustChangePassword: false,
+      phone: null,
+      username: 'owner',
+    });
+    expect(admin).toEqual(
+      expect.objectContaining({
+        role: null,
+        presets: [
+          {
+            id: 'preset-owner',
+            name: 'super_admin',
+            name_ar: 'صاحب المتجر',
+            name_en: 'Store owner',
+          },
+        ],
+      }),
+    );
+
+    const app = await service.getCurrentUser({
+      id: 'current-user',
+      role: 'customer',
+      surface: 'app',
+      client: 'mobile',
+      permissions: [],
+      permissionVersion: 1,
+      sessionVersion: 1,
+      mustChangePassword: false,
+      phone: '+9647700000000',
+      username: null,
+    });
+    expect(app.role).toBe('customer');
+    expect(app).not.toHaveProperty('presets');
   });
 
   it('rejects an empty update', async () => {

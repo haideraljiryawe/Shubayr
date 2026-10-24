@@ -537,3 +537,29 @@ export const SEEDED_PRESET_GRANTS = {
     'reports.expenses.read',
   ],
 } as const satisfies Record<string, readonly PermissionKey[]>;
+
+/**
+ * Localized labels for the built-in access presets. Owner-created presets
+ * retain their stored name and use it as the fallback in both languages.
+ * These labels are presentation-only and never participate in authorization.
+ */
+export const PRESET_PRESENTATIONS: Record<
+  keyof typeof SEEDED_PRESET_GRANTS,
+  { name_ar: string; name_en: string }
+> = {
+  super_admin: { name_ar: 'صاحب المتجر', name_en: 'Store owner' },
+  operations: { name_ar: 'عمليات المتجر', name_en: 'Store operations' },
+  catalog_editor: { name_ar: 'محرر الكتالوج', name_en: 'Catalog editor' },
+  stock_controller: { name_ar: 'مراقب المخزون', name_en: 'Stock controller' },
+  cashier: { name_ar: 'أمين الصندوق', name_en: 'Cashier' },
+  accountant: { name_ar: 'المحاسب', name_en: 'Accountant' },
+};
+
+export function presetPresentation(name: string) {
+  return (
+    PRESET_PRESENTATIONS[name as keyof typeof PRESET_PRESENTATIONS] ?? {
+      name_ar: name,
+      name_en: name,
+    }
+  );
+}

@@ -224,22 +224,24 @@ describe('ProductsService', () => {
   it('hard-deletes an unreferenced product and clears transient cart/media data', async () => {
     const tx = {
       product: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'product-id',
-          status: 'hidden',
-          images: [{ url: 'http://api/media/media-id' }],
-          _count: {
-            purchase_invoice_items: 0,
-            inventory_batches: 0,
-            order_items: 0,
-            product_reviews: 0,
-            price_approval_requests: 0,
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'product-id',
+            status: 'hidden',
+            images: [{ url: 'http://api/media/media-id' }],
+            _count: {
+              purchase_invoice_items: 0,
+              inventory_batches: 0,
+              order_items: 0,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
           },
-        }),
+        ]),
         delete: jest.fn(),
       },
-      banner: { count: jest.fn().mockResolvedValue(0) },
-      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
+      productVariant: { findMany: jest.fn().mockResolvedValue([]) },
       cartItem: { deleteMany: jest.fn() },
       wishlistItem: { deleteMany: jest.fn() },
     };
@@ -280,22 +282,24 @@ describe('ProductsService', () => {
   it('keeps a successful hard-delete result when shared media cannot be removed', async () => {
     const tx = {
       product: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'product-id',
-          status: 'hidden',
-          images: [{ url: 'http://api/media/shared-media' }],
-          _count: {
-            purchase_invoice_items: 0,
-            inventory_batches: 0,
-            order_items: 0,
-            product_reviews: 0,
-            price_approval_requests: 0,
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'product-id',
+            status: 'hidden',
+            images: [{ url: 'http://api/media/shared-media' }],
+            _count: {
+              purchase_invoice_items: 0,
+              inventory_batches: 0,
+              order_items: 0,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
           },
-        }),
+        ]),
         delete: jest.fn(),
       },
-      banner: { count: jest.fn().mockResolvedValue(0) },
-      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
+      productVariant: { findMany: jest.fn().mockResolvedValue([]) },
       cartItem: { deleteMany: jest.fn() },
       wishlistItem: { deleteMany: jest.fn() },
     };
@@ -325,22 +329,24 @@ describe('ProductsService', () => {
   it('archives a referenced product and explains every blocking reference', async () => {
     const tx = {
       product: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'product-id',
-          status: 'active',
-          images: [],
-          _count: {
-            purchase_invoice_items: 1,
-            inventory_batches: 1,
-            order_items: 1,
-            product_reviews: 0,
-            price_approval_requests: 0,
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'product-id',
+            status: 'active',
+            images: [],
+            _count: {
+              purchase_invoice_items: 1,
+              inventory_batches: 1,
+              order_items: 1,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
           },
-        }),
+        ]),
         update: jest.fn(),
       },
-      banner: { count: jest.fn().mockResolvedValue(0) },
-      productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
+      productVariant: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const audit = { record: jest.fn() };
     const service = new ProductsService(
@@ -369,23 +375,25 @@ describe('ProductsService', () => {
   it('archives a product with stock-control history even without a current batch', async () => {
     const tx = {
       product: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: 'product-id',
-          status: 'hidden',
-          images: [],
-          _count: {
-            purchase_invoice_items: 0,
-            inventory_batches: 0,
-            order_items: 0,
-            product_reviews: 0,
-            price_approval_requests: 0,
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'product-id',
+            status: 'hidden',
+            images: [],
+            _count: {
+              purchase_invoice_items: 0,
+              inventory_batches: 0,
+              order_items: 0,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
           },
-        }),
+        ]),
         update: jest.fn(),
       },
-      banner: { count: jest.fn().mockResolvedValue(0) },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
       productVariant: {
-        findFirst: jest.fn().mockResolvedValue({ id: 'variant-id' }),
+        findMany: jest.fn().mockResolvedValue([{ product_id: 'product-id' }]),
       },
     };
     const service = new ProductsService(
@@ -405,6 +413,134 @@ describe('ProductsService', () => {
       outcome: 'archived',
       reasons: ['inventory_history'],
     });
+  });
+
+  it('uses the same decision for delete preview and the actual mutation', async () => {
+    const tx = {
+      product: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'product-id',
+            status: 'active',
+            images: [],
+            _count: {
+              purchase_invoice_items: 0,
+              inventory_batches: 0,
+              order_items: 1,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
+          },
+        ]),
+        update: jest.fn(),
+      },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
+      productVariant: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const prisma = {
+      ...tx,
+      $transaction: jest.fn((work: (client: typeof tx) => unknown) => work(tx)),
+    };
+    const service = new ProductsService(
+      prisma as never,
+      {} as never,
+      { record: jest.fn() },
+      { indexProduct: jest.fn() } as never,
+    );
+
+    await expect(service.deletePreview('product-id')).resolves.toEqual({
+      id: 'product-id',
+      outcome: 'archive',
+      reasons: ['order_history'],
+    });
+    await expect(
+      service.deleteOrArchive('product-id', 'actor-id'),
+    ).resolves.toEqual({
+      outcome: 'archived',
+      reasons: ['order_history'],
+    });
+  });
+
+  it('bulk-deletes and archives mixed products with per-id failures', async () => {
+    const tx = {
+      product: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'delete-id',
+            status: 'hidden',
+            images: [],
+            _count: {
+              purchase_invoice_items: 0,
+              inventory_batches: 0,
+              order_items: 0,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
+          },
+          {
+            id: 'archive-id',
+            status: 'active',
+            images: [],
+            _count: {
+              purchase_invoice_items: 1,
+              inventory_batches: 0,
+              order_items: 0,
+              product_reviews: 0,
+              price_approval_requests: 0,
+            },
+          },
+        ]),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      banner: { findMany: jest.fn().mockResolvedValue([]) },
+      productVariant: { findMany: jest.fn().mockResolvedValue([]) },
+      cartItem: { deleteMany: jest.fn() },
+      wishlistItem: { deleteMany: jest.fn() },
+    };
+    let cached: unknown;
+    const operations = {
+      execute: jest.fn(
+        async (input: { work(client: typeof tx): Promise<unknown> }) => {
+          cached ??= await input.work(tx);
+          return cached;
+        },
+      ),
+    };
+    const audit = { record: jest.fn() };
+    const service = new ProductsService(
+      { mediaObject: { findUnique: jest.fn() } } as never,
+      {} as never,
+      audit,
+      { indexProduct: jest.fn() } as never,
+      undefined,
+      undefined,
+      operations as never,
+    );
+    const input = {
+      operation_id: 'bulk-delete-operation',
+      ids: ['delete-id', 'archive-id', 'missing-id'],
+    };
+
+    const first = await service.bulkDelete(input, 'actor-id');
+    const replay = await service.bulkDelete(input, 'actor-id');
+    expect(replay).toEqual(first);
+    expect(first.results).toEqual([
+      { id: 'delete-id', outcome: 'deleted', reasons: [] },
+      {
+        id: 'archive-id',
+        outcome: 'archived',
+        reasons: ['purchase_history'],
+      },
+      {
+        id: 'missing-id',
+        outcome: 'failed',
+        reasons: ['product_not_found'],
+      },
+    ]);
+    expect(tx.product.delete).toHaveBeenCalledTimes(1);
+    expect(tx.product.update).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledTimes(2);
   });
 
   it('applies a bulk change once and reports an unpublishable id separately', async () => {
