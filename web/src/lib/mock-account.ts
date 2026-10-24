@@ -80,6 +80,7 @@ export const mockUser: User = {
   surface: "app",
   client: "web_store",
   must_change_password: false,
+  preferred_ui_language: 'ar',
   permission_version: 1,
   created_at: "2026-02-11T09:00:00.000Z",
 };

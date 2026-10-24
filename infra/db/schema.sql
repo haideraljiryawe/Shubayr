@@ -83,10 +83,12 @@ CREATE TABLE users (
     permission_version INTEGER NOT NULL DEFAULT 1,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     anonymized_at   TIMESTAMPTZ,
+    preferred_ui_language VARCHAR(2) NOT NULL DEFAULT 'ar',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT users_identity_check CHECK (phone IS NOT NULL OR username IS NOT NULL OR anonymized_at IS NOT NULL),
-    CONSTRAINT users_username_format_check CHECK (username IS NULL OR username ~ '^[a-z][a-z0-9._-]{2,79}$')
+    CONSTRAINT users_username_format_check CHECK (username IS NULL OR username ~ '^[a-z][a-z0-9._-]{2,79}$'),
+    CONSTRAINT users_preferred_ui_language_check CHECK (preferred_ui_language IN ('ar', 'en'))
 );
 
 CREATE TABLE user_presets (

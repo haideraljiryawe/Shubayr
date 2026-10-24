@@ -49,6 +49,7 @@ const LEGACY_PUBLIC_KEYS = [
   'currency',
   'default_low_stock_threshold',
   'sale_rounding_multiple',
+  'timezone',
 ] as const;
 
 const NULLABLE_PUBLIC_KEYS = [
@@ -123,6 +124,7 @@ export class SettingsService {
           ];
         }),
       ),
+      timezone: values.get('timezone') ?? 'Asia/Baghdad',
       recently_added_enabled:
         (values.get('recently_added_enabled') ?? 'false') === 'true',
       recently_added_max_count:

@@ -41,6 +41,13 @@ export class ListQueryDto {
   per_page?: number;
 }
 
+export class PermissionListQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  q?: string;
+}
+
 export class StaffListQueryDto extends ListQueryDto {
   @IsOptional()
   @IsIn(['active', 'inactive', 'must_change'])

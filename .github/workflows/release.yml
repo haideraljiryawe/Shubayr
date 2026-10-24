@@ -189,6 +189,8 @@ jobs:
           target=()
           [ -n "${{ matrix.target }}" ] && target=(--target "${{ matrix.target }}")
           docker build "${target[@]}" ${{ steps.names.outputs.web_args }} \
+            --build-arg RELEASE_VERSION="${{ steps.names.outputs.tag }}" \
+            --build-arg RELEASE_COMMIT="${{ steps.names.outputs.revision }}" \
             --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
             --label "org.opencontainers.image.revision=${{ steps.names.outputs.revision }}" \
             --label "org.opencontainers.image.version=${{ steps.names.outputs.tag }}" \

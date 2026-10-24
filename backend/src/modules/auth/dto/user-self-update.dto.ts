@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -18,4 +19,8 @@ export class UserSelfUpdateDto {
   @IsEmail()
   @MaxLength(160)
   email?: string | null;
+
+  @IsOptional()
+  @IsIn(['ar', 'en'])
+  preferred_ui_language?: 'ar' | 'en';
 }
