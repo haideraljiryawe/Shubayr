@@ -475,6 +475,11 @@ try {
     suiteError ??= error;
     throw error;
   } finally {
+    await clearOtpProtectionState(environment);
+    await clearOtpProtectionState({
+      ...environment,
+      DATABASE_URL: closingUrl.toString(),
+    });
     otpRedis.disconnect();
     if (otpiqMockCallsPath) rmSync(otpiqMockCallsPath, { force: true });
     writeAcceptanceResults();
