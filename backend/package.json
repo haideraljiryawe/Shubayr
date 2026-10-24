@@ -13,7 +13,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\"",
+    "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\" \"scripts/otpiq-live-check.ts\"",
     "typecheck": "tsc --noEmit",
     "contract:error-codes": "node scripts/check-error-codes.mjs",
     "test": "jest --runInBand && node --test test/openapi-response-validator.spec.mjs",

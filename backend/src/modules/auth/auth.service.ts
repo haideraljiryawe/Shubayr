@@ -85,14 +85,14 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly sms: SmsGatewayService,
+    private readonly otpProtection: OtpProtectionService,
     @Optional() private readonly permissions?: PermissionResolverService,
     @Optional() private readonly audit?: AuditService,
-    @Optional() private readonly otpProtection?: OtpProtectionService,
   ) {}
 
   async requestOtp(input: RequestOtpDto, requesterIp?: string) {
     const phone = input.phone.trim();
-    const reservation = await this.otpProtection?.reserve(phone, requesterIp);
+    const reservation = await this.otpProtection.reserve(phone, requesterIp);
     const development = this.config.get<string>('APP_ENV') === 'development';
     const code = development
       ? this.config.get<string>('DEV_OTP', '000000')
@@ -120,19 +120,15 @@ export class AuthService {
         return {
           otp_sent: true,
           dev_otp: code,
-          ...(reservation
-            ? { resend_after_seconds: reservation.resendAfterSeconds }
-            : {}),
+          resend_after_seconds: reservation.resendAfterSeconds,
         };
       }
       return {
         otp_sent: true,
-        ...(reservation
-          ? { resend_after_seconds: reservation.resendAfterSeconds }
-          : {}),
+        resend_after_seconds: reservation.resendAfterSeconds,
       };
     } finally {
-      await reservation?.release();
+      await reservation.release();
     }
   }
 

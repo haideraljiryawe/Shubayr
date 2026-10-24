@@ -47,6 +47,12 @@ const config = {
     throw new Error(`Unexpected config key ${key}`);
   }),
 };
+const otpProtection = {
+  reserve: jest.fn().mockResolvedValue({
+    resendAfterSeconds: 60,
+    release: jest.fn().mockResolvedValue(undefined),
+  }),
+};
 
 const user = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -90,11 +96,16 @@ describe('AuthService', () => {
       jwt,
       config as never,
       sms as never,
+      otpProtection as never,
     );
 
     await expect(
       service.requestOtp({ phone: '+9647700000000' }),
-    ).resolves.toEqual({ otp_sent: true, dev_otp: '000000' });
+    ).resolves.toEqual({
+      otp_sent: true,
+      dev_otp: '000000',
+      resend_after_seconds: 60,
+    });
     expect(sms.sendOtp).toHaveBeenCalledWith(
       '+9647700000000',
       '000000',
@@ -127,6 +138,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       sms as never,
+      otpProtection as never,
     );
 
     await expect(
@@ -173,6 +185,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
 
     const result = await service.verifyOtp({
@@ -239,6 +252,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
 
     const rotated = await service.refresh({ refresh_token: oldToken });
@@ -305,6 +319,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
 
     const result = await service.refresh({ refresh_token: oldToken });
@@ -363,6 +378,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
 
     await expect(service.refresh({ refresh_token: oldToken })).rejects.toThrow(
@@ -415,6 +431,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
 
     await service.logout({ refresh_token: token });
@@ -456,6 +473,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
     await expect(
       service.verifyOtp({ phone: '+9647700000000', code: '000000' }),
@@ -492,8 +510,6 @@ describe('AuthService', () => {
       jwt,
       config as never,
       sms as never,
-      undefined,
-      undefined,
       { reserve } as never,
     );
     const results = await Promise.allSettled([
@@ -539,6 +555,7 @@ describe('AuthService', () => {
       jwt,
       config as never,
       { sendOtp: jest.fn() } as never,
+      otpProtection as never,
     );
     const results = await Promise.allSettled(
       Array.from({ length: 5 }, () =>
@@ -603,6 +620,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
         new JwtService(),
         productionConfig as never,
         new SmsGatewayService(productionConfig as never),
+        otpProtection as never,
       ),
     };
   }
@@ -627,6 +645,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
     });
     await expect(service.requestOtp({ phone })).resolves.toEqual({
       otp_sent: true,
+      resend_after_seconds: 60,
     });
     expect(deliveredCode).toMatch(/^\d{6}$/);
     const [{ data }] = prisma.otpCode.create.mock.calls[0] as [
@@ -688,6 +707,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
       jwt,
       productionConfig as never,
       {} as never,
+      otpProtection as never,
     );
     await expect(
       service.verifyOtp({ phone, code: '123456' }),
@@ -730,6 +750,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
       jwt,
       productionConfig as never,
       {} as never,
+      otpProtection as never,
     );
     await expect(
       service.verifyOtp({ phone, code: '123456' }),

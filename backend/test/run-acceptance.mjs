@@ -1,10 +1,18 @@
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import Redis from 'ioredis';
 import pg from 'pg';
 
 const { Client } = pg;
@@ -53,8 +61,13 @@ let api;
 let created = false;
 let closingCreated = false;
 let suiteError = null;
+let otpiqMockCallsPath = null;
 const suiteStartedAt = new Date();
 const packResults = [];
+const otpRedis = new Redis(process.env.REDIS_URL ?? 'redis://127.0.0.1:6379', {
+  lazyConnect: true,
+  maxRetriesPerRequest: 1,
+});
 
 function isAcceptancePack(script) {
   return /^test[\\/].+\.acceptance\.mjs$/.test(script);
@@ -121,7 +134,26 @@ function writeAcceptanceResults() {
   console.log(`Acceptance results written to ${target}`);
 }
 
-function run(script, args = [], env = environment) {
+async function clearOtpProtectionState(env) {
+  const database = new URL(env.DATABASE_URL).pathname;
+  const prefix = `shubayr:otp:${createHash('sha256').update(database).digest('hex').slice(0, 16)}:*`;
+  if (otpRedis.status === 'wait') await otpRedis.connect();
+  const keys = await otpRedis.keys(prefix);
+  if (keys.length > 0) await otpRedis.del(...keys);
+}
+
+async function run(script, args = [], env = environment) {
+  // Packs are independent clients even though the combined runner deliberately
+  // shares one disposable database. Reset only C23's Redis namespace between
+  // packs so reused fixture phones do not inherit another pack's cooldown.
+  // The dedicated hardening pack is intentionally excluded and proves the
+  // real persistent cooldown, quota, and concurrency behavior end to end.
+  if (
+    isAcceptancePack(script) &&
+    script !== 'test/otp-hardening.acceptance.mjs'
+  ) {
+    await clearOtpProtectionState(env);
+  }
   return new Promise((resolve, reject) => {
     const pack = isAcceptancePack(script);
     const startedAt = new Date();
@@ -296,10 +328,7 @@ try {
   // C23 exercises the real HTTP/auth/database/Redis path while replacing only
   // OTPIQ's network boundary. The preload never records the generated code or
   // key, and this production-mode API is stopped before the normal dev packs.
-  const otpiqMockCallsPath = join(
-    process.env.RUNNER_TEMP ?? process.cwd(),
-    `otpiq-mock-${name}.jsonl`,
-  );
+  otpiqMockCallsPath = join(tmpdir(), `otpiq-mock-${name}.jsonl`);
   writeFileSync(otpiqMockCallsPath, '', 'utf8');
   const otpEnvironment = {
     ...environment,
@@ -446,6 +475,8 @@ try {
     suiteError ??= error;
     throw error;
   } finally {
+    otpRedis.disconnect();
+    if (otpiqMockCallsPath) rmSync(otpiqMockCallsPath, { force: true });
     writeAcceptanceResults();
   }
 }

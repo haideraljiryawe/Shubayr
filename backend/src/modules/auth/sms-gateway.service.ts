@@ -175,7 +175,7 @@ export class SmsGatewayService {
           this.unavailable();
         if (
           (tracked.status === 'sent' || tracked.status === 'delivered') &&
-          typeof tracked.isFinalStatus === 'boolean' &&
+          tracked.isFinalStatus === true &&
           tracked.lastChannel === 'sms' &&
           Array.isArray(tracked.channelFlow) &&
           tracked.channelFlow.some((channel: unknown) => {
@@ -199,7 +199,10 @@ export class SmsGatewayService {
               ? { remainingCredit: submitted.remainingCredit }
               : {}),
           };
-        if (tracked.status !== 'pending' || tracked.isFinalStatus !== false)
+        if (
+          !['pending', 'sent', 'delivered'].includes(String(tracked.status)) ||
+          tracked.isFinalStatus !== false
+        )
           this.unavailable();
         await delay(500, undefined, { signal: controller.signal });
       }

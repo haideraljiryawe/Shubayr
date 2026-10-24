@@ -104,6 +104,17 @@ describe('OTPIQ SMS delivery', () => {
     ).toEqual(['POST', 'GET', 'GET']);
   });
 
+  it('waits for a final status when sent is still non-final', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(
+        json({ ...sent, status: 'sent', isFinalStatus: false }),
+      )
+      .mockResolvedValueOnce(json({ ...sent, status: 'delivered' }));
+    await expect(service().sendOtp(phone, code)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it('fails a queued task at the deadline instead of reporting success', async () => {
     fetchMock
       .mockResolvedValueOnce(json(submitted))

@@ -99,6 +99,24 @@ try {
   });
   check(phoneLimited.code, 'OTP_PHONE_QUOTA_EXCEEDED', 'phone window enforced');
 
+  const dailyQuotaPhone = '+9647701234505';
+  const dailyQuotaKeys = phoneKeys(dailyQuotaPhone);
+  const dailyMembers = Array.from({ length: 10 }, (_, index) => [
+    now - 20_000 - index,
+    `daily-${index}`,
+  ]).flat();
+  await redis.zadd(dailyQuotaKeys.daily, ...dailyMembers);
+  await redis.pexpire(dailyQuotaKeys.daily, 86_400_000);
+  const dailyLimited = await request('/auth/request-otp', {
+    body: { phone: dailyQuotaPhone },
+    expected: 429,
+  });
+  check(
+    dailyLimited.code,
+    'OTP_PHONE_QUOTA_EXCEEDED',
+    'rolling 24-hour phone quota enforced',
+  );
+
   const ipQuotaPhone = '+9647701234503';
   const ip = '2001:db8::90';
   const ipKey = `${prefix}:ip-hour:${digest(ip)}`;
