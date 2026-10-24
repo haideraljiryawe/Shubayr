@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Alert, Button, Input } from "@/components/ui";
 import { Field } from "@/components/forms/field";
@@ -27,8 +28,19 @@ export function LoginForm({
   const form = useApiForm();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  // Kept as keys, worded at render time, so a language switch re-words them.
+  const [missing, setMissing] = useState<{ username?: true; password?: true }>({});
 
   async function submit() {
+    // Login checks presence only; length and format rules belong to creating
+    // and changing a password, not to signing in (VIS-001).
+    const empty = {
+      ...(username.trim() ? {} : { username: true as const }),
+      ...(password ? {} : { password: true as const }),
+    };
+    setMissing(empty);
+    if (empty.username || empty.password) return;
     const result = await form.run(() =>
       postJson<{ user: User }>("/api/auth/login", {
         username: username.trim().toLowerCase(),
@@ -40,6 +52,8 @@ export function LoginForm({
     hardNavigate(result.user.must_change_password ? "/change-password" : next);
   }
 
+  const rejected = form.failure === "unauthorized" || form.failure === "validation";
+
   return (
     <form
       className="flex flex-col gap-5"
@@ -50,8 +64,8 @@ export function LoginForm({
       }}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">{t("signInTitle")}</h1>
-        <p className="text-sm text-text-muted">{t("signInBody")}</p>
+        <h1 className="text-page-title text-text">{t("signInTitle")}</h1>
+        <p className="text-body text-text-muted">{t("signInBody")}</p>
       </div>
 
       {expired && !form.formError ? (
@@ -59,18 +73,23 @@ export function LoginForm({
       ) : null}
 
       {/* The lockout gets its own wording: it tells the person to stop
-          retrying, which a generic "wrong password" would not. */}
+          retrying, which a generic "wrong password" would not. A rejected
+          pair is said once, without naming which half was wrong — a 422 on
+          sign-in is the same answer, since login applies no format rules. An
+          unreachable server is told apart from a wrong password. */}
       {form.formError === "locked" ? (
         <Alert data-testid="lockout-message">{t("locked")}</Alert>
-      ) : form.formError === "unauthorized" ? (
+      ) : rejected ? (
         <Alert data-testid="login-error">{t("invalidCredentials")}</Alert>
+      ) : form.formError === "unavailable" || form.formError === "unknown" ? (
+        <Alert data-testid="login-connection-error">{t("connectionFailed")}</Alert>
       ) : (
         <FormError kind={form.formError} code={form.formErrorCode} />
       )}
 
       <Field
         label={t("username")}
-        error={form.fieldErrors.username}
+        error={missing.username ? t("usernameRequired") : undefined}
         name="username"
       >
         <Input
@@ -84,28 +103,41 @@ export function LoginForm({
           data-testid="login-username"
           onChange={(event) => {
             setUsername(event.target.value);
-            form.clearField("username");
+            setMissing((current) => ({ ...current, username: undefined }));
           }}
         />
       </Field>
       <Field
         label={t("password")}
-        error={form.fieldErrors.password}
+        error={missing.password ? t("passwordRequired") : undefined}
         name="password"
       >
-        <Input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          dir="ltr"
-          required
-          value={password}
-          data-testid="login-password"
-          onChange={(event) => {
-            setPassword(event.target.value);
-            form.clearField("password");
-          }}
-        />
+        <div className="relative">
+          <Input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            dir="ltr"
+            required
+            value={password}
+            className="pe-12"
+            data-testid="login-password"
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setMissing((current) => ({ ...current, password: undefined }));
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((shown) => !shown)}
+            aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+            aria-pressed={showPassword}
+            data-testid="login-password-toggle"
+            className="absolute inset-y-0 end-0 inline-flex w-11 cursor-pointer items-center justify-center rounded-e-md text-text-muted hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-primary/40"
+          >
+            {showPassword ? <EyeOff className="size-5" aria-hidden /> : <Eye className="size-5" aria-hidden />}
+          </button>
+        </div>
       </Field>
       <Button type="submit" pending={form.pending} data-testid="login-submit">
         {t("signIn")}

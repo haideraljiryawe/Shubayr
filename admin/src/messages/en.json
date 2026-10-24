@@ -1,8 +1,8 @@
 {
   "brand": {
     "name": "Shubayr",
-    "admin": "Shubayr Admin",
-    "adminShort": "Admin"
+    "adminShort": "Admin",
+    "admin": "Shubayr Admin"
   },
   "nav": {
     "label": "Main menu",
@@ -45,19 +45,33 @@
     "expenses": "Expenses",
     "expenseCategories": "Expense categories",
     "banners": "Home banners",
-    "reports": "Reports"
+    "reports": "Reports",
+    "groups": {
+      "catalog": "Products and catalog",
+      "ordersDelivery": "Orders and delivery",
+      "inventory": "Inventory and warehouses",
+      "purchasing": "Purchasing and suppliers",
+      "finance": "Finance and accounting",
+      "store": "Store and marketing",
+      "users": "Users and permissions"
+    }
   },
   "auth": {
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signInTitle": "Sign in to the admin",
-    "signInBody": "Use your username and password.",
+    "signInTitle": "Sign in",
+    "signInBody": "Enter your account details to access the admin dashboard.",
     "sessionExpired": "Your session ended. Please sign in again.",
     "locked": "This account is temporarily locked after repeated failed attempts. Wait 15 minutes and try again, or contact an administrator.",
-    "invalidCredentials": "The username or password is incorrect.",
+    "invalidCredentials": "Incorrect username or password.",
     "username": "Username",
     "password": "Password",
-    "backToAdmin": "Back to the admin"
+    "backToAdmin": "Back to the admin",
+    "usernameRequired": "Enter your username.",
+    "passwordRequired": "Enter your password.",
+    "connectionFailed": "Unable to connect. Please try again.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "password": {
     "title": "Change password",
@@ -93,7 +107,8 @@
     "cancel": "Cancel",
     "save": "Save",
     "switchLanguage": "Change language",
-    "close": "Close"
+    "close": "Close",
+    "version": "Version"
   },
   "errors": {
     "validation": "Some fields are not valid. Check them and try again.",
@@ -480,65 +495,9 @@
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
-    "body": "Everything you need to run the store: products, stock, orders, settings and staff.",
-    "section": {
-      "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
-      "presets": "Ready-made permission sets you assign to staff.",
-      "workPhones": "Register or revoke delivery-agent and order-monitor phones.",
-      "orders": "Follow orders and move them along, as your permissions allow.",
-      "currencies": "Enable currencies and record exchange rates with their history.",
-      "cashAccounts": "Cash boxes and bank accounts, their balances and transfers.",
-      "periods": "Accounting periods, the close checklist and reopening.",
-      "ledger": "Trial balance and entries by account and document.",
-      "settings": "Store data, business hours, timeouts and protection thresholds.",
-      "audit": "Who changed what, when and why — filter by user, action, entity and date.",
-      "products": "Products and their SKUs: unit, low-stock threshold, and a fixed or currency-linked price.",
-      "categories": "Departments and subcategories (two levels only), and converting a category to a brand.",
-      "brands": "Brands: create, edit and hide them.",
-      "stock": "On hand, reserved, available and in custody — by warehouse, location, SKU or lot.",
-      "movements": "Every stock movement, with its source document and who made it.",
-      "warehouses": "Warehouses and their locations, and which locations are sellable.",
-      "openings": "Opening stock documents: new lots with their cost and journal entry.",
-      "transfers": "Move unreserved stock between locations, keeping each lot's identity.",
-      "counts": "Physical counts: snapshot a scope, enter what was counted, approve the differences.",
-      "writeDowns": "Write damaged or expired stock down to inventory loss.",
-      "purchasing": "Receive purchase invoices into stock with pack sizes, landed costs and lots.",
-      "suppliers": "Suppliers, their opening balances, statements and credits.",
-      "supplierPayments": "Pay suppliers, allocate to invoices and see the FX gain or loss.",
-      "payables": "What is owed to each supplier, and accounts-payable aging.",
-      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody.",
-      "cashReceipts": "Cash handed in by delivery parties, and the orders it settles.",
-      "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
-      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle.",
-      "deliveryZones": "Delivery fees by governorate: zones, the governorates in each, and where you don't deliver yet.",
-      "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD.",
-      "catalogImport": "Add and update products and opening stock from an Excel file, with a preview before anything is saved.",
-      "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
-      "returns": "Review customer returns: approve, receive, inspect and refund.",
-      "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
-      "expenseCategories": "The kinds of expense and the ledger account each one posts to.",
-      "banners": "The banners at the top of the store's home page: picture, schedule, order and link.",
-      "reports": "Sales, profitability, cash, stock and financial statements from posted records."
-    },
     "noSections": "Your current permissions don't open any sections yet.",
-    "summary": {
-      "title": "Owner overview",
-      "asOf": "Business date {date}, Baghdad",
-      "todaySales": "Today's net sales",
-      "monthSales": "Month-to-date net sales",
-      "monthProfit": "Month-to-date gross profit",
-      "orders": "{count, plural, one {# order} other {# orders}}",
-      "waitingCalls": "Waiting for confirmation call",
-      "lateOrders": "Late orders",
-      "lowStock": "Low-stock SKUs",
-      "payablesDue": "Payables due in 7 days",
-      "orderStatus": "Orders: {status}",
-      "cashAccount": "Cash on hand: {name}"
-    },
     "firstDay": {
       "title": "Set up your store",
-      "body": "A few steps to prepare the store: the catalog and its stock, who you buy from, and who delivers. You can come back to any step later.",
-      "progress": "{done} of {total}",
       "stepNumber": "{number}.",
       "optional": "(optional)",
       "done": "done",
@@ -569,6 +528,41 @@
           "body": "Your own driver or a courier company. An order can't be handed over for delivery without one."
         }
       }
+    },
+    "setup": {
+      "progress": "{done} of {total} completed",
+      "next": "Next: {step}",
+      "showSteps": "Show steps",
+      "hideSteps": "Hide steps",
+      "complete": "Store setup is complete",
+      "dismiss": "Hide"
+    },
+    "attention": {
+      "title": "Needs attention",
+      "waitingCalls": "Orders awaiting confirmation",
+      "lateOrders": "Late orders",
+      "lowStock": "Low-stock products",
+      "payablesDue": "Supplier payments due in 7 days",
+      "calm": "Nothing to do"
+    },
+    "performance": {
+      "title": "Performance",
+      "period": "Period",
+      "today": "Today",
+      "month": "This month",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To",
+      "apply": "Show",
+      "reversed": "The start date must be on or before the end date.",
+      "netSales": "Net sales",
+      "orders": "Orders",
+      "profit": "Gross profit",
+      "profitNote": "Gross profit = net sales minus the original cost of the goods sold, for orders posted in the period.",
+      "unavailable": "Performance figures could not be loaded right now."
+    },
+    "shortcuts": {
+      "title": "Quick access"
     }
   },
   "purchasing": {
@@ -5111,5 +5105,13 @@
     "variantBody": "Do you want to remove this variant? It is only removed when you save the product.",
     "costTitle": "Remove this cost?",
     "costBody": "Do you want to remove this extra cost from the invoice?"
+  },
+  "account": {
+    "open": "Account menu",
+    "language": "Language",
+    "changePassword": "Change password",
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out",
+    "signOutBody": "Do you want to sign out of your account?"
   }
 }

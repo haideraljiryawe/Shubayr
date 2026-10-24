@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
-import { CheckCircle2, Circle, CircleAlert } from "lucide-react";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { AlertTriangle, CircleCheck } from "lucide-react";
+import { Card, PageHeader } from "@/components/ui";
+import { PeriodSelector } from "@/components/home/period-selector";
+import { SetupStrip } from "@/components/home/setup-strip";
+import { NAV_ICONS } from "@/components/shell/nav-icons";
 import { load, serverApi } from "@/lib/api/server";
+import { cn } from "@/lib/cn";
 import { ADMIN_MODULES } from "@/lib/config";
-import { firstDayComplete, firstDaySteps, type FirstDayStep } from "@/lib/first-day";
+import { firstDayComplete, firstDaySteps } from "@/lib/first-day";
+import { resolveHomePeriod, type HomePeriod } from "@/lib/home-period";
 import { locationIndex } from "@/lib/inventory";
 import { parseModules } from "@/lib/modules";
-import { visibleNav } from "@/lib/nav";
+import { visibleNav, type NavKey } from "@/lib/nav";
 import { formatReportAmount } from "@/lib/reports";
 import type { components } from "@/types/api";
 
@@ -18,57 +23,80 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type Api = Awaited<ReturnType<typeof serverApi>>;
+type OwnerDashboard = components["schemas"]["OwnerDashboard"];
+
+/** The few pages offered as shortcuts, in this order, when the person may open them. */
+const SHORTCUTS: readonly NavKey[] = ["orders", "products", "stock", "purchasing", "cashReceipts", "reports"];
 
 /**
- * The dashboard: the owner's first-day checklist until the catalog is
- * stocked, then the sections the staff member's permissions open, within the
- * modules this installation enables (ADMIN_MODULES).
+ * Home (VIS-003), in this order: a compact store-setup strip, what needs
+ * attention now, performance for one chosen period, and a handful of
+ * shortcuts. Every page stays in the sidebar; home no longer lists them all.
+ * Each part shows only what the staff member's permissions and this
+ * installation's modules (ADMIN_MODULES) open.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
   const t = await getTranslations("dashboard");
   const tNav = await getTranslations("nav");
+  const query = await searchParams;
   const api = await serverApi();
   const me = await load(api.GET("/me"));
   const user = me.ok ? me.data : null;
   const modules = parseModules(ADMIN_MODULES);
   const permissions = user?.permissions ?? [];
-  const sections = visibleNav(permissions, undefined, modules).filter((item) => item.key !== "dashboard");
+  const visible = visibleNav(permissions, undefined, modules);
+  const shortcuts = SHORTCUTS.flatMap((key) => visible.find((item) => item.key === key) ?? []).slice(0, 6);
   const [facts, summary] = await Promise.all([
     firstDayFacts(api, permissions),
     dashboardSummary(api, permissions),
   ]);
   const steps = firstDaySteps({ permissions, modules, ...facts });
+  const period = summary ? resolveHomePeriod(query, summary.business_date) : null;
 
   return (
     <div data-testid="dashboard">
-      <PageHeader
-        title={t("welcome", { name: user?.name || user?.username || "" })}
-        description={t("body")}
-      />
-      {steps.length && !firstDayComplete(steps) ? <FirstDay steps={steps} /> : null}
-      {summary ? <OwnerSummary summary={summary} /> : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sections.map((item) => (
-          <Link key={item.key} href={item.href} className="group">
-            <Card className="h-full transition-shadow group-hover:shadow-md">
-              <p className="font-bold text-primary-dark">{tNav(item.key)}</p>
-              <p className="mt-1 text-sm text-text-muted">
-                {t(`section.${item.key}`)}
-              </p>
-            </Card>
-          </Link>
-        ))}
-      </div>
-      {sections.length === 0 ? (
-        <p className="mt-6 text-sm text-text-muted" data-testid="no-sections">
+      <PageHeader title={t("welcome", { name: user?.name || user?.username || "" })} />
+      {steps.length ? <SetupStrip steps={steps} complete={firstDayComplete(steps)} /> : null}
+      {summary ? <NeedsAttention summary={summary} /> : null}
+      {summary && period && permissions.includes("reports.sales.read") ? (
+        <Performance api={api} period={period} today={summary.business_date} canSeeProfit={permissions.includes("reports.profit.read")} />
+      ) : null}
+      {shortcuts.length ? (
+        <section aria-labelledby="shortcuts-title" data-testid="shortcuts">
+          <h2 id="shortcuts-title" className="mb-3 text-section text-text">{t("shortcuts.title")}</h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {shortcuts.map((item) => {
+              const Icon = NAV_ICONS[item.key];
+              return (
+                <li key={item.key}>
+                  <Link
+                    href={item.href}
+                    data-testid={`shortcut-${item.key}`}
+                    className="flex h-full items-center gap-3 rounded-lg border border-border bg-surface px-3 py-3 text-label text-text shadow-sm transition-colors hover:border-primary hover:bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/40"
+                  >
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary-dark">
+                      <Icon className="size-5" aria-hidden />
+                    </span>
+                    <span className="min-w-0">{tNav(item.key)}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+      {visible.length <= 1 ? (
+        <p className="mt-6 text-body text-text-muted" data-testid="no-sections">
           {t("noSections")}
         </p>
       ) : null}
     </div>
   );
 }
-
-type OwnerDashboard = components["schemas"]["OwnerDashboard"];
 
 async function dashboardSummary(api: Api, permissions: readonly string[]): Promise<OwnerDashboard | null> {
   const readable = ["orders.view", "reports.sales.read", "reports.profit.read", "reports.cash.read", "reports.liabilities.read", "reports.inventory.read", "reports.purchases.read", "reports.suppliers.read", "reports.stock.read", "reports.expenses.read"];
@@ -77,54 +105,123 @@ async function dashboardSummary(api: Api, permissions: readonly string[]): Promi
   return result.ok ? result.data : null;
 }
 
-async function OwnerSummary({ summary }: { summary: OwnerDashboard }) {
-  const t = await getTranslations("dashboard.summary");
+/**
+ * What needs someone now. Each card opens the matching filtered list; a
+ * card is shown only when the API sent its figure (permission-dependent),
+ * and it only looks like an alert when there is something to do.
+ */
+async function NeedsAttention({ summary }: { summary: OwnerDashboard }) {
+  const t = await getTranslations("dashboard.attention");
   const locale = await getLocale();
-  const monthFrom = `${summary.business_date.slice(0, 8)}01`;
-  const todaySales = `/reports/sales?from=${summary.business_date}&to=${summary.business_date}&group_by=day`;
-  const monthSales = `/reports/sales?from=${monthFrom}&to=${summary.business_date}&group_by=day`;
+  const cards: { id: string; href: string; label: string; value: string; active: boolean }[] = [];
+  if (summary.orders_waiting_confirmation_call !== undefined) {
+    cards.push({ id: "waiting-calls", href: "/orders?status=pending", label: t("waitingCalls"), value: String(summary.orders_waiting_confirmation_call), active: summary.orders_waiting_confirmation_call > 0 });
+  }
+  if (summary.late_orders !== undefined) {
+    cards.push({ id: "late-orders", href: "/orders?queue=late", label: t("lateOrders"), value: String(summary.late_orders), active: summary.late_orders > 0 });
+  }
+  if (summary.low_stock_count !== undefined) {
+    cards.push({ id: "low-stock", href: "/catalog/products?stock_state=low", label: t("lowStock"), value: String(summary.low_stock_count), active: summary.low_stock_count > 0 });
+  }
+  if (summary.payables_due_next_7_days !== undefined) {
+    cards.push({ id: "payables-due", href: `/purchasing/reports?as_of=${summary.business_date}`, label: t("payablesDue"), value: formatReportAmount(summary.payables_due_next_7_days, locale), active: Number(summary.payables_due_next_7_days) > 0 });
+  }
+  if (!cards.length) return null;
   return (
-    <section className="mb-8" aria-labelledby="owner-summary-title" data-testid="owner-dashboard-summary">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <h2 id="owner-summary-title" className="text-lg font-bold">{t("title")}</h2>
-        <span className="text-xs text-text-muted">{t("asOf", { date: summary.business_date })}</span>
-      </div>
+    <section className="mb-8" aria-labelledby="attention-title" data-testid="owner-dashboard-summary">
+      <h2 id="attention-title" className="mb-3 text-section text-text">{t("title")}</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {summary.sales ? (
-          <>
-            <SummaryTile href={todaySales} label={t("todaySales")} value={formatReportAmount(summary.sales.today_net_sales, locale)} sub={t("orders", { count: summary.sales.today_order_count })} testId="today-sales" />
-            <SummaryTile href={monthSales} label={t("monthSales")} value={formatReportAmount(summary.sales.month_to_date_net_sales, locale)} sub={t("orders", { count: summary.sales.month_to_date_order_count })} testId="month-sales" />
-            {summary.sales.month_to_date_gross_profit !== undefined ? <SummaryTile href={`/reports/profitability?from=${monthFrom}&to=${summary.business_date}`} label={t("monthProfit")} value={formatReportAmount(summary.sales.month_to_date_gross_profit, locale)} testId="month-profit" /> : null}
-          </>
-        ) : null}
-        {summary.orders_waiting_confirmation_call !== undefined ? <SummaryTile href="/orders?status=pending" label={t("waitingCalls")} value={String(summary.orders_waiting_confirmation_call)} testId="waiting-calls" /> : null}
-        {summary.late_orders !== undefined ? <SummaryTile href="/orders?queue=late" label={t("lateOrders")} value={String(summary.late_orders)} testId="late-orders" /> : null}
-        {summary.low_stock_count !== undefined ? <SummaryTile href="/catalog/products?stock_state=low" label={t("lowStock")} value={String(summary.low_stock_count)} testId="low-stock" /> : null}
-        {summary.payables_due_next_7_days !== undefined ? <SummaryTile href={`/purchasing/reports?as_of=${summary.business_date}`} label={t("payablesDue")} value={formatReportAmount(summary.payables_due_next_7_days, locale)} testId="payables-due" /> : null}
+        {cards.map((card) => (
+          <Link
+            key={card.id}
+            href={card.href}
+            data-testid={card.id}
+            data-attention={card.active}
+            className={cn(
+              "group flex flex-col gap-1 rounded-lg border px-4 py-3 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/40",
+              card.active ? "border-warning bg-warning/10 hover:bg-warning/15" : "border-border bg-surface hover:bg-card",
+            )}
+          >
+            <span className="flex items-center gap-2 text-caption text-text-muted">
+              {card.active ? (
+                <AlertTriangle className="size-4 text-warning-dark" aria-hidden />
+              ) : (
+                <CircleCheck className="size-4 text-success-dark" aria-hidden />
+              )}
+              {card.label}
+            </span>
+            <span className="text-page-title tabular-nums text-text" data-testid={`${card.id}-value`}>
+              {card.value}
+            </span>
+            {card.active ? null : <span className="text-caption text-text-muted">{t("calm")}</span>}
+          </Link>
+        ))}
       </div>
-      {summary.orders_by_status?.length ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {summary.orders_by_status.map((row) => <SummaryTile key={row.status} href={`/orders?status=${encodeURIComponent(row.status)}`} label={t("orderStatus", { status: row.status })} value={String(row.count)} />)}
-        </div>
-      ) : null}
-      {summary.cash_on_hand?.length ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {summary.cash_on_hand.map((account) => <SummaryTile key={account.id} href="/finance/cash-accounts" label={t("cashAccount", { name: account.name })} value={formatReportAmount(account.balance, locale)} />)}
-        </div>
-      ) : null}
     </section>
   );
 }
 
-function SummaryTile({ href, label, value, sub, testId }: { href: string; label: string; value: string; sub?: string; testId?: string }) {
+/**
+ * Net sales, order count and (with reports.profit.read) gross profit for the
+ * one selected period, from the same reports the Reports pages show.
+ */
+async function Performance({
+  api,
+  period,
+  today,
+  canSeeProfit,
+}: {
+  api: Api;
+  period: HomePeriod;
+  today: string;
+  canSeeProfit: boolean;
+}) {
+  const t = await getTranslations("dashboard.performance");
+  const locale = await getLocale();
+  const [sales, profit] = await Promise.all([
+    load(api.GET("/admin/reports/sales", { params: { query: { from: period.from, to: period.to, group_by: "day", per_page: 1 } } })),
+    canSeeProfit
+      ? load(api.GET("/admin/reports/profitability", { params: { query: { from: period.from, to: period.to, group_by: "department", per_page: 1 } } }))
+      : null,
+  ]);
+  const range = `from=${period.from}&to=${period.to}`;
+  const tiles: { id: string; label: string; value: string; href: string }[] = [];
+  if (sales.ok) {
+    tiles.push({ id: "perf-net-sales", label: t("netSales"), value: formatReportAmount(sales.data.totals.net_sales, locale), href: `/reports/sales?${range}&group_by=day` });
+    tiles.push({ id: "perf-orders", label: t("orders"), value: new Intl.NumberFormat("en-US").format(sales.data.totals.order_count), href: `/reports/sales?${range}&group_by=day` });
+  }
+  if (profit?.ok) {
+    tiles.push({ id: "perf-profit", label: t("profit"), value: formatReportAmount(profit.data.totals.gross_profit, locale), href: `/reports/profitability?${range}` });
+  }
   return (
-    <Link href={href} data-testid={testId} className="group">
-      <Card className="h-full p-4 transition-shadow group-hover:shadow-md">
-        <p className="text-xs font-semibold text-text-muted">{label}</p>
-        <p className="mt-1 text-xl font-bold tabular-nums" data-testid={testId ? `${testId}-value` : undefined}>{value}</p>
-        {sub ? <p className="mt-1 text-xs text-text-muted">{sub}</p> : null}
-      </Card>
-    </Link>
+    <section className="mb-8" aria-labelledby="performance-title" data-testid="performance" data-period={period.kind}>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="performance-title" className="text-section text-text">{t("title")}</h2>
+          <p className="text-caption text-text-muted" data-testid="performance-range">
+            <bdi dir="ltr">{period.from === period.to ? period.from : `${period.from} – ${period.to}`}</bdi>
+          </p>
+        </div>
+        <PeriodSelector period={period} today={today} />
+      </div>
+      {tiles.length ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {tiles.map((tile) => (
+            <Link key={tile.id} href={tile.href} data-testid={tile.id} className="group">
+              <Card className="h-full p-4 transition-shadow group-hover:shadow-md">
+                <p className="text-caption text-text-muted">{tile.label}</p>
+                <p className="mt-1 text-page-title tabular-nums" data-testid={`${tile.id}-value`}>{tile.value}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="text-body text-text-muted" data-testid="performance-unavailable">{t("unavailable")}</p>
+      )}
+      {profit?.ok ? (
+        <p className="mt-2 text-caption text-text-muted" data-testid="profit-note">{t("profitNote")}</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -153,48 +250,4 @@ async function firstDayFacts(api: Api, permissions: readonly string[]) {
     supplierCount: suppliers?.ok ? suppliers.data.total : null,
     partyCount: parties?.ok ? (parties.data.total ?? 0) : null,
   };
-}
-
-async function FirstDay({ steps }: { steps: FirstDayStep[] }) {
-  const t = await getTranslations("dashboard.firstDay");
-  const done = steps.filter((step) => step.done).length;
-  return (
-    <Card className="mb-6 flex flex-col gap-4 border-primary/40" data-testid="first-day">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold">{t("title")}</h2>
-          <p className="text-sm text-text-muted">{t("body")}</p>
-        </div>
-        <Badge tone="info">{t("progress", { done, total: steps.length })}</Badge>
-      </div>
-      <ol className="flex flex-col gap-2">
-        {steps.map((step, index) => (
-          <li key={step.key} data-testid={`first-day-${step.key}`} data-done={step.done}>
-            <Link
-              href={step.href}
-              className="flex items-start gap-3 rounded-md border border-border px-4 py-3 transition-colors hover:bg-card"
-            >
-              {step.done ? (
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success-dark" aria-hidden />
-              ) : step.blockedBy ? (
-                <CircleAlert className="mt-0.5 size-5 shrink-0 text-warning-dark" aria-hidden />
-              ) : (
-                <Circle className="mt-0.5 size-5 shrink-0 text-text-muted" aria-hidden />
-              )}
-              <span className="flex min-w-0 flex-col">
-                <span className="font-semibold">
-                  {t("stepNumber", { number: index + 1 })} {t(`steps.${step.key}.title`)}
-                  {step.optional ? <span className="ms-2 text-xs font-normal text-text-muted">{t("optional")}</span> : null}
-                  {step.done ? <span className="sr-only"> — {t("done")}</span> : null}
-                </span>
-                <span className="text-sm text-text-muted">
-                  {step.blockedBy ? t("needsLocation") : t(`steps.${step.key}.body`)}
-                </span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ol>
-    </Card>
-  );
 }

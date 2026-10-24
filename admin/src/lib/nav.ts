@@ -152,3 +152,60 @@ export function activeNavKey(items: readonly NavItem[], pathname: string): NavKe
       .sort((a, b) => b.href.length - a.href.length)[0]?.key ?? null
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * The sidebar's two levels (VIS-002): Home and Reports are direct links, every
+ * other page sits in one functional group. A group shows only when at least
+ * one of its pages is visible, so permissions and modules empty it cleanly.
+ * The add-on pages (trips, custody exceptions) join the group they belong to.
+ * ------------------------------------------------------------------------- */
+
+export type NavGroupKey =
+  | "catalog"
+  | "ordersDelivery"
+  | "inventory"
+  | "purchasing"
+  | "finance"
+  | "store"
+  | "users";
+
+export const NAV_GROUPS: readonly { key: NavGroupKey; items: readonly NavKey[] }[] = [
+  { key: "catalog", items: ["products", "categories", "brands", "catalogImport", "catalogImages"] },
+  { key: "ordersDelivery", items: ["orders", "returns", "deliveryParties", "deliveryZones", "workPhones", "trips"] },
+  { key: "inventory", items: ["stock", "openings", "movements", "warehouses", "transfers", "counts", "writeDowns"] },
+  { key: "purchasing", items: ["suppliers", "purchasing", "supplierPayments", "payables"] },
+  { key: "finance", items: ["cashAccounts", "cashReceipts", "expenses", "expenseCategories", "currencies", "ledger", "periods", "custodyExceptions"] },
+  { key: "store", items: ["settings", "banners", "discountTiers"] },
+  { key: "users", items: ["staff", "presets", "audit"] },
+];
+
+export type NavEntry =
+  | { kind: "link"; item: NavItem }
+  | { kind: "group"; key: NavGroupKey; items: NavItem[] };
+
+/**
+ * The visible entries in sidebar order: Home, the groups that kept at least
+ * one page, then Reports. Each group lists its pages in NAV_GROUPS order.
+ */
+export function groupNav(items: readonly NavItem[]): NavEntry[] {
+  const byKey = new Map(items.map((item) => [item.key, item]));
+  const entries: NavEntry[] = [];
+  const home = byKey.get("dashboard");
+  if (home) entries.push({ kind: "link", item: home });
+  for (const group of NAV_GROUPS) {
+    const children = group.items.flatMap((key) => byKey.get(key) ?? []);
+    if (children.length) entries.push({ kind: "group", key: group.key, items: children });
+  }
+  const reports = byKey.get("reports");
+  if (reports) entries.push({ kind: "link", item: reports });
+  return entries;
+}
+
+/** The group holding the active page, if any. */
+export function activeNavGroup(entries: readonly NavEntry[], active: NavKey | null): NavGroupKey | null {
+  if (!active) return null;
+  for (const entry of entries) {
+    if (entry.kind === "group" && entry.items.some((item) => item.key === active)) return entry.key;
+  }
+  return null;
+}

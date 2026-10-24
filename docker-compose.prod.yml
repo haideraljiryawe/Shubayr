@@ -212,6 +212,9 @@ services:
       context: .
       dockerfile: admin/Dockerfile
       target: production
+      # A local build shows the tag it was built for (VIS-025).
+      args:
+        RELEASE_VERSION: ${SHUBAYR_TAG:-dev}
     restart: unless-stopped
     environment:
       API_URL: http://api:8000/api/v1
