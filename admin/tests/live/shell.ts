@@ -28,8 +28,11 @@ export async function toggleLocale(page: Page): Promise<void> {
   const html = page.locator("html");
   const next = (await html.getAttribute("lang")) === "ar" ? "en" : "ar";
   const signedOut = page.getByTestId("locale-switch");
-  if (await signedOut.isVisible()) await signedOut.click();
-  else {
+  if (await signedOut.isVisible()) {
+    await hydrated(page, "locale-switch");
+    await signedOut.click();
+  } else {
+    await hydrated(page, "account-menu");
     await page.getByTestId("account-menu").click();
     await page.getByTestId(`account-locale-${next}`).click();
   }
@@ -38,6 +41,7 @@ export async function toggleLocale(page: Page): Promise<void> {
 
 /** Sign out through the account menu and its confirmation. */
 export async function signOut(page: Page): Promise<void> {
+  await hydrated(page, "account-menu");
   await page.getByTestId("account-menu").click();
   await page.getByTestId("sign-out").click();
   const dialog = page.getByTestId("confirm-dialog");

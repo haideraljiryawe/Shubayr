@@ -8,7 +8,7 @@ import {
   unique,
 } from "./helpers";
 import { choose } from "./controls";
-import { navLink } from "./shell";
+import { hydrated, navLink } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -174,6 +174,7 @@ test("on a phone the shell never scrolls sideways; the table scrolls in its card
     );
     expect(width, path).toBeLessThanOrEqual(390);
   }
+  await hydrated(page, "drawer-open");
   await page.getByRole("button", { name: "فتح القائمة" }).click();
   // The desktop aside is still in the DOM (hidden); the drawer is the visible
   // menu, its Users group already open on a staff page.

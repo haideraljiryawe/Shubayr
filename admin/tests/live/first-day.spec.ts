@@ -164,6 +164,7 @@ test("the owner's first day: password → categories → brand → product with 
   await expect(page.getByTestId("dashboard")).toBeVisible();
   await expectTabletRtl(page);
   // The launch core leads the menu (opened from the tablet's menu button).
+  await hydrated(page, "drawer-open");
   await page.getByRole("button", { name: "فتح القائمة" }).click();
   const nav = page.getByTestId("drawer-nav");
   await expect(nav).toBeVisible();

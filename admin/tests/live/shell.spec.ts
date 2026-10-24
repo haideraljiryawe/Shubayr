@@ -78,7 +78,8 @@ test("the language is the account's: it follows the person, not the browser", as
   try {
     await uiLoginAsAdmin(page);
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
-    await page.getByTestId("account-menu").click();
+    await hydrated(page, "account-menu");
+  await page.getByTestId("account-menu").click();
     await page.getByTestId("account-locale-en").click();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const me = await request.get(`${API}/me`, { headers: bearer(await adminApiToken(request)) });
@@ -91,7 +92,8 @@ test("the language is the account's: it follows the person, not the browser", as
     await switchUser(page, ADMIN_USERNAME, ADMIN_PASSWORD);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    await page.getByTestId("account-menu").click();
+    await hydrated(page, "account-menu");
+  await page.getByTestId("account-menu").click();
     await page.getByTestId("account-locale-ar").click();
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   } finally {
@@ -134,6 +136,7 @@ test("the account menu holds the language, the password and sign-out", async ({ 
   const top = page.getByTestId("top-bar");
   await expect(top.getByTestId("locale-switch")).toHaveCount(0);
 
+  await hydrated(page, "account-menu");
   await page.getByTestId("account-menu").click();
   const menu = page.getByTestId("account-menu-content");
   await expect(menu.getByTestId("account-name")).toBeVisible();
@@ -145,7 +148,8 @@ test("the account menu holds the language, the password and sign-out", async ({ 
 
   // Sign-out asks first; Cancel and Escape keep the session.
   for (const dismiss of ["cancel", "escape"] as const) {
-    await page.getByTestId("account-menu").click();
+    await hydrated(page, "account-menu");
+  await page.getByTestId("account-menu").click();
     await page.getByTestId("sign-out").click();
     const dialog = page.getByTestId("confirm-dialog");
     await expect(dialog).toContainText("هل تريد تسجيل الخروج من حسابك؟");
@@ -157,6 +161,7 @@ test("the account menu holds the language, the password and sign-out", async ({ 
     await page.goto("/");
   }
 
+  await hydrated(page, "account-menu");
   await page.getByTestId("account-menu").click();
   await page.getByTestId("sign-out").click();
   await page.getByTestId("confirm-dialog").getByTestId("confirm-submit").click();
