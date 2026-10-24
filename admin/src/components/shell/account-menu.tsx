@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronDown, KeyRound, Languages, LogOut } from "lucide-react";
@@ -23,6 +24,8 @@ const ITEM =
  * the confirmation ends the session.
  */
 export function AccountMenu({ name, username }: { name: string; username: string | null }) {
+  // The password change comes back here afterwards.
+  const pathname = usePathname() ?? "/";
   const t = useTranslations("account");
   const locale = useLocale() as Locale;
   const { switchTo, pending } = useSwitchLocale({ account: true });
@@ -99,7 +102,7 @@ export function AccountMenu({ name, username }: { name: string; username: string
             </Menu.RadioGroup>
             <Menu.Separator className="my-1 h-px bg-border" />
             <Menu.Item asChild className={ITEM}>
-              <Link href="/change-password" data-testid="account-change-password">
+              <Link href={`/change-password?next=${encodeURIComponent(pathname)}`} data-testid="account-change-password">
                 <KeyRound className="size-4 text-text-muted" aria-hidden />
                 {t("changePassword")}
               </Link>

@@ -501,3 +501,31 @@ export async function orderStatus(
   expect(response.ok()).toBe(true);
   return (await response.json()).status as string;
 }
+
+/**
+ * Post a central rate that is the newest already-effective one for its
+ * currency, so the spec reads back the rate it set even when an earlier spec
+ * in the same run (catalog.spec's linked-price check posts at the current
+ * store minute) left a later one. The effective time is a minute ago, or
+ * just after the newest existing rate when that is later — never in the
+ * future, which the API would not apply yet.
+ */
+export async function postNewestRate(
+  request: APIRequestContext,
+  input: { currency: string; rate: string; reason: string },
+): Promise<{ status: number; body: { id: string; effective_at: string } }> {
+  const headers = bearer(await adminApiToken(request));
+  const list = await request.get(`${API}/admin/exchange-rates?currency_code=${input.currency}`, { headers });
+  expect(list.ok(), await list.text()).toBe(true);
+  const now = Date.now();
+  const latest = ((await list.json()) as Array<{ effective_at: string | null }>)
+    .map((row) => (row.effective_at ? new Date(row.effective_at).getTime() : 0))
+    .filter((at) => at <= now)
+    .reduce((max, at) => Math.max(max, at), 0);
+  const effective = Math.min(now, Math.max(now - 60_000, latest + 1));
+  const posted = await request.post(`${API}/admin/exchange-rates`, {
+    headers,
+    data: { currency_code: input.currency, rate: input.rate, basis: 1, effective_at: new Date(effective).toISOString(), reason: input.reason },
+  });
+  return { status: posted.status(), body: await posted.json() };
+}

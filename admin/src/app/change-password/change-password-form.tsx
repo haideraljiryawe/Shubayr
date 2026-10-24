@@ -3,28 +3,28 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Check, Circle } from "lucide-react";
-import { Alert, Button, Input } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
+import { PasswordChecklist } from "@/components/forms/password-checklist";
+import { PasswordInput } from "@/components/forms/password-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { postJson } from "@/lib/api/client";
-import { cn } from "@/lib/cn";
-import {
-  PASSWORD_RULES,
-  isStrongPassword,
-  passwordChecks,
-} from "@/lib/password";
+import { isStrongPassword } from "@/lib/password";
 import { hardNavigate } from "@/lib/hard-navigate";
 
-export function ChangePasswordForm({ forced }: { forced: boolean }) {
+/**
+ * Change one's own password: the shared field primitives, each with
+ * show/hide, the policy as a live localized checklist, and afterwards back to
+ * the page the person came from (`returnTo`, already made safe by the page).
+ */
+export function ChangePasswordForm({ forced, returnTo = "/" }: { forced: boolean; returnTo?: string }) {
   const t = useTranslations("password");
   const tAuth = useTranslations("auth");
   const form = useApiForm();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
-  const checks = passwordChecks(next);
 
   async function submit() {
     const local: Record<string, string> = {};
@@ -41,7 +41,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         new_password: next,
       }),
     );
-    if (result !== undefined) hardNavigate("/");
+    if (result !== undefined) hardNavigate(returnTo);
   }
 
   return (
@@ -77,9 +77,9 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         error={form.fieldErrors.current_password}
         name="current_password"
       >
-        <Input
-          type="password"
+        <PasswordInput
           autoComplete="current-password"
+          toggleTestId="current-password-toggle"
           dir="ltr"
           value={current}
           data-testid="current-password"
@@ -94,9 +94,9 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         error={form.fieldErrors.new_password}
         name="new_password"
       >
-        <Input
-          type="password"
+        <PasswordInput
           autoComplete="new-password"
+          toggleTestId="new-password-toggle"
           dir="ltr"
           value={next}
           data-testid="new-password"
@@ -106,35 +106,15 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
           }}
         />
       </Field>
-      <ul
-        className="grid grid-cols-1 gap-1 text-caption sm:grid-cols-2"
-        aria-label={t("rules")}
-      >
-        {PASSWORD_RULES.map((rule) => (
-          <li
-            key={rule}
-            className={cn(
-              "flex items-center gap-1.5",
-              checks[rule] ? "text-success-dark" : "text-text-muted",
-            )}
-          >
-            {checks[rule] ? (
-              <Check className="size-3.5" aria-hidden />
-            ) : (
-              <Circle className="size-3.5" aria-hidden />
-            )}
-            {t(`rule.${rule}`)}
-          </li>
-        ))}
-      </ul>
+      <PasswordChecklist value={next} />
       <Field
         label={t("confirm")}
         error={form.fieldErrors.confirm}
         name="confirm"
       >
-        <Input
-          type="password"
+        <PasswordInput
           autoComplete="new-password"
+          toggleTestId="confirm-password-toggle"
           dir="ltr"
           value={confirm}
           data-testid="confirm-password"
@@ -166,8 +146,9 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         </button>
       ) : (
         <Link
-          href="/"
+          href={returnTo}
           className="text-center text-label text-primary-dark hover:underline"
+          data-testid="change-password-back"
         >
           {tAuth("backToAdmin")}
         </Link>

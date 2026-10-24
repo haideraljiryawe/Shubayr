@@ -98,7 +98,9 @@
     "temporaryHint": "They will be asked to change it at their first sign-in.",
     "generate": "Generate password",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "ruleMet": "met",
+    "ruleNotMet": "not met yet"
   },
   "common": {
     "reason": "Reason for the change",
@@ -474,9 +476,10 @@
     "pagePicker": "Choose page"
   },
   "permissions": {
-    "filter": "Search permissions",
+    "filter": "Search by name or description",
     "count": "{chosen} of {total}",
-    "fromPreset": "Granted by a preset"
+    "fromPreset": "Granted by a preset",
+    "none": "No permission matches this search."
   },
   "permissionGroups": {
     "orders": "Orders",
@@ -2293,7 +2296,8 @@
         "in_stock": "In stock",
         "low_stock": "Low stock",
         "out_of_stock": "Out of stock"
-      }
+      },
+      "allButArchived": "All except archived"
     },
     "bulk": {
       "label": "Change the selected products",
@@ -2366,6 +2370,37 @@
         "positive": "The maximum must be more than 0.",
         "precision": "Use at most 3 decimals.",
         "wholeUnits": "Every variant sells whole units only, so enter a whole number."
+      }
+    },
+    "delete": {
+      "action": "Delete product",
+      "bulk": "Delete",
+      "titleOne": "Delete “{name}”?",
+      "titleMany": "Delete {count, plural, one {# product} other {# products}}?",
+      "ruleDeleteOne": "If this product was never used, it is deleted completely.",
+      "ruleArchiveOne": "If it has history — orders, stock, purchases, reviews, price approvals or a banner that opens it — it is archived instead: hidden from customers and from the product list, with its history kept. You'll see why.",
+      "ruleDeleteMany": "Products that were never used are deleted completely.",
+      "ruleArchiveMany": "Products with history — orders, stock, purchases, reviews, price approvals or a banner that opens them — are archived instead: hidden from customers and from the product list, with their history kept. You'll see which and why.",
+      "noUndo": "A complete deletion can't be undone. An archived product stays available under the “Archived” status filter.",
+      "confirmOne": "Delete product",
+      "confirmMany": "Delete {count, plural, one {# product} other {# products}}",
+      "deletedToast": "“{name}” was deleted completely.",
+      "deleted": "{count, plural, one {# product was} other {# products were}} deleted completely.",
+      "archived": "{count, plural, one {# product was} other {# products were}} archived instead of deleted.",
+      "archivedWhy": "They have history that must be kept:",
+      "failed": "{count, plural, one {# product} other {# products}} couldn't be deleted.",
+      "outcome": {
+        "deleted": "Deleted",
+        "archived": "Archived",
+        "failed": "Not deleted"
+      },
+      "reasons": {
+        "order_history": "It appears in orders",
+        "inventory_history": "It has stock or stock movements",
+        "purchase_history": "It appears in purchases",
+        "product_reviews": "It has customer reviews",
+        "price_approval_history": "It has price approvals",
+        "banner_action": "A home banner opens it"
       }
     }
   },
@@ -5000,7 +5035,20 @@
       "csv": "Export CSV",
       "xlsx": "Export XLSX",
       "progress": "Exporting {done} of {total}",
-      "failed": "The export could not be completed."
+      "failed": "The export could not be completed.",
+      "pdf": "Export PDF",
+      "pdfTitle": "Export PDF",
+      "pdfDescription": "The whole report with the filters applied now, its totals, who exported it and when, and page numbers.",
+      "orientation": "Page orientation",
+      "portrait": "Portrait",
+      "portraitHint": "Tall pages; best for a few columns.",
+      "landscape": "Landscape",
+      "landscapeHint": "Wide pages; more columns side by side.",
+      "pdfSubmit": "Export",
+      "pdfRetry": "Try again",
+      "pdfQueued": "Waiting for the export to start…",
+      "pdfReady": "The PDF is ready and downloading.",
+      "pdfDownloadAgain": "Download it again"
     },
     "values": {
       "asset": "Asset",

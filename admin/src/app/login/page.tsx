@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { LoginForm } from "./login-form";
 import { AuthFrame } from "@/components/shell/auth-frame";
+import { safeReturnPath } from "@/lib/return-path";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("auth");
@@ -15,8 +16,7 @@ export default async function LoginPage({
 }) {
   const { next, expired } = await searchParams;
   // Only same-site paths: `?next=//evil.example` must not become a redirect.
-  const safeNext =
-    next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const safeNext = safeReturnPath(next);
   return (
     <AuthFrame>
       <LoginForm next={safeNext} expired={expired === "1"} />

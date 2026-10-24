@@ -141,9 +141,10 @@ test("the account menu holds the language, the password and sign-out", async ({ 
   const menu = page.getByTestId("account-menu-content");
   await expect(menu.getByTestId("account-name")).toBeVisible();
   await expect(menu.getByTestId("account-locale-ar")).toHaveAttribute("aria-checked", "true");
-  await expect(menu.getByTestId("account-change-password")).toHaveAttribute("href", "/change-password");
+  // The password change comes back to this page afterwards.
+  await expect(menu.getByTestId("account-change-password")).toHaveAttribute("href", "/change-password?next=%2F");
   await menu.getByTestId("account-change-password").click();
-  await expect(page).toHaveURL(/\/change-password$/);
+  await expect(page).toHaveURL(/\/change-password\?next=%2F$/);
   await page.goto("/");
 
   // Sign-out asks first; Cancel and Escape keep the session.

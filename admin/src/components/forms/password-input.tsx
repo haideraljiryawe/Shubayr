@@ -18,8 +18,11 @@ export function PasswordInput({
 }: Omit<ComponentProps<"input">, "type"> & { toggleTestId?: string }) {
   const t = useTranslations("auth");
   const [shown, setShown] = useState(false);
+  // The wrapper takes the input's own direction (passwords are typed
+  // left-to-right even on an Arabic page), so the toggle sits at the end the
+  // input reserves for it and never covers the text.
   return (
-    <div className="relative">
+    <div className="relative" dir={props.dir}>
       <Input {...props} type={shown ? "text" : "password"} className={cn("pe-12", className)} />
       <button
         type="button"

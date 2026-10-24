@@ -14,6 +14,7 @@ import { parseModules } from "@/lib/modules";
 import type { RawSearchParams } from "@/lib/table-params";
 import { ProductEditor } from "../product-editor";
 import { VariantStock } from "../variant-stock";
+import { ProductDeleteAction } from "@/components/catalog/product-delete";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("products");
@@ -98,6 +99,7 @@ export default async function ProductPage({
               <Copy className="size-4" aria-hidden />
               {t("duplicate")}
             </Link>
+            {permissions.includes("catalog.products") ? <ProductDeleteAction id={product.data.id ?? id} name={name ?? ""} /> : null}
           </>
         }
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Input } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
@@ -11,7 +11,12 @@ import {
 } from "@/lib/permissions";
 
 /**
- * The permission registry, grouped by area, as checkboxes.
+ * The permission registry, grouped by area, as checkboxes (VIS-019). Each
+ * permission reads by its name and description in the interface language
+ * (the registry's own Arabic/English metadata, 17.10.0); the stable key stays
+ * as a small hint. The search matches the name and description in both
+ * languages and the key. Selections are the keys themselves, so switching
+ * the language re-labels the list without touching what is chosen.
  *
  * `inherited` marks keys already granted another way (by the presets picked
  * above it), which are shown checked and locked so an "extra grant" is never
@@ -33,23 +38,11 @@ export function PermissionPicker({
 }) {
   const t = useTranslations("permissions");
   const tGroups = useTranslations("permissionGroups");
+  const locale = useLocale();
   const [filter, setFilter] = useState("");
   const selected = useMemo(() => new Set(value), [value]);
 
-  const groups = useMemo(() => {
-    const needle = filter.trim().toLocaleLowerCase();
-    return groupPermissions(registry)
-      .map((group) => ({
-        ...group,
-        permissions: group.permissions.filter(
-          (permission) =>
-            !needle ||
-            permission.key.toLocaleLowerCase().includes(needle) ||
-            (permission.description ?? "").toLocaleLowerCase().includes(needle),
-        ),
-      }))
-      .filter((group) => group.permissions.length > 0);
-  }, [registry, filter]);
+  const groups = useMemo(() => groupPermissions(registry, locale, filter), [registry, locale, filter]);
 
   const groupLabel = (group: string) =>
     tGroups.has(group) ? tGroups(group) : group;
@@ -62,7 +55,13 @@ export function PermissionPicker({
         aria-label={t("filter")}
         value={filter}
         onChange={(event) => setFilter(event.target.value)}
+        data-testid={`picker-${name}-search`}
       />
+      {groups.length === 0 ? (
+        <p className="text-body text-text-muted" data-testid={`picker-${name}-none`}>
+          {t("none")}
+        </p>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-2">
         {groups.map((group) => {
           const own = group.permissions.filter(
@@ -132,14 +131,17 @@ export function PermissionPicker({
                           }
                         />
                         <span className="flex flex-col">
-                          <code className="text-caption font-semibold" dir="ltr">
-                            {permission.key}
-                          </code>
+                          <span className="text-label" data-testid={`perm-name-${permission.key}`}>
+                            {permission.name}
+                          </span>
                           {permission.description ? (
-                            <span className="text-caption text-text-muted">
+                            <span className="text-caption text-text-muted" data-testid={`perm-description-${permission.key}`}>
                               {permission.description}
                             </span>
                           ) : null}
+                          <code className="text-caption text-text-muted/80" dir="ltr" translate="no">
+                            {permission.key}
+                          </code>
                           {locked ? (
                             <span className="text-caption text-info-dark">
                               {t("fromPreset")}

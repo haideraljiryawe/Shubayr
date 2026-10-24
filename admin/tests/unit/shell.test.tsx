@@ -207,7 +207,7 @@ describe("account menu and sign-out (VIS-004)", () => {
     expect(within(menu).getByTestId("account-name").textContent).toBe("Hiba Owner");
     expect(within(menu).getByTestId("account-locale-ar").getAttribute("aria-checked")).toBe("true");
     expect(within(menu).getByTestId("account-locale-en").getAttribute("aria-checked")).toBe("false");
-    expect(within(menu).getByTestId("account-change-password").getAttribute("href")).toBe("/change-password");
+    expect(within(menu).getByTestId("account-change-password").getAttribute("href")).toBe("/change-password?next=%2F");
     expect(within(menu).getByTestId("sign-out")).toBeTruthy();
   });
 
