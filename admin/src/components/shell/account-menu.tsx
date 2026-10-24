@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { localeDirection, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 import { hardNavigate } from "@/lib/hard-navigate";
+import { roleLabel, type PresetIdentity } from "@/lib/role-label";
 import { useSwitchLocale } from "./locale-switch";
 
 const ITEM =
@@ -21,9 +22,19 @@ const ITEM =
  * The account menu in the top bar (VIS-004): who is signed in, the interface
  * language (saved on the account, so it follows the person, not the browser),
  * the password change, and signing out — which asks first; only
- * the confirmation ends the session.
+ * the confirmation ends the session. Under the name: the role, i.e. the
+ * presets' names in the interface language (re-read on a language switch,
+ * no reload); a long list is cut with the whole of it in a tooltip.
  */
-export function AccountMenu({ name, username }: { name: string; username: string | null }) {
+export function AccountMenu({
+  name,
+  username,
+  presets,
+}: {
+  name: string;
+  username: string | null;
+  presets?: readonly PresetIdentity[];
+}) {
   // The password change comes back here afterwards.
   const pathname = usePathname() ?? "/";
   const t = useTranslations("account");
@@ -32,6 +43,7 @@ export function AccountMenu({ name, username }: { name: string; username: string
   const toast = useToast();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const initial = (name || username || "?").trim().charAt(0).toUpperCase();
+  const role = roleLabel(presets, locale);
 
   return (
     <>
@@ -50,8 +62,15 @@ export function AccountMenu({ name, username }: { name: string; username: string
           >
             {initial}
           </span>
-          <span className="hidden max-w-40 truncate text-label sm:inline" data-testid="current-user">
-            {name || username}
+          <span className="hidden min-w-0 max-w-44 flex-col items-start text-start sm:flex">
+            <span className="max-w-full truncate text-label" data-testid="current-user">
+              {name || username}
+            </span>
+            {role ? (
+              <span className="max-w-full truncate text-caption text-text-muted" title={role} data-testid="current-user-role">
+                {role}
+              </span>
+            ) : null}
           </span>
           <ChevronDown className="size-4 text-text-muted" aria-hidden />
         </Menu.Trigger>
@@ -65,6 +84,11 @@ export function AccountMenu({ name, username }: { name: string; username: string
           >
             <div className="px-3 py-2">
               <p className="truncate text-label text-text" data-testid="account-name">{name || username}</p>
+              {role ? (
+                <p className="truncate text-caption text-text-muted" title={role} data-testid="account-role">
+                  {role}
+                </p>
+              ) : null}
               {username ? (
                 <p className="truncate text-caption text-text-muted" dir="ltr">
                   {username}
