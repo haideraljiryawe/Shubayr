@@ -476,6 +476,13 @@ class _BannerImageSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final link = banner.webLink;
     final canOpen = link != null && onOpen != null;
+    final textShadows = [
+      Shadow(
+        color: context.colors.imageScrim.withValues(alpha: 0.65),
+        offset: const Offset(0, 1),
+        blurRadius: 3,
+      ),
+    ];
     return Semantics(
       button: canOpen,
       child: GestureDetector(
@@ -491,8 +498,8 @@ class _BannerImageSlide extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    context.colors.imageScrim.withValues(alpha: 0.86),
-                    context.colors.imageScrim.withValues(alpha: 0.64),
+                    context.colors.imageScrim.withValues(alpha: 0.55),
+                    context.colors.imageScrim.withValues(alpha: 0.18),
                   ],
                 ),
               ),
@@ -507,6 +514,7 @@ class _BannerImageSlide extends StatelessWidget {
                       banner.title,
                       style: context.text.titleLarge?.copyWith(
                         color: context.colors.onDark,
+                        shadows: textShadows,
                       ),
                     ),
                   if (banner.title.trim().isNotEmpty &&
@@ -517,6 +525,7 @@ class _BannerImageSlide extends StatelessWidget {
                       banner.subtitle!,
                       style: context.text.bodyMedium?.copyWith(
                         color: context.colors.onDark,
+                        shadows: textShadows,
                       ),
                     ),
                 ],
