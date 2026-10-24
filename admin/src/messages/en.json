@@ -881,6 +881,43 @@
           "available": "Available"
         },
         "openInvoice": "Purchase invoice {number}"
+      },
+      "editor": {
+        "listTitle": "Invoice products",
+        "addTitle": "Add product to invoice",
+        "editTitle": "Edit invoice product",
+        "product": "Product",
+        "searchPlaceholder": "Search by product name or SKU",
+        "add": "Add to invoice",
+        "save": "Save changes",
+        "cancelEdit": "Cancel editing",
+        "edit": "Edit",
+        "remove": "Remove",
+        "columns": {
+          "product": "Product",
+          "quantityCost": "Quantity and cost",
+          "derived": "Calculated costs",
+          "receiving": "Receiving",
+          "actions": "Actions"
+        },
+        "quantity": "Quantity",
+        "lineTotal": "Total",
+        "expiryShort": "Expiry",
+        "editingBadge": "Being edited",
+        "empty": "No products added yet. Choose a product in the editor above, then press “Add to invoice”.",
+        "noProducts": "Add at least one product to the invoice.",
+        "noQuantities": "Enter a quantity for at least one product.",
+        "removeTitle": "Remove product from invoice?",
+        "removeBody": "Do you want to remove “{name}” from this invoice?",
+        "removeNoteDraft": "Your draft is saved automatically, so it is updated too. The product stays in the catalog, and stock changes only when the invoice is posted.",
+        "removeNoteRestock": "The product stays in the catalog, and nothing is saved until the invoice is posted.",
+        "removeConfirm": "Remove product",
+        "switchTitle": "Discard the editor's changes?",
+        "switchBody": "The product editor has changes that aren't on the invoice yet. Discard them and edit “{name}”?",
+        "switchConfirm": "Discard and edit",
+        "thisProduct": "this product",
+        "reviewBody": "{count, plural, one {One product} other {# products}} · total {total}. Posting adds the stock, creates the lots and records the amount owed.",
+        "skipped": "{count, plural, one {One product without a quantity stays off the invoice.} other {# products without a quantity stay off the invoice.}}"
       }
     },
     "invoices": {
@@ -1443,7 +1480,11 @@
         "quantity": "Quantity",
         "order": "Order",
         "picked": "✓"
-      }
+      },
+      "printNone": "Print pick lists",
+      "selectGuide": "Tick the orders whose status is {statuses} in the table to print their pick lists — the items needed to prepare them — together.",
+      "selectedHint": "{count, plural, one {One order selected} other {# orders selected}}; some may be on other pages of the table.",
+      "clearSelection": "Clear selection"
     },
     "attention": {
       "title": "Needs attention: stock is short",
@@ -2377,7 +2418,10 @@
       "none": "No product matches.",
       "forbidden": "Searching SKUs needs the catalog.products permission.",
       "failed": "The search failed. Try again.",
-      "needsCatalog": "Choosing a SKU searches the catalog, which needs the catalog.products permission. Ask an administrator if you need it."
+      "needsCatalog": "Choosing a SKU searches the catalog, which needs the catalog.products permission. Ask an administrator if you need it.",
+      "searching": "Searching…",
+      "noMatches": "No matching products",
+      "retry": "Retry"
     },
     "filters": {
       "warehouse": "Warehouse",
@@ -3593,7 +3637,20 @@
       "upload": "The picture could not be uploaded. Check the connection and retry.",
       "forbidden": "You don't have permission to upload pictures.",
       "decode": "This picture could not be read. Try another one."
-    }
+    },
+    "guidance": "Product images are saved as squares. Cropping starts at the center; zoom and drag to choose the visible area before confirming.",
+    "guidanceSingle": "The logo is saved as a square. Cropping starts at the center; zoom and drag to choose the visible area before confirming.",
+    "pickHint": "Drop pictures here or choose them from your device — up to {max}, each adjusted on its own.",
+    "pickHintSingle": "One JPG, PNG, WebP or AVIF picture.",
+    "removeConfirm": {
+      "title": "Delete image?",
+      "body": "Do you want to delete this image? Deletion is applied only after you save the product.",
+      "bodyLogo": "Do you want to delete this logo? Deletion is applied only after you save the brand.",
+      "action": "Confirm deletion"
+    },
+    "pendingRemoval": "{count, plural, one {One image will be deleted} other {# images will be deleted}} when you save the product.",
+    "pendingRemovalLogo": "The logo will be deleted when you save the brand.",
+    "undoRemoval": "Undo"
   },
   "settingsTabs": {
     "label": "Settings sections",
@@ -4032,13 +4089,16 @@
       "unmatchedHelp": "Make sure the file name is exactly the SKU (-2 and -3 may follow), then upload just these files in a new ZIP.",
       "open": "Open product",
       "files": "{count, plural, one {# picture} other {# pictures}}",
-      "another": "Upload another file"
+      "another": "Upload another file",
+      "failedTitle": "{count, plural, one {One image was not processed} other {# images were not processed}}",
+      "failedHelp": "These files couldn't be read or turned into a square picture, so nothing was saved and the products' pictures didn't change. Fix the file and upload it again."
     },
     "errors": {
       "CATALOG_IMAGE_ZIP_INVALID": "The file couldn't be opened as a ZIP archive. Create the archive again and upload it.",
       "tooLarge": "The archive is too large or has too many pictures. Split it into several ZIP files.",
       "generic": "The pictures couldn't be uploaded. Try again."
-    }
+    },
+    "squareNotice": "Non-square product images will be center-cropped automatically before saving."
   },
   "returns": {
     "statuses": {
@@ -4605,6 +4665,22 @@
       "tooLarge": "The picture is larger than 8 MB. Choose a smaller one.",
       "decode": "This browser couldn't open that picture. Try another file or format.",
       "encode": "The crop couldn't be prepared in this browser. Try again or use another picture."
+    },
+    "size": "Image size",
+    "sizeValue": "{percent}%",
+    "zoomOut": "Make the image smaller",
+    "zoomIn": "Make the image larger",
+    "editTitle": "Adjust image",
+    "editTitleMany": "Adjust image {current} of {total}",
+    "skip": "Skip this image",
+    "useImage": "Use this image",
+    "opening": "Opening the image…",
+    "result": "Result",
+    "marginsWhite": "Empty edges are saved white.",
+    "marginsTransparent": "Empty edges stay transparent.",
+    "ratio": {
+      "square": "The image is saved square. Cropping starts at the center; make it smaller or larger and drag it to choose what shows.",
+      "wide": "The image is saved at {ratio}. Cropping starts at the center; make it smaller or larger and drag it to choose what shows."
     }
   },
   "banners": {

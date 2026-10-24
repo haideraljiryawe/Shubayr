@@ -171,7 +171,8 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await expect(form.getByTestId("banner-preview-action")).toContainText(shown.name_ar);
     // The picture comes from a saved banner's media; here it is uploaded through the form's own field.
     await form.getByTestId("banner-image-input").setInputFiles({ name: "p.png", mimeType: "image/png", buffer: png(2400, 1200, [200, 120, 30]) });
-    await form.getByTestId("banner-image-use-crop").click();
+    await page.getByTestId("banner-image-editor-confirm").click();
+    await expect(page.getByTestId("banner-image-editor")).toBeHidden();
     await form.getByTestId("banner-enabled").check();
     await form.getByTestId("dialog-submit").click();
     await expect(form).toBeHidden();
@@ -211,7 +212,8 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await form.getByTestId("banner-internal-name").fill(firstDefault);
     await form.getByTestId("banner-show-text").uncheck();
     await form.getByTestId("banner-image-input").setInputFiles({ name: "d.png", mimeType: "image/png", buffer: png(2400, 1200, [60, 60, 160]) });
-    await form.getByTestId("banner-image-use-crop").click();
+    await page.getByTestId("banner-image-editor-confirm").click();
+    await expect(page.getByTestId("banner-image-editor")).toBeHidden();
     // Image only: the preview draws no title and says so.
     await expect(form.getByTestId("banner-preview")).toHaveAttribute("data-show-text", "false");
     await expect(form.getByTestId("banner-preview-title")).toHaveCount(0);
@@ -416,11 +418,17 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await form.getByTestId("invoice-supplier-option").filter({ hasText: supplier.name }).click();
   await expect(form.getByTestId("invoice-supplier-picked")).toHaveAttribute("data-supplier-id", supplier.id);
   expect(searches.some((query) => query.includes(`q=${phone.slice(-7)}`))).toBe(true);
-  // Opening stock at 7,000 is the cost to start from (never purchased yet).
+  // Opening stock at 7,000 is the cost to start from (never purchased yet). A
+  // restock opens with its first variant in the product editor (VIS-022).
   const line = form.getByTestId("invoice-line").first();
-  await expect(line.getByTestId("line-cost")).toHaveValue("7,000");
-  await line.getByTestId("line-cost").fill("8000");
-  await line.getByTestId("line-packs").fill("2");
+  await expect(line.getByTestId("line-pack-cost")).toContainText("7,000");
+  const editor = form.getByTestId("invoice-editor");
+  await expect(editor).toHaveAttribute("data-mode", "edit");
+  await expect(editor.getByTestId("line-cost")).toHaveValue("7,000");
+  await editor.getByTestId("line-cost").fill("8000");
+  await editor.getByTestId("line-packs").fill("2");
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(line).toHaveAttribute("data-blank", "false");
   await form.getByTestId("invoice-payment-owed").check();
   await form.getByTestId("invoice-review-button").click();
   await form.getByTestId("invoice-confirm").click();
@@ -435,8 +443,11 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await expect(form.getByTestId("invoice-supplier-picked")).toHaveAttribute("data-supplier-id", supplier.id);
   const last = await api(request, "GET", `/admin/purchase-costs/variants/${product.variants[0].id}/last`);
   expect(last.body).toMatchObject({ unit_cost: 8000, currency_code: "IQD", supplier: { id: supplier.id } });
-  await expect(form.getByTestId("invoice-line").first().getByTestId("line-cost")).toHaveValue("8,000");
-  await form.getByTestId("invoice-line").first().getByTestId("line-packs").fill("3");
+  await expect(form.getByTestId("invoice-line").first().getByTestId("line-pack-cost")).toContainText("8,000");
+  await expect(form.getByTestId("invoice-editor").getByTestId("line-cost")).toHaveValue("8,000");
+  await form.getByTestId("invoice-editor").getByTestId("line-packs").fill("3");
+  await form.getByTestId("invoice-editor-submit").click();
+  await expect(form.getByTestId("invoice-line").first()).toHaveAttribute("data-blank", "false");
   await form.getByTestId("invoice-payment-now").check();
   await choose(form.getByTestId("invoice-cash-account"), account);
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("24,000");

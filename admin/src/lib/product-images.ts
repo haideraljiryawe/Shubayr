@@ -81,6 +81,15 @@ export function makeMain<T extends { key: string }>(list: readonly T[], key: str
   return index <= 0 ? [...list] : moveItem(list, index, 0);
 }
 
+/**
+ * A picture that is already saved with the product (or brand), as opposed to
+ * one uploaded in this session: deleting it is a pending change that only the
+ * next save applies (VIS-008).
+ */
+export function isStoredImage(draft: ImageDraft): boolean {
+  return draft.phase === "ready" && Boolean(draft.url) && !draft.preview.startsWith("blob:");
+}
+
 /** Whether every tile is uploaded, so the product can be saved. */
 export function imagesSettled(drafts: readonly ImageDraft[]): "ready" | "busy" | "failed" {
   if (drafts.some((draft) => draft.phase === "processing" || draft.phase === "uploading")) return "busy";
