@@ -54,9 +54,13 @@ test("owner dashboard and every report use the live API", async ({ page, request
   await expect(page.getByTestId("late-orders")).toHaveAttribute("href", "/orders?queue=late");
   await expect(page.getByTestId("low-stock")).toHaveAttribute("href", "/catalog/products?stock_state=low");
   await expect(page.getByTestId("payables-due")).toHaveAttribute("href", `/purchasing/reports?as_of=${summary.business_date}`);
-  if (summary.sales) {
-    expect(digits(await page.getByTestId("month-sales-value").textContent())).toBe(wholeIqd(summary.sales.month_to_date_net_sales));
-  }
+  // One period selector drives the performance tiles; "This month" matches
+  // the month's sales report.
+  await page.goto("/?period=month");
+  await expect(page.getByTestId("period-month")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("performance")).toHaveAttribute("data-period", "month");
+  expect(digits(await page.getByTestId("perf-net-sales-value").textContent())).toBe(wholeIqd(sales.totals.net_sales));
+  expect(digits(await page.getByTestId("perf-orders-value").textContent())).toBe(String(sales.totals.order_count));
 
   await page.goto("/reports");
   await expect(page.getByTestId("reports-hub")).toBeVisible();

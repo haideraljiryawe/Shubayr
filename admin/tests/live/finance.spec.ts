@@ -12,6 +12,7 @@ import {
   unique,
 } from "./helpers";
 import { choose } from "./controls";
+import { navLink } from "./shell";
 
 /**
  * The financial-core screens in a real browser, through the BFF, against a
@@ -74,7 +75,7 @@ test("settings: invalid numbers stay next to the field; a save shows old → new
   const originalFee = before.body.settings.delivery_fee as string;
   const nextFee = originalFee === "5500" ? "6000" : "5500";
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-settings").click();
+  await (await navLink(page, "settings")).click();
   await expect(page.getByTestId("settings-form")).toBeVisible();
 
   let puts = 0;
@@ -304,7 +305,7 @@ test("a permission-limited user sees only the screens they may use", async ({ pa
   await expect(page.getByTestId("dashboard")).toBeVisible();
   const nav = page.getByTestId("sidebar-nav");
   for (const key of ["currencies", "periods", "ledger"]) {
-    await expect(nav.getByTestId(`nav-${key}`), key).toBeVisible();
+    await navLink(page, key);
   }
   for (const key of ["cashAccounts", "settings", "orders", "staff"]) {
     await expect(nav.getByTestId(`nav-${key}`), key).toHaveCount(0);

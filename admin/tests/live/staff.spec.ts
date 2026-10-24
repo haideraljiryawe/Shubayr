@@ -8,6 +8,7 @@ import {
   unique,
 } from "./helpers";
 import { choose } from "./controls";
+import { navLink } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -16,7 +17,7 @@ test.beforeEach(async ({ request }) => {
 test("creates a staff member with a preset", async ({ page, request }) => {
   const username = unique("ui");
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-staff").click();
+  await (await navLink(page, "staff")).click();
   await page.getByTestId("staff-new").click();
 
   await page.getByTestId("input-username").fill(username);
@@ -174,7 +175,11 @@ test("on a phone the shell never scrolls sideways; the table scrolls in its card
     expect(width, path).toBeLessThanOrEqual(390);
   }
   await page.getByRole("button", { name: "فتح القائمة" }).click();
-  // The desktop aside is still in the DOM (hidden); the opened menu is the visible one.
+  // The desktop aside is still in the DOM (hidden); the drawer is the visible
+  // menu, its Users group opened to reach Staff.
+  const drawer = page.getByTestId("drawer-nav");
+  await drawer.getByTestId("nav-group-users").click();
+  await expect(drawer.getByTestId("nav-staff")).toBeVisible();
   await expect(page.locator('[data-testid="nav-staff"]:visible')).toHaveCount(
     1,
   );

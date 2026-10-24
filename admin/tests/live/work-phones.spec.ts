@@ -8,6 +8,7 @@ import {
   uiLoginAsAdmin,
 } from "./helpers";
 import { choose } from "./controls";
+import { navLink } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -31,7 +32,7 @@ test("registers a work phone with its person, then revokes it", async ({
   const name = `مندوب ${phone.slice(-4)}`;
 
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-workPhones").click();
+  await (await navLink(page, "workPhones")).click();
 
   // Registered in the local format staff actually type.
   const form = page.getByTestId("work-phone-form");
