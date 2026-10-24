@@ -18346,12 +18346,17 @@ export interface components {
             /** @enum {string} */
             report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation" | "purchases" | "supplier_statement" | "stock_movement" | "expenses";
             /** @enum {string} */
-            format: "csv" | "xlsx";
+            format: "csv" | "xlsx" | "pdf";
             /**
              * @description Defaults to en when omitted.
              * @enum {string}
              */
             language?: "ar" | "en";
+            /**
+             * @description PDF page orientation; defaults to portrait and is ignored by CSV/XLSX.
+             * @enum {string}
+             */
+            orientation?: "portrait" | "landscape";
             /** Format: date */
             from?: string;
             /** Format: date */
@@ -18377,7 +18382,7 @@ export interface components {
             /** @enum {string} */
             report_type: "sales" | "profitability" | "profit_loss" | "trial_balance" | "balance_sheet" | "cash" | "delivery_custody" | "liabilities" | "inventory_valuation" | "purchases" | "supplier_statement" | "stock_movement" | "expenses";
             /** @enum {string} */
-            format: "csv" | "xlsx";
+            format: "csv" | "xlsx" | "pdf";
             /** @enum {string} */
             language: "ar" | "en";
             /** @enum {string} */

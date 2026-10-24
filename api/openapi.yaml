@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.10.0
+  version: 17.11.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -12013,8 +12013,9 @@ components:
       required: [report_type, format]
       properties:
         report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation, purchases, supplier_statement, stock_movement, expenses] }
-        format: { type: string, enum: [csv, xlsx] }
+        format: { type: string, enum: [csv, xlsx, pdf] }
         language: { type: string, enum: [ar, en], description: Defaults to en when omitted. }
+        orientation: { type: string, enum: [portrait, landscape], description: PDF page orientation; defaults to portrait and is ignored by CSV/XLSX. }
         from: { type: string, format: date }
         to: { type: string, format: date }
         as_of: { type: string, format: date }
@@ -12033,7 +12034,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         report_type: { type: string, enum: [sales, profitability, profit_loss, trial_balance, balance_sheet, cash, delivery_custody, liabilities, inventory_valuation, purchases, supplier_statement, stock_movement, expenses] }
-        format: { type: string, enum: [csv, xlsx] }
+        format: { type: string, enum: [csv, xlsx, pdf] }
         language: { type: string, enum: [ar, en] }
         status: { type: string, enum: [queued, processing, completed, failed] }
         rows_done: { type: integer, minimum: 0 }

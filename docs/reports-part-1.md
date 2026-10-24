@@ -26,5 +26,19 @@ is available only through `reports.profit.read`, and cost/profit reads are
 audited with the actor and report parameters.
 
 CSV exports begin with a UTF-8 BOM for Excel and support Arabic headings. All
-CSV/XLSX exports run on the background worker and are polled through their
+CSV/XLSX/PDF exports run on the background worker and are polled through their
 progress resource.
+
+PDF exports use the maintained `@digicole/pdfmake-rtl` fork and its bundled
+Cairo font. It was selected because it supports Arabic shaping, mixed
+bidirectional text, repeated table headers, and server-side rendering without a
+browser. The central report template includes the configured store legal name
+and managed logo (the logo is omitted, rather than failing the export, if its
+stored object is unavailable), report title, readable applied filters, the
+exporting staff member, and the export instant formatted in the configured store
+timezone. It also includes totals, the open-period warning, repeated headers,
+and localized page X of Y footers. `orientation` selects portrait or landscape
+and defaults to portrait. Wide reports are split into readable column groups
+with the identifying column repeated; cell text wraps rather than being
+stretched or clipped. Every PDF contains the complete filtered detail set, not
+only the current API page.

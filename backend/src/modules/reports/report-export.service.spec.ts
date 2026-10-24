@@ -41,6 +41,7 @@ describe('ReportExportService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
 
     const result = await service.progress(
@@ -56,6 +57,7 @@ describe('ReportExportService', () => {
 
   it('writes a UTF-8 BOM and Arabic headings in CSV exports', () => {
     const service = new ReportExportService(
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

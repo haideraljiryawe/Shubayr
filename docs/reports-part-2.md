@@ -25,6 +25,6 @@ response says whether its range touches an open period.
   are omitted when the caller lacks their permission; gross profit is present
   only with `reports.profit.read`.
 
-All part-2 detail sets are database-paginated. CSV/XLSX exports use the same
+All part-2 detail sets are database-paginated. CSV/XLSX/PDF exports use the same
 background queue and progress endpoints as reports part 1. Cost-bearing reads
 are audited with actor and parameters.

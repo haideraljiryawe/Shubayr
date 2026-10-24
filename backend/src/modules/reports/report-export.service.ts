@@ -8,6 +8,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import ExcelJS from 'exceljs';
+import sharp from 'sharp';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -16,6 +17,7 @@ import type { CreateReportExportDto } from './reports.dto';
 import { ReportsService } from './reports.service';
 import { ReportsPart2Service } from './reports-part2.service';
 import { ReportsPart3Service } from './reports-part3.service';
+import { ReportPdfService, type PdfLabelValue } from './report-pdf.service';
 
 type Actor = { id: string; permissions: string[] };
 type ExportType = CreateReportExportDto['report_type'];
@@ -34,6 +36,25 @@ const permissions: Record<ExportType, string> = {
   supplier_statement: 'reports.suppliers.read',
   stock_movement: 'reports.stock.read',
   expenses: 'reports.expenses.read',
+};
+
+const reportTitles: Record<ExportType, { en: string; ar: string }> = {
+  sales: { en: 'Sales report', ar: 'تقرير المبيعات' },
+  profitability: { en: 'Profitability report', ar: 'تقرير الربحية' },
+  profit_loss: { en: 'Profit and loss', ar: 'قائمة الأرباح والخسائر' },
+  trial_balance: { en: 'Trial balance', ar: 'ميزان المراجعة' },
+  balance_sheet: { en: 'Balance sheet', ar: 'الميزانية العمومية' },
+  cash: { en: 'Cash report', ar: 'تقرير النقد' },
+  delivery_custody: { en: 'Delivery custody', ar: 'عهد التوصيل' },
+  liabilities: { en: 'Liabilities report', ar: 'تقرير الالتزامات' },
+  inventory_valuation: {
+    en: 'Inventory valuation',
+    ar: 'تقييم المخزون',
+  },
+  purchases: { en: 'Purchases report', ar: 'تقرير المشتريات' },
+  supplier_statement: { en: 'Supplier statement', ar: 'كشف حساب المورد' },
+  stock_movement: { en: 'Stock movement', ar: 'حركة المخزون' },
+  expenses: { en: 'Expenses report', ar: 'تقرير المصروفات' },
 };
 
 const labels: Record<string, { en: string; ar: string }> = {
@@ -122,6 +143,38 @@ const labels: Record<string, { en: string; ar: string }> = {
     ar: 'إطفاء المصروف المقدم (د.ع)',
   },
   total_iqd: { en: 'Total (IQD)', ar: 'الإجمالي (د.ع)' },
+  original_delivery_fees: {
+    en: 'Original delivery fees (IQD)',
+    ar: 'أجور التوصيل الأصلية (د.ع)',
+  },
+  charged_delivery_fees: {
+    en: 'Charged delivery fees (IQD)',
+    ar: 'أجور التوصيل المحصلة (د.ع)',
+  },
+  delivery_fee_adjustments: {
+    en: 'Delivery fee adjustments (IQD)',
+    ar: 'تعديلات أجور التوصيل (د.ع)',
+  },
+  delivery_fee_refunds: {
+    en: 'Delivery fee refunds (IQD)',
+    ar: 'مبالغ أجور التوصيل المستردة (د.ع)',
+  },
+  cancelled_count: { en: 'Cancelled orders', ar: 'الطلبات الملغاة' },
+  rejected_count: { en: 'Rejected orders', ar: 'الطلبات المرفوضة' },
+  account_id: { en: 'Account ID', ar: 'معرف الحساب' },
+  account_code: { en: 'Account code', ar: 'رمز الحساب' },
+  section: { en: 'Section', ar: 'القسم المحاسبي' },
+  current_amount: { en: 'Current period (IQD)', ar: 'الفترة الحالية (د.ع)' },
+  previous_amount: { en: 'Previous period (IQD)', ar: 'الفترة السابقة (د.ع)' },
+  document_count: { en: 'Document count', ar: 'عدد المستندات' },
+  group_id: { en: 'Group', ar: 'المجموعة' },
+  source_type: { en: 'Source type', ar: 'نوع المصدر' },
+  document_date: { en: 'Document date', ar: 'تاريخ المستند' },
+  accounting_date: { en: 'Accounting date', ar: 'التاريخ المحاسبي' },
+  debit_currency: { en: 'Debit (currency)', ar: 'مدين (بالعملة)' },
+  credit_currency: { en: 'Credit (currency)', ar: 'دائن (بالعملة)' },
+  debit_iqd: { en: 'Debit (IQD)', ar: 'مدين (د.ع)' },
+  credit_iqd: { en: 'Credit (IQD)', ar: 'دائن (د.ع)' },
 };
 
 @Injectable()
@@ -131,6 +184,7 @@ export class ReportExportService {
     private readonly reports: ReportsService,
     private readonly reportsPart2: ReportsPart2Service,
     private readonly reportsPart3: ReportsPart3Service,
+    private readonly pdf: ReportPdfService,
     private readonly storage: ObjectStorageService,
     private readonly audit: AuditService,
     @InjectQueue('report-exports') private readonly queue: Queue,
@@ -260,15 +314,32 @@ export class ReportExportService {
         });
       });
       const language = claimed.language === 'ar' ? 'ar' : 'en';
-      const file =
+      const extension =
         claimed.format === 'xlsx'
+          ? 'xlsx'
+          : claimed.format === 'pdf'
+            ? 'pdf'
+            : 'csv';
+      const file =
+        extension === 'xlsx'
           ? await this.xlsx(rows, language)
-          : this.csv(rows, language);
-      const extension = claimed.format === 'xlsx' ? 'xlsx' : 'csv';
+          : extension === 'pdf'
+            ? await this.pdf.render(
+                await this.pdfPayload(
+                  actor,
+                  parameters,
+                  rows,
+                  language,
+                  claimed.created_by,
+                ),
+              )
+            : this.csv(rows, language);
       const contentType =
         extension === 'xlsx'
           ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          : 'text/csv; charset=utf-8';
+          : extension === 'pdf'
+            ? 'application/pdf'
+            : 'text/csv; charset=utf-8';
       const objectKey = `report-exports/${claimed.created_by}/${claimed.id}.${extension}`;
       await this.storage.put(objectKey, file, contentType);
       await this.prisma.reportExport.update({
@@ -305,30 +376,26 @@ export class ReportExportService {
     progress: (done: number, total: number) => Promise<void>,
   ): Promise<Array<Record<string, unknown>>> {
     if (input.report_type === 'profit_loss') {
-      const report = await this.reports.profitLoss(
-        actor,
-        { from: input.from!, to: input.to! },
-        false,
-      );
-      const keys = Object.keys(report.current).filter(
-        (key) => key !== 'expenses',
-      );
-      const rows = keys.map((key) => ({
-        line: key,
-        current: (report.current as Record<string, unknown>)[key],
-        previous: (report.previous as Record<string, unknown>)[key],
-      }));
-      for (const expense of report.current.expenses) {
-        const prior = report.previous.expenses.find(
-          (item) => item.id === expense.id,
+      const perPage = 500;
+      let page = 1;
+      let total: number;
+      const rows: Array<Record<string, unknown>> = [];
+      do {
+        const report = await this.reports.profitLoss(
+          actor,
+          {
+            from: input.from!,
+            to: input.to!,
+            page,
+            per_page: perPage,
+          },
+          false,
         );
-        rows.push({
-          line: `expense:${expense.name_en}`,
-          current: expense.amount,
-          previous: prior?.amount ?? '0.0000',
-        });
-      }
-      await progress(rows.length, rows.length);
+        total = report.pagination.total;
+        rows.push(...report.data);
+        await progress(rows.length, total);
+        page += 1;
+      } while (rows.length < total);
       return rows;
     }
     const perPage = 500;
@@ -515,6 +582,522 @@ export class ReportExportService {
       { state: 'frozen', ySplit: 1, rightToLeft: language === 'ar' },
     ];
     return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  private async pdfPayload(
+    actor: Actor,
+    input: CreateReportExportDto,
+    rows: Array<Record<string, unknown>>,
+    language: 'ar' | 'en',
+    creatorId: string,
+  ) {
+    const [summary, settings, creator, filters] = await Promise.all([
+      this.reportSummary(actor, input),
+      this.prisma.storeSetting.findMany({
+        where: {
+          key: {
+            in: [
+              'store_name',
+              'store_legal_name_ar',
+              'store_legal_name_en',
+              'logo_url',
+              'timezone',
+            ],
+          },
+        },
+        select: { key: true, value: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: creatorId },
+        select: { name: true, username: true },
+      }),
+      this.pdfFilters(input, language),
+    ]);
+    const values = new Map(
+      settings.map((setting) => [setting.key, setting.value]),
+    );
+    const timezone = values.get('timezone') || 'Asia/Baghdad';
+    const storeName =
+      values.get(`store_legal_name_${language}`) ||
+      values.get('store_name') ||
+      'Shubayr';
+    const flatRows = rows.map((row) => this.flattenRow(row));
+    const keys = flatRows.length
+      ? [...new Set(flatRows.flatMap((row) => Object.keys(row)))]
+      : ['line'];
+    return {
+      language,
+      orientation: input.orientation ?? 'portrait',
+      storeName,
+      reportTitle: reportTitles[input.report_type][language],
+      exportedBy:
+        creator?.name?.trim() ||
+        creator?.username?.trim() ||
+        (language === 'ar' ? 'مستخدم إداري' : 'Admin user'),
+      exportedAt: new Intl.DateTimeFormat(
+        language === 'ar' ? 'ar-IQ-u-nu-arab' : 'en-GB',
+        {
+          timeZone: timezone,
+          dateStyle: 'medium',
+          timeStyle: 'medium',
+        },
+      ).format(new Date()),
+      filters,
+      totals: this.pdfTotals(summary, language),
+      columns: keys.map((key) => ({ key, label: this.label(key, language) })),
+      rows: flatRows.map((row) =>
+        Object.fromEntries(
+          keys.map((key) => [
+            key,
+            this.pdfValue(key, row[key], language, timezone),
+          ]),
+        ),
+      ),
+      touchesOpenPeriod: Boolean(summary.touches_open_period),
+      logoDataUrl: await this.pdfLogo(values.get('logo_url') ?? undefined),
+    };
+  }
+
+  private async reportSummary(
+    actor: Actor,
+    input: CreateReportExportDto,
+  ): Promise<Record<string, unknown>> {
+    const page = 1;
+    const per_page = 1;
+    const report =
+      input.report_type === 'sales'
+        ? await this.reports.sales(
+            actor,
+            {
+              from: input.from!,
+              to: input.to!,
+              group_by: input.group_by as never,
+              page,
+              per_page,
+            },
+            false,
+          )
+        : input.report_type === 'profitability'
+          ? await this.reports.profitability(
+              actor,
+              {
+                from: input.from!,
+                to: input.to!,
+                group_by: (input.group_by ?? 'product') as never,
+                page,
+                per_page,
+              },
+              false,
+            )
+          : input.report_type === 'profit_loss'
+            ? await this.reports.profitLoss(
+                actor,
+                { from: input.from!, to: input.to!, page, per_page },
+                false,
+              )
+            : input.report_type === 'cash'
+              ? await this.reportsPart2.cash(
+                  actor,
+                  { from: input.from!, to: input.to!, page, per_page },
+                  false,
+                )
+              : input.report_type === 'delivery_custody'
+                ? await this.reportsPart2.deliveryCustody(
+                    actor,
+                    { as_of: input.as_of!, page, per_page },
+                    false,
+                  )
+                : input.report_type === 'liabilities'
+                  ? await this.reportsPart2.liabilities(
+                      actor,
+                      { as_of: input.as_of!, page, per_page },
+                      false,
+                    )
+                  : input.report_type === 'inventory_valuation'
+                    ? await this.reportsPart2.inventoryValuation(
+                        actor,
+                        {
+                          as_of: input.as_of!,
+                          slow_days: input.slow_days ?? 90,
+                          page,
+                          per_page,
+                        },
+                        false,
+                      )
+                    : input.report_type === 'purchases'
+                      ? await this.reportsPart3.purchases(
+                          actor,
+                          {
+                            from: input.from!,
+                            to: input.to!,
+                            group_by: (input.group_by ?? 'period') as never,
+                            supplier_id: input.supplier_id,
+                            variant_id: input.variant_id,
+                            category_id: input.category_id,
+                            page,
+                            per_page,
+                          },
+                          false,
+                        )
+                      : input.report_type === 'supplier_statement'
+                        ? await this.reportsPart3.supplierStatement(
+                            actor,
+                            {
+                              as_of: input.as_of!,
+                              supplier_id: input.supplier_id!,
+                              page,
+                              per_page,
+                            },
+                            false,
+                          )
+                        : input.report_type === 'stock_movement'
+                          ? await this.reportsPart3.stockMovement(
+                              actor,
+                              {
+                                from: input.from!,
+                                to: input.to!,
+                                warehouse_id: input.warehouse_id,
+                                variant_id: input.variant_id,
+                                page,
+                                per_page,
+                              },
+                              false,
+                            )
+                          : input.report_type === 'expenses'
+                            ? await this.reportsPart3.expenses(
+                                actor,
+                                {
+                                  from: input.from!,
+                                  to: input.to!,
+                                  group_by: (input.group_by ??
+                                    'category') as never,
+                                  category_id: input.category_id,
+                                  payee: input.payee,
+                                  page,
+                                  per_page,
+                                },
+                                false,
+                              )
+                            : input.report_type === 'trial_balance'
+                              ? await this.reports.trialBalance(actor, {
+                                  as_of: input.as_of!,
+                                  page,
+                                  per_page,
+                                })
+                              : await this.reports.balanceSheet(actor, {
+                                  as_of: input.as_of!,
+                                  page,
+                                  per_page,
+                                });
+    return report as unknown as Record<string, unknown>;
+  }
+
+  private async pdfFilters(
+    input: CreateReportExportDto,
+    language: 'ar' | 'en',
+  ): Promise<PdfLabelValue[]> {
+    const [supplier, variant, category, warehouse] = await Promise.all([
+      input.supplier_id
+        ? this.prisma.supplier.findUnique({
+            where: { id: input.supplier_id },
+            select: { name: true },
+          })
+        : null,
+      input.variant_id
+        ? this.prisma.productVariant.findUnique({
+            where: { id: input.variant_id },
+            select: {
+              sku: true,
+              product: { select: { name_ar: true, name_en: true } },
+            },
+          })
+        : null,
+      input.category_id
+        ? this.prisma.category.findUnique({
+            where: { id: input.category_id },
+            select: { name_ar: true, name_en: true },
+          })
+        : null,
+      input.warehouse_id
+        ? this.prisma.warehouse.findUnique({
+            where: { id: input.warehouse_id },
+            select: { name: true, code: true },
+          })
+        : null,
+    ]);
+    const ar = language === 'ar';
+    const entries: PdfLabelValue[] = [];
+    if (input.from)
+      entries.push({ label: ar ? 'من تاريخ' : 'From', value: input.from });
+    if (input.to)
+      entries.push({ label: ar ? 'إلى تاريخ' : 'To', value: input.to });
+    if (input.as_of)
+      entries.push({ label: ar ? 'كما في' : 'As of', value: input.as_of });
+    const group = input.group_by ?? this.defaultGroup(input.report_type);
+    if (group) {
+      entries.push({
+        label: ar ? 'التجميع' : 'Grouping',
+        value: this.groupLabel(group, language),
+      });
+    }
+    if (input.slow_days !== undefined) {
+      entries.push({
+        label: ar ? 'حد بطء الحركة' : 'Slow-moving threshold',
+        value: ar ? `${input.slow_days} يوم` : `${input.slow_days} days`,
+      });
+    }
+    if (input.supplier_id) {
+      entries.push({
+        label: ar ? 'المورد' : 'Supplier',
+        value:
+          supplier?.name ?? (ar ? 'مورد غير متاح' : 'Unavailable supplier'),
+      });
+    }
+    if (input.variant_id) {
+      const name = variant?.product[`name_${language}`];
+      entries.push({
+        label: ar ? 'الصنف' : 'SKU',
+        value: variant
+          ? `${variant.sku} — ${name}`
+          : ar
+            ? 'صنف غير متاح'
+            : 'Unavailable SKU',
+      });
+    }
+    if (input.category_id) {
+      entries.push({
+        label: ar ? 'الفئة' : 'Category',
+        value:
+          category?.[`name_${language}`] ??
+          (ar ? 'فئة غير متاحة' : 'Unavailable category'),
+      });
+    }
+    if (input.warehouse_id) {
+      entries.push({
+        label: ar ? 'المخزن' : 'Warehouse',
+        value: warehouse
+          ? `${warehouse.name} (${warehouse.code})`
+          : ar
+            ? 'مخزن غير متاح'
+            : 'Unavailable warehouse',
+      });
+    }
+    if (input.payee) {
+      entries.push({ label: ar ? 'المستفيد' : 'Payee', value: input.payee });
+    }
+    return entries;
+  }
+
+  private pdfTotals(
+    summary: Record<string, unknown>,
+    language: 'ar' | 'en',
+  ): PdfLabelValue[] {
+    let totals = summary.totals;
+    if (!totals && 'debit_total' in summary) {
+      totals = {
+        debit: summary.debit_total,
+        credit: summary.credit_total,
+        balanced: summary.balanced,
+      };
+    }
+    if (!totals && summary.current && summary.previous) {
+      totals = {
+        current: this.withoutArrays(summary.current),
+        previous: this.withoutArrays(summary.previous),
+      };
+    }
+    if (!totals || typeof totals !== 'object') return [];
+    const entries: PdfLabelValue[] = [];
+    this.flattenTotals(totals as Record<string, unknown>, language, entries);
+    return entries;
+  }
+
+  private flattenTotals(
+    value: Record<string, unknown>,
+    language: 'ar' | 'en',
+    result: PdfLabelValue[],
+    prefix?: string,
+  ) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (entry === null || entry === undefined || Array.isArray(entry))
+        continue;
+      const label = this.label(key, language);
+      const fullLabel = prefix ? `${prefix} — ${label}` : label;
+      if (typeof entry === 'object') {
+        this.flattenTotals(
+          entry as Record<string, unknown>,
+          language,
+          result,
+          fullLabel,
+        );
+      } else {
+        result.push({
+          label: fullLabel,
+          value: this.pdfValue(key, entry, language, 'Asia/Baghdad'),
+        });
+      }
+    }
+  }
+
+  private withoutArrays(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object') return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(([, entry]) => !Array.isArray(entry)),
+    );
+  }
+
+  private async pdfLogo(url?: string) {
+    if (!url) return undefined;
+    try {
+      const media = await this.prisma.mediaObject.findFirst({
+        where: { public_url: url, deleted_at: null },
+        select: { object_key: true },
+      });
+      if (!media) return undefined;
+      const png = await sharp(await this.storage.get(media.object_key))
+        .rotate()
+        .resize(180, 180, { fit: 'contain', withoutEnlargement: true })
+        .png()
+        .toBuffer();
+      return `data:image/png;base64,${png.toString('base64')}`;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private label(key: string, language: 'ar' | 'en') {
+    const direct = labels[key]?.[language] ?? labels[key]?.en;
+    if (direct) return direct;
+    const parts = key.split('.');
+    if (parts.length > 1) {
+      return parts
+        .map(
+          (part) =>
+            labels[part]?.[language] ?? labels[part]?.en ?? this.humanize(part),
+        )
+        .join(' — ');
+    }
+    return this.humanize(key);
+  }
+
+  private flattenRow(
+    value: Record<string, unknown>,
+    prefix = '',
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        !Array.isArray(entry) &&
+        !(entry instanceof Date)
+      ) {
+        Object.assign(
+          result,
+          this.flattenRow(entry as Record<string, unknown>, path),
+        );
+      } else {
+        result[path] = entry;
+      }
+    }
+    return result;
+  }
+
+  private humanize(key: string) {
+    return key
+      .replaceAll('_', ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  private pdfValue(
+    key: string,
+    value: unknown,
+    language: 'ar' | 'en',
+    timezone: string,
+  ): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'boolean') {
+      return value
+        ? language === 'ar'
+          ? 'نعم'
+          : 'Yes'
+        : language === 'ar'
+          ? 'لا'
+          : 'No';
+    }
+    if (typeof value === 'object') return JSON.stringify(value) ?? '';
+    const text =
+      typeof value === 'string' || typeof value === 'number'
+        ? value.toString()
+        : typeof value === 'bigint'
+          ? value.toString()
+          : (JSON.stringify(value) ?? '');
+    if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+      const instant = new Date(text);
+      if (!Number.isNaN(instant.getTime())) {
+        return new Intl.DateTimeFormat(
+          language === 'ar' ? 'ar-IQ-u-nu-arab' : 'en-GB',
+          { timeZone: timezone, dateStyle: 'medium', timeStyle: 'short' },
+        ).format(instant);
+      }
+    }
+    if (/^-?\d+(?:\.\d+)?$/.test(text)) {
+      const formatted = this.exactNumber(text, language);
+      return this.moneyKey(key)
+        ? `${formatted} ${language === 'ar' ? 'د.ع' : 'IQD'}`
+        : formatted;
+    }
+    return text;
+  }
+
+  private exactNumber(value: string, language: 'ar' | 'en') {
+    const negative = value.startsWith('-');
+    const unsigned = negative ? value.slice(1) : value;
+    const [whole, fraction = ''] = unsigned.split('.');
+    const grouped = BigInt(whole || '0').toLocaleString(
+      language === 'ar' ? 'ar-IQ-u-nu-arab' : 'en-US',
+    );
+    const trimmed = fraction.replace(/0+$/, '');
+    if (!trimmed) return `${negative ? '-' : ''}${grouped}`;
+    const digits =
+      language === 'ar'
+        ? trimmed.replace(/\d/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[Number(digit)])
+        : trimmed;
+    return `${negative ? '-' : ''}${grouped}${language === 'ar' ? '٫' : '.'}${digits}`;
+  }
+
+  private moneyKey(key: string) {
+    return (
+      /(amount|cost|sales|discount|return|balance|value|revenue|profit|fee|inflow|outflow|asset|liabilit|equity|expense|payment|credit|debit|cash)/.test(
+        key,
+      ) && !/(count|quantity|percent|age_days)/.test(key)
+    );
+  }
+
+  private defaultGroup(type: ExportType) {
+    if (type === 'sales') return 'day';
+    if (type === 'profitability') return 'product';
+    if (type === 'purchases') return 'period';
+    if (type === 'expenses') return 'category';
+    return undefined;
+  }
+
+  private groupLabel(group: string, language: 'ar' | 'en') {
+    const groups: Record<string, { ar: string; en: string }> = {
+      day: { ar: 'يوم', en: 'Day' },
+      week: { ar: 'أسبوع', en: 'Week' },
+      month: { ar: 'شهر', en: 'Month' },
+      department: { ar: 'قسم', en: 'Department' },
+      category: { ar: 'فئة', en: 'Category' },
+      brand: { ar: 'علامة تجارية', en: 'Brand' },
+      product: { ar: 'منتج', en: 'Product' },
+      sku: { ar: 'صنف', en: 'SKU' },
+      period: { ar: 'فترة', en: 'Period' },
+      supplier: { ar: 'مورد', en: 'Supplier' },
+      payee: { ar: 'مستفيد', en: 'Payee' },
+    };
+    return groups[group]?.[language] ?? this.humanize(group);
   }
 
   private validateDates(input: CreateReportExportDto) {
