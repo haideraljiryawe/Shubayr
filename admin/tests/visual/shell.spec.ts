@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { uiLoginAsAdmin } from "../live/helpers";
+import { adminApiToken, savePreferredLanguage, uiLoginAsAdmin } from "../live/helpers";
 
 /**
  * The shell, home and sign-in (PR A14: VIS-001/002/003/004/025), photographed
@@ -20,9 +20,11 @@ const WIDTHS = [
   { name: "narrow", width: 390, height: 844 },
 ] as const;
 
-async function useLocale(page: Page, locale: string) {
+/** This browser's language, and the admin's saved one (signing in applies it). */
+async function useLocale(page: Page, locale: "ar" | "en") {
   const url = new URL(test.info().project.use.baseURL ?? "http://localhost:3300");
   await page.context().addCookies([{ name: "NEXT_LOCALE", value: locale, domain: url.hostname, path: "/" }]);
+  await savePreferredLanguage(page.request, await adminApiToken(page.request), locale);
 }
 
 async function settle(locator: Locator) {
@@ -51,6 +53,11 @@ async function hydrated(page: Page, testId: string) {
 
 test.beforeAll(async () => {
   await mkdir(OUT, { recursive: true });
+});
+
+// Leave the admin in Arabic, as the seed has it, for whatever runs next.
+test.afterAll(async ({ request }) => {
+  await savePreferredLanguage(request, await adminApiToken(request), "ar");
 });
 
 for (const locale of LOCALES) {

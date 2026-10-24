@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronDown, KeyRound, Languages, LogOut } from "lucide-react";
 import { ConfirmDialog } from "@/components/forms/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { localeDirection, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 import { hardNavigate } from "@/lib/hard-navigate";
@@ -17,13 +18,15 @@ const ITEM =
 
 /**
  * The account menu in the top bar (VIS-004): who is signed in, the interface
- * language, the password change, and signing out — which asks first; only
+ * language (saved on the account, so it follows the person, not the browser),
+ * the password change, and signing out — which asks first; only
  * the confirmation ends the session.
  */
 export function AccountMenu({ name, username }: { name: string; username: string | null }) {
   const t = useTranslations("account");
   const locale = useLocale() as Locale;
-  const { switchTo, pending } = useSwitchLocale();
+  const { switchTo, pending } = useSwitchLocale({ account: true });
+  const toast = useToast();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const initial = (name || username || "?").trim().charAt(0).toUpperCase();
 
@@ -73,7 +76,10 @@ export function AccountMenu({ name, username }: { name: string; username: string
             <Menu.RadioGroup
               value={locale}
               onValueChange={(value) => {
-                if (value !== locale) void switchTo(value as Locale);
+                if (value === locale) return;
+                void switchTo(value as Locale).then((saved) => {
+                  if (!saved) toast(t("languageFailed"));
+                });
               }}
             >
               {(["ar", "en"] as const).map((option) => (

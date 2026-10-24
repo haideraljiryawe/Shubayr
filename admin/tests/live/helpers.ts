@@ -221,6 +221,22 @@ export async function adminApiToken(
   return adminToken.value;
 }
 
+/**
+ * Save a staff member's interface language (`preferred_ui_language`, contract
+ * 17.10.0). Signing in applies it, whatever this browser showed before.
+ */
+export async function savePreferredLanguage(
+  request: APIRequestContext,
+  token: string,
+  locale: "ar" | "en",
+): Promise<void> {
+  const response = await request.patch(`${API}/me`, {
+    headers: bearer(token),
+    data: { preferred_ui_language: locale },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+}
+
 export interface Preset {
   id: string;
   name: string;

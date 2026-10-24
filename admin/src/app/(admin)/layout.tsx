@@ -4,7 +4,8 @@ import { AdminShell } from "@/components/shell/admin-shell";
 import { PageError } from "@/components/shell/page-error";
 import { ERROR_CODES } from "@/lib/api/errors";
 import { load, serverApi } from "@/lib/api/server";
-import { ADMIN_MODULES, APP_VERSION } from "@/lib/config";
+import { ADMIN_MODULES } from "@/lib/config";
+import { releaseVersion } from "@/lib/release-version";
 import { parseModules } from "@/lib/modules";
 
 /**
@@ -34,7 +35,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <AdminShell initialUser={me.data} modules={parseModules(ADMIN_MODULES)} version={APP_VERSION}>
+    <AdminShell initialUser={me.data} modules={parseModules(ADMIN_MODULES)} version={await releaseVersion()}>
       {children}
     </AdminShell>
   );

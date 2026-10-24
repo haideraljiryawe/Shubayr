@@ -1,5 +1,17 @@
 import { expect, test } from "./fixtures";
-import { ADMIN_USERNAME, requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import {
+  ADMIN_PASSWORD,
+  ADMIN_USERNAME,
+  API,
+  activateStaff,
+  adminApiToken,
+  bearer,
+  createStaff,
+  requireLiveApi,
+  savePreferredLanguage,
+  switchUser,
+  uiLoginAsAdmin,
+} from "./helpers";
 import { hydrated, toggleLocale } from "./shell";
 
 /**
@@ -52,12 +64,39 @@ test("an unreachable server is not called a wrong password", async ({ page }) =>
   await expect(page.getByTestId("login-error")).toHaveCount(0);
 });
 
-test("the version reads the same on sign-in and in the sidebar", async ({ page }) => {
+test("the version is the API's release, the same on sign-in and in the sidebar", async ({ page, request }) => {
+  const { release } = (await (await request.get(`${API}/version`)).json()) as { release: string };
   await page.goto("/login");
-  const signedOut = (await page.getByTestId("app-version").textContent())?.trim();
-  expect(signedOut).toMatch(/^الإصدار\s*\S+/);
+  await expect(page.getByTestId("app-version-value")).toHaveText(release);
+  await expect(page.getByTestId("app-version")).toHaveText(`الإصدار ${release}`);
   await uiLoginAsAdmin(page);
-  await expect(page.getByTestId("sidebar-footer").getByTestId("app-version")).toHaveText(signedOut!);
+  await expect(page.getByTestId("sidebar-footer").getByTestId("app-version-value")).toHaveText(release);
+});
+
+test("the language is the account's: it follows the person, not the browser", async ({ page, request }) => {
+  const colleague = await activateStaff(request, await createStaff(request, { prefix: "lang" }));
+  try {
+    await uiLoginAsAdmin(page);
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+    await page.getByTestId("account-menu").click();
+    await page.getByTestId("account-locale-en").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const me = await request.get(`${API}/me`, { headers: bearer(await adminApiToken(request)) });
+    expect(((await me.json()) as { preferred_ui_language: string }).preferred_ui_language).toBe("en");
+
+    // A colleague on the same browser gets their own (Arabic, the default)…
+    await switchUser(page, colleague.username, colleague.password);
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+    // …and the admin gets English back on any sign-in.
+    await switchUser(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+    await page.getByTestId("account-menu").click();
+    await page.getByTestId("account-locale-ar").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+  } finally {
+    await savePreferredLanguage(request, await adminApiToken(request), "ar");
+  }
 });
 
 test("the sidebar groups its pages and remembers what was opened", async ({ page }) => {

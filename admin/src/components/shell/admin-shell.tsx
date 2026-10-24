@@ -77,7 +77,7 @@ export function AdminShell({
   initialUser: User;
   /** The modules ADMIN_MODULES enables (src/lib/modules.ts). */
   modules: readonly ModuleKey[];
-  /** The running release (APP_VERSION), shown in the sidebar footer. */
+  /** The running release (releaseVersion()), shown in the sidebar footer. */
   version: string;
   children: ReactNode;
 }) {

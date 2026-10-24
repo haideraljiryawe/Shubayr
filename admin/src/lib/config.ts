@@ -26,9 +26,9 @@ export const COOKIE_SECURE = process.env.ADMIN_COOKIE_SECURE !== "false";
 export const ADMIN_MODULES = process.env.ADMIN_MODULES ?? "";
 
 /**
- * The running release (VIS-025): the tag the release workflow builds the
- * image from (`--build-arg RELEASE_VERSION`, kept as an environment variable
- * in admin/Dockerfile). "dev" for a local or untagged build. The login page
- * and the sidebar footer both read this one value.
+ * This image's own release tag (`--build-arg RELEASE_VERSION` from the
+ * release workflow, kept as an environment variable in admin/Dockerfile);
+ * "dev" for a local or untagged build. The version shown is the API's
+ * (src/lib/release-version.ts); this stands in only when the API is down.
  */
 export const APP_VERSION = process.env.RELEASE_VERSION?.trim() || "dev";

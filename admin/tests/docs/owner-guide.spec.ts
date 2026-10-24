@@ -2,7 +2,7 @@ import { deflateSync } from "node:zlib";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
-import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, placeOrder, uiLogin } from "../live/helpers";
+import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, apiLogin, bearer, createStaff, placeOrder, savePreferredLanguage, uiLogin } from "../live/helpers";
 import { catalogWorkbook, zip } from "../live/xlsx";
 import { choose, selectedValue } from "../live/controls";
 
@@ -120,6 +120,9 @@ const demo: { phone?: string; owner?: string } = {};
 
 /** Every shot is taken as the store owner, not the development admin. */
 async function loginOwner(page: Page) {
+  // Signing in applies the owner's saved language: save the guide's first.
+  const { body } = await apiLogin(page.request, demo.owner!, KNOWN_PASSWORD);
+  await savePreferredLanguage(page.request, body.access_token as string, currentLocale);
   await uiLogin(page, demo.owner!, KNOWN_PASSWORD);
   await expect(page.getByTestId("dashboard")).toBeVisible();
 }
@@ -227,7 +230,10 @@ test.beforeAll(async ({ request }) => {
 
 /* ------------------------------------------------------------ helpers */
 
+let currentLocale: Locale = "ar";
+
 async function useLocale(page: Page, locale: Locale) {
+  currentLocale = locale;
   const url = new URL(test.info().project.use.baseURL ?? "http://localhost:3300");
   await page.context().addCookies([{ name: "NEXT_LOCALE", value: locale, domain: url.hostname, path: "/" }]);
 }
@@ -273,6 +279,11 @@ for (const locale of LOCALES) {
       const staff = await createStaff(request, { presets: ["super_admin"], prefix: "guide" });
       await uiLogin(page, staff.username, staff.password);
       await expect(page.getByTestId("forced-password-change")).toBeVisible();
+      // A new account is saved as Arabic; this page keeps the light switch.
+      if ((await page.locator("html").getAttribute("lang")) !== locale) {
+        await page.getByTestId("locale-switch").click();
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      }
       await page.getByTestId("current-password").fill(staff.password);
       await page.getByTestId("new-password").fill("Shubayr-Owner!2026");
       await page.getByTestId("confirm-password").fill("Shubayr-Owner!2026");

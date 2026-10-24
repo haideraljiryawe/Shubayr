@@ -8,20 +8,23 @@ import { buttonClasses } from "@/components/ui";
 import type { Locale } from "@/i18n/config";
 
 /**
- * Switches the interface language: stores the choice in this browser's
- * cookie and re-renders on the server. (A per-user preference stored by the
- * API is C21's; until /me reports it, the cookie is the preference.)
+ * Switches the interface language and re-renders on the server. Before
+ * sign-in the choice is this browser's; with `account`, it is saved on the
+ * signed-in staff member first (`preferred_ui_language`, VIS-004). Resolves
+ * to false when that save was refused, leaving the language as it was.
  */
-export function useSwitchLocale() {
+export function useSwitchLocale({ account = false }: { account?: boolean } = {}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  async function switchTo(locale: Locale) {
-    await fetch("/api/locale", {
+  async function switchTo(locale: Locale): Promise<boolean> {
+    const response = await fetch("/api/locale", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locale }),
-    });
+      body: JSON.stringify(account ? { locale, account: true } : { locale }),
+    }).catch(() => null);
+    if (!response?.ok) return false;
     startTransition(() => router.refresh());
+    return true;
   }
   return { switchTo, pending };
 }

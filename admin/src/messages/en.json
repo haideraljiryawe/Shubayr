@@ -5112,6 +5112,7 @@
     "changePassword": "Change password",
     "signOut": "Sign out",
     "signOutTitle": "Sign out",
-    "signOutBody": "Do you want to sign out of your account?"
+    "signOutBody": "Do you want to sign out of your account?",
+    "languageFailed": "Couldn't save your language. Try again."
   }
 }

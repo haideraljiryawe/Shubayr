@@ -25,6 +25,7 @@ vi.mock("@/components/inbox/notification-bell", () => ({ NotificationBell: () =>
 const { AdminShell } = await import("@/components/shell/admin-shell");
 const { PeriodSelector } = await import("@/components/home/period-selector");
 const { LoginForm } = await import("@/app/login/login-form");
+const { ToastProvider } = await import("@/components/ui/toast");
 
 type User = components["schemas"]["User"];
 const ALL = [...new Set(NAV_ITEMS.flatMap((item) => [...item.requires, ...(item.requiresAny ?? [])]))];
@@ -54,6 +55,7 @@ function keys(entries: NavEntry[]): string[] {
 beforeEach(() => {
   navigation.pathname = "/";
   navigation.push.mockReset();
+  navigation.refresh.mockReset();
   hardNavigate.mockReset();
   window.localStorage.clear();
   window.matchMedia ??= ((query: string) => ({
@@ -209,13 +211,37 @@ describe("account menu and sign-out (VIS-004)", () => {
     expect(within(menu).getByTestId("sign-out")).toBeTruthy();
   });
 
-  it("switches the language through the existing preference", async () => {
+  it("saves the language on the account", async () => {
     renderShell();
     const { u, menu } = await openMenu();
     await u.click(within(menu).getByTestId("account-locale-en"));
     await waitFor(() =>
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/locale", expect.objectContaining({ method: "POST" })),
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/locale",
+        expect.objectContaining({ method: "POST", body: JSON.stringify({ locale: "en", account: true }) }),
+      ),
     );
+    await waitFor(() => expect(navigation.refresh).toHaveBeenCalled());
+  });
+
+  it("says so when the account refuses the language, and stays put", async () => {
+    globalThis.fetch = vi.fn(async (url: RequestInfo | URL) =>
+      String(url) === "/api/locale"
+        ? new Response(JSON.stringify({ status: 503, code: "API_UNAVAILABLE" }), { status: 503 })
+        : new Response(JSON.stringify(user()), { status: 200 }),
+    ) as typeof fetch;
+    renderIn(
+      "ar",
+      <ToastProvider>
+        <AdminShell initialUser={user()} modules={MODULES} version="v1.4.0">
+          <p>content</p>
+        </AdminShell>
+      </ToastProvider>,
+    );
+    const { u, menu } = await openMenu();
+    await u.click(within(menu).getByTestId("account-locale-en"));
+    expect((await screen.findByTestId("toast")).textContent).toContain("تعذّر حفظ اللغة. حاول مرة أخرى.");
+    expect(navigation.refresh).not.toHaveBeenCalled();
   });
 
   it("asks before signing out; Cancel keeps the session", async () => {

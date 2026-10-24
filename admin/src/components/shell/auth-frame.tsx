@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui";
-import { APP_VERSION } from "@/lib/config";
+import { releaseVersion } from "@/lib/release-version";
 import { AppVersion } from "./app-version";
 import { LocaleSwitch } from "./locale-switch";
 import { OfficialSymbol } from "./official-symbol";
@@ -13,6 +13,7 @@ import { OfficialSymbol } from "./official-symbol";
  */
 export async function AuthFrame({ children }: { children: ReactNode }) {
   const t = await getTranslations("brand");
+  const version = await releaseVersion();
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-4 py-10">
       <div className="flex flex-col items-center gap-3 text-center" data-testid="auth-brand">
@@ -21,7 +22,7 @@ export async function AuthFrame({ children }: { children: ReactNode }) {
       </div>
       <Card className="w-full max-w-md p-6 sm:p-8">{children}</Card>
       <LocaleSwitch />
-      <AppVersion version={APP_VERSION} className="mt-auto pt-4" />
+      <AppVersion version={version} className="mt-auto pt-4" />
     </main>
   );
 }
