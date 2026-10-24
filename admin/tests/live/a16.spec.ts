@@ -1,7 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import { LAUNCH_MODULES } from "../../src/lib/modules";
 import { expect, test } from "./fixtures";
-import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, requireLiveApi, switchUser, uiLogin, uiLoginAsAdmin } from "./helpers";
+import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, requireLiveApi, switchUser, uiLogin } from "./helpers";
 import { hydrated, toggleLocale } from "./shell";
 
 /**
@@ -12,8 +12,7 @@ import { hydrated, toggleLocale } from "./shell";
  * - VIS-019: the permission picker reads by Arabic/English names from the
  *   registry, searches them (Arabic letter forms folded), and keeps the
  *   selection across a language switch;
- * - product delete: never used → deleted; with history → archived, with the
- *   reason; bulk does both; the list hides archived products unless asked;
+ * - (product delete moved to a17.spec.ts: previews and the real bulk delete);
  * - change password: show/hide, the live checklist, and back to the page the
  *   person came from.
  */
@@ -30,40 +29,9 @@ test.beforeEach(async ({ request }) => {
 });
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-const CATEGORY = "30000000-0000-4000-8000-000000000023";
-const LOCATION = "90000000-0000-4000-8000-000000000002";
-
 async function api(request: APIRequestContext, method: "GET" | "POST" | "PATCH", path: string, data?: unknown) {
   const response = await request.fetch(`${API}${path}`, { method, headers: bearer(await adminApiToken(request)), data });
   return { status: response.status(), body: await response.json().catch(() => null) };
-}
-
-async function newProduct(request: APIRequestContext, label: string) {
-  const created = await api(request, "POST", "/admin/products", {
-    category_id: CATEGORY,
-    name_en: `A16 ${label} ${run}`,
-    name_ar: `منتج ${label} ${run}`,
-    price: 9000,
-    discount_type: null,
-    tracks_expiry: false,
-    status: "hidden",
-    published: false,
-    variants: [{ sku: `A16-${label}-${run}`, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
-  });
-  expect(created.status, JSON.stringify(created.body)).toBe(201);
-  return created.body as { id: string; name_ar: string; name_en: string; variants: Array<{ id: string }> };
-}
-
-/** Stock entered as opening stock: history the product can't be deleted with. */
-async function withHistory(request: APIRequestContext, label: string) {
-  const product = await newProduct(request, label);
-  const opening = await api(request, "POST", "/admin/inventory/openings", {
-    operation_id: `a16-open-${label}-${run}`,
-    document_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date()),
-    lines: [{ variant_id: product.variants[0].id, location_id: LOCATION, quantity: "1", unit_cost_iqd: "5000" }],
-  });
-  expect(opening.status, JSON.stringify(opening.body)).toBe(201);
-  return product;
 }
 
 /* ------------------------------------------------------------ permissions */
@@ -123,66 +91,6 @@ test("VIS-019: permissions read by name in both languages, search folds Arabic, 
   await expect(page.getByTestId("perm-name-orders.view")).toHaveText("View orders");
   await toggleLocale(page);
   await expect(page.getByTestId("perm-name-orders.view")).toHaveText("عرض الطلبات");
-});
-
-/* ---------------------------------------------------------------- delete */
-
-test("product delete: never used → deleted; with history → archived with its reason; the list hides it unless asked", async ({ page, request }) => {
-  const unused = await newProduct(request, "UNUSED");
-  const stocked = await withHistory(request, "STOCKED");
-  await uiLoginAsAdmin(page);
-
-  // Never used: deleted completely, back to the list.
-  await page.goto(`/catalog/products/${unused.id}`);
-  await hydrated(page, "product-delete");
-  await page.getByTestId("product-delete").click();
-  const confirm = page.getByTestId("confirm-dialog");
-  await expect(confirm.getByTestId("product-delete-explain")).toContainText("يُحذف نهائيًا");
-  await expect(confirm.getByTestId("product-delete-explain")).toContainText("يُؤرشف");
-  await confirm.getByTestId("confirm-submit").click();
-  await page.waitForURL(/\/catalog\/products$/);
-  expect((await api(request, "GET", `/admin/products/${unused.id}`)).status).toBe(404);
-
-  // With stock history: archived instead, and the page says why.
-  await page.goto(`/catalog/products/${stocked.id}`);
-  await hydrated(page, "product-delete");
-  await page.getByTestId("product-delete").click();
-  await confirm.getByTestId("confirm-submit").click();
-  const outcome = page.getByTestId("product-delete-outcome");
-  await expect(outcome).toHaveAttribute("data-archived", "1");
-  await expect(outcome.locator('[data-reason="inventory_history"]')).toBeVisible();
-  expect((await api(request, "GET", `/admin/products/${stocked.id}`)).body.status).toBe("archived");
-
-  // Archived products are out of the list by default, and one filter away.
-  await page.goto(`/catalog/products?q=${encodeURIComponent(stocked.name_en)}`);
-  await expect(page.getByTestId("products-table")).not.toContainText(stocked.name_ar);
-  await page.goto(`/catalog/products?q=${encodeURIComponent(stocked.name_en)}&status=archived`);
-  await expect(page.locator('[data-testid="product-status-cell"][data-status="archived"]').first()).toBeVisible();
-});
-
-test("bulk delete: one call per product, each deleted or archived as the server decides", async ({ page, request }) => {
-  const unused = await newProduct(request, "BULKA");
-  const stocked = await withHistory(request, "BULKB");
-  await uiLoginAsAdmin(page);
-  await page.goto(`/catalog/products?q=${encodeURIComponent(`A16 BULK`)}`);
-  const rows = page.getByTestId("products-table").locator("tr").filter({ hasText: run });
-  await expect(rows).toHaveCount(2);
-  for (const row of await rows.all()) await row.getByTestId("product-select").check();
-  const calls: string[] = [];
-  page.on("request", (sent) => {
-    if (sent.method() === "POST" && /\/api\/proxy\/admin\/products\//.test(sent.url())) calls.push(new URL(sent.url()).pathname);
-  });
-  await page.getByTestId("bulk-delete").click();
-  const confirm = page.getByTestId("confirm-dialog");
-  await expect(confirm).toContainText("منتجين");
-  await confirm.getByTestId("confirm-submit").click();
-  const outcome = page.getByTestId("product-delete-outcome");
-  await expect(outcome).toHaveAttribute("data-deleted", "1");
-  await expect(outcome).toHaveAttribute("data-archived", "1");
-  await expect(outcome.locator('[data-reason="inventory_history"]')).toBeVisible();
-  expect(calls.sort()).toEqual([`/api/proxy/admin/products/${stocked.id}/delete`, `/api/proxy/admin/products/${unused.id}/delete`].sort());
-  expect((await api(request, "GET", `/admin/products/${unused.id}`)).status).toBe(404);
-  expect((await api(request, "GET", `/admin/products/${stocked.id}`)).body.status).toBe("archived");
 });
 
 /* ------------------------------------------------------- change password */
