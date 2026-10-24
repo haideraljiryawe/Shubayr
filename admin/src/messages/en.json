@@ -5035,7 +5035,20 @@
       "csv": "Export CSV",
       "xlsx": "Export XLSX",
       "progress": "Exporting {done} of {total}",
-      "failed": "The export could not be completed."
+      "failed": "The export could not be completed.",
+      "pdf": "Export PDF",
+      "pdfTitle": "Export PDF",
+      "pdfDescription": "The whole report with the filters applied now, its totals, who exported it and when, and page numbers.",
+      "orientation": "Page orientation",
+      "portrait": "Portrait",
+      "portraitHint": "Tall pages; best for a few columns.",
+      "landscape": "Landscape",
+      "landscapeHint": "Wide pages; more columns side by side.",
+      "pdfSubmit": "Export",
+      "pdfRetry": "Try again",
+      "pdfQueued": "Waiting for the export to start…",
+      "pdfReady": "The PDF is ready and downloading.",
+      "pdfDownloadAgain": "Download it again"
     },
     "values": {
       "asset": "Asset",

@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api/errors";
 import { permissionName, type Permission } from "@/lib/permissions";
 import { DELETE_REASONS, deleteEach, deleteSummary } from "@/lib/product-delete";
 import { safeReturnPath } from "@/lib/return-path";
+import { exportPercent } from "@/components/reports/report-export";
 
 describe("product delete (17.10.0)", () => {
   it("reports what the server did per product: deleted, archived with its reasons, or failed", async () => {
@@ -66,6 +67,16 @@ describe("a missing permission is named, not keyed (VIS-019)", () => {
   });
 });
 
+describe("PDF export progress (VIS-020, 17.11.0)", () => {
+  it("is a whole percentage of the rows, full once the file is ready, never over 100", () => {
+    expect(exportPercent(null)).toBe(0);
+    expect(exportPercent({ rows_done: 0, rows_total: 0, download_ready: false })).toBe(0);
+    expect(exportPercent({ rows_done: 1, rows_total: 3, download_ready: false })).toBe(33);
+    expect(exportPercent({ rows_done: 9, rows_total: 4, download_ready: false })).toBe(100);
+    expect(exportPercent({ rows_done: 0, rows_total: 0, download_ready: true })).toBe(100);
+  });
+});
+
 describe("A16 messages", () => {
   const keys = (value: unknown, prefix = ""): string[] =>
     value && typeof value === "object"
@@ -75,5 +86,6 @@ describe("A16 messages", () => {
     expect(keys(ar.products.delete).sort()).toEqual(keys(en.products.delete).sort());
     expect(keys(ar.permissions).sort()).toEqual(keys(en.permissions).sort());
     expect(keys(ar.password).sort()).toEqual(keys(en.password).sort());
+    expect(keys(ar.reports.export).sort()).toEqual(keys(en.reports.export).sort());
   });
 });

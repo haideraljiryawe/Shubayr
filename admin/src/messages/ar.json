@@ -5035,7 +5035,20 @@
       "csv": "تصدير CSV",
       "xlsx": "تصدير XLSX",
       "progress": "جارٍ تصدير {done} من {total}",
-      "failed": "تعذر إكمال التصدير."
+      "failed": "تعذر إكمال التصدير.",
+      "pdf": "تصدير PDF",
+      "pdfTitle": "تصدير PDF",
+      "pdfDescription": "التقرير كاملًا بالمرشحات المطبقة الآن، مع إجمالياته، ومن صدّره ومتى، وأرقام الصفحات.",
+      "orientation": "اتجاه الصفحة",
+      "portrait": "طولي",
+      "portraitHint": "صفحات طويلة؛ الأنسب لأعمدة قليلة.",
+      "landscape": "عرضي",
+      "landscapeHint": "صفحات عريضة؛ أعمدة أكثر جنبًا إلى جنب.",
+      "pdfSubmit": "تصدير",
+      "pdfRetry": "حاول مرة أخرى",
+      "pdfQueued": "بانتظار بدء التصدير…",
+      "pdfReady": "ملف PDF جاهز ويجري تنزيله.",
+      "pdfDownloadAgain": "نزّله مرة أخرى"
     },
     "values": {
       "asset": "أصل",

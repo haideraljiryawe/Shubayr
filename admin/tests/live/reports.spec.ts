@@ -70,6 +70,8 @@ test("owner dashboard and every report use the live API", async ({ page, request
     await expect(page.getByTestId("page-error"), report).toHaveCount(0);
     await expect(page.getByTestId("forbidden"), report).toHaveCount(0);
     await expect(page.getByTestId("report-table"), report).toBeVisible();
+    // VIS-020: the same PDF export on every report.
+    await expect(page.getByTestId("report-export-pdf"), report).toBeVisible();
   }
 
   await page.goto(`/reports/sales?from=${monthStart(day)}&to=${day}&group_by=day`);
@@ -102,6 +104,45 @@ test("CSV and XLSX exports finish and download through the BFF", async ({ page }
   const xlsxBytes = await readFile(xlsxPath!);
   expect(xlsxBytes.subarray(0, 2).toString("ascii")).toBe("PK");
   expect(xlsx.suggestedFilename()).toMatch(/\.xlsx$/);
+});
+
+test("PDF export (VIS-020): portrait or landscape, Cancel sends nothing, Export shows progress and downloads the PDF", async ({ page }) => {
+  test.setTimeout(240_000);
+  const day = today();
+  await uiLoginAsAdmin(page);
+  await page.goto(`/reports/sales?from=${monthStart(day)}&to=${day}&group_by=day`);
+  const exports: Array<Record<string, unknown>> = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "POST" && sent.url().endsWith("/api/proxy/admin/reports/exports")) exports.push(sent.postDataJSON());
+  });
+
+  // Cancel: the dialog closes and no export is started.
+  await page.getByTestId("report-export-pdf").click();
+  const dialog = page.getByTestId("pdf-export-dialog");
+  await expect(dialog.getByTestId("pdf-orientation-portrait")).toContainText("طولي");
+  await expect(dialog.getByTestId("pdf-orientation-landscape")).toContainText("عرضي");
+  await expect(dialog.getByTestId("pdf-orientation-portrait")).toHaveAttribute("data-checked", "true");
+  await dialog.getByTestId("pdf-export-cancel").click();
+  await expect(dialog).toHaveCount(0);
+  expect(exports).toHaveLength(0);
+
+  // Landscape, exported through the job: progress, then the file.
+  await page.getByTestId("report-export-pdf").click();
+  await dialog.getByTestId("pdf-orientation-landscape").click();
+  await expect(dialog.getByTestId("pdf-orientation-landscape")).toHaveAttribute("data-checked", "true");
+  const download = page.waitForEvent("download", { timeout: 180_000 });
+  await dialog.getByTestId("pdf-export-submit").click();
+  await expect(dialog.getByTestId("pdf-export-progress")).toBeVisible();
+  const pdf = await download;
+  const bytes = await readFile((await pdf.path())!);
+  expect(bytes.subarray(0, 5).toString("ascii")).toBe("%PDF-");
+  expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
+  await expect(dialog.getByTestId("pdf-export-progress")).toHaveAttribute("data-state", "ready");
+  await expect(dialog.getByTestId("pdf-export-download")).toBeVisible();
+  expect(exports).toHaveLength(1);
+  expect(exports[0]).toMatchObject({ report_type: "sales", format: "pdf", orientation: "landscape", language: "ar", from: monthStart(day), to: day });
+  await dialog.getByTestId("pdf-export-close").click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("a staff member without profit permission gets the standard 403 page", async ({ page, request }) => {

@@ -4,7 +4,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from "@
 import { API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, uiLogin } from "../live/helpers";
 
 /**
- * PR A16 (VIS-019, product delete, change password) photographed in Arabic
+ * PR A16 (VIS-019, product delete, change password, VIS-020 PDF export) photographed in Arabic
  * and English at a wide and a narrow width, each shot preceded by the rule
  * it shows. Writes docs/reviews/web-admin-2026-10-22/a16-evidence/. Run it
  * against a throwaway, seeded database: it creates a staff member and a few
@@ -155,6 +155,21 @@ for (const locale of LOCALES) {
       await expect(page.getByTestId("change-password-back")).toHaveAttribute("href", "/catalog/products");
       await expectNoPageOverflow(page);
       await shot(page, `change-password.${tag}`);
+
+      // VIS-020: Export PDF on a report, its orientation choice, then the job.
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad" }).format(new Date());
+      await page.goto(`/reports/sales?from=${day.slice(0, 8)}01&to=${day}&group_by=day`);
+      await expect(page.getByTestId("report-export-pdf")).toBeVisible();
+      await shot(page.getByTestId("report-export"), `report-export-actions.${tag}`);
+      await page.getByTestId("report-export-pdf").click();
+      const pdf = page.getByTestId("pdf-export-dialog");
+      await pdf.getByTestId("pdf-orientation-landscape").click();
+      await shot(pdf, `pdf-export-dialog.${tag}`);
+      const download = page.waitForEvent("download", { timeout: 180_000 });
+      await pdf.getByTestId("pdf-export-submit").click();
+      await download;
+      await expect(pdf.getByTestId("pdf-export-progress")).toHaveAttribute("data-state", "ready");
+      await shot(pdf, `pdf-export-ready.${tag}`);
     });
   }
 }
