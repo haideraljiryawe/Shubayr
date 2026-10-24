@@ -71,8 +71,14 @@ const check = (ok, msg) => { if (!ok) throw new Error(`CHECK FAILED: ${msg}`); c
   await page.getByTestId("forced-password-change").waitFor();
   check(true, "the password change is forced");
   const cookies = await context.cookies(admin);
-  check(cookies.length > 0 && cookies.every((c) => c.secure && c.httpOnly && c.sameSite === "Strict"),
-    `session cookies Secure, httpOnly, SameSite=Strict (${cookies.map((c) => c.name).join(", ")})`);
+  const session = cookies.filter((c) => c.name.startsWith("shubayr_admin_"));
+  check(session.length > 0 && session.every((c) => c.secure && c.httpOnly && c.sameSite === "Strict"),
+    `session cookies Secure, httpOnly, SameSite=Strict (${session.map((c) => c.name).join(", ")})`);
+  // The account's language (NEXT_LOCALE) is set at sign-in too. The error page
+  // reads it from script, so it is not httpOnly, but it is Secure and Strict.
+  const others = cookies.filter((c) => !c.name.startsWith("shubayr_admin_"));
+  check(others.every((c) => c.name === "NEXT_LOCALE" && c.secure && c.sameSite === "Strict"),
+    `no other cookies but a Secure, SameSite=Strict NEXT_LOCALE (${others.map((c) => c.name).join(", ") || "none"})`);
   await page.getByTestId("current-password").fill(tempPassword);
   await page.getByTestId("new-password").fill(newPassword);
   await page.getByTestId("confirm-password").fill(newPassword);
@@ -101,14 +107,16 @@ const check = (ok, msg) => { if (!ok) throw new Error(`CHECK FAILED: ${msg}`); c
   await page.goto(`${admin}/catalog/products/new`);
   await hydrated(page, "product-editor");
   await page.getByTestId("product-name-ar").fill(`سماعة لاسلكية ${run}`);
-  const category = page.getByTestId("product-category");
-  const value = await category.locator("option", { hasText: `سماعات ${run}` }).getAttribute("value");
-  await category.selectOption(value);
+  // The admin's shared Select (a listbox, not a native <select>).
+  await page.getByTestId("product-category").click();
+  await page.getByRole("option", { name: `سماعات ${run}` }).click();
   await page.getByTestId("product-price").fill("45000");
   await page.getByTestId("variant-sku-0").fill(`HEADSET-${run}`.toUpperCase());
   await page.getByTestId("product-images").getByTestId("product-images-input").setInputFiles([
     { name: "headset.png", mimeType: "image/png", buffer: png(1200, 900, [214, 228, 240]) },
   ]);
+  // Each picture goes through the shared image editor (VIS-021): confirm the centred square.
+  await page.getByTestId("product-images-editor-confirm").click();
   await page.waitForFunction(() => document.querySelector('[data-testid="product-images-tile-0"]')?.getAttribute("data-phase") === "ready", null, { timeout: 60_000 });
   await page.getByTestId("product-status-active").check();
   await page.getByTestId("product-save").click();

@@ -9,11 +9,11 @@ export function SupplierFilter({ suppliers, value }: { suppliers: Array<{ id: st
   const t = useTranslations("purchasing.payments");
   const router = useRouter();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-72">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-72">
       <span>{t("columns.supplier")}</span>
       <Select
         value={value}
-        onChange={(event) => router.push(event.target.value ? `/purchasing/payments?supplier_id=${event.target.value}` : "/purchasing/payments")}
+        onValueChange={(value) => router.push(value ? `/purchasing/payments?supplier_id=${value}` : "/purchasing/payments")}
         data-testid="filter-supplier_id"
       >
         <option value="">{t("allSuppliers")}</option>

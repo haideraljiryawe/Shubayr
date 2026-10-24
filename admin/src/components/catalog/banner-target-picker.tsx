@@ -82,7 +82,7 @@ export function BannerTargetPicker({
     return (
       <div className="flex flex-col gap-1" data-testid={`${testId}-picked`} data-available={value.available === null ? "unknown" : String(value.available)}>
         <div className="flex min-h-11 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2">
-          <span className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="flex flex-wrap items-center gap-2 text-body">
             <span className="font-semibold" dir="auto" data-testid={`${testId}-name`}>
               {name}
             </span>
@@ -94,12 +94,12 @@ export function BannerTargetPicker({
           </Button>
         </div>
         {value.available === false ? (
-          <p className="flex items-start gap-1.5 text-xs font-semibold text-warning-dark" data-testid={`${testId}-warning`}>
+          <p className="flex items-start gap-1.5 text-caption font-semibold text-warning-dark" data-testid={`${testId}-warning`}>
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             {t(`unavailableHint.${kind}`)}
           </p>
         ) : value.available === null ? (
-          <p className="text-xs text-text-muted">{t("checkedOnSave")}</p>
+          <p className="text-caption text-text-muted">{t("checkedOnSave")}</p>
         ) : null}
       </div>
     );
@@ -120,16 +120,16 @@ export function BannerTargetPicker({
         />
         {pending ? <Spinner className="absolute end-3 top-1/2 -translate-y-1/2 text-text-muted" /> : null}
       </div>
-      {error ? <p className="text-xs font-semibold text-error-dark">{t(error)}</p> : null}
-      {kind === "product" && q.length >= 2 && !pending && !error && products.length === 0 ? <p className="text-xs text-text-muted">{t("none")}</p> : null}
-      {kind === "category" && categoryMatches.length === 0 ? <p className="text-xs text-text-muted">{t("none")}</p> : null}
+      {error ? <p className="text-caption font-semibold text-error-dark">{t(error)}</p> : null}
+      {kind === "product" && q.length >= 2 && !pending && !error && products.length === 0 ? <p className="text-caption text-text-muted">{t("none")}</p> : null}
+      {kind === "category" && categoryMatches.length === 0 ? <p className="text-caption text-text-muted">{t("none")}</p> : null}
       {kind === "product" && q.length >= 2 && products.length > 0 ? (
         <ul className="max-h-64 overflow-y-auto rounded-md border border-border" data-testid={`${testId}-results`}>
           {products.map((product) => (
             <li key={product.id} className="border-t border-border first:border-t-0">
               <button
                 type="button"
-                className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-card"
+                className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-body hover:bg-card"
                 data-testid={`${testId}-option`}
                 onClick={() => {
                   onChange({ id: product.id ?? "", name_ar: product.name_ar ?? "", name_en: product.name_en ?? "", available: null });
@@ -151,7 +151,7 @@ export function BannerTargetPicker({
             <li key={option.id} className="border-t border-border first:border-t-0">
               <button
                 type="button"
-                className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-sm hover:bg-card"
+                className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-start text-body hover:bg-card"
                 data-testid={`${testId}-option`}
                 onClick={() => {
                   onChange({ id: option.id, name_ar: option.name_ar, name_en: option.name_en, available: option.visible });

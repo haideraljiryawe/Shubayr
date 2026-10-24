@@ -15,6 +15,7 @@ import type { components } from "@/types/api";
 type TripStatement = components["schemas"]["ExternalDriverTripStatement"];
 import { formatCost, formatQuantity } from "@/lib/inventory";
 import { formatMoney } from "@/lib/orders";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export function PartyView({
   custody,
@@ -81,7 +82,6 @@ export function PartyView({
     {
       key: "quantity",
       header: t("statement.quantity"),
-      className: "text-end",
       cell: (entry) => (
         <span dir="ltr" data-testid="statement-quantity">
           {entry.quantity > 0 ? `+${qty(entry.quantity)}` : qty(entry.quantity)}
@@ -91,7 +91,6 @@ export function PartyView({
     {
       key: "running",
       header: t("statement.running"),
-      className: "text-end",
       cell: (entry) => (
         <span dir="ltr" className="font-semibold" data-testid="statement-running">
           {qty(entry.running_quantity)}
@@ -100,11 +99,10 @@ export function PartyView({
     },
     ...(showCost
       ? ([
-          { key: "value", header: t("statement.value"), className: "text-end", cell: (entry) => <span dir="ltr">{cost(entry.value_iqd)}</span> },
+          { key: "value", header: t("statement.value"), cell: (entry) => <span dir="ltr">{cost(entry.value_iqd)}</span> },
           {
             key: "runningValue",
             header: t("statement.runningValue"),
-            className: "text-end",
             cell: (entry) => (
               <span dir="ltr" data-testid="statement-running-value">
                 {cost(entry.running_value_iqd)}
@@ -117,7 +115,7 @@ export function PartyView({
 
   return (
     <div className="flex flex-col gap-6" data-testid="party-view" data-party={party.id}>
-      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-body">
         <Badge tone={PARTY_TONE[party.kind]} data-testid="party-kind" data-kind={party.kind}>
           {t(`kinds.${party.kind}`)}
         </Badge>
@@ -137,7 +135,7 @@ export function PartyView({
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="flex flex-col gap-2" data-testid="custody-goods">
           <h2 className="font-bold">{t("custody.goods")}</h2>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
+          <dl className="grid grid-cols-2 gap-2 text-body">
             <dt className="text-text-muted">{t("custody.quantity")}</dt>
             <dd dir="ltr" className="text-end font-semibold" data-testid="custody-goods-quantity">
               {qty(goods.quantity)}
@@ -158,7 +156,7 @@ export function PartyView({
         </Card>
         <Card className="flex flex-col gap-2" data-testid="custody-cash">
           <h2 className="font-bold">{t("custody.cash")}</h2>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
+          <dl className="grid grid-cols-2 gap-2 text-body">
             <dt className="text-text-muted">{t("custody.amount")}</dt>
             <dd dir="ltr" className="text-end font-semibold" data-testid="custody-cash-amount">
               {formatMoney(cash.amount, cash.currency, locale)}
@@ -174,112 +172,112 @@ export function PartyView({
       <Card className="overflow-x-auto">
         <h2 className="mb-3 font-bold">{t("custody.lines")}</h2>
         {goods.lines.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="custody-empty">
+          <p className="text-body text-text-muted" data-testid="custody-empty">
             {t("custody.none")}
           </p>
         ) : (
-          <table className="w-full text-sm" data-testid="custody-lines">
-            <thead>
-              <tr className="border-b border-border text-start">
-                <th className="px-3 py-2 text-start font-semibold">{t("statement.order")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("custody.product")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("statement.sku")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("statement.lot")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("statement.quantity")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("custody.age")}</th>
-                {showCost ? <th className="px-3 py-2 text-end font-semibold">{t("custody.unitCost")}</th> : null}
-                {showCost ? <th className="px-3 py-2 text-end font-semibold">{t("custody.value")}</th> : null}
-                {canRecordException ? <th className="px-3 py-2" /> : null}
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="custody-lines">
+            <THead>
+              <Tr className="text-start">
+                <Th>{t("statement.order")}</Th>
+                <Th>{t("custody.product")}</Th>
+                <Th>{t("statement.sku")}</Th>
+                <Th>{t("statement.lot")}</Th>
+                <Th>{t("statement.quantity")}</Th>
+                <Th>{t("custody.age")}</Th>
+                {showCost ? <Th>{t("custody.unitCost")}</Th> : null}
+                {showCost ? <Th>{t("custody.value")}</Th> : null}
+                {canRecordException ? <Th /> : null}
+              </Tr>
+            </THead>
+            <TBody>
               {goods.lines.map((line) => (
-                <tr key={line.holding_id} className="border-b border-border last:border-0" data-testid="custody-line" data-order={line.order.order_number}>
-                  <td className="px-3 py-2">
+                <Tr key={line.holding_id} data-testid="custody-line" data-order={line.order.order_number}>
+                  <Td>
                     <Link href={`/orders/${line.order.id}`} className="hover:underline" dir="ltr">
                       {line.order.order_number}
                     </Link>
-                  </td>
-                  <td className="px-3 py-2">{locale === "ar" ? line.product.name_ar : line.product.name_en}</td>
-                  <td className="px-3 py-2" dir="ltr">
+                  </Td>
+                  <Td>{locale === "ar" ? line.product.name_ar : line.product.name_en}</Td>
+                  <Td dir="ltr">
                     {line.sku}
-                  </td>
-                  <td className="px-3 py-2" dir="ltr">
+                  </Td>
+                  <Td dir="ltr">
                     {line.lot_number ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  </Td>
+                  <Td dir="ltr">
                     {qty(line.quantity)}
-                  </td>
-                  <td className="px-3 py-2 text-end" data-testid="custody-line-age">
+                  </Td>
+                  <Td data-testid="custody-line-age">
                     {days(line.age_days)}
-                  </td>
+                  </Td>
                   {showCost ? (
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="custody-line-cost">
+                    <Td dir="ltr" data-testid="custody-line-cost">
                       {cost(line.unit_cost_iqd)}
-                    </td>
+                    </Td>
                   ) : null}
                   {showCost ? (
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    <Td dir="ltr">
                       {cost(line.value_iqd)}
-                    </td>
+                    </Td>
                   ) : null}
                   {canRecordException ? (
-                    <td className="px-3 py-2 text-end">
+                    <Td align="end">
                       <Link href={`/finance/custody-exceptions/new?order_id=${line.order.id}`} className="font-semibold text-primary-dark hover:underline" data-testid="custody-line-exception">
                         {t("custody.exception")}
                       </Link>
-                    </td>
+                    </Td>
                   ) : null}
-                </tr>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
 
       <Card className="overflow-x-auto">
         <h2 className="mb-3 font-bold">{t("held.title")}</h2>
         {held.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("held.none")}</p>
+          <p className="text-body text-text-muted">{t("held.none")}</p>
         ) : (
-          <table className="w-full text-sm" data-testid="held-orders">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="px-3 py-2 text-start font-semibold">{t("statement.order")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("held.status")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("statement.quantity")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("held.since")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("custody.age")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="held-orders">
+            <THead>
+              <Tr>
+                <Th>{t("statement.order")}</Th>
+                <Th>{t("held.status")}</Th>
+                <Th>{t("statement.quantity")}</Th>
+                <Th>{t("held.since")}</Th>
+                <Th>{t("custody.age")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {held.map((order) => (
-                <tr key={order.id} className="border-b border-border last:border-0" data-testid="held-order" data-order={order.order_number}>
-                  <td className="px-3 py-2">
+                <Tr key={order.id} data-testid="held-order" data-order={order.order_number}>
+                  <Td>
                     <Link href={`/orders/${order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                       {order.order_number}
                     </Link>
-                  </td>
-                  <td className="px-3 py-2">
+                  </Td>
+                  <Td>
                     <OrderStatusBadge status={order.status} />
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  </Td>
+                  <Td dir="ltr">
                     {qty(order.quantity)}
-                  </td>
-                  <td className="px-3 py-2">{dateTime(order.held_since)}</td>
-                  <td className="px-3 py-2 text-end">{days(order.age_days)}</td>
-                </tr>
+                  </Td>
+                  <Td>{dateTime(order.held_since)}</Td>
+                  <Td>{days(order.age_days)}</Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">{t("statement.title")}</h2>
-        <p className="text-sm text-text-muted">{t("statement.hint")}</p>
+        <h2 className="text-section">{t("statement.title")}</h2>
+        <p className="text-body text-text-muted">{t("statement.hint")}</p>
         {orderFilter ? (
-          <p className="text-sm" data-testid="statement-order-filter">
+          <p className="text-body" data-testid="statement-order-filter">
             {t("statement.forOrder", { number: filteredOrder ?? "…" })}{" "}
             <Link href={`/delivery-parties/${party.id}`} className="font-semibold text-primary-dark hover:underline">
               {t("statement.allOrders")}
@@ -304,31 +302,31 @@ export function PartyView({
       </section>
 
       <section className="flex flex-col gap-3" data-testid="party-cash-activity">
-        <h2 className="text-lg font-bold">{t("cash.title")}</h2>
-        <p className="text-sm text-text-muted">{t("cash.hint")}</p>
+        <h2 className="text-section">{t("cash.title")}</h2>
+        <p className="text-body text-text-muted">{t("cash.hint")}</p>
         {cashActivity.data.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="cash-activity-empty">
+          <p className="text-body text-text-muted" data-testid="cash-activity-empty">
             {t("cash.empty")}
           </p>
         ) : (
           <Card className="overflow-x-auto">
-            <table className="w-full min-w-[48rem] text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("statement.when")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("statement.event")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("cash.document")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("cash.amount")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("cash.unsettled")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("cash.running")}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table minWidth="48rem">
+              <THead>
+                <Tr>
+                  <Th>{t("statement.when")}</Th>
+                  <Th>{t("statement.event")}</Th>
+                  <Th>{t("cash.document")}</Th>
+                  <Th>{t("cash.amount")}</Th>
+                  <Th>{t("cash.unsettled")}</Th>
+                  <Th>{t("cash.running")}</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {cashActivity.data.map((entry) => (
-                  <tr key={`${entry.event}-${entry.id}`} className="border-t border-border" data-testid="cash-activity" data-event={entry.event}>
-                    <td className="px-3 py-2">{dateTime(entry.occurred_at)}</td>
-                    <td className="px-3 py-2">{t(`cashEvents.${entry.event}`)}</td>
-                    <td className="px-3 py-2">
+                  <Tr key={`${entry.event}-${entry.id}`} data-testid="cash-activity" data-event={entry.event}>
+                    <Td>{dateTime(entry.occurred_at)}</Td>
+                    <Td>{t(`cashEvents.${entry.event}`)}</Td>
+                    <Td>
                       {entry.voucher_id ? (
                         <Link href={receiptHref(entry.voucher_id)} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="cash-activity-voucher">
                           {entry.voucher_document_number ?? entry.voucher_id.slice(0, 8)}
@@ -341,26 +339,26 @@ export function PartyView({
                         "—"
                       )}
                       {entry.allocation_orders.length && entry.voucher_id ? (
-                        <span className="block text-xs text-text-muted" dir="ltr">
+                        <span className="block text-caption text-text-muted" dir="ltr">
                           {entry.allocation_orders.map((allocation) => allocation.order_number).join(", ")}
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="cash-activity-amount">
+                    </Td>
+                    <Td dir="ltr" data-testid="cash-activity-amount">
                       {formatMoney(entry.amount_iqd, "IQD", locale)}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    </Td>
+                    <Td dir="ltr">
                       {entry.event === "collection_confirmed" ? formatMoney(entry.unsettled_amount_iqd, "IQD", locale) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="cash-activity-running">
+                    </Td>
+                    <Td className="font-semibold" dir="ltr" data-testid="cash-activity-running">
                       {formatMoney(entry.running_cash_iqd, "IQD", locale)}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
             {cashActivity.total > cashActivity.data.length ? (
-              <p className="mt-2 text-xs text-text-muted">{t("cash.paged", { shown: cashActivity.data.length, total: cashActivity.total })}</p>
+              <p className="mt-2 text-caption text-text-muted">{t("cash.paged", { shown: cashActivity.data.length, total: cashActivity.total })}</p>
             ) : null}
           </Card>
         )}
@@ -368,38 +366,38 @@ export function PartyView({
 
       {trips.length ? (
         <section className="flex flex-col gap-3" data-testid="party-trips">
-          <h2 className="text-lg font-bold">{t("trips.title")}</h2>
+          <h2 className="text-section">{t("trips.title")}</h2>
           <Card className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("trips.trip")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("trips.status")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("trips.orders")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("trips.expected")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("trips.received")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("trips.outstanding")}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table minWidth="40rem">
+              <THead>
+                <Tr>
+                  <Th>{t("trips.trip")}</Th>
+                  <Th>{t("trips.status")}</Th>
+                  <Th>{t("trips.orders")}</Th>
+                  <Th>{t("trips.expected")}</Th>
+                  <Th>{t("trips.received")}</Th>
+                  <Th>{t("trips.outstanding")}</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {trips.map((trip) => (
-                  <tr key={trip.id} className="border-t border-border" data-testid="party-trip" data-status={trip.status}>
-                    <td className="px-3 py-2">
+                  <Tr key={trip.id} data-testid="party-trip" data-status={trip.status}>
+                    <Td>
                       <Link href={tripHref(trip.id)} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                         {trip.document_number}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2">{t(`trips.statuses.${trip.status}`)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{trip.order_count}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{trip.expected_cash_iqd === null ? "—" : formatMoney(trip.expected_cash_iqd, "IQD", locale)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{trip.received_cash_iqd === null ? "—" : formatMoney(trip.received_cash_iqd, "IQD", locale)}</td>
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr">
+                    </Td>
+                    <Td>{t(`trips.statuses.${trip.status}`)}</Td>
+                    <Td dir="ltr">{trip.order_count}</Td>
+                    <Td dir="ltr">{trip.expected_cash_iqd === null ? "—" : formatMoney(trip.expected_cash_iqd, "IQD", locale)}</Td>
+                    <Td dir="ltr">{trip.received_cash_iqd === null ? "—" : formatMoney(trip.received_cash_iqd, "IQD", locale)}</Td>
+                    <Td className="font-semibold" dir="ltr">
                       {trip.outstanding_cash_iqd === null ? "—" : formatMoney(trip.outstanding_cash_iqd, "IQD", locale)}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </Card>
         </section>
       ) : null}

@@ -1,5 +1,75 @@
 # Changelog
 
+## 17.10.0 - 2026-10-23
+
+### Added
+
+- Public build metadata reports the immutable release tag and commit embedded
+  by the tagged release workflow.
+- Staff profiles store an Arabic/English Web Admin language preference, and
+  permission metadata now supplies searchable Arabic and English names and
+  descriptions from one backend catalog.
+- Catalog administration can hard-delete products with no durable references
+  or archive referenced products with structured reasons.
+
+### Changed
+
+- Public settings expose the authoritative `Asia/Baghdad` store timezone.
+- Bulk catalog ZIP images are stored as center-cropped 1:1 WebP files; invalid
+  images are reported per file and are never attached through an original-file
+  fallback.
+- Admin catalog search normalizes Arabic whitespace, diacritics and agreed
+  letter forms while continuing to match English names, SKUs and barcodes.
+- Archived products are excluded from the Admin list unless explicitly
+  requested. The production Admin module fallback now includes reports.
+- The API contract is version 17.10.0. Changes are additive and backward
+  compatible.
+
+## Release 1 candidate - 2026-10-22
+
+### Acceptance and operations
+
+- Section 29 is traced claim by claim to real-database acceptance evidence;
+  phase-10 wages and agent netting are explicitly excluded by the approved
+  2026-10-17 decision rather than reported as implemented.
+- The release-tag workflow runs the complete acceptance suite against the
+  exact tagged commit and retains a machine-readable result with tag, commit,
+  contract version, pack/assertion counts, timestamps and per-pack outcomes.
+- Arabic-primary and English owner UAT scripts cover every launch module, the
+  specification's worked figures, production backup/restore and final sign-off.
+- A maintained documentation index and production operations runbook link the
+  architecture, API rules, deploy, backup, restore, rollback, monitoring,
+  owner guide and release evidence.
+
+### Release 1 scope since contract 10.x
+
+- Real catalog/stock/order flows now include permissions and work phones,
+  inventory lots and weighted-average costing, purchasing/supplier/FX records,
+  delivery custody and cash receipts, returns v2, loyalty and audited
+  correction-only accounting.
+- Delivery is priced by governorate zones; staff phone-confirm orders and may
+  adjust delivery fees; tiered automatic discounts snapshot exact return
+  shares. Catalog scale/import, banner/Recently Added behavior and purchase
+  limits are production-backed.
+- Expenses, prepaid schedules, owner money, monthly close and the full launch
+  report/dashboard/export set post from and reconcile to the double-entry
+  ledger.
+- API and worker process roles, FCM push, OTP failure handling, off-site backup
+  monitoring, production images and live Web/Admin/Mobile CI are release gates.
+- The Flutter customer app is on `main`. Delivery-agent application features
+  and wages remain future add-ons; external trip/custody Admin modules remain
+  off in the launch module list.
+
+### Fixed during candidate proof
+
+- Purchase-invoice remaining balance now includes linked cost corrections at
+  the invoice's stored exchange rate, while the original invoice and actual
+  payment documents remain immutable.
+- Web Admin refreshes no longer sign staff out when concurrent requests cross
+  server processes or when a deploy briefly makes the API unavailable. The
+  existing short-lived access, rotating refresh and reuse controls remain in
+  force; contract 17.9.0 is unchanged.
+
 ## 17.9.0 - 2026-10-21
 
 ### Added

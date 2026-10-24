@@ -5,13 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Clock, Plus, Sparkles, Trash2, X } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { BelowCostPanel } from "@/components/orders/lifecycle-panels";
 import { BrandQuickCreate } from "@/components/catalog/brand-quick-create";
 import { ImageManager } from "@/components/catalog/image-manager";
+import { PRODUCT_CROP } from "@/lib/image-crop";
 import { belowCostBreaches, type BelowCostBreach } from "@/lib/orders";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
@@ -50,6 +51,8 @@ import { decimalPlaces, formatAmount, formatRate } from "@/lib/finance/money";
 import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
 import { limitBody, limitDraft, limitPatch, switchLimit, validateLimit, type PurchaseLimitDraft } from "@/lib/purchase-limit";
 import { parseLocalizedDecimal } from "@/lib/number";
+import { AmountInput } from "@/components/forms/amount-input";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 type Status = "active" | "hidden" | "archived";
 type FieldMessages = Partial<Record<keyof VariantDraft, string>>;
@@ -106,6 +109,8 @@ export function ProductEditor({
 }) {
   const t = useTranslations("products");
   const tErrors = useTranslations("errors");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
@@ -310,8 +315,9 @@ export function ProductEditor({
 
   return (
     <>
+      {dialog}
       <form
-        className="flex flex-col gap-6 pb-24"
+        className="flex flex-col gap-6"
         noValidate
         data-testid="product-editor"
         onSubmit={(event) => {
@@ -326,7 +332,7 @@ export function ProductEditor({
         ) : null}
 
         <Card className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
+          <h2 className="text-section">{t("sections.basics")}</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
               <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
@@ -335,7 +341,7 @@ export function ProductEditor({
               <Input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} data-testid="product-name-en" />
             </Field>
             <Field label={t("fields.category")} name="category_id" error={error("category_id")} hint={groups.length ? t("fields.categoryHint") : undefined}>
-              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} data-testid="product-category">
+              <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} data-testid="product-category">
                 <option value="">{t("chooseCategory")}</option>
                 {groups.map((group) => (
                   <optgroup key={group.department.id} label={nameOf(group.department)}>
@@ -350,7 +356,7 @@ export function ProductEditor({
             </Field>
             <Field label={t("fields.brand")} name="brand_id" error={error("brand_id")}>
               <div className="flex gap-2">
-                <Select className="min-w-0 flex-1" value={brandId} onChange={(e) => setBrandId(e.target.value)} data-testid="product-brand">
+                <Select className="min-w-0 flex-1" value={brandId} onValueChange={(value) => setBrandId(value)} data-testid="product-brand">
                   <option value="">{t("noBrand")}</option>
                   {brands.map((brand) => (
                     <option key={brand.id} value={brand.id}>
@@ -373,7 +379,7 @@ export function ProductEditor({
               error={error("price")}
               hint={t("fields.priceHint")}
             >
-              <NumberInput value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
+              <NumberInput grouping value={price} parse={{ integer: true, min: 0 }} onValueChange={setPrice} data-testid="product-price" />
             </Field>
           </div>
           {groups.length === 0 ? (
@@ -391,10 +397,10 @@ export function ProductEditor({
 
         <Card className="flex flex-col gap-4" data-testid="images-section">
           <div>
-            <h2 className="text-lg font-bold">{t("sections.images")}</h2>
-            <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
+            <h2 className="text-section">{t("sections.images")}</h2>
+            <p className="text-body text-text-muted">{t("sections.imagesHint")}</p>
           </div>
-          <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} testId="product-images" />
+          <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} target={PRODUCT_CROP} testId="product-images" />
           {imageProblem && settled !== "ready" ? (
             <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
           ) : null}
@@ -403,8 +409,8 @@ export function ProductEditor({
         <Card className="flex flex-col gap-4" data-testid="variants-section">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
-              <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+              <h2 className="text-section">{t("sections.variants")}</h2>
+              <p className="text-body text-text-muted">{t("sections.variantsHint")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {missingSkus ? (
@@ -434,14 +440,20 @@ export function ProductEditor({
               errors={variantErrors[draft.key] ?? {}}
               canRemove={drafts.length > 1}
               onChange={(patch) => change(draft.key, patch)}
-              onRemove={() => setDrafts((current) => current.filter((item) => item.key !== draft.key))}
+              onRemove={() =>
+                confirmRemove({
+                  title: tc("variantTitle"),
+                  body: tc("variantBody"),
+                  onConfirm: () => setDrafts((current) => current.filter((item) => item.key !== draft.key)),
+                })
+              }
             />
           ))}
         </Card>
 
         <Card className="flex flex-col gap-3" data-testid="purchase-limit-section">
-          <h2 className="text-lg font-bold">{t("limit.title")}</h2>
-          <label className="flex items-center gap-2 text-sm font-semibold">
+          <h2 className="text-section">{t("limit.title")}</h2>
+          <label className="flex items-center gap-2 text-label">
             <input
               type="checkbox"
               checked={limit.enabled}
@@ -453,16 +465,14 @@ export function ProductEditor({
             />
             {t("limit.enabled")}
           </label>
-          <p className="-mt-1 text-xs text-text-muted">{t("limit.hint")}</p>
+          <p className="-mt-1 text-caption text-text-muted">{t("limit.hint")}</p>
           {limit.enabled ? (
             <Field label={t("limit.max")} name="purchase_limit_max_quantity" error={error("purchase_limit_max_quantity")} hint={t("limit.maxHint")}>
-              <Input
+              <AmountInput
                 className="w-40"
-                inputMode="decimal"
-                dir="ltr"
                 value={limit.max}
-                onChange={(e) => {
-                  const max = e.target.value;
+                onValueChange={(value) => {
+                  const max = value;
                   setLimit((current) => ({ ...current, max }));
                   clearLimitError();
                 }}
@@ -473,7 +483,7 @@ export function ProductEditor({
         </Card>
 
         <Card className="flex flex-col gap-3" data-testid="visibility-section">
-          <h2 className="text-lg font-bold">{t("sections.visibility")}</h2>
+          <h2 className="text-section">{t("sections.visibility")}</h2>
           <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("sections.visibility")} data-testid="product-status">
             {(["active", "hidden", ...(product ? (["archived"] as const) : [])] as const).map((value) => (
               <label
@@ -490,7 +500,7 @@ export function ProductEditor({
                 />
                 <span className="flex flex-col">
                   <span className="font-semibold">{t(`statusChoice.${value}.title`)}</span>
-                  <span className="text-xs text-text-muted">{t(`statusChoice.${value}.body`)}</span>
+                  <span className="text-caption text-text-muted">{t(`statusChoice.${value}.body`)}</span>
                 </span>
               </label>
             ))}
@@ -500,8 +510,8 @@ export function ProductEditor({
         {pendingApprovalId ? (
           <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
             <p className="font-semibold">{t("approvalPendingTitle")}</p>
-            <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
-            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
+            <p className="mt-1 text-body">{t("approvalPendingBody")}</p>
+            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-label underline" data-testid="fixed-price-approval-link">
               {t("openApproval")}
             </Link>
           </Alert>
@@ -518,12 +528,12 @@ export function ProductEditor({
         )}
 
         {/* The save row stays in reach on a long form and on a tablet. */}
-        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 print:hidden">
-          {settled === "busy" ? (
-            <span className="me-auto text-sm text-text-muted" aria-live="polite">
-              {t("imagesUploading")}
-            </span>
-          ) : null}
+        <ActionBar
+          data-testid="product-actions"
+          start={
+            settled === "busy" ? <span aria-live="polite">{t("imagesUploading")}</span> : null
+          }
+        >
           {product ? null : (
             <Button variant="secondary" pending={api.pending} onClick={() => void submit("another")} data-testid="product-save-another">
               {t("createAndAnother")}
@@ -532,7 +542,7 @@ export function ProductEditor({
           <Button type="submit" pending={api.pending} data-testid="product-save">
             {product ? t("save") : t("create")}
           </Button>
-        </div>
+        </ActionBar>
       </form>
 
       {/* Outside the product form: the dialog is a form of its own. */}
@@ -571,7 +581,7 @@ function AttributeRows({
     onChange(shown.map((row, i) => (i === at ? { ...row, ...patch } : row)));
   return (
     <fieldset className="flex flex-col gap-2" data-testid={`variant-attributes-${index}`}>
-      <legend className="mb-1 text-sm font-semibold">{t("attributes")}</legend>
+      <legend className="mb-1 text-label">{t("attributes")}</legend>
       {shown.map((row, at) => (
         <div key={at} className="flex items-center gap-2">
           <Input
@@ -604,14 +614,14 @@ function AttributeRows({
         </div>
       ))}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-text-muted">{t("attributesHint")}</p>
+        <p className="text-caption text-text-muted">{t("attributesHint")}</p>
         <Button size="sm" variant="ghost" onClick={() => onChange([...shown, { name: "", value: "" }])} data-testid={`variant-attr-add-${index}`}>
           <Plus className="size-4" aria-hidden />
           {t("attributeAdd")}
         </Button>
       </div>
       {error ? (
-        <p className="text-xs font-semibold text-error-dark" data-testid="error-attributes">
+        <p className="text-caption font-semibold text-error-dark" data-testid="error-attributes">
           {error}
         </p>
       ) : null}
@@ -656,7 +666,7 @@ function VariantCard({
 
   return (
     <fieldset className="flex flex-col gap-4 rounded-md border border-border p-4" data-testid={`variant-${index}`}>
-      <legend className="px-1 text-sm font-bold">
+      <legend className="px-1 text-body font-bold">
         {t("variantTitle", { number: index + 1 })}
         {label ? <span className="ms-2 font-normal">{label}</span> : null}
         {draft.sku ? (
@@ -680,8 +690,8 @@ function VariantCard({
         <Field label={t("variant.baseUnit")} name="base_unit" error={errors.base_unit}>
           <Select
             value={draft.base_unit}
-            onChange={(e) => {
-              const unit = e.target.value;
+            onValueChange={(value) => {
+              const unit = value;
               // Pieces are whole; switching to a weight or volume unit starts
               // from fractions allowed, the usual case for those.
               onChange({ base_unit: unit, whole_units_only: isPiece(unit) });
@@ -706,11 +716,10 @@ function VariantCard({
                 : t("variant.inheritsPriceUnknown")
             }
           >
-            <Input
+            <AmountInput
               value={draft.selling_price}
-              dir="ltr"
               inputMode="numeric"
-              onChange={(e) => onChange({ selling_price: e.target.value })}
+              onValueChange={(value) => onChange({ selling_price: value })}
               data-testid={id("price")}
             />
           </Field>
@@ -725,18 +734,16 @@ function VariantCard({
               : t("variant.thresholdInherit")
           }
         >
-          <Input
+          <AmountInput
             value={draft.low_stock_threshold}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ low_stock_threshold: e.target.value })}
+            onValueChange={(value) => onChange({ low_stock_threshold: value })}
             data-testid={id("threshold")}
           />
         </Field>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <label className="flex items-center gap-2 text-label">
           <input
             type="checkbox"
             checked={piece ? true : draft.whole_units_only}
@@ -746,16 +753,16 @@ function VariantCard({
           />
           {t("variant.wholeOnly")}
         </label>
-        <p className="text-xs text-text-muted" data-testid={id("whole-hint")}>
+        <p className="text-caption text-text-muted" data-testid={id("whole-hint")}>
           {piece ? t("variant.wholeForced") : t("variant.wholeOptional", { unit: unitLabel(draft.base_unit) })}
         </p>
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-semibold">{t("variant.pricingMode")}</legend>
+        <legend className="mb-1 text-label">{t("variant.pricingMode")}</legend>
         <div className="flex flex-wrap gap-4">
           {(["fixed", "linked"] as const).map((mode) => (
-            <label key={mode} className="flex items-center gap-2 text-sm">
+            <label key={mode} className="flex items-center gap-2 text-body">
               <input
                 type="radio"
                 name={`pricing-mode-${draft.key}`}
@@ -775,7 +782,7 @@ function VariantCard({
 
       {canRemove ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {draft.id ? <span className="text-xs text-text-muted">{t("variant.removeHint")}</span> : null}
+          {draft.id ? <span className="text-caption text-text-muted">{t("variant.removeHint")}</span> : null}
           <Button size="sm" variant="ghost" className="text-error-dark" onClick={onRemove} data-testid={id("remove")}>
             <Trash2 className="size-4" aria-hidden />
             {t("variant.remove")}
@@ -825,7 +832,7 @@ function LinkedPricing({
         <Field label={t("variant.referenceCurrency")} name="reference_currency_code" error={errors.reference_currency_code}>
           <Select
             value={draft.reference_currency_code}
-            onChange={(e) => onChange({ reference_currency_code: e.target.value })}
+            onValueChange={(value) => onChange({ reference_currency_code: value })}
             data-testid={id("currency")}
           >
             <option value="">{t("variant.chooseCurrency")}</option>
@@ -845,17 +852,15 @@ function LinkedPricing({
           error={errors.reference_price}
           hint={t("variant.referenceHint")}
         >
-          <Input
+          <AmountInput
             value={draft.reference_price}
-            dir="ltr"
-            inputMode="decimal"
-            onChange={(e) => onChange({ reference_price: e.target.value })}
+            onValueChange={(value) => onChange({ reference_price: value })}
             data-testid={id("reference")}
           />
         </Field>
       </div>
 
-      <div className="rounded-md bg-card px-4 py-3 text-sm" aria-live="polite" data-testid={id("computed")}>
+      <div className="rounded-md bg-card px-4 py-3 text-body" aria-live="polite" data-testid={id("computed")}>
         {!draft.reference_currency_code ? (
           <p className="text-text-muted">{t("linked.chooseCurrency")}</p>
         ) : !currency?.rate ? (
@@ -878,19 +883,19 @@ function LinkedPricing({
                   ? t("linked.roundingMultiple", { multiple: formatAmount(rule.multiple, base, Math.min(decimalPlaces(rule.multiple), 6), locale) })
                   : t("linked.roundingPrecision", { precision: rule.precision })}
             </p>
-            <p className="text-base font-bold">
+            <p className="text-section">
               {t("linked.localPrice")}{" "}
               <span dir="ltr" data-testid={id("local-price")} data-value={computed.local}>
                 {formatAmount(computed.local, base, pricing.basePrecision, locale)}
               </span>
             </p>
-            <p className="text-xs text-text-muted">{t("linked.discountsAfter")}</p>
+            <p className="text-caption text-text-muted">{t("linked.discountsAfter")}</p>
           </div>
         )}
       </div>
 
       {storedLinked ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={id("published")}>
+        <div className="flex flex-wrap items-center gap-2 text-body" data-testid={id("published")}>
           <span className="text-text-muted">{t("linked.publishedNow")}</span>
           <strong dir="ltr" data-testid={id("published-price")}>
             {formatAmount(stored?.published_price ?? null, base, pricing.basePrecision, locale)}

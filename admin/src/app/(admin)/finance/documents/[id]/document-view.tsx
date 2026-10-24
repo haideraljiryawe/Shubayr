@@ -28,13 +28,13 @@ export function DocumentView({
         title={<span dir="ltr" data-testid="document-number">{document.document_number}</span>}
         description={t(`type.${document.document_type}`)}
         actions={
-          <Link className="text-sm text-primary-dark hover:underline" href="/finance/cash-accounts">
+          <Link className="text-body text-primary-dark hover:underline" href="/finance/cash-accounts">
             {t("cashAccounts")}
           </Link>
         }
       />
       <Card className="p-4">
-        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-2 text-body sm:grid-cols-2">
           <Fact label={t("amount")}>
             <span dir="ltr" data-testid="document-amount">
               {formatAmount(document.amount, document.currency_code, precision, locale)}
@@ -60,7 +60,7 @@ export function DocumentView({
           {document.backdate_reason ? <Fact label={t("backdateReason")}>{document.backdate_reason}</Fact> : null}
           <Fact label={t("createdAt")}>{when(document.created_at)}</Fact>
         </dl>
-        <div className="mt-4 border-t border-border pt-3 text-sm">
+        <div className="mt-4 border-t border-border pt-3 text-body">
           {canViewLedger ? (
             <Link className="font-semibold text-primary-dark hover:underline" href={entryHref(document.journal_entry_id)} data-testid="document-entry">
               {t("viewEntry")}

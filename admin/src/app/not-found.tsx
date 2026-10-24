@@ -11,8 +11,8 @@ export default async function NotFound() {
         className="flex max-w-md flex-col items-center gap-3 p-8 text-center"
         data-testid="not-found"
       >
-        <h1 className="text-xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-text-muted">{t("body")}</p>
+        <h1 className="text-page-title">{t("title")}</h1>
+        <p className="text-body text-text-muted">{t("body")}</p>
         <Link href="/" className={buttonClasses({ variant: "secondary" })}>
           {tErrors("backToDashboard")}
         </Link>

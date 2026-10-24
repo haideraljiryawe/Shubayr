@@ -48,6 +48,7 @@ type AccessUser = {
   locked_until?: Date | null;
   session_version: number;
   permission_version: number;
+  preferred_ui_language: string;
   role: { name: string } | null;
   work_profile: { app_role: string; is_active: boolean } | null;
 };
@@ -60,6 +61,20 @@ type RefreshPayload = {
   client?: 'mobile' | 'web_store';
   ver: number;
   sid?: string;
+};
+
+type StoredRefresh = {
+  id: string;
+  session_id: string;
+  user_id: string;
+  token_hash: string;
+  surface: string;
+  client: string | null;
+  session_version: number;
+  expires_at: Date;
+  revoked_at: Date | null;
+  created_at: Date;
+  user: AccessUser;
 };
 
 @Injectable()
@@ -296,22 +311,27 @@ export class AuthService {
       include: { user: { include: userAccessInclude } },
     });
     const now = new Date();
+    if (!this.isRefreshRecordValid(stored, payload, input.refresh_token, now)) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
     if (
-      !stored ||
-      stored.user_id !== payload.sub ||
-      stored.surface !== payload.surface ||
-      stored.session_version !== payload.ver ||
-      stored.revoked_at ||
-      stored.expires_at <= now ||
-      !this.matchesHash(
-        stored.token_hash,
-        this.hashToken(input.refresh_token),
-      ) ||
-      !stored.user.is_active ||
-      stored.user.session_version !== payload.ver ||
-      (payload.surface === 'admin' && !stored.user.username) ||
-      (payload.surface === 'app' && !this.canUseApp(stored.user))
+      stored.revoked_at &&
+      !(await this.isAdminRotationReplayAllowed(this.prisma, stored, now))
     ) {
+      // A rotated admin token seen outside the short concurrency window is a
+      // real replay. End only this session family; other devices stay signed
+      // in. Logout/password/access revocations have no live successor and are
+      // refused without changing any other session.
+      if (stored.surface === 'admin') {
+        await this.prisma.refreshToken.updateMany({
+          where: {
+            user_id: stored.user_id,
+            session_id: stored.session_id,
+            revoked_at: null,
+          },
+          data: { revoked_at: now },
+        });
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
     return this.prisma.$transaction(async (tx) => {
@@ -320,7 +340,27 @@ export class AuthService {
         data: { revoked_at: now },
       });
       if (revoked.count !== 1) {
-        throw new UnauthorizedException('Invalid refresh token');
+        if (stored.surface !== 'admin') {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+        // Another API instance may have won the same rotation after our read.
+        // Re-read inside this transaction and accept only a just-rotated admin
+        // token with a live successor in the same session family.
+        const current = await tx.refreshToken.findUnique({
+          where: { id: stored.id },
+          include: { user: { include: userAccessInclude } },
+        });
+        if (
+          !this.isRefreshRecordValid(
+            current,
+            payload,
+            input.refresh_token,
+            now,
+          ) ||
+          !(await this.isAdminRotationReplayAllowed(tx, current, now))
+        ) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
       }
       return this.issueTokenPair(
         stored.user_id,
@@ -331,6 +371,55 @@ export class AuthService {
         stored.session_id,
       );
     });
+  }
+
+  private isRefreshRecordValid(
+    stored: StoredRefresh | null,
+    payload: RefreshPayload,
+    token: string,
+    now: Date,
+  ): stored is StoredRefresh {
+    return Boolean(
+      stored &&
+      stored.user_id === payload.sub &&
+      stored.surface === payload.surface &&
+      stored.session_version === payload.ver &&
+      stored.expires_at > now &&
+      this.matchesHash(stored.token_hash, this.hashToken(token)) &&
+      stored.user.is_active &&
+      stored.user.session_version === payload.ver &&
+      (payload.surface !== 'admin' || stored.user.username) &&
+      (payload.surface !== 'app' || this.canUseApp(stored.user)),
+    );
+  }
+
+  private async isAdminRotationReplayAllowed(
+    database: Pick<PrismaService, 'refreshToken'>,
+    stored: StoredRefresh,
+    now: Date,
+  ): Promise<boolean> {
+    if (stored.surface !== 'admin' || !stored.revoked_at) return false;
+    const graceSeconds = this.config.get<number>(
+      'ADMIN_REFRESH_ROTATION_GRACE_SECONDS',
+      30,
+    );
+    if (now.getTime() - stored.revoked_at.getTime() > graceSeconds * 1000) {
+      return false;
+    }
+    const successor = await database.refreshToken.findFirst({
+      where: {
+        id: { not: stored.id },
+        user_id: stored.user_id,
+        session_id: stored.session_id,
+        surface: 'admin',
+        session_version: stored.session_version,
+        revoked_at: null,
+        expires_at: { gt: now },
+        created_at: { gte: stored.revoked_at },
+      },
+      select: { id: true },
+    });
+    return Boolean(successor);
   }
 
   async logout(input: RefreshTokenDto): Promise<void> {
@@ -487,6 +576,8 @@ export class AuthService {
       permissions,
       permission_version: user.permission_version,
       must_change_password: user.must_change_password,
+      preferred_ui_language:
+        user.preferred_ui_language === 'en' ? 'en' : ('ar' as const),
       surface,
       client,
       created_at: user.created_at,

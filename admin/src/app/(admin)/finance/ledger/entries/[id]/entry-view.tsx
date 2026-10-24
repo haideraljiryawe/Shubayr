@@ -6,6 +6,7 @@ import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { entryHref, sourceDocumentHref } from "@/lib/finance/links";
 import { formatAmount } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Entry = components["schemas"]["JournalEntry"];
 
@@ -36,7 +37,7 @@ export function EntryView({
         title={<span dir="ltr" data-testid="entry-number">{entry.document_number}</span>}
         description={source}
         actions={
-          <Link className="text-sm text-primary-dark hover:underline" href="/finance/ledger/entries">
+          <Link className="text-body text-primary-dark hover:underline" href="/finance/ledger/entries">
             {t("allEntries")}
           </Link>
         }
@@ -44,13 +45,13 @@ export function EntryView({
       <Alert tone="info">{t("readOnly")}</Alert>
 
       <Card className="p-4">
-        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-2 text-body sm:grid-cols-2">
           <Fact label={t("detail.accountingDate")} value={day(entry.accounting_date)} />
           <Fact label={t("detail.documentDate")} value={day(entry.document_date)} />
           <Fact label={t("detail.postedAt")} value={when(entry.posted_at)} />
           {entry.description ? <Fact label={t("detail.description")} value={entry.description} /> : null}
         </dl>
-        <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
+        <div className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-body">
           {document ? (
             <Link className="text-primary-dark hover:underline" href={document} data-testid="entry-document-link">
               {t("openDocument")}
@@ -87,19 +88,19 @@ export function EntryView({
       </Card>
 
       <Card className="overflow-x-auto p-4">
-        <table className="w-full text-sm" data-testid="entry-lines">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("columns.account")}</th>
-              <th className="py-1 text-end font-semibold">{t("columns.debit")}</th>
-              <th className="py-1 text-end font-semibold">{t("columns.credit")}</th>
-              <th className="py-1 ps-3 text-start font-semibold">{t("detail.original")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="entry-lines">
+          <THead>
+            <Tr>
+              <Th>{t("columns.account")}</Th>
+              <Th>{t("columns.debit")}</Th>
+              <Th>{t("columns.credit")}</Th>
+              <Th className="ps-3">{t("detail.original")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {entry.lines.map((line) => (
-              <tr key={line.id} className="border-t border-border" data-testid="entry-line">
-                <td className="py-1.5">
+              <Tr key={line.id} data-testid="entry-line">
+                <Td>
                   <Link
                     href={`/finance/ledger/entries?account_code=${encodeURIComponent(line.account.code)}`}
                     className="text-primary-dark hover:underline"
@@ -108,19 +109,19 @@ export function EntryView({
                     {line.account.code}
                   </Link>{" "}
                   {locale === "ar" ? line.account.name_ar : line.account.name_en}
-                  {line.memo ? <span className="block text-xs text-text-muted">{line.memo}</span> : null}
-                </td>
-                <td className="py-1.5 text-end" dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</td>
-                <td className="py-1.5 text-end" dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</td>
-                <td className="py-1.5 ps-3 text-text-muted" dir="ltr">
+                  {line.memo ? <span className="block text-caption text-text-muted">{line.memo}</span> : null}
+                </Td>
+                <Td dir="ltr">{Number(line.debit_base) ? money(line.debit_base) : ""}</Td>
+                <Td dir="ltr">{Number(line.credit_base) ? money(line.credit_base) : ""}</Td>
+                <Td className="ps-3 text-text-muted" dir="ltr">
                   {line.currency_code !== baseCode
                     ? `${formatAmount(line.original_amount, line.currency_code, precisions[line.currency_code] ?? 2, locale)} × ${line.exchange_rate}`
                     : ""}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
     </div>
   );

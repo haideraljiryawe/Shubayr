@@ -14,6 +14,7 @@ import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import type { PeriodClose, PeriodRow } from "@/lib/finance/periods";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Checklist = components["schemas"]["PeriodChecklist"];
 
@@ -65,7 +66,7 @@ export function PeriodView({
 
   return (
     <div className="flex flex-col gap-5" data-testid="period-view" data-status={period.status}>
-      <Link href="/finance/periods" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark">
+      <Link href="/finance/periods" className="inline-flex items-center gap-1.5 text-label text-primary-dark">
         <ArrowRight className="size-4 ltr:-scale-x-100" aria-hidden />
         {t("back")}
       </Link>
@@ -81,9 +82,9 @@ export function PeriodView({
 
       {!closed ? (
         <Card className="flex flex-col gap-4 p-5">
-          <h2 className="text-lg font-bold">{t("checklist.title")}</h2>
+          <h2 className="text-section">{t("checklist.title")}</h2>
           {!canClose ? (
-            <p className="text-sm text-text-muted" data-testid="checklist-hidden">{t("checklist.needsPermission")}</p>
+            <p className="text-body text-text-muted" data-testid="checklist-hidden">{t("checklist.needsPermission")}</p>
           ) : !checklist ? (
             <Alert>{t("checklist.failed")}</Alert>
           ) : (
@@ -95,7 +96,7 @@ export function PeriodView({
                   const advisory = Boolean(check.advisory);
                   const Icon = passed ? CheckCircle2 : advisory ? Info : CircleAlert;
                   return (
-                    <li key={key} className="flex items-start gap-2 text-sm" data-testid="check" data-key={key} data-passed={passed}>
+                    <li key={key} className="flex items-start gap-2 text-body" data-testid="check" data-key={key} data-passed={passed}>
                       <Icon className={passed ? "size-5 text-success-dark" : advisory ? "size-5 text-info-dark" : "size-5 text-error-dark"} aria-hidden />
                       <span>
                         <span className="font-semibold">{t.has(`checks.${key}`) ? t(`checks.${key}`) : key}</span>
@@ -123,7 +124,7 @@ export function PeriodView({
         </Card>
       ) : (
         <Card className="flex flex-col gap-3 p-5">
-          <p className="text-sm">{t("closedBody", { at: when(period.closedAt) })}</p>
+          <p className="text-body">{t("closedBody", { at: when(period.closedAt) })}</p>
           {canReopen ? (
             <div>
               <Button variant="danger" onClick={() => setReopening(true)} data-testid="period-reopen">
@@ -131,34 +132,34 @@ export function PeriodView({
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-text-muted" data-testid="reopen-hidden">{t("reopenNeedsPermission")}</p>
+            <p className="text-body text-text-muted" data-testid="reopen-hidden">{t("reopenNeedsPermission")}</p>
           )}
         </Card>
       )}
 
       {latest && (latest.differences?.length ?? 0) > 0 ? (
         <Card className="p-5" data-testid="reclose-differences">
-          <h2 className="mb-2 text-lg font-bold">{t("differences.title", { sequence: latest.sequence })}</h2>
+          <h2 className="mb-2 text-section">{t("differences.title", { sequence: latest.sequence })}</h2>
           <Differences rows={latest.differences ?? []} />
         </Card>
       ) : null}
 
       <Card className="p-5">
-        <h2 className="mb-3 text-lg font-bold">{t("history.title")}</h2>
+        <h2 className="mb-3 text-section">{t("history.title")}</h2>
         {closes.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("history.empty")}</p>
+          <p className="text-body text-text-muted">{t("history.empty")}</p>
         ) : (
           <ol className="flex flex-col gap-4" data-testid="close-history">
             {closes.map((entry) => (
               <li key={entry.sequence} className="border-s-2 border-primary/40 ps-3" data-testid="close-entry">
-                <p className="text-sm font-semibold">
+                <p className="text-label">
                   {t("history.entry", { sequence: entry.sequence, at: when(entry.created_at) })}
                 </p>
-                {entry.reason ? <p className="text-sm text-text-muted">{entry.reason}</p> : null}
+                {entry.reason ? <p className="text-body text-text-muted">{entry.reason}</p> : null}
                 {entry.sequence === 1 ? (
-                  <p className="text-xs text-text-muted">{t("history.reference")}</p>
+                  <p className="text-caption text-text-muted">{t("history.reference")}</p>
                 ) : (entry.differences?.length ?? 0) === 0 ? (
-                  <p className="text-xs text-text-muted">{t("differences.none")}</p>
+                  <p className="text-caption text-text-muted">{t("differences.none")}</p>
                 ) : (
                   <Differences rows={entry.differences ?? []} />
                 )}
@@ -193,27 +194,27 @@ export function PeriodView({
 function Differences({ rows }: { rows: Array<{ code: string; before: string; after: string }> }) {
   const t = useTranslations("periods");
   return (
-    <table className="mt-1 w-full text-sm" data-testid="differences">
-      <thead className="text-text-muted">
-        <tr>
-          <th className="py-1 text-start font-semibold">{t("differences.account")}</th>
-          <th className="py-1 text-end font-semibold">{t("differences.before")}</th>
-          <th className="py-1 text-end font-semibold">{t("differences.after")}</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table className="mt-1" data-testid="differences">
+      <THead>
+        <Tr>
+          <Th>{t("differences.account")}</Th>
+          <Th>{t("differences.before")}</Th>
+          <Th>{t("differences.after")}</Th>
+        </Tr>
+      </THead>
+      <TBody>
         {rows.map((row) => (
-          <tr key={row.code} className="border-t border-border">
-            <td className="py-1">
+          <Tr key={row.code}>
+            <Td>
               <Link href={`/finance/ledger/entries?account_code=${encodeURIComponent(row.code)}`} className="text-primary-dark hover:underline" dir="ltr">
                 {row.code}
               </Link>
-            </td>
-            <td className="py-1 text-end" dir="ltr">{row.before}</td>
-            <td className="py-1 text-end" dir="ltr">{row.after}</td>
-          </tr>
+            </Td>
+            <Td dir="ltr">{row.before}</Td>
+            <Td dir="ltr">{row.after}</Td>
+          </Tr>
         ))}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
 }

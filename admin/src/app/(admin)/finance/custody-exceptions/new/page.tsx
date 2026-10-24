@@ -56,7 +56,7 @@ export default async function NewCustodyExceptionPage({ searchParams }: { search
 
   return (
     <>
-      <Link href={`/orders/${orderId}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={`/orders/${orderId}`} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("back", { number: order.data.order_number ?? "" })}
       </Link>

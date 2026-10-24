@@ -35,7 +35,7 @@ export function CollectionFields({
   const preview = previewCollection(due, choice, amount);
 
   return (
-    <fieldset className="mt-3 flex flex-col gap-3 text-sm" data-testid="collection-fields">
+    <fieldset className="mt-3 flex flex-col gap-3 text-body" data-testid="collection-fields">
       <legend className="font-semibold">{t("fields.title")}</legend>
       <p>
         {t("fields.due")}:{" "}
@@ -82,7 +82,7 @@ export function CollectionFields({
           />
           <span className="flex flex-col">
             <span>{t("fields.notConfirmed")}</span>
-            <span className="text-xs text-text-muted">{t("fields.notConfirmedHint")}</span>
+            <span className="text-caption text-text-muted">{t("fields.notConfirmedHint")}</span>
           </span>
         </label>
       ) : null}
@@ -112,7 +112,7 @@ export function CollectionSummary({ collection, testId = "collection-summary" }:
   const locale = useLocale();
   const money = (value: number | null) => (value === null ? "—" : formatMoney(value, collection.currency, locale));
   return (
-    <div className="flex flex-col gap-2 text-sm" data-testid={testId} data-status={collection.status}>
+    <div className="flex flex-col gap-2 text-body" data-testid={testId} data-status={collection.status}>
       <Badge tone={TONES[collection.status]} data-testid="collection-status">
         {t(`status.${collection.status}`)}
       </Badge>
@@ -149,7 +149,7 @@ export function OrderCollectionSummary({ collection }: { collection: OrderCollec
   const status = RESULT_STATUS[collection.result];
   const money = (value: number | null) => (value === null ? "—" : formatMoney(value, collection.currency, locale));
   return (
-    <div className="flex flex-col gap-2 text-sm" data-testid="collection-summary" data-status={status} data-result={collection.result}>
+    <div className="flex flex-col gap-2 text-body" data-testid="collection-summary" data-status={status} data-result={collection.result}>
       <Badge tone={TONES[status]} data-testid="collection-status">
         {t(`status.${status}`)}
       </Badge>

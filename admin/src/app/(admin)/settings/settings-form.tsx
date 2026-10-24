@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input, Select } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
@@ -23,6 +23,7 @@ import {
   type SettingsErrors,
   type SettingsForm as Form,
 } from "@/lib/finance/settings";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export interface SettingsAudit {
   id: string;
@@ -136,20 +137,20 @@ export function SettingsForm({
       </Section>
 
       <Section title={t("sections.hours")}>
-        <table className="w-full text-sm" data-testid="business-hours">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("hours.day")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.closed")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.opens")}</th>
-              <th className="py-1 text-start font-semibold">{t("hours.closes")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="business-hours">
+          <THead>
+            <Tr>
+              <Th>{t("hours.day")}</Th>
+              <Th>{t("hours.closed")}</Th>
+              <Th>{t("hours.opens")}</Th>
+              <Th>{t("hours.closes")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {form.hours.map((row, index) => (
-              <tr key={row.weekday} className="border-t border-border" data-testid={`hours-${row.weekday}`}>
-                <td className="py-2 font-semibold">{weekdayName(row.weekday)}</td>
-                <td className="py-2">
+              <Tr key={row.weekday} data-testid={`hours-${row.weekday}`}>
+                <Td className="font-semibold">{weekdayName(row.weekday)}</Td>
+                <Td>
                   <input
                     type="checkbox"
                     className="size-4"
@@ -157,9 +158,9 @@ export function SettingsForm({
                     aria-label={t("hours.closedFor", { day: weekdayName(row.weekday) })}
                     onChange={(event) => update((draft) => void (draft.hours[index].is_closed = event.target.checked))}
                   />
-                </td>
+                </Td>
                 {(["opens_at", "closes_at"] as const).map((key) => (
-                  <td key={key} className="py-2 pe-2">
+                  <Td key={key} className="pe-2">
                     <Input
                       type="time"
                       className="h-9"
@@ -169,20 +170,20 @@ export function SettingsForm({
                       onChange={(event) => update((draft) => void (draft.hours[index][key] = event.target.value))}
                     />
                     {error(`hours.${index}.${key}`) ? (
-                      <span role="alert" className="text-xs font-semibold text-error-dark">
+                      <span role="alert" className="text-caption font-semibold text-error-dark">
                         {error(`hours.${index}.${key}`)}
                       </span>
                     ) : null}
-                  </td>
+                  </Td>
                 ))}
-              </tr>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
 
         <div className="mt-4 flex flex-col gap-2" data-testid="closed-days">
           <h3 className="font-semibold">{t("closedDays.title")}</h3>
-          {form.closedDays.length === 0 ? <p className="text-sm text-text-muted">{t("closedDays.none")}</p> : null}
+          {form.closedDays.length === 0 ? <p className="text-body text-text-muted">{t("closedDays.none")}</p> : null}
           {form.closedDays.map((day, index) => (
             <div key={index} className="flex flex-wrap items-start gap-2">
               <div className="flex flex-col">
@@ -194,7 +195,7 @@ export function SettingsForm({
                   onChange={(event) => update((draft) => void (draft.closedDays[index].date = event.target.value))}
                 />
                 {error(`closedDays.${index}.date`) ? (
-                  <span role="alert" className="text-xs font-semibold text-error-dark">
+                  <span role="alert" className="text-caption font-semibold text-error-dark">
                     {error(`closedDays.${index}.date`)}
                   </span>
                 ) : null}
@@ -233,7 +234,7 @@ export function SettingsForm({
       <Section title={t("sections.orders")}>
         <div className="grid gap-4 md:grid-cols-3">
           {numberField("acceptance_alert_timeout_minutes")}
-          <label className="flex items-center gap-2 self-center text-sm font-semibold">
+          <label className="flex items-center gap-2 self-center text-label">
             <input
               type="checkbox"
               className="size-4"
@@ -250,7 +251,7 @@ export function SettingsForm({
               {numberField("auto_cancel_warning_minutes")}
             </>
           ) : (
-            <p className="text-sm text-text-muted md:col-span-2">{t("autoCancelOff")}</p>
+            <p className="text-body text-text-muted md:col-span-2">{t("autoCancelOff")}</p>
           )}
         </div>
       </Section>
@@ -266,9 +267,9 @@ export function SettingsForm({
             <Select
               value={form.separationOfDutiesLevel}
               data-testid="setting-separation_of_duties_level"
-              onChange={(event) =>
+              onValueChange={(value) =>
                 update((draft) =>
-                  void (draft.separationOfDutiesLevel = event.target.value as "standard" | "strict"),
+                  void (draft.separationOfDutiesLevel = value as "standard" | "strict"),
                 )
               }
             >
@@ -282,7 +283,7 @@ export function SettingsForm({
           {numberField("sale_rounding_multiple")}
         </div>
         <h3 className="mt-4 font-semibold">{t("thresholds.title")}</h3>
-        <p className="text-sm text-text-muted">{t("thresholds.body")}</p>
+        <p className="text-body text-text-muted">{t("thresholds.body")}</p>
         <div className="mt-2 grid gap-4 md:grid-cols-4">
           {THRESHOLD_KEYS.map((key) => (
             <Field key={`${key}-${generation}`} label={t(`thresholds.${key}`)} error={error(`thresholds.${key}`)} hint={t("units.percent")} name={`threshold_${key}`}>
@@ -297,37 +298,37 @@ export function SettingsForm({
         </div>
       </Section>
 
-      <div className="sticky bottom-0 flex flex-col gap-2 border-t border-border bg-background/95 py-3">
+      <div className="flex flex-col gap-2">
         {Object.keys(errors).length ? (
           <Alert data-testid="settings-invalid">{t("fixErrors")}</Alert>
         ) : null}
         {unchanged ? <Alert tone="info">{t("noChanges")}</Alert> : null}
         <FormError kind={api.formError} code={api.formErrorCode} />
-        <div className="flex justify-end">
-          <Button type="submit" pending={api.pending} data-testid="settings-save">
-            {t("save")}
-          </Button>
-        </div>
       </div>
+      <ActionBar>
+        <Button type="submit" pending={api.pending} data-testid="settings-save">
+          {t("save")}
+        </Button>
+      </ActionBar>
 
       <Section title={t("history.title")}>
         {history === null ? (
-          <p className="text-sm text-text-muted" data-testid="settings-history-hidden">
+          <p className="text-body text-text-muted" data-testid="settings-history-hidden">
             {t("history.needsAudit")}
           </p>
         ) : history.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("history.empty")}</p>
+          <p className="text-body text-text-muted">{t("history.empty")}</p>
         ) : (
           <ol className="flex flex-col gap-3" data-testid="settings-history">
             {history.map((entry) => (
               <li key={entry.id} className="border-s-2 border-primary/40 ps-3">
-                <p className="text-sm font-semibold">
+                <p className="text-label">
                   {entry.actor ?? t("history.unknownActor")} ·{" "}
                   <span className="font-normal text-text-muted">
                     {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short", numberingSystem: "latn" })}
                   </span>
                 </p>
-                <ul className="mt-1 text-sm">
+                <ul className="mt-1 text-body">
                   {settingChanges(entry.before, entry.after).map((change) => (
                     <li key={change.field} data-testid="settings-change" data-field={change.field}>
                       <span className="text-text-muted">{fieldLabel(t, change.field)}:</span>{" "}
@@ -347,7 +348,7 @@ export function SettingsForm({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card className="p-5">
-      <h2 className="mb-4 text-lg font-bold">{title}</h2>
+      <h2 className="mb-4 text-section">{title}</h2>
       {children}
     </Card>
   );

@@ -58,12 +58,11 @@ export function ReturnsView({
       ),
     },
     { key: "source", header: t("list.columns.source"), cell: (row) => t(`sources.${row.source}`) },
-    { key: "lines", header: t("list.columns.lines"), className: "text-end", cell: (row) => <span dir="ltr">{row.items.length}</span> },
+    { key: "lines", header: t("list.columns.lines"), cell: (row) => <span dir="ltr">{row.items.length}</span> },
     {
       key: "refund",
       sortKey: "refund",
       header: t("list.columns.refund"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="return-row-refund">
           {money(row.status === "refunded" || row.status === "completed" ? row.refund_amount : row.expected_refund)}
@@ -76,7 +75,7 @@ export function ReturnsView({
   return (
     <div className="flex flex-col gap-3">
       {order.kind === "found" ? (
-        <p className="text-sm" data-testid="returns-order-filter">
+        <p className="text-body" data-testid="returns-order-filter">
           {t("list.forOrder", { number: order.number })}
         </p>
       ) : null}

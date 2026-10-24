@@ -49,7 +49,7 @@ export function ExceptionsView({
       cell: (row) => (
         <span data-testid="exception-row-type" data-type={row.type}>
           {t(`types.${row.type}`)}
-          {row.liability_bearer ? <span className="block text-xs text-text-muted">{t(`bearers.${row.liability_bearer}`)}</span> : null}
+          {row.liability_bearer ? <span className="block text-caption text-text-muted">{t(`bearers.${row.liability_bearer}`)}</span> : null}
         </span>
       ),
     },
@@ -71,7 +71,7 @@ export function ExceptionsView({
         </Link>
       ),
     },
-    { key: "amount", header: t("list.columns.amount"), className: "text-end", cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
+    { key: "amount", header: t("list.columns.amount"), cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
     {
       key: "status",
       header: t("list.columns.status"),
@@ -87,7 +87,7 @@ export function ExceptionsView({
     <div className="flex flex-col gap-3">
       <Alert tone="info">{t("list.howTo")}</Alert>
       {orderFilter ? (
-        <p className="text-sm" data-testid="exceptions-order-filter">
+        <p className="text-body" data-testid="exceptions-order-filter">
           {t("list.forOrder", { number: filteredOrder ?? "…" })}{" "}
           <Link href="/finance/custody-exceptions" className="font-semibold text-primary-dark hover:underline">
             {t("list.allOrders")}

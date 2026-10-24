@@ -8,6 +8,7 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { navLink, signOut, toggleLocale } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -104,7 +105,7 @@ test("a temporary password forces the change before anything else", async ({
   await page.getByTestId("confirm-password").fill(KNOWN_PASSWORD);
   await page.getByTestId("change-password-submit").click();
   await expect(page.getByTestId("dashboard")).toBeVisible();
-  await expect(page.getByTestId("nav-staff")).toBeVisible();
+  await navLink(page, "staff");
 
   // The new password is the one that works from now on.
   const { status, body } = await apiLogin(
@@ -123,7 +124,7 @@ test("signing out revokes the session and clears the cookies", async ({
   context,
 }) => {
   await uiLoginAsAdmin(page);
-  await page.getByTestId("sign-out").click();
+  await signOut(page);
   await expect(page).toHaveURL(/\/login$/);
 
   const names = (await context.cookies()).map((cookie) => cookie.name);
@@ -136,12 +137,12 @@ test("signing out revokes the session and clears the cookies", async ({
 
 test("the admin speaks English on request, left to right", async ({ page }) => {
   await uiLoginAsAdmin(page);
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-  await expect(page.getByTestId("nav-staff")).toHaveText("Staff");
+  await expect(await navLink(page, "staff")).toHaveText("Staff");
   // Put it back for the rest of the suite.
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
 });
 

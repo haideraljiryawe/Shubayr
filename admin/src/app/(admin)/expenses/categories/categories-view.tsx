@@ -11,6 +11,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { errorKind, type ErrorKind } from "@/lib/api/errors";
 import { categoryNameProblems, expenseRefusal, mappedAccounts, type ExpenseCategory } from "@/lib/expenses";
 import { ExpenseRefusalNotice } from "../refusal";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Failure = { error: unknown; kind: ErrorKind } | null;
 
@@ -25,23 +26,23 @@ export function CategoriesView({ categories, canManage }: { categories: ExpenseC
     <div className="flex flex-col gap-4">
       {canManage ? <CreateCategory accounts={accounts} /> : <Alert tone="info">{t("readOnly")}</Alert>}
       <Card className="overflow-x-auto">
-        <table className="w-full text-sm" data-testid="expense-categories">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.name")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.account")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.used")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.status")}</th>
-              {canManage ? <th className="px-3 py-2" /> : null}
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="expense-categories">
+          <THead>
+            <Tr>
+              <Th>{t("columns.name")}</Th>
+              <Th>{t("columns.account")}</Th>
+              <Th>{t("columns.used")}</Th>
+              <Th>{t("columns.status")}</Th>
+              {canManage ? <Th /> : null}
+            </Tr>
+          </THead>
+          <TBody>
             {ordered.map((category) => (
               <CategoryRow key={category.id} category={category} canManage={canManage} />
             ))}
-          </tbody>
-        </table>
-        {!categories.length ? <p className="px-3 py-4 text-sm text-text-muted">{t("empty")}</p> : null}
+          </TBody>
+        </Table>
+        {!categories.length ? <p className="px-3 py-4 text-body text-text-muted">{t("empty")}</p> : null}
       </Card>
     </div>
   );
@@ -94,7 +95,7 @@ function CreateCategory({ accounts }: { accounts: Array<ExpenseCategory["ledger_
           <Input dir="ltr" maxLength={160} value={names.en} disabled={pending} onChange={(event) => setNames({ ...names, en: event.target.value })} data-testid="expense-category-name-en" />
         </Field>
         <Field label={t("account")} hint={t("accountHint")}>
-          <Select value={accountId} disabled={pending} onChange={(event) => setAccountId(event.target.value)} data-testid="expense-category-account">
+          <Select value={accountId} disabled={pending} onValueChange={(value) => setAccountId(value)} data-testid="expense-category-account">
             <option value="">{t("newAccount")}</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
@@ -142,41 +143,41 @@ function CategoryRow({ category, canManage }: { category: ExpenseCategory; canMa
   }
 
   return (
-    <tr className="border-t border-border align-top" data-testid="expense-category-row" data-code={category.code} data-active={category.is_active}>
-      <td className="px-3 py-2">
+    <Tr className="align-top" data-testid="expense-category-row" data-code={category.code} data-active={category.is_active}>
+      <Td>
         {editing ? (
           <div className="grid gap-2 md:grid-cols-2">
             <Input dir="rtl" aria-label={t("nameAr")} maxLength={160} value={names.ar} disabled={pending} onChange={(event) => setNames({ ...names, ar: event.target.value })} data-testid="expense-category-edit-ar" />
             <Input dir="ltr" aria-label={t("nameEn")} maxLength={160} value={names.en} disabled={pending} onChange={(event) => setNames({ ...names, en: event.target.value })} data-testid="expense-category-edit-en" />
-            {problems.ar || problems.en ? <p className="text-xs text-error-dark md:col-span-2">{t(`problems.${problems.ar ?? problems.en}`)}</p> : null}
+            {problems.ar || problems.en ? <p className="text-caption text-error-dark md:col-span-2">{t(`problems.${problems.ar ?? problems.en}`)}</p> : null}
           </div>
         ) : (
           <>
             <span className="font-medium" data-testid="expense-category-name">
               {locale === "ar" ? category.name_ar : category.name_en}
             </span>
-            <span className="block text-xs text-text-muted">{locale === "ar" ? category.name_en : category.name_ar}</span>
+            <span className="block text-caption text-text-muted">{locale === "ar" ? category.name_en : category.name_ar}</span>
           </>
         )}
         {failure ? (
           <div className="mt-2">{expenseRefusal(failure.error) ? <ExpenseRefusalNotice error={failure.error} /> : <FormError kind={failure.kind} />}</div>
         ) : null}
-      </td>
-      <td className="px-3 py-2" data-testid="expense-category-ledger">
+      </Td>
+      <Td data-testid="expense-category-ledger">
         <span dir="ltr" className="font-mono">
           {category.ledger_account.code}
         </span>{" "}
         {locale === "ar" ? category.ledger_account.name_ar : category.ledger_account.name_en}
-      </td>
-      <td className="px-3 py-2 text-end" dir="ltr">
+      </Td>
+      <Td dir="ltr">
         {category.expense_count ?? "—"}
-      </td>
-      <td className="px-3 py-2">
+      </Td>
+      <Td>
         <Badge tone={category.is_active ? "success" : "neutral"}>{category.is_active ? t("active") : t("inactive")}</Badge>
-        {category.is_system ? <span className="ms-2 text-xs text-text-muted">{t("system")}</span> : null}
-      </td>
+        {category.is_system ? <span className="ms-2 text-caption text-text-muted">{t("system")}</span> : null}
+      </Td>
       {canManage ? (
-        <td className="px-3 py-2 text-end">
+        <Td>
           <div className="flex flex-wrap justify-end gap-2">
             {editing ? (
               <>
@@ -210,8 +211,8 @@ function CategoryRow({ category, canManage }: { category: ExpenseCategory; canMa
               </>
             )}
           </div>
-        </td>
+        </Td>
       ) : null}
-    </tr>
+    </Tr>
   );
 }

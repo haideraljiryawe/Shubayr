@@ -79,7 +79,7 @@ export function TripForm({
     <Card className="flex flex-col gap-4" data-testid="trip-form">
       <div className="grid gap-4 md:grid-cols-3">
         <PartySearch value={driver} onChange={setDriver} kind="external_driver" activeOnly label={t("driver")} testId="trip-driver" disabled={busy} />
-        <fieldset className="flex flex-col gap-2 text-sm" disabled={busy}>
+        <fieldset className="flex flex-col gap-2 text-body" disabled={busy}>
           <legend className="mb-1 font-semibold">{t("bearer")}</legend>
           {(["store", "customer_direct"] as const).map((value) => (
             <label key={value} className="flex items-start gap-2">
@@ -96,7 +96,7 @@ export function TripForm({
               />
               <span className="flex flex-col">
                 <span>{tt(`bearers.${value}`)}</span>
-                <span className="text-xs text-text-muted">{t(`bearerHints.${value}`)}</span>
+                <span className="text-caption text-text-muted">{t(`bearerHints.${value}`)}</span>
               </span>
             </label>
           ))}
@@ -105,7 +105,7 @@ export function TripForm({
           <DecimalInput value="" parse={{ maxDecimals: 0 }} disabled={busy} onValueChange={(_, text) => setFare(text.trim())} data-testid="trip-fare" />
         </Field>
         <Field label={t("method")} name="fare_settlement_method" hint={t(`methodHints.${method}`)}>
-          <Select value={method} disabled={busy || bearer === "customer_direct"} onChange={(event) => setMethod(event.target.value as FareMethod)} data-testid="trip-method">
+          <Select value={method} disabled={busy || bearer === "customer_direct"} onValueChange={(value) => setMethod(value as FareMethod)} data-testid="trip-method">
             {FARE_METHODS[bearer].map((value) => (
               <option key={value} value={value}>
                 {tt(`methods.${value}`)}
@@ -115,7 +115,7 @@ export function TripForm({
         </Field>
         {method === "cash_account" ? (
           <Field label={t("cashAccount")} name="fare_cash_account_id">
-            <Select value={accountId} disabled={busy} onChange={(event) => setAccountId(event.target.value)} data-testid="trip-cash-account">
+            <Select value={accountId} disabled={busy} onValueChange={(value) => setAccountId(value)} data-testid="trip-cash-account">
               <option value="">{t("pickCash")}</option>
               {cashAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -131,7 +131,7 @@ export function TripForm({
         </Field>
       </div>
       {attempted && problems.length ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="trip-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="trip-problems">
           {problems.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}

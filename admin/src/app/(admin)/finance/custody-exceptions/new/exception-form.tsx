@@ -25,8 +25,9 @@ import {
 } from "@/lib/finance/custody-exceptions";
 import { OperationKey } from "@/lib/finance/cash-receipts";
 import { fixedText, moneyText, toFixed } from "@/lib/purchasing";
-import { cn } from "@/lib/cn";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { TabButton, TabStrip } from "@/components/ui/tab-strip";
 
 type AdminOrder = components["schemas"]["AdminOrder"];
 
@@ -68,7 +69,7 @@ export function ExceptionForm({
 
   return (
     <div className="flex flex-col gap-6" data-testid="exception-form" data-order={order.id}>
-      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-body">
         <span>
           {t("order")}:{" "}
           <Link href={`/orders/${order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
@@ -93,23 +94,13 @@ export function ExceptionForm({
       </Card>
 
       {allowed.length > 1 ? (
-        <nav className="flex gap-1 overflow-x-auto border-b border-border" aria-label={t("kinds")}>
+        <TabStrip label={t("kinds")} className="mb-0">
           {allowed.map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-current={type === kind ? "page" : undefined}
-              onClick={() => setType(kind)}
-              data-testid={`exception-type-${kind}`}
-              className={cn(
-                "-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold",
-                type === kind ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text",
-              )}
-            >
+            <TabButton key={kind} current={type === kind} onClick={() => setType(kind)} data-testid={`exception-type-${kind}`}>
               {t(`types.${kind}`)}
-            </button>
+            </TabButton>
           ))}
-        </nav>
+        </TabStrip>
       ) : null}
 
       {type === "goods_loss" ? (
@@ -197,26 +188,26 @@ function HoldingsTable({
   const locale = useLocale();
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] text-sm" data-testid="exception-holdings">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-3 py-2 text-start font-semibold">{t("product")}</th>
-            <th className="px-3 py-2 text-start font-semibold">{t("lot")}</th>
-            <th className="px-3 py-2 text-end font-semibold">{t("held")}</th>
-            <th className="w-40 px-3 py-2 text-start font-semibold">{label}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table minWidth="36rem" data-testid="exception-holdings">
+        <THead>
+          <Tr>
+            <Th>{t("product")}</Th>
+            <Th>{t("lot")}</Th>
+            <Th>{t("held")}</Th>
+            <Th className="w-40">{label}</Th>
+          </Tr>
+        </THead>
+        <TBody>
           {holdings.map((holding) => (
-            <tr key={holding.holding_id} className="border-t border-border" data-testid="exception-holding" data-holding={holding.holding_id}>
-              <td className="px-3 py-2">{locale === "ar" ? holding.product.name_ar : holding.product.name_en}</td>
-              <td className="px-3 py-2" dir="ltr">
+            <Tr key={holding.holding_id} data-testid="exception-holding" data-holding={holding.holding_id}>
+              <Td>{locale === "ar" ? holding.product.name_ar : holding.product.name_en}</Td>
+              <Td dir="ltr">
                 {holding.lot_number ?? "—"} <span className="text-text-muted">{holding.sku}</span>
-              </td>
-              <td className="px-3 py-2 text-end" dir="ltr">
+              </Td>
+              <Td dir="ltr">
                 {holding.quantity}
-              </td>
-              <td className="px-3 py-2">
+              </Td>
+              <Td>
                 <DecimalInput
                   key={`${holding.holding_id}-${generation}`}
                   value={typed[holding.holding_id] ?? ""}
@@ -227,11 +218,11 @@ function HoldingsTable({
                   onValueChange={(_, text) => onTyped({ ...typed, [holding.holding_id]: text.trim() })}
                   data-testid="exception-quantity"
                 />
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }
@@ -299,23 +290,23 @@ function LossForm({
 
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-loss">
-      <p className="text-sm text-text-muted">{t("lossBody")}</p>
+      <p className="text-body text-text-muted">{t("lossBody")}</p>
       <HoldingsTable holdings={kept.holdings} typed={typed} generation={0} onTyped={setTyped} locked={busy || posted} label={t("lostQuantity")} />
-      <fieldset className="flex flex-col gap-2 text-sm" disabled={busy || posted}>
+      <fieldset className="flex flex-col gap-2 text-body" disabled={busy || posted}>
         <legend className="mb-1 font-semibold">{t("bearer")}</legend>
         {(["store", "party"] as const).map((value) => (
           <label key={value} className="flex items-start gap-2">
             <input type="radio" name="bearer" className="mt-1" checked={bearer === value} onChange={() => setBearer(value)} data-testid={`exception-bearer-${value}`} />
             <span className="flex flex-col">
               <span>{t(`bearers.${value}`)}</span>
-              <span className="text-xs text-text-muted">{t(`bearerHints.${value}`)}</span>
+              <span className="text-caption text-text-muted">{t(`bearerHints.${value}`)}</span>
             </span>
           </label>
         ))}
-        {attempted && !bearer ? <p className="text-xs font-semibold text-error-dark" data-testid="exception-bearer-error">{t("errors.bearer")}</p> : null}
+        {attempted && !bearer ? <p className="text-caption font-semibold text-error-dark" data-testid="exception-bearer-error">{t("errors.bearer")}</p> : null}
       </fieldset>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
-      {attempted && (plan.lines.length === 0 || plan.problems.length) ? <p className="text-sm font-semibold text-error-dark" role="alert">{t("errors.quantities")}</p> : null}
+      {attempted && (plan.lines.length === 0 || plan.problems.length) ? <p className="text-label text-error-dark" role="alert">{t("errors.quantities")}</p> : null}
       {operationId ? <ExceptionPostingStatus state={posting.state} partyId={partyId} onRetry={() => void submit()} onCheck={() => void posting.check(operationId)} /> : null}
       {posted ? null : (
         <div className="flex justify-end">
@@ -444,11 +435,11 @@ function ReturnForm({
   const shown = attempted && !posted ? problems() : [];
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-return">
-      <p className="text-sm text-text-muted">{t("returnBody")}</p>
+      <p className="text-body text-text-muted">{t("returnBody")}</p>
       <HoldingsTable holdings={kept} typed={typed} generation={0} onTyped={setTyped} locked={busy || delivered} label={t("returnedQuantity")} />
       <div className="grid gap-4 md:grid-cols-3">
         <Field label={t("location")} name="location_id">
-          <Select value={locationId} disabled={busy || posted} onChange={(event) => setLocationId(event.target.value)} data-testid="exception-location">
+          <Select value={locationId} disabled={busy || posted} onValueChange={(value) => setLocationId(value)} data-testid="exception-location">
             <option value="">{t("pickLocation")}</option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
@@ -467,7 +458,7 @@ function ReturnForm({
             data-testid="exception-collected"
           />
         </Field>
-        <div className="flex flex-col gap-1 text-sm">
+        <div className="flex flex-col gap-1 text-body">
           <span className="text-text-muted">{t("returnValue")}</span>
           <span className="font-bold" dir="ltr" data-testid="exception-return-value">
             {money(value)}
@@ -476,7 +467,7 @@ function ReturnForm({
       </div>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
       {shown.length ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="exception-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="exception-problems">
           {shown.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}
@@ -571,11 +562,11 @@ function RefundForm({
 
   return (
     <Card className="flex flex-col gap-4" data-testid="exception-refund">
-      <p className="text-sm text-text-muted">{t("refundBody", { fee: money(toFixed(fee)) })}</p>
-      <p className="text-sm font-semibold" data-testid="exception-refund-cap" data-cap={fixedText(cap, 0)}>
+      <p className="text-body text-text-muted">{t("refundBody", { fee: money(toFixed(fee)) })}</p>
+      <p className="text-label" data-testid="exception-refund-cap" data-cap={fixedText(cap, 0)}>
         {t("refundCap", { cap: money(cap) })}
       </p>
-      <fieldset className="flex flex-col gap-2 text-sm" disabled={busy || posted}>
+      <fieldset className="flex flex-col gap-2 text-body" disabled={busy || posted}>
         <legend className="mb-1 font-semibold">{t("refundMethod")}</legend>
         {(["cash_account", "uncollected"] as const).map((value) => (
           <label key={value} className="flex items-start gap-2">
@@ -590,7 +581,7 @@ function RefundForm({
         </Field>
         {method === "cash_account" ? (
           <Field label={t("cashAccount")} name="cash_account_id">
-            <Select value={accountId} disabled={busy || posted} onChange={(event) => setAccountId(event.target.value)} data-testid="exception-cash-account">
+            <Select value={accountId} disabled={busy || posted} onValueChange={(value) => setAccountId(value)} data-testid="exception-cash-account">
               <option value="">{t("pickCash")}</option>
               {cashAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -603,7 +594,7 @@ function RefundForm({
       </div>
       <CommonFields reason={reason} onReason={setReason} date={date} onDate={setDate} attempted={attempted} locked={busy || posted} canBackdate={canBackdate} today={today} windowDays={windowDays} />
       {attempted && problems.length && !posted ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="exception-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="exception-problems">
           {problems.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}

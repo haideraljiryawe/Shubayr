@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { basename, dirname } from 'node:path';
 import pg from 'pg';
 
 const { Client } = pg;
@@ -41,14 +43,127 @@ const apiEntry = 'dist/src/main.js';
 let api;
 let created = false;
 let closingCreated = false;
+let suiteError = null;
+const suiteStartedAt = new Date();
+const packResults = [];
+
+function isAcceptancePack(script) {
+  return /^test[\\/].+\.acceptance\.mjs$/.test(script);
+}
+
+function assertionCount(output) {
+  const counts = [];
+  for (const pattern of [
+    /([\d,]+)\s+assertions?\b/giu,
+    /assertions?\s*:\s*([\d,]+)/giu,
+  ]) {
+    for (const match of output.matchAll(pattern)) {
+      counts.push(Number(match[1].replaceAll(',', '')));
+    }
+  }
+  return counts.length === 0 ? null : Math.max(...counts);
+}
+
+function gitValue(args) {
+  try {
+    return execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function contractVersion() {
+  const contract = readFileSync('../api/openapi.yaml', 'utf8');
+  return contract.match(/^\s{2}version:\s*([^\s#]+)/mu)?.[1] ?? null;
+}
+
+function writeAcceptanceResults() {
+  const target = process.env.ACCEPTANCE_RESULTS_PATH?.trim();
+  if (!target) return;
+  const finishedAt = new Date();
+  const failedPacks = packResults.filter((pack) => pack.status === 'failed');
+  const result = {
+    schema_version: 1,
+    status: suiteError || failedPacks.length > 0 ? 'failed' : 'passed',
+    commit:
+      process.env.ACCEPTANCE_COMMIT?.trim() || gitValue(['rev-parse', 'HEAD']),
+    tag:
+      process.env.ACCEPTANCE_RELEASE_TAG?.trim() ||
+      gitValue(['describe', '--tags', '--exact-match']),
+    contract_version: contractVersion(),
+    started_at: suiteStartedAt.toISOString(),
+    finished_at: finishedAt.toISOString(),
+    duration_ms: finishedAt.getTime() - suiteStartedAt.getTime(),
+    pack_count: packResults.length,
+    passed_packs: packResults.filter((pack) => pack.status === 'passed').length,
+    failed_packs: failedPacks.length,
+    assertion_count: packResults.reduce(
+      (sum, pack) => sum + (pack.assertions ?? 0),
+      0,
+    ),
+    error: suiteError instanceof Error ? suiteError.message : null,
+    packs: packResults,
+  };
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+  console.log(`Acceptance results written to ${target}`);
+}
 
 function run(script, args = [], env = environment) {
   return new Promise((resolve, reject) => {
-    const child = spawn(node, [script, ...args], { env, stdio: 'inherit' });
-    child.once('error', reject);
+    const pack = isAcceptancePack(script);
+    const startedAt = new Date();
+    let output = '';
+    let settled = false;
+    const child = spawn(node, [script, ...args], {
+      env,
+      stdio: pack ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    });
+    if (pack) {
+      child.stdout.on('data', (chunk) => {
+        output += chunk.toString();
+        process.stdout.write(chunk);
+      });
+      child.stderr.on('data', (chunk) => {
+        output += chunk.toString();
+        process.stderr.write(chunk);
+      });
+    }
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      if (pack) {
+        packResults.push({
+          pack: basename(script),
+          status: 'failed',
+          assertions: assertionCount(output),
+          started_at: startedAt.toISOString(),
+          duration_ms: Date.now() - startedAt.getTime(),
+          error: error.message,
+        });
+      }
+      reject(error);
+    });
     child.once('exit', (code, signal) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${script} exited with ${code ?? signal}`));
+      if (settled) return;
+      settled = true;
+      const error =
+        code === 0 ? null : new Error(`${script} exited with ${code ?? signal}`);
+      if (pack) {
+        packResults.push({
+          pack: basename(script),
+          status: error ? 'failed' : 'passed',
+          assertions: assertionCount(output),
+          started_at: startedAt.toISOString(),
+          duration_ms: Date.now() - startedAt.getTime(),
+          error: error?.message ?? null,
+        });
+      }
+      if (error) reject(error);
+      else resolve();
     });
   });
 }
@@ -249,6 +364,7 @@ try {
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);
   await run('test/c13-settings.acceptance.mjs', [], acceptanceEnv);
+  await run('test/c21-admin-review.acceptance.mjs', [], acceptanceEnv);
   await run('test/notes-contract-c16.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
@@ -258,15 +374,28 @@ try {
   await run('test/reports-part2.acceptance.mjs', [], acceptanceEnv);
   await run('test/phase11-12-completion.acceptance.mjs', [], acceptanceEnv);
   await run('test/report-export-permissions.acceptance.mjs', [], acceptanceEnv);
+  // Final cross-pack gate: all earlier scenarios have posted into the same
+  // real database, so prove the release examples and ledger invariants last.
+  await run('test/section29-release.acceptance.mjs', [], acceptanceEnv);
+} catch (error) {
+  suiteError = error;
+  throw error;
 } finally {
-  await stopApi();
-  if (closingCreated) {
-    await admin.query(`DROP DATABASE "${closingName}" WITH (FORCE)`);
-    console.log(`Dropped disposable closing database: ${closingName}`);
+  try {
+    await stopApi();
+    if (closingCreated) {
+      await admin.query(`DROP DATABASE "${closingName}" WITH (FORCE)`);
+      console.log(`Dropped disposable closing database: ${closingName}`);
+    }
+    if (created) {
+      await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
+      console.log(`Dropped disposable acceptance database: ${name}`);
+    }
+    await admin.end();
+  } catch (error) {
+    suiteError ??= error;
+    throw error;
+  } finally {
+    writeAcceptanceResults();
   }
-  if (created) {
-    await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
-    console.log(`Dropped disposable acceptance database: ${name}`);
-  }
-  await admin.end();
 }

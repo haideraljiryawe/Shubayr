@@ -103,7 +103,7 @@ export function CategoriesView({
               <Badge className="ms-2">{t("hidden")}</Badge>
             ) : null}
           </span>
-          <span className="text-xs text-text-muted" dir="ltr">
+          <span className="text-caption text-text-muted" dir="ltr">
             {nameOf(category, locale === "ar" ? "en" : "ar")} · /{category.slug}
           </span>
         </div>
@@ -159,7 +159,7 @@ export function CategoriesView({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-text-muted">{t("twoLevels")}</p>
+        <p className="text-body text-text-muted">{t("twoLevels")}</p>
         <Button onClick={() => setDialog({ kind: "create", parent: null })} data-testid="category-new">
           <Plus className="size-4" aria-hidden />
           {t("newDepartment")}
@@ -173,7 +173,7 @@ export function CategoriesView({
       ) : null}
 
       {departments(tree).length === 0 ? (
-        <Card className="text-sm text-text-muted" data-testid="categories-empty">
+        <Card className="text-body text-text-muted" data-testid="categories-empty">
           {t("empty")}
         </Card>
       ) : null}
@@ -192,7 +192,7 @@ export function CategoriesView({
                   </ul>
                 </li>
               ) : (
-                <li className="border-t border-border py-2 text-xs text-text-muted">{t("noSubcategories")}</li>
+                <li className="border-t border-border py-2 text-caption text-text-muted">{t("noSubcategories")}</li>
               )}
             </ul>
           </Card>
@@ -456,7 +456,7 @@ function CategoryForm({
           />
         </Field>
       </div>
-      <p className="-mt-2 text-xs text-text-muted" data-testid="category-description-fallback">
+      <p className="-mt-2 text-caption text-text-muted" data-testid="category-description-fallback">
         {t("fields.descriptionFallback")}
       </p>
 
@@ -493,13 +493,13 @@ function CategoryForm({
             descriptionAr={descriptions.ar}
             descriptionEn={descriptions.en}
           />
-          <p className="text-xs text-text-muted" data-testid="category-image-forbidden">
+          <p className="text-caption text-text-muted" data-testid="category-image-forbidden">
             {t("fields.imageNeedsPermission")}
           </p>
         </>
       )}
       {progress !== null ? (
-        <p className="text-sm text-text-muted" data-testid="category-image-progress">
+        <p className="text-body text-text-muted" data-testid="category-image-progress">
           {tImage("uploading", { percent: progress })}
         </p>
       ) : null}
@@ -511,7 +511,7 @@ function CategoryForm({
         onToggle={(event) => setAdvanced(event.currentTarget.open)}
         data-testid="category-advanced"
       >
-        <summary className="cursor-pointer text-sm font-semibold">{t("advanced")}</summary>
+        <summary className="cursor-pointer text-label">{t("advanced")}</summary>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <Field label={t("fields.slug")} name="slug" error={error("slug")} hint={t("fields.slugHint")}>
             <Input
@@ -542,7 +542,7 @@ function CategoryForm({
         <Select
           value={parentId}
           disabled={lock === "hasChildren"}
-          onChange={(e) => setParentId(e.target.value)}
+          onValueChange={(value) => setParentId(value)}
           data-testid="category-parent"
         >
           <option value="">{t("noParent")}</option>
@@ -554,7 +554,7 @@ function CategoryForm({
         </Select>
       </Field>
 
-      <label className="flex items-center gap-2 text-sm font-semibold">
+      <label className="flex items-center gap-2 text-label">
         <input
           type="checkbox"
           checked={visible}
@@ -690,8 +690,8 @@ function ConvertDialog({
     >
       {preview ? (
         <div className="flex flex-col gap-3" data-testid="convert-summary">
-          <p className="text-sm">{t("convert.summaryIntro")}</p>
-          <ul className="flex list-disc flex-col gap-1.5 ps-5 text-sm">
+          <p className="text-body">{t("convert.summaryIntro")}</p>
+          <ul className="flex list-disc flex-col gap-1.5 ps-5 text-body">
             <li data-testid="convert-effect-brand">
               {t("convert.effectBrand", { ar: nameAr.trim(), en: nameEn.trim(), slug: slug.trim() })}
             </li>
@@ -709,7 +709,7 @@ function ConvertDialog({
         </div>
       ) : (
         <>
-          <p className="text-sm text-text-muted">{t("convert.intro")}</p>
+          <p className="text-body text-text-muted">{t("convert.intro")}</p>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("fields.brandNameAr")} name="name_ar" error={error("name_ar")}>
               <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="convert-name-ar" />
@@ -721,7 +721,7 @@ function ConvertDialog({
               <Input value={slug} dir="ltr" onChange={(e) => setSlug(e.target.value)} data-testid="convert-slug" />
             </Field>
             <Field label={t("fields.target")} name="target_category_id" error={error("target_category_id")} hint={t("convert.targetHint")}>
-              <Select value={target} onChange={(e) => setTarget(e.target.value)} data-testid="convert-target">
+              <Select value={target} onValueChange={(value) => setTarget(value)} data-testid="convert-target">
                 <option value="">{t("convert.chooseTarget")}</option>
                 {groups.map((group) => (
                   <optgroup key={group.department.id} label={nameOf(group.department, locale)}>
@@ -735,7 +735,7 @@ function ConvertDialog({
               </Select>
             </Field>
           </div>
-          <label className="flex items-center gap-2 text-sm font-semibold">
+          <label className="flex items-center gap-2 text-label">
             <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
             {t("fields.brandVisible")}
           </label>

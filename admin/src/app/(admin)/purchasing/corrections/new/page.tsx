@@ -41,7 +41,7 @@ export default async function NewCorrectionPage({ searchParams }: { searchParams
 
   return (
     <>
-      <Link href={`/purchasing/invoices/${invoiceId}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={`/purchasing/invoices/${invoiceId}`} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {invoice.data.document_number}
       </Link>

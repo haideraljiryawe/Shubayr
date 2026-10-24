@@ -2,6 +2,7 @@ import ar from "../../src/messages/ar.json";
 import en from "../../src/messages/en.json";
 import { expect, test } from "./fixtures";
 import { ADMIN_USERNAME, createStaff, requireLiveApi, uiLogin, uiLoginAsAdmin } from "./helpers";
+import { toggleLocale } from "./shell";
 
 /**
  * NOTE-012 against the real API: what the person reads is the admin's own
@@ -18,19 +19,19 @@ test("a wrong password is worded in Arabic, then in English after a switch, keep
   await uiLogin(page, ADMIN_USERNAME, "Not-The-Password!1");
   await expect(page.getByTestId("login-error")).toHaveText(ar.auth.invalidCredentials);
 
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByTestId("login-error")).toHaveText(en.auth.invalidCredentials);
   await expect(page.getByTestId("login-username")).toHaveValue(ADMIN_USERNAME);
 
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
 });
 
 test("the lockout is worded in English for someone who chose English", async ({ page, request }) => {
   const staff = await createStaff(request, { prefix: "lock-en" });
   await page.goto("/login");
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
   for (let attempt = 1; attempt <= 5; attempt += 1) {
@@ -61,7 +62,7 @@ test("a server 422 shows the admin's wording, re-worded by a language switch tha
   await expect(page.getByTestId("error-username")).toHaveText(ar.errors.fields.format);
   if (serverText) await expect(page.getByTestId("error-username")).not.toContainText(serverText);
 
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByTestId("error-username")).toHaveText(en.errors.fields.format);
   await expect(page.getByTestId("input-username")).toHaveValue("9-not-valid");
@@ -69,18 +70,18 @@ test("a server 422 shows the admin's wording, re-worded by a language switch tha
   await expect(page.getByTestId("input-reason")).toHaveValue("Checking validation");
   await expect(page).toHaveURL(/\/staff\/new$/);
 
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
 });
 
 test("page titles follow the chosen language", async ({ page }) => {
   await page.goto("/login");
   const arabic = await page.title();
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page).not.toHaveTitle(arabic);
   await expect(page).toHaveTitle(/Shubayr Admin/);
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page).toHaveTitle(arabic);
 });

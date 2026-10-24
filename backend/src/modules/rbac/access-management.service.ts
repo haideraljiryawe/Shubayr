@@ -4,7 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PERMISSION_REGISTRY } from '../../common/access/permission-registry';
+import {
+  PERMISSION_REGISTRY,
+  permissionPresentation,
+} from '../../common/access/permission-registry';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -36,10 +39,22 @@ export class AccessManagementService {
     private readonly resolver: PermissionResolverService,
   ) {}
 
-  permissions() {
-    return Object.entries(PERMISSION_REGISTRY).map(
-      ([key, [group, description]]) => ({ key, group, description }),
-    );
+  permissions(q?: string) {
+    const normalized = q?.trim().toLocaleLowerCase('ar');
+    return Object.entries(PERMISSION_REGISTRY)
+      .map(([key, [group, description]]) => ({
+        key,
+        group,
+        description,
+        ...permissionPresentation(key as keyof typeof PERMISSION_REGISTRY),
+      }))
+      .filter(
+        (item) =>
+          !normalized ||
+          Object.values(item).some((value) =>
+            value.toLocaleLowerCase('ar').includes(normalized),
+          ),
+      );
   }
 
   async listStaff(query: StaffListQueryDto) {

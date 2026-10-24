@@ -640,6 +640,7 @@ export class PurchasingService {
           payment_allocations: true,
           credit_allocations: true,
           return_documents: true,
+          corrections: true,
         },
         orderBy: [{ document_date: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * perPage,
@@ -2132,9 +2133,11 @@ export class PurchasingService {
     const source = row as T & {
       creator?: ActorNameSource;
       total_cost?: Prisma.Decimal;
+      exchange_rate: Prisma.Decimal;
       payment_allocations?: Array<{ amount_invoice_currency: Prisma.Decimal }>;
       credit_allocations?: Array<{ amount_invoice_currency: Prisma.Decimal }>;
       return_documents?: Array<{ total_currency: Prisma.Decimal }>;
+      corrections?: Array<{ amount_iqd: Prisma.Decimal }>;
     };
     const settled = (source.payment_allocations ?? [])
       .reduce((sum, item) => sum.plus(item.amount_invoice_currency), D(0))
@@ -2156,17 +2159,24 @@ export class PurchasingService {
         ? { created_by_name: actorDisplayName(source.creator) }
         : {}),
       ...(source.total_cost
-        ? {
-            remaining_currency: Prisma.Decimal.max(
-              D(0),
-              source.total_cost.minus(settled),
-            ),
-            settlement_status: settled.isZero()
-              ? 'open'
-              : settled.gte(source.total_cost)
-                ? 'paid'
-                : 'partial',
-          }
+        ? (() => {
+            const correctedTotal = (source.corrections ?? []).reduce(
+              (sum, correction) =>
+                sum.plus(correction.amount_iqd.div(source.exchange_rate)),
+              source.total_cost,
+            );
+            return {
+              remaining_currency: Prisma.Decimal.max(
+                D(0),
+                correctedTotal.minus(settled),
+              ),
+              settlement_status: settled.isZero()
+                ? 'open'
+                : settled.gte(correctedTotal)
+                  ? 'paid'
+                  : 'partial',
+            };
+          })()
         : {}),
     } as Record<string, unknown>;
     delete result.creator;

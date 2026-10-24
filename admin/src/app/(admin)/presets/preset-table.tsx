@@ -40,7 +40,7 @@ export function PresetTable({
             {row.isSystem ? <Badge tone="info">{t("system")}</Badge> : null}
           </span>
           {row.description ? (
-            <span className="text-xs text-text-muted">{row.description}</span>
+            <span className="text-caption text-text-muted">{row.description}</span>
           ) : null}
         </div>
       ),
@@ -54,7 +54,7 @@ export function PresetTable({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) => (
         <Link
           href={`/presets/${row.id}`}

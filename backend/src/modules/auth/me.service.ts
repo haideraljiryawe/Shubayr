@@ -44,13 +44,22 @@ export class MeService {
     input: UserSelfUpdateDto,
   ) {
     const userId = typeof session === 'string' ? session : session.id;
-    const data: { name?: string; email?: string | null } = {};
+    const data: {
+      name?: string;
+      email?: string | null;
+      preferred_ui_language?: 'ar' | 'en';
+    } = {};
     if (input.name !== undefined) data.name = input.name.trim();
     if (input.email !== undefined) {
       data.email = input.email === null ? null : input.email.trim();
     }
+    if (input.preferred_ui_language !== undefined) {
+      data.preferred_ui_language = input.preferred_ui_language;
+    }
     if (Object.keys(data).length === 0) {
-      throw new BadRequestException('Provide name or email to update');
+      throw new BadRequestException(
+        'Provide name, email, or preferred_ui_language to update',
+      );
     }
 
     const user = await this.prisma.user.update({
@@ -245,6 +254,7 @@ export class MeService {
       permission_version: legacy
         ? user.permission_version
         : session.permissionVersion,
+      preferred_ui_language: user.preferred_ui_language,
       created_at: user.created_at,
     };
   }

@@ -6,6 +6,7 @@ import { Badge, Card } from "@/components/ui";
 import { DateFilter } from "@/components/finance/date-filter";
 import { formatAmount } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, TFoot, Tr, Th, Td } from "@/components/table/table";
 
 type TrialBalance = components["schemas"]["TrialBalance"];
 
@@ -44,47 +45,47 @@ export function TrialBalanceView({
     <Card className="flex flex-col gap-4 overflow-x-auto p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <DateFilter name="as_of" label={t("asOf")} />
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-body">
           <span className="text-text-muted">{asOf ? t("asOfDate", { date: asOf }) : t("asOfNow")}</span>
           <Badge tone={balance.balanced ? "success" : "danger"} data-testid="trial-balanced">
             {balance.balanced ? t("balanced") : t("unbalanced")}
           </Badge>
         </div>
       </div>
-      <table className="w-full text-sm" data-testid="trial-balance">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="py-1 text-start font-semibold">{t("columns.code")}</th>
-            <th className="py-1 text-start font-semibold">{t("columns.account")}</th>
-            <th className="py-1 text-end font-semibold">{t("columns.debit")}</th>
-            <th className="py-1 text-end font-semibold">{t("columns.credit")}</th>
-            <th className="py-1 text-end font-semibold">{t("columns.balance")}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table data-testid="trial-balance">
+        <THead>
+          <Tr>
+            <Th>{t("columns.code")}</Th>
+            <Th>{t("columns.account")}</Th>
+            <Th>{t("columns.debit")}</Th>
+            <Th>{t("columns.credit")}</Th>
+            <Th>{t("columns.balance")}</Th>
+          </Tr>
+        </THead>
+        <TBody>
           {rows.map((row) => (
-            <tr key={row.code} className="border-t border-border" data-testid="trial-row" data-code={row.code}>
-              <td className="py-1.5">
+            <Tr key={row.code} data-testid="trial-row" data-code={row.code}>
+              <Td>
                 <Link href={entriesHref(row.code)} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                   {row.code}
                 </Link>
-              </td>
-              <td className="py-1.5">{locale === "ar" ? row.name_ar : row.name_en}</td>
-              <td className="py-1.5 text-end" dir="ltr">{money(row.debit)}</td>
-              <td className="py-1.5 text-end" dir="ltr">{money(row.credit)}</td>
-              <td className="py-1.5 text-end font-semibold" dir="ltr" data-testid="trial-balance-value">{money(row.balance)}</td>
-            </tr>
+              </Td>
+              <Td>{locale === "ar" ? row.name_ar : row.name_en}</Td>
+              <Td dir="ltr">{money(row.debit)}</Td>
+              <Td dir="ltr">{money(row.credit)}</Td>
+              <Td className="font-semibold" dir="ltr" data-testid="trial-balance-value">{money(row.balance)}</Td>
+            </Tr>
           ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-border font-bold">
-            <td className="py-2" colSpan={2}>{t("totals")}</td>
-            <td className="py-2 text-end" dir="ltr" data-testid="trial-debit-total">{money(balance.debit_total)}</td>
-            <td className="py-2 text-end" dir="ltr" data-testid="trial-credit-total">{money(balance.credit_total)}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+        </TBody>
+        <TFoot>
+          <Tr className="border-t-2 font-bold">
+            <Td colSpan={2}>{t("totals")}</Td>
+            <Td dir="ltr" data-testid="trial-debit-total">{money(balance.debit_total)}</Td>
+            <Td dir="ltr" data-testid="trial-credit-total">{money(balance.credit_total)}</Td>
+            <Td />
+          </Tr>
+        </TFoot>
+      </Table>
     </Card>
   );
 }

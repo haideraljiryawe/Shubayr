@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {message ? (
           <p
             data-testid="toast"
-            className="rounded-md bg-text px-4 py-2 text-sm font-semibold text-white shadow-lg"
+            className="rounded-md bg-text px-4 py-2 text-label text-white shadow-lg"
           >
             {message}
           </p>

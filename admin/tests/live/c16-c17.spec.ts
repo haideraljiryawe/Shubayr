@@ -3,6 +3,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { LAUNCH_MODULES } from "../../src/lib/modules";
 import { expect, test } from "./fixtures";
 import { API, activateStaff, adminApiToken, bearer, createStaff, placeOrder, randomWorkPhone, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * PR A12 (contracts 17.7.0 and 17.8.0) with exactly the launch module set
@@ -161,7 +162,7 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await page.getByTestId("banner-new").click();
     await form.getByTestId("banner-internal-name").fill(productBanner);
     await form.getByTestId("banner-title-ar").fill(`وصل ${run}`);
-    await form.getByTestId("banner-action").selectOption("product");
+    await choose(form.getByTestId("banner-action"), "product");
     await form.getByTestId("dialog-submit").click();
     await expect(form.getByTestId("banner-target-required")).toBeVisible();
     await form.getByTestId("banner-target-product-search").fill(shown.name_ar);
@@ -170,7 +171,8 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await expect(form.getByTestId("banner-preview-action")).toContainText(shown.name_ar);
     // The picture comes from a saved banner's media; here it is uploaded through the form's own field.
     await form.getByTestId("banner-image-input").setInputFiles({ name: "p.png", mimeType: "image/png", buffer: png(2400, 1200, [200, 120, 30]) });
-    await form.getByTestId("banner-image-use-crop").click();
+    await page.getByTestId("banner-image-editor-confirm").click();
+    await expect(page.getByTestId("banner-image-editor")).toBeHidden();
     await form.getByTestId("banner-enabled").check();
     await form.getByTestId("dialog-submit").click();
     await expect(form).toBeHidden();
@@ -210,7 +212,8 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await form.getByTestId("banner-internal-name").fill(firstDefault);
     await form.getByTestId("banner-show-text").uncheck();
     await form.getByTestId("banner-image-input").setInputFiles({ name: "d.png", mimeType: "image/png", buffer: png(2400, 1200, [60, 60, 160]) });
-    await form.getByTestId("banner-image-use-crop").click();
+    await page.getByTestId("banner-image-editor-confirm").click();
+    await expect(page.getByTestId("banner-image-editor")).toBeHidden();
     // Image only: the preview draws no title and says so.
     await expect(form.getByTestId("banner-preview")).toHaveAttribute("data-show-text", "false");
     await expect(form.getByTestId("banner-preview-title")).toHaveCount(0);
@@ -266,7 +269,7 @@ test("banners: a product action, two image-only defaults, the two-defaults refus
     await page.reload();
     await page.getByTestId("banner-row").filter({ hasText: firstDefault }).getByTestId("banner-swap-open").click();
     const swap = page.getByTestId("banner-swap");
-    await swap.getByTestId("banner-swap-incoming").selectOption(incoming.body.id);
+    await choose(swap.getByTestId("banner-swap-incoming"), incoming.body.id);
     await expect(swap.getByTestId("banner-swap-priority")).toHaveValue("1");
     const swapCalls: string[] = [];
     page.on("request", (sent) => {
@@ -415,11 +418,17 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await form.getByTestId("invoice-supplier-option").filter({ hasText: supplier.name }).click();
   await expect(form.getByTestId("invoice-supplier-picked")).toHaveAttribute("data-supplier-id", supplier.id);
   expect(searches.some((query) => query.includes(`q=${phone.slice(-7)}`))).toBe(true);
-  // Opening stock at 7,000 is the cost to start from (never purchased yet).
+  // Opening stock at 7,000 is the cost to start from (never purchased yet). A
+  // restock opens with its first variant in the product editor (VIS-022).
   const line = form.getByTestId("invoice-line").first();
-  await expect(line.getByTestId("line-cost")).toHaveValue("7000");
-  await line.getByTestId("line-cost").fill("8000");
-  await line.getByTestId("line-packs").fill("2");
+  await expect(line.getByTestId("line-pack-cost")).toContainText("7,000");
+  const editor = form.getByTestId("invoice-editor");
+  await expect(editor).toHaveAttribute("data-mode", "edit");
+  await expect(editor.getByTestId("line-cost")).toHaveValue("7,000");
+  await editor.getByTestId("line-cost").fill("8000");
+  await editor.getByTestId("line-packs").fill("2");
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(line).toHaveAttribute("data-blank", "false");
   await form.getByTestId("invoice-payment-owed").check();
   await form.getByTestId("invoice-review-button").click();
   await form.getByTestId("invoice-confirm").click();
@@ -434,16 +443,19 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   await expect(form.getByTestId("invoice-supplier-picked")).toHaveAttribute("data-supplier-id", supplier.id);
   const last = await api(request, "GET", `/admin/purchase-costs/variants/${product.variants[0].id}/last`);
   expect(last.body).toMatchObject({ unit_cost: 8000, currency_code: "IQD", supplier: { id: supplier.id } });
-  await expect(form.getByTestId("invoice-line").first().getByTestId("line-cost")).toHaveValue("8000");
-  await form.getByTestId("invoice-line").first().getByTestId("line-packs").fill("3");
+  await expect(form.getByTestId("invoice-line").first().getByTestId("line-pack-cost")).toContainText("8,000");
+  await expect(form.getByTestId("invoice-editor").getByTestId("line-cost")).toHaveValue("8,000");
+  await form.getByTestId("invoice-editor").getByTestId("line-packs").fill("3");
+  await form.getByTestId("invoice-editor-submit").click();
+  await expect(form.getByTestId("invoice-line").first()).toHaveAttribute("data-blank", "false");
   await form.getByTestId("invoice-payment-now").check();
-  await form.getByTestId("invoice-cash-account").selectOption(account);
+  await choose(form.getByTestId("invoice-cash-account"), account);
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("24,000");
   // Freight paid in USD on this IQD invoice: only the server knows the exact
   // total (17.9.0 pay_full_invoice_total), and paid now still works.
   await form.getByTestId("invoice-add-cost").click();
   await form.getByTestId("landed-kind").fill("Freight");
-  await form.getByTestId("landed-currency").selectOption("USD");
+  await choose(form.getByTestId("landed-currency"), "USD");
   await form.getByTestId("landed-amount").fill("2");
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("الخادم");
   await form.getByTestId("invoice-review-button").click();
@@ -534,7 +546,7 @@ test("a courier company: created, handed an order, delivers it with the cash, an
   await confirmDialog(page);
   await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "dispatched");
   await page.getByTestId("order-action-deliver").click();
-  const deliver = page.locator("dialog[open]");
+  const deliver = page.getByRole("dialog");
   await expect(deliver.getByTestId("collection-fields")).toBeVisible();
   const due = digits(await deliver.getByTestId("collection-due").textContent());
   await deliver.getByTestId("collection-confirmed").check();
@@ -545,7 +557,7 @@ test("a courier company: created, handed an order, delivers it with the cash, an
   await page.goto(`/finance/cash-receipts/new?party_id=${partyId}`);
   await expect(page.getByTestId("receive-form")).toBeVisible();
   expect(digits(await page.getByTestId("receive-cash-held").textContent())).toBe(due);
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("receive-all-held").click();
   await page.getByTestId("allocation-auto").click();
   await page.getByTestId("receive-review-button").click();

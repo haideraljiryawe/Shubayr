@@ -11,6 +11,8 @@ const schema = Joi.object({
   API_PORT: Joi.number().port().default(8000),
   PROCESS_ROLE: Joi.string().valid('api', 'worker', 'all').default('all'),
   WORKER_HEALTH_FILE: Joi.string().default('/tmp/shubayr-worker-ready'),
+  RELEASE_VERSION: Joi.string().max(120).default('development'),
+  RELEASE_COMMIT: Joi.string().max(64).default('unknown'),
   TRUSTED_PROXIES: Joi.string().allow('').default(''),
   RATE_LIMIT_CATALOG_PER_MINUTE: Joi.number().integer().min(1).default(600),
   RATE_LIMIT_NORMAL_PER_MINUTE: Joi.number().integer().min(1).default(120),
@@ -54,6 +56,11 @@ const schema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_TTL: Joi.string().default('15m'),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
+  ADMIN_REFRESH_ROTATION_GRACE_SECONDS: Joi.number()
+    .integer()
+    .min(1)
+    .max(120)
+    .default(30),
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)

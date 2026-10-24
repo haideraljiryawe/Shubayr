@@ -44,19 +44,19 @@ export function Field({
 
   return (
     <div className="flex flex-col gap-1.5" data-field={name}>
-      <label htmlFor={id} className="text-sm font-semibold text-text">
+      <label htmlFor={id} className="text-label text-text">
         {label}
       </label>
       {control}
       {hint ? (
-        <p id={hintId} className="text-xs text-text-muted">
+        <p id={hintId} className="text-caption text-text-muted">
           {hint}
         </p>
       ) : null}
       {error ? (
         <p
           id={errorId}
-          className="text-xs font-semibold text-error-dark"
+          className="text-caption font-semibold text-error-dark"
           data-testid={name ? `error-${name}` : undefined}
         >
           {error}

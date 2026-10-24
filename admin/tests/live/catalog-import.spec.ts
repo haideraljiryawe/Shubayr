@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./helpers";
 import { PNG_1X1, catalogWorkbook, zip, type ProductLine } from "./xlsx";
+import { choose } from "./controls";
 
 /**
  * The Excel catalog import, the bulk-image ZIP and the product list at scale,
@@ -547,7 +548,7 @@ test("a 3,000-row import applies in batches with live progress; then filters, SK
   expect(all.total).toBe(SCALE);
 
   const range = page.getByTestId("table-range");
-  const listed = async () => Number(((await range.textContent()) ?? "").replace(/[^\d\s]/g, " ").trim().split(/\s+/).pop());
+  const listed = async () => Number(((await range.textContent()) ?? "").replace(/,/g, "").replace(/[^\d\s]/g, " ").trim().split(/\s+/).pop());
 
   // Server-side filters over the whole catalog, not the first page.
   await page.goto(`/catalog/products?q=${prefix}`);
@@ -587,7 +588,7 @@ test("a 3,000-row import applies in batches with live progress; then filters, SK
   await page.getByTestId("products-select-all").check();
   await page.getByTestId("bulk-select-matching").click();
   await expect(page.getByTestId("bulk-count")).toContainText("500");
-  await page.getByTestId("bulk-category").selectOption(target!.id);
+  await choose(page.getByTestId("bulk-category"), target!.id);
   await page.getByTestId("bulk-category-apply").click();
   await expect(page.getByTestId("bulk-outcome")).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId("bulk-outcome")).toContainText("500");

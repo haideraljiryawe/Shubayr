@@ -90,3 +90,30 @@ export function paginate<T>(
   const start = (page - 1) * perPage;
   return rows.slice(start, start + perPage);
 }
+
+export type PageSummary =
+  | { kind: "empty"; last: 1 }
+  | { kind: "one"; last: 1 }
+  | { kind: "all"; total: number; last: 1 }
+  | { kind: "range"; from: number; to: number; total: number; last: number };
+
+/**
+ * Which record summary a table footer shows (VIS-012): no records, exactly
+ * one, everything on one page ("Total records: 12"), or a range of a larger
+ * set ("Showing 21 to 40 of 125 records"). Navigation is shown only when
+ * `last > 1`.
+ */
+export function pageSummary(total: number, page: number, perPage: number): PageSummary {
+  if (total <= 0) return { kind: "empty", last: 1 };
+  if (total === 1) return { kind: "one", last: 1 };
+  if (total <= perPage) return { kind: "all", total, last: 1 };
+  const last = Math.max(1, Math.ceil(total / perPage));
+  const current = Math.min(Math.max(1, page), last);
+  const from = (current - 1) * perPage + 1;
+  return { kind: "range", from, to: Math.min(total, current * perPage), total, last };
+}
+
+/** Grouped Latin digits in both languages, as everywhere else in the admin. */
+export function countText(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
+}

@@ -15,6 +15,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { allocationPlan, OperationKey, unsettledRows, type CashReceipt, type Unsettled } from "@/lib/finance/cash-receipts";
 import { entryHref } from "@/lib/finance/links";
 import { fixedText, moneyText, toFixed } from "@/lib/purchasing";
+import { Table, TBody, Tr, Td } from "@/components/table/table";
 
 type Notice = { kind: "allocated" | "reversed"; number: string };
 
@@ -60,7 +61,7 @@ export function ReceiptView({
         </Alert>
       ) : null}
 
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("status")}>
           <Badge tone={reversed ? "neutral" : "success"} data-testid="receipt-status" data-status={receipt.status}>
             {t(`statuses.${receipt.status}`)}
@@ -85,7 +86,7 @@ export function ReceiptView({
             {money(receipt.allocated_amount_iqd)}
           </span>
           {reversed && receipt.original_allocated_amount_iqd > 0 ? (
-            <span className="block text-xs text-text-muted">
+            <span className="block text-caption text-text-muted">
               {t("originalAllocated", { amount: money(receipt.original_allocated_amount_iqd) })}
             </span>
           ) : null}
@@ -114,42 +115,42 @@ export function ReceiptView({
             {t("reversedBy", { number: receipt.reversal.document_number, date: day(receipt.reversal.document_date) })}
           </p>
           <p data-testid="receipt-reversal-reason">{receipt.reversal.reason}</p>
-          <p className="mt-1 text-xs">{t("reversedNote")}</p>
+          <p className="mt-1 text-caption">{t("reversedNote")}</p>
         </Alert>
       ) : null}
 
       <Card className="flex flex-col gap-3" data-testid="receipt-batches">
-        <h2 className="text-lg font-bold">{t("allocationsTitle")}</h2>
+        <h2 className="text-section">{t("allocationsTitle")}</h2>
         {receipt.allocation_batches.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="receipt-no-allocations">
+          <p className="text-body text-text-muted" data-testid="receipt-no-allocations">
             {t("noAllocations")}
           </p>
         ) : (
           receipt.allocation_batches.map((batch) => (
             <div key={batch.id} className="rounded-md border border-border p-3" data-testid="receipt-batch" data-active={String(batch.active)}>
-              <p className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+              <p className="mb-2 flex flex-wrap items-center gap-2 text-body">
                 <span className="font-semibold" dir="ltr">
                   {batch.document_number}
                 </span>
                 <span className="text-text-muted">{day(batch.document_date)}</span>
                 {batch.active ? null : <Badge tone="neutral">{t("batchInactive")}</Badge>}
               </p>
-              <table className="w-full text-sm">
-                <tbody>
+              <Table>
+                <TBody>
                   {batch.allocations.map((allocation) => (
-                    <tr key={allocation.id} className="border-t border-border" data-testid="receipt-allocation" data-order={allocation.order.order_number}>
-                      <td className="py-1">
+                    <Tr key={allocation.id} data-testid="receipt-allocation" data-order={allocation.order.order_number}>
+                      <Td>
                         <Link href={`/orders/${allocation.order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="receipt-allocation-order">
                           {allocation.order.order_number}
                         </Link>
-                      </td>
-                      <td className="py-1 text-end" dir="ltr" data-testid="receipt-allocation-amount">
+                      </Td>
+                      <Td dir="ltr" data-testid="receipt-allocation-amount">
                         {money(allocation.amount_iqd)}
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </div>
           ))
         )}
@@ -175,7 +176,7 @@ export function ReceiptView({
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -238,8 +239,8 @@ function AllocatePanel({
 
   return (
     <Card className="flex flex-col gap-3" data-testid="receipt-allocate">
-      <h2 className="text-lg font-bold">{t("allocateTitle")}</h2>
-      <p className="text-sm text-text-muted">{t("allocateBody")}</p>
+      <h2 className="text-section">{t("allocateTitle")}</h2>
+      <p className="text-body text-text-muted">{t("allocateBody")}</p>
       <AllocationTable
         suggestions={shown}
         rows={rows}
@@ -257,7 +258,7 @@ function AllocatePanel({
       </div>
       <AllocationProblems plan={plan} show={posting.state.phase !== "posted" && (attempted || Object.keys(applied).length > 0)} />
       {attempted && plan.lines.length === 0 && plan.problems.length === 0 ? (
-        <p className="text-sm font-semibold text-error-dark" role="alert" data-testid="allocate-empty">
+        <p className="text-label text-error-dark" role="alert" data-testid="allocate-empty">
           {t("allocateEmpty")}
         </p>
       ) : null}
@@ -317,8 +318,8 @@ function ReversePanel({ receipt, onPosted }: { receipt: CashReceipt; onPosted: (
   }
   return (
     <Card className="flex flex-col gap-3 border-error/40" data-testid="receipt-reverse-panel">
-      <h2 className="text-lg font-bold">{t("reverseTitle")}</h2>
-      <p className="text-sm text-text-muted">{t("reverseBody")}</p>
+      <h2 className="text-section">{t("reverseTitle")}</h2>
+      <p className="text-body text-text-muted">{t("reverseBody")}</p>
       <Field label={t("reverseReason")} name="reason" error={attempted && tooShort ? t("reverseReasonRequired") : null}>
         <Textarea value={reason} maxLength={500} rows={2} disabled={busy} onChange={(event) => setReason(event.target.value)} data-testid="receipt-reverse-reason" />
       </Field>

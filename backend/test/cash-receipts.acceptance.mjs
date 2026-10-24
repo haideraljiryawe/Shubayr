@@ -684,5 +684,91 @@ check(
   'statement running balance is restored after reversals',
 );
 
+// Section 14.2 worked example: 100,000 + 50,000 of collections, then a
+// 120,000 receipt allocated 100,000 + 20,000 and a final 30,000 receipt.
+const workedFirst = await request('/admin/cash-receipts', {
+  token: cashierToken,
+  method: 'POST',
+  expected: 201,
+  body: {
+    operation_id: `section29-custody-first-${randomUUID()}`,
+    document_date: today,
+    party_id: party.id,
+    cash_account_id: till.id,
+    amount_iqd: '120000',
+    reference: 'Section 14.2 worked example — first receipt',
+    allocations: [
+      { order_id: orders[0].orderId, amount_iqd: '100000' },
+      { order_id: orders[1].orderId, amount_iqd: '20000' },
+    ],
+  },
+});
+check(
+  workedFirst.allocation_batches[0].allocations
+    .map((row) => row.amount_iqd)
+    .sort((left, right) => right - left),
+  [100000, 20000],
+  'section 14.2 first receipt allocates exactly 100,000 and 20,000',
+);
+let workedCollections = await request(
+  `/admin/delivery-parties/${party.id}/collections?per_page=20`,
+  { token: adminToken },
+);
+const workedA = workedCollections.data.find(
+  (row) => row.order_id === orders[0].orderId,
+);
+let workedB = workedCollections.data.find(
+  (row) => row.order_id === orders[1].orderId,
+);
+check(
+  [workedA.settlement_status, workedA.unsettled_amount_iqd],
+  ['settled', 0],
+  'section 14.2 order A is settled by 100,000',
+);
+check(
+  [workedB.settlement_status, workedB.unsettled_amount_iqd],
+  ['partially_settled', 30000],
+  'section 14.2 order B and the party still owe exactly 30,000',
+);
+await request('/admin/cash-receipts', {
+  token: cashierToken,
+  method: 'POST',
+  expected: 201,
+  body: {
+    operation_id: `section29-custody-final-${randomUUID()}`,
+    document_date: today,
+    party_id: party.id,
+    cash_account_id: till.id,
+    amount_iqd: '30000',
+    reference: 'Section 14.2 worked example — final receipt',
+    allocations: [{ order_id: orders[1].orderId, amount_iqd: '30000' }],
+  },
+});
+workedCollections = await request(
+  `/admin/delivery-parties/${party.id}/collections?per_page=20`,
+  { token: adminToken },
+);
+workedB = workedCollections.data.find(
+  (row) => row.order_id === orders[1].orderId,
+);
+check(
+  [workedB.settlement_status, workedB.unsettled_amount_iqd],
+  ['settled', 0],
+  'section 14.2 final 30,000 receipt closes order B',
+);
+check(
+  Number(
+    (
+      await db.query(
+        `SELECT count(*)::int AS value
+         FROM cash_receipt_vouchers
+         WHERE reference LIKE 'Section 14.2 worked example%'`,
+      )
+    ).rows[0].value,
+  ),
+  2,
+  'section 14.2 keeps both numbered receipt vouchers visible',
+);
+
 console.log(`cash receipt acceptance assertions: ${assertions}`);
 await db.end();

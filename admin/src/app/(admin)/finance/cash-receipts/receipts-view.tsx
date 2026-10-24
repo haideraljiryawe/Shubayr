@@ -6,9 +6,9 @@ import { Alert, Badge } from "@/components/ui";
 import { DateFilter } from "@/components/finance/date-filter";
 import { PartySearchFilter, type PartyChoice } from "@/components/parties/party-search";
 import { DataTable, TableFilter, useTableUrl, type Column, type TableState } from "@/components/table/data-table";
-import { cn } from "@/lib/cn";
 import { receiptHref, RECEIPT_STATUSES, type CashReceipt } from "@/lib/finance/cash-receipts";
 import { moneyText, toFixed } from "@/lib/purchasing";
+import { TabStrip, TabLink } from "@/components/ui/tab-strip";
 
 type Option = { value: string; label: string };
 
@@ -16,23 +16,19 @@ type Option = { value: string; label: string };
 export function ReceiptsTabs({ active }: { active: "vouchers" | "unallocated" }) {
   const t = useTranslations("cashReceipts.tabs");
   const tab = (key: "vouchers" | "unallocated", href: string) => (
-    <Link
+    <TabLink
       href={href}
-      aria-current={active === key ? "page" : undefined}
+      current={active === key}
       data-testid={`receipts-tab-${key}`}
-      className={cn(
-        "-mb-px inline-flex items-center whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold",
-        active === key ? "border-primary-dark text-primary-dark" : "border-transparent text-text-muted hover:text-text",
-      )}
     >
       {t(key)}
-    </Link>
+    </TabLink>
   );
   return (
-    <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-border" aria-label={t("label")}>
+    <TabStrip label={t("label")}>
       {tab("vouchers", "/finance/cash-receipts")}
       {tab("unallocated", "/finance/cash-receipts/unallocated")}
-    </nav>
+    </TabStrip>
   );
 }
 
@@ -99,12 +95,11 @@ export function ReceiptsView({
       ),
     },
     { key: "account", header: t("columns.account"), cell: (row) => row.cash_account.name },
-    { key: "amount", header: t("columns.amount"), className: "text-end", cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
-    { key: "allocated", header: t("columns.allocated"), className: "text-end", cell: (row) => <span dir="ltr">{money(row.allocated_amount_iqd)}</span> },
+    { key: "amount", header: t("columns.amount"), cell: (row) => <span dir="ltr">{money(row.amount_iqd)}</span> },
+    { key: "allocated", header: t("columns.allocated"), cell: (row) => <span dir="ltr">{money(row.allocated_amount_iqd)}</span> },
     {
       key: "unallocated",
       header: t("columns.unallocated"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" className="font-semibold" data-testid="receipt-row-unallocated">
           {money(row.unallocated_amount_iqd)}
@@ -125,11 +120,11 @@ export function ReceiptsView({
           {
             key: "actions",
             header: <span className="sr-only">{t("columns.actions")}</span>,
-            className: "text-end",
+            align: "end",
             cell: (row) => (
               <Link
                 href={`${receiptHref(row.id)}#allocate`}
-                className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card"
+                className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card"
                 data-testid="receipt-row-allocate"
               >
                 {t("allocate")}

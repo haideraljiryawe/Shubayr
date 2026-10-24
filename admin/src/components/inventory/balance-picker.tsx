@@ -17,6 +17,7 @@ import {
   type Warehouse,
 } from "@/lib/inventory";
 import { SkuPicker, type PickedSku } from "./sku-picker";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 const PER_PAGE = 10;
 
@@ -92,12 +93,12 @@ export function BalancePicker({
   return (
     <div className="flex flex-col gap-3" data-testid="balance-picker">
       <div className="grid gap-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm font-semibold">
+        <label className="flex flex-col gap-1 text-label">
           <span>{t("filters.warehouse")}</span>
           <Select
             value={warehouseId}
-            onChange={(event) => {
-              setWarehouseId(event.target.value);
+            onValueChange={(value) => {
+              setWarehouseId(value);
               setLocationId("");
               setPage(1);
             }}
@@ -111,12 +112,12 @@ export function BalancePicker({
             ))}
           </Select>
         </label>
-        <label className="flex flex-col gap-1 text-sm font-semibold">
+        <label className="flex flex-col gap-1 text-label">
           <span>{t("filters.location")}</span>
           <Select
             value={locationId}
-            onChange={(event) => {
-              setLocationId(event.target.value);
+            onValueChange={(value) => {
+              setLocationId(value);
               setPage(1);
             }}
             data-testid="picker-location"
@@ -131,7 +132,7 @@ export function BalancePicker({
           </Select>
         </label>
         {canSearchSku ? (
-          <div className="flex flex-col gap-1 text-sm font-semibold">
+          <div className="flex flex-col gap-1 text-label">
             <span>{t("filters.sku")}</span>
             <SkuPicker
               value={sku}
@@ -148,55 +149,55 @@ export function BalancePicker({
       <FormError kind={error} />
       <div className="relative overflow-x-auto rounded-md border border-border">
         {pending ? <Spinner className="absolute end-3 top-3 text-text-muted" /> : null}
-        <table className="w-full min-w-[40rem] text-sm">
-          <thead className="bg-card text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.location")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.onHand")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.reserved")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.available")}</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
+        <Table minWidth="40rem">
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.location")}</Th>
+              <Th>{t("columns.onHand")}</Th>
+              <Th>{t("columns.reserved")}</Th>
+              <Th>{t("columns.available")}</Th>
+              <Th />
+            </Tr>
+          </THead>
+          <TBody>
             {rows.length === 0 && !pending ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-text-muted">
+              <Tr>
+                <Td align="center" colSpan={7} className="text-text-muted">
                   {t("picker.empty")}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ) : (
               rows.map((row) => {
                 const key = lineKey(row);
                 const added = picked.has(key);
                 const can = selectable(row);
                 return (
-                  <tr key={key} className="border-t border-border" data-testid="picker-row" data-sku={row.sku} data-lot={row.lot_number ?? ""} data-location={row.location_code}>
-                    <td className="px-3 py-2 font-semibold" dir="ltr">{row.sku}</td>
-                    <td className="px-3 py-2">
+                  <Tr key={key} data-testid="picker-row" data-sku={row.sku} data-lot={row.lot_number ?? ""} data-location={row.location_code}>
+                    <Td className="font-semibold" dir="ltr">{row.sku}</Td>
+                    <Td>
                       <span dir="ltr">{row.lot_number ?? t("noLotNumber")}</span>
                       {row.expiry_date ? (
-                        <span className="block text-xs text-text-muted" dir="ltr">
+                        <span className="block text-caption text-text-muted" dir="ltr">
                           {t("expires", { date: row.expiry_date.slice(0, 10) })}
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-3 py-2">
+                    </Td>
+                    <Td>
                       <span dir="ltr">{locations[row.location_id]?.warehouseCode ?? ""} · {row.location_code}</span>
                       {row.is_sellable ? null : (
                         <Badge tone="warning" className="ms-2">
                           {t("nonSellable")}
                         </Badge>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(row.quantity, locale)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(row.reserved, locale)}</td>
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="picker-available">
+                    </Td>
+                    <Td dir="ltr">{formatQuantity(row.quantity, locale)}</Td>
+                    <Td dir="ltr">{formatQuantity(row.reserved, locale)}</Td>
+                    <Td className="font-semibold" dir="ltr" data-testid="picker-available">
                       {formatQuantity(row.available, locale)}
-                    </td>
-                    <td className="px-3 py-2 text-end">
+                    </Td>
+                    <Td>
                       {added ? (
                         <Badge tone="info">{t("picker.added")}</Badge>
                       ) : can ? (
@@ -204,19 +205,19 @@ export function BalancePicker({
                           {t("picker.add")}
                         </Button>
                       ) : (
-                        <span className="text-xs text-text-muted" data-testid="picker-unavailable">
+                        <span className="text-caption text-text-muted" data-testid="picker-unavailable">
                           {mode === "transfer" ? t("picker.allReserved") : t("picker.nothingOnHand")}
                         </span>
                       )}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })
             )}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
-      <div className="flex items-center justify-end gap-2 text-sm text-text-muted">
+      <div className="flex items-center justify-end gap-2 text-body text-text-muted">
         <Button size="sm" variant="ghost" disabled={page <= 1 || pending} onClick={() => setPage(page - 1)} aria-label={t("picker.previous")}>
           <ChevronRight className="size-4 ltr:rotate-180" aria-hidden />
         </Button>

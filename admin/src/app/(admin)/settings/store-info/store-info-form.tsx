@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Input, Textarea, ActionBar } from "@/components/ui";
 import { useToast } from "@/components/ui/toast";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
@@ -120,7 +120,7 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
       <Alert tone="info">{t("intro")}</Alert>
       {SECTIONS.map((section) => (
         <Card key={section.key} className="flex flex-col gap-4" data-testid={`store-info-section-${section.key}`}>
-          <h2 className="text-lg font-bold">{t(`sections.${section.key}`)}</h2>
+          <h2 className="text-section">{t(`sections.${section.key}`)}</h2>
           {section.rows.map((row) => (
             <div key={row.join("-")} className="grid gap-4 md:grid-cols-2">
               {row.map(field)}
@@ -130,11 +130,11 @@ export function StoreInfoForm({ settings }: { settings: AdminSettings }) {
       ))}
       {unchanged ? <Alert tone="info" data-testid="store-info-unchanged">{t("unchanged")}</Alert> : null}
       {formError ? <FormError kind={formError.kind} code={formError.errorCode} /> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" pending={pending} data-testid="store-info-save">
           {t("save")}
         </Button>
-      </div>
+      </ActionBar>
     </form>
   );
 }

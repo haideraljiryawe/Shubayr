@@ -85,7 +85,7 @@ export function WorkPhonesView({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) => (
         <div className="flex justify-end gap-2">
           <Button
@@ -230,10 +230,10 @@ function RegisterForm({
         }}
       >
         <div>
-          <h2 className="text-lg font-bold">
+          <h2 className="text-section">
             {initial ? t("changeTitle") : t("registerTitle")}
           </h2>
-          <p className="text-sm text-text-muted">{t("registerHint")}</p>
+          <p className="text-body text-text-muted">{t("registerHint")}</p>
         </div>
         {form.formError === "customerPhone" ? (
           <FormError kind="customerPhone" />
@@ -283,7 +283,7 @@ function RegisterForm({
             <Select
               value={role}
               data-testid="input-role"
-              onChange={(event) => setRole(event.target.value as WorkRole)}
+              onValueChange={(value) => setRole(value as WorkRole)}
             >
               {WORK_ROLES.map((option) => (
                 <option key={option} value={option}>

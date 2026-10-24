@@ -37,7 +37,7 @@ export default async function RetrievalPage({ params }: { params: Promise<{ id: 
   }
   return (
     <>
-      <Link href={`/orders/${retrieval.data.order_id}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={`/orders/${retrieval.data.order_id}`} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToOrder")}
       </Link>

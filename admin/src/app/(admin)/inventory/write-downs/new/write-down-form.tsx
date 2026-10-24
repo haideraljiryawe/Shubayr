@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -24,6 +24,8 @@ import {
   type Warehouse,
   type WriteDown,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 interface Line {
   row: Balance;
@@ -60,6 +62,8 @@ export function WriteDownForm({
   canTransfer: boolean;
 }) {
   const t = useTranslations("inventory");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const move = usePosting<Transfer>();
   const writeDown = usePosting<WriteDown>();
@@ -163,47 +167,47 @@ export function WriteDownForm({
   if (review) {
     return (
       <Card className="flex flex-col gap-4" data-testid="write-down-preview">
-        <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
+        <h2 className="text-section">{t("reviewTitle")}</h2>
         {moving.length ? (
           <Alert tone="info" data-testid="write-down-two-steps">
             {t("writeDown.twoSteps", { count: moving.length })}
           </Alert>
         ) : null}
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.location")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.quantity")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.location")}</Th>
+              <Th>{t("columns.quantity")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {lines.map((line) => (
-              <tr key={lineKey(line.row)} className="border-t border-border">
-                <td className="px-3 py-2 font-semibold" dir="ltr">{line.row.sku}</td>
-                <td className="px-3 py-2" dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</td>
-                <td className="px-3 py-2" dir="ltr">
+              <Tr key={lineKey(line.row)}>
+                <Td className="font-semibold" dir="ltr">{line.row.sku}</Td>
+                <Td dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</Td>
+                <Td dir="ltr">
                   {writeDownNeedsMove(line.row)
                     ? `${locationLabel(locations[line.row.location_id], line.row.location_code)} → ${locationLabel(locations[line.moveToId])}`
                     : locationLabel(locations[line.row.location_id], line.row.location_code)}
-                </td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)}</td>
-              </tr>
+                </Td>
+                <Td dir="ltr">{formatQuantity(line.quantity, locale)}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-        <p className="text-sm text-text-muted">
+          </TBody>
+        </Table>
+        <p className="text-body text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
         {moving.length ? (
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold text-text-muted">{t("writeDown.stepMove")}</p>
+            <p className="text-caption font-semibold text-text-muted">{t("writeDown.stepMove")}</p>
             <InventoryPostingStatus state={move.state} type="transfer" onRetry={() => void confirm()} onCheck={() => void move.check(review.moveId)} />
           </div>
         ) : null}
         <div className="flex flex-col gap-1">
-          {moving.length ? <p className="text-xs font-semibold text-text-muted">{t("writeDown.stepWriteDown")}</p> : null}
+          {moving.length ? <p className="text-caption font-semibold text-text-muted">{t("writeDown.stepWriteDown")}</p> : null}
           <InventoryPostingStatus
             state={writeDown.state}
             type="write_down"
@@ -251,7 +255,7 @@ export function WriteDownForm({
     >
       <Card className="flex flex-col gap-3">
         <h2 className="font-bold">{t("writeDown.pickTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("writeDown.pickHint")}</p>
+        <p className="text-body text-text-muted">{t("writeDown.pickHint")}</p>
         <BalancePicker
           warehouses={warehouses}
           locations={locations}
@@ -269,13 +273,13 @@ export function WriteDownForm({
         return (
           <Card key={key} className="flex flex-col gap-3" data-testid="write-down-line" data-sku={line.row.sku}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="flex flex-wrap items-center gap-2 text-sm">
+              <p className="flex flex-wrap items-center gap-2 text-body">
                 <span className="font-semibold" dir="ltr">{line.row.sku}</span>
                 <span className="text-text-muted">{t("lotLabel", { lot: line.row.lot_number ?? t("noLotNumber") })}</span>
                 <span className="text-text-muted" dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</span>
                 {needsMove ? <Badge tone="warning">{t("writeDown.onSellableShelf")}</Badge> : <Badge>{t("nonSellable")}</Badge>}
               </p>
-              <Button size="sm" variant="ghost" onClick={() => setLines((current) => current.filter((row) => lineKey(row.row) !== key))} aria-label={t("removeLine")}>
+              <Button size="sm" variant="ghost" onClick={() => confirmRemove({ body: tc("named", { name: line.row.sku ?? "" }), onConfirm: () => setLines((current) => current.filter((row) => lineKey(row.row) !== key)) })} aria-label={t("removeLine")}>
                 <Trash2 className="size-4" aria-hidden />
               </Button>
             </div>
@@ -293,7 +297,7 @@ export function WriteDownForm({
                   <Select
                     value={line.moveToId}
                     disabled={!canTransfer}
-                    onChange={(event) => patch(key, { moveToId: event.target.value })}
+                    onValueChange={(value) => patch(key, { moveToId: value })}
                     data-testid="write-down-move-to"
                   >
                     <option value="">{quarantine.length ? t("pickLocation") : t("writeDown.noQuarantine")}</option>
@@ -322,11 +326,12 @@ export function WriteDownForm({
         </Field>
       </Card>
       {formError ? <Alert data-testid="write-down-form-error">{formError}</Alert> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" data-testid="write-down-review">
           {t("review")}
         </Button>
-      </div>
+      </ActionBar>
+      {dialog}
     </form>
   );
 }

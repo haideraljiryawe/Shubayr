@@ -39,7 +39,7 @@ export function PresetPicker({
             />
             <span className="flex flex-col gap-0.5">
               <span
-                className="flex items-center gap-2 text-sm font-semibold"
+                className="flex items-center gap-2 text-label"
                 dir="ltr"
               >
                 {preset.name}
@@ -48,11 +48,11 @@ export function PresetPicker({
                 ) : null}
               </span>
               {preset.description ? (
-                <span className="text-xs text-text-muted">
+                <span className="text-caption text-text-muted">
                   {preset.description}
                 </span>
               ) : null}
-              <span className="text-xs text-text-muted">
+              <span className="text-caption text-text-muted">
                 {t("permissionCount", { count: presetKeys(preset).length })}
               </span>
             </span>

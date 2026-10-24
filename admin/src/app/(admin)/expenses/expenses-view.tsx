@@ -24,7 +24,7 @@ function TextFilter({ name, label }: { name: string; label: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input value={value} onChange={(event) => setValue(event.target.value)} data-testid={`filter-${name}`} />
     </label>
@@ -76,7 +76,7 @@ export function ExpensesView({
       cell: (row) => (
         <span>
           {row.supplier?.name ?? row.payee ?? "—"}
-          <span className="block text-xs text-text-muted">{row.description}</span>
+          <span className="block text-caption text-text-muted">{row.description}</span>
         </span>
       ),
     },
@@ -84,18 +84,16 @@ export function ExpensesView({
       key: "amount",
       sortKey: "amount",
       header: t("list.columns.amount"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="expense-row-amount">
           {amount(row.amount_currency, row.currency_code)}
-          {row.currency_code !== "IQD" && row.amount_iqd !== null ? <span className="block text-xs text-text-muted">{iqd(row.amount_iqd)}</span> : null}
+          {row.currency_code !== "IQD" && row.amount_iqd !== null ? <span className="block text-caption text-text-muted">{iqd(row.amount_iqd)}</span> : null}
         </span>
       ),
     },
     {
       key: "balance",
       header: t("list.columns.balance"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" data-testid="expense-row-balance">
           {row.status === "posted" && row.balance_currency > 0 ? amount(row.balance_currency, row.currency_code) : "—"}
@@ -108,7 +106,7 @@ export function ExpensesView({
       cell: (row) => (
         <span>
           {t(`modes.${row.payment_mode}`)}
-          {row.cash_account ? <span className="block text-xs text-text-muted">{row.cash_account.name}</span> : null}
+          {row.cash_account ? <span className="block text-caption text-text-muted">{row.cash_account.name}</span> : null}
         </span>
       ),
     },
@@ -126,7 +124,7 @@ export function ExpensesView({
   return (
     <div className="flex flex-col gap-4">
       {canManageCategories ? (
-        <p className="text-sm">
+        <p className="text-body">
           <Link href="/expenses/categories" className="font-semibold text-primary-dark hover:underline" data-testid="expense-categories-link">
             {t("list.manageCategories")}
           </Link>
@@ -134,12 +132,12 @@ export function ExpensesView({
       ) : null}
 
       {totals ? (
-        <Card className="flex flex-col gap-3 text-sm" data-testid="expense-totals">
+        <Card className="flex flex-col gap-3 text-body" data-testid="expense-totals">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-bold">{t("totals.title")}</h2>
             <p>
               <span className="text-text-muted">{t("totals.overall", { count: totals.document_count })}</span>{" "}
-              <span dir="ltr" className="text-base font-bold" data-testid="expense-totals-overall">
+              <span dir="ltr" className="text-section" data-testid="expense-totals-overall">
                 {iqd(totals.total_iqd)}
               </span>
             </p>
@@ -149,7 +147,7 @@ export function ExpensesView({
               {totals.per_category.map((row) => (
                 <li key={row.category.id} className="flex justify-between gap-2 rounded-md bg-card px-3 py-1.5" data-testid="expense-total-category" data-category={row.category.id}>
                   <span>
-                    {name(row.category)} <span className="text-xs text-text-muted">({row.document_count})</span>
+                    {name(row.category)} <span className="text-caption text-text-muted">({row.document_count})</span>
                   </span>
                   <span dir="ltr" className="font-semibold">
                     {iqd(row.total_iqd)}
@@ -158,7 +156,7 @@ export function ExpensesView({
               ))}
             </ul>
           ) : null}
-          <p className="text-xs text-text-muted">{t("totals.postedOnly")}</p>
+          <p className="text-caption text-text-muted">{t("totals.postedOnly")}</p>
         </Card>
       ) : null}
 

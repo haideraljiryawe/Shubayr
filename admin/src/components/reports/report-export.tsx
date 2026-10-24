@@ -47,8 +47,8 @@ export function ReportExport({ report, parameters }: { report: ReportId; paramet
     <div className="flex flex-wrap items-center gap-2" data-testid="report-export">
       <Button size="sm" variant="secondary" pending={pending} onClick={() => start("csv")}><Download className="size-4" aria-hidden />{t("csv")}</Button>
       <Button size="sm" variant="secondary" pending={pending} onClick={() => start("xlsx")}><Download className="size-4" aria-hidden />{t("xlsx")}</Button>
-      {progress && pending ? <span className="text-xs text-text-muted" role="status">{t("progress", { done: progress.rows_done, total: progress.rows_total })}</span> : null}
-      {error ? <span className="text-xs text-error-dark" role="alert">{error}</span> : null}
+      {progress && pending ? <span className="text-caption text-text-muted" role="status">{t("progress", { done: progress.rows_done, total: progress.rows_total })}</span> : null}
+      {error ? <span className="text-caption text-error-dark" role="alert">{error}</span> : null}
     </div>
   );
 }

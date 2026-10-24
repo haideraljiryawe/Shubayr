@@ -9,7 +9,7 @@ export function AsOfFilter({ value }: { value: string }) {
   const t = useTranslations("purchasing.reports");
   const router = useRouter();
   return (
-    <label className="flex flex-col gap-1 text-sm font-semibold">
+    <label className="flex flex-col gap-1 text-label">
       <span>{t("asOf")}</span>
       <Input
         type="date"

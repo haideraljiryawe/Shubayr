@@ -12,6 +12,7 @@ import { UUID } from "@/lib/inventory";
 import { moneyText, precisionOf, toFixed, type SupplierPayment } from "@/lib/purchasing";
 import type { RawSearchParams } from "@/lib/table-params";
 import { SupplierFilter } from "./supplier-filter";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -63,23 +64,23 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       </div>
       <Card className="overflow-x-auto">
         {rows.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("empty")}</p>
+          <p className="text-body text-text-muted">{t("empty")}</p>
         ) : (
-          <table className="w-full min-w-[48rem] text-sm" data-testid="payments-table">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.document")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.supplier")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.date")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.amount")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.allocated")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.credit")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table minWidth="48rem" data-testid="payments-table">
+            <THead>
+              <Tr>
+                <Th>{t("columns.document")}</Th>
+                <Th>{t("columns.supplier")}</Th>
+                <Th>{t("columns.date")}</Th>
+                <Th>{t("columns.amount")}</Th>
+                <Th>{t("columns.allocated")}</Th>
+                <Th>{t("columns.credit")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {rows.map((payment) => (
-                <tr key={payment.id} className="border-t border-border" data-testid="payment-row">
-                  <td className="px-3 py-2">
+                <Tr key={payment.id} data-testid="payment-row">
+                  <Td>
                     {permissions.includes("ledger.view") ? (
                       <Link href={entryHref(payment.journal_entry_id)} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                         {payment.document_number}
@@ -87,23 +88,23 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                     ) : (
                       <span dir="ltr">{payment.document_number}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </Td>
+                  <Td>
                     <Link href={`/purchasing/suppliers/${payment.supplier_id}`} className="hover:underline">
                       {names.get(payment.supplier_id) ?? payment.supplier_id.slice(0, 8)}
                     </Link>
-                  </td>
-                  <td className="px-3 py-2">{format.dateTime(new Date(payment.document_date), { dateStyle: "medium", numberingSystem: "latn", timeZone: "UTC" })}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(payment.amount_currency, payment.currency_code)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(payment.allocated_currency, payment.currency_code)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(payment.unallocated_currency, payment.currency_code)}</td>
-                </tr>
+                  </Td>
+                  <Td>{format.dateTime(new Date(payment.document_date), { dateStyle: "medium", numberingSystem: "latn", timeZone: "UTC" })}</Td>
+                  <Td dir="ltr">{money(payment.amount_currency, payment.currency_code)}</Td>
+                  <Td dir="ltr">{money(payment.allocated_currency, payment.currency_code)}</Td>
+                  <Td dir="ltr">{money(payment.unallocated_currency, payment.currency_code)}</Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
-      <nav className="mt-3 flex items-center justify-end gap-2 text-sm" aria-label={t("pagination")}>
+      <nav className="mt-3 flex items-center justify-end gap-2 text-body" aria-label={t("pagination")}>
         {page > 1 ? (
           <Link href={href(page - 1)} className={buttonClasses({ variant: "ghost", size: "sm" })} aria-label={t("previous")}>
             <ChevronRight className="size-4 ltr:rotate-180" aria-hidden />

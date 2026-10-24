@@ -7,3 +7,71 @@
 
 /* Tailwind scans this app only; the imported tokens carry no class names. */
 @source "../";
+
+/* ----------------------------------------------------------------------------
+   The admin type scale (VIS-018) — the one place a text role's size, weight
+   and line height are set. Components use the role (text-body, text-control,
+   text-table-head …), never a raw size, so equivalent elements match on every
+   page while titles, labels and captions keep their hierarchy. Colours come
+   from tokens.css.
+   -------------------------------------------------------------------------- */
+@theme {
+  --text-page-title: 1.5rem;
+  --text-page-title--line-height: 2rem;
+  --text-page-title--font-weight: 700;
+
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.75rem;
+  --text-section--font-weight: 700;
+
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5rem;
+
+  /* Typed and displayed values in every control. */
+  --text-control: 0.875rem;
+  --text-control--line-height: 1.5rem;
+
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+  --text-label--font-weight: 600;
+
+  --text-table-head: 0.8125rem;
+  --text-table-head--line-height: 1.25rem;
+  --text-table-head--font-weight: 600;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+
+  --text-badge: 0.75rem;
+  --text-badge--line-height: 1.125rem;
+  --text-badge--font-weight: 600;
+}
+
+@layer utilities {
+  /* A horizontal strip (tabs) that scrolls sideways inside itself only. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
+/* The navigation drawer (VIS-002): slides in from the language's side and
+   back out toward it; the backdrop fades. Radix keeps it mounted until the
+   closing animation ends. */
+@keyframes drawer-in-start-ltr { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes drawer-out-start-ltr { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes drawer-in-start-rtl { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawer-out-start-rtl { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes drawer-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes drawer-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.drawer-panel[data-state="open"] { animation: drawer-in-start-ltr 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.drawer-panel[data-state="closed"] { animation: drawer-out-start-ltr 180ms ease-in; }
+.drawer-panel[dir="rtl"][data-state="open"] { animation-name: drawer-in-start-rtl; }
+.drawer-panel[dir="rtl"][data-state="closed"] { animation-name: drawer-out-start-rtl; }
+.drawer-overlay[data-state="open"] { animation: drawer-fade-in 220ms ease-out; }
+.drawer-overlay[data-state="closed"] { animation: drawer-fade-out 180ms ease-in; }
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-panel[data-state],
+  .drawer-overlay[data-state] { animation-duration: 1ms; }
+}

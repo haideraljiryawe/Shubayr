@@ -33,8 +33,8 @@ export default function AdminError({ reset }: { error: Error & { digest?: string
         <span className="inline-flex size-14 items-center justify-center rounded-full bg-card text-primary-dark">
           <Icon className="size-7" aria-hidden />
         </span>
-        <h1 className="text-xl font-bold">{offline ? t("offlineTitle") : t("loadFailedTitle")}</h1>
-        <p className="text-sm text-text-muted">{offline ? t("offlineBody") : t("loadFailedBody")}</p>
+        <h1 className="text-page-title">{offline ? t("offlineTitle") : t("loadFailedTitle")}</h1>
+        <p className="text-body text-text-muted">{offline ? t("offlineBody") : t("loadFailedBody")}</p>
         <div className="flex flex-wrap justify-center gap-2">
           <Button onClick={reset}>
             <RefreshCw className="size-4" aria-hidden />

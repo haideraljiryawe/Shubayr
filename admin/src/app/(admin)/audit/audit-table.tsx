@@ -34,7 +34,7 @@ export function AuditTable({
     {
       key: "when",
       header: t("columns.when"),
-      cell: (row) => <span className="whitespace-nowrap text-xs">{when(row.created_at)}</span>,
+      cell: (row) => <span className="whitespace-nowrap text-caption">{when(row.created_at)}</span>,
     },
     {
       key: "actor",
@@ -43,7 +43,7 @@ export function AuditTable({
         row.actor ? (
           <div className="flex flex-col">
             <span className="font-semibold">{row.actor.name || row.actor.username}</span>
-            <span className="text-xs text-text-muted" dir="ltr">{row.actor.username}</span>
+            <span className="text-caption text-text-muted" dir="ltr">{row.actor.username}</span>
           </div>
         ) : (
           <span className="text-text-muted">{t("system")}</span>
@@ -53,7 +53,7 @@ export function AuditTable({
       key: "action",
       header: t("columns.action"),
       cell: (row) => (
-        <code dir="ltr" className="text-xs" data-testid="audit-action">
+        <code dir="ltr" className="text-caption" data-testid="audit-action">
           {row.action}
         </code>
       ),
@@ -62,7 +62,7 @@ export function AuditTable({
       key: "entity",
       header: t("columns.entity"),
       cell: (row) => (
-        <div className="flex flex-col text-xs" dir="ltr">
+        <div className="flex flex-col text-caption" dir="ltr">
           <span data-testid="audit-entity">{row.entity_type}</span>
           {row.entity_id ? <span className="text-text-muted">{row.entity_id}</span> : null}
         </div>
@@ -74,7 +74,7 @@ export function AuditTable({
       cell: (row) => {
         const changes = auditChanges(row.before, row.after);
         return (
-          <div className="flex flex-col gap-1 text-xs">
+          <div className="flex flex-col gap-1 text-caption">
             {row.reason ? (
               <span data-testid="audit-reason">
                 <span className="text-text-muted">{t("reason")}:</span> {row.reason}
@@ -116,7 +116,7 @@ export function AuditTable({
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("timezoneNote")}</p>
+      <p className="text-caption text-text-muted">{t("timezoneNote")}</p>
     </div>
   );
 }
@@ -146,7 +146,7 @@ function TextFilter({
   }, [value]);
 
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input
         value={value}
@@ -175,13 +175,13 @@ function ListFilter({
   const current = searchParams.get(name) ?? "";
   const options = current && !values.includes(current) ? [current, ...values] : values;
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Select
         value={current}
         dir="ltr"
         data-testid={`filter-${name}`}
-        onChange={(event) => update({ [name]: event.target.value || null })}
+        onValueChange={(value) => update({ [name]: value || null })}
       >
         <option value="">{any}</option>
         {options.map((value) => (
@@ -197,7 +197,7 @@ function ListFilter({
 function DayFilter({ name, label }: { name: string; label: string }) {
   const { update, searchParams } = useTableUrl();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input
         type="date"

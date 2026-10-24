@@ -11,6 +11,8 @@ import {
   uiLoginAsAdmin,
   unique,
 } from "./helpers";
+import { choose } from "./controls";
+import { navLink } from "./shell";
 
 /**
  * The financial-core screens in a real browser, through the BFF, against a
@@ -65,7 +67,7 @@ async function ensureClosed(request: APIRequestContext, month: string): Promise<
 
 async function selectRateCurrency(page: Page) {
   await expect(page.getByTestId("rate-form")).toBeVisible();
-  await page.getByTestId("rate-currency").selectOption("USD");
+  await choose(page.getByTestId("rate-currency"), "USD");
 }
 
 test("settings: invalid numbers stay next to the field; a save shows old → new", async ({ page, request }) => {
@@ -73,7 +75,7 @@ test("settings: invalid numbers stay next to the field; a save shows old → new
   const originalFee = before.body.settings.delivery_fee as string;
   const nextFee = originalFee === "5500" ? "6000" : "5500";
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-settings").click();
+  await (await navLink(page, "settings")).click();
   await expect(page.getByTestId("settings-form")).toBeVisible();
 
   let puts = 0;
@@ -83,12 +85,13 @@ test("settings: invalid numbers stay next to the field; a save shows old → new
 
   // An ambiguous separator is refused next to the field, and nothing is sent.
   const fee = page.getByTestId("setting-delivery_fee");
-  await fee.fill("5,500");
+  // "5,500" is real thousands grouping and is accepted (VIS-007); "5,5" is not.
+  await fee.fill("5,5");
   await fee.blur();
   await expect(page.getByTestId("number-error").first()).toBeVisible();
   await page.getByTestId("settings-save").click();
   await expect(page.getByTestId("settings-invalid")).toBeVisible();
-  await expect(fee).toHaveValue("5,500");
+  await expect(fee).toHaveValue("5,5");
   expect(puts).toBe(0);
 
   // Arabic-Indic digits are fine.
@@ -171,8 +174,8 @@ test("a transfer double-submit produces ONE document", async ({ page, request })
 
   await uiLoginAsAdmin(page);
   await page.goto("/finance/cash-accounts");
-  await page.getByTestId("transfer-from").selectOption({ label: `${from} · IQD` });
-  await page.getByTestId("transfer-to").selectOption({ label: `${to} · IQD` });
+  await choose(page.getByTestId("transfer-from"), { label: `${from} · IQD` });
+  await choose(page.getByTestId("transfer-to"), { label: `${to} · IQD` });
   await page.getByTestId("transfer-amount").fill("2500");
   await page.getByTestId("transfer-reason").fill("Double-click test");
   await page.getByTestId("transfer-review").click();
@@ -230,8 +233,8 @@ test("after a lost answer the page asks the API before retrying", async ({ page,
     await route.fetch();
     await route.abort("connectionreset");
   });
-  await page.getByTestId("transfer-from").selectOption({ label: `${from} · IQD` });
-  await page.getByTestId("transfer-to").selectOption({ label: `${to} · IQD` });
+  await choose(page.getByTestId("transfer-from"), { label: `${from} · IQD` });
+  await choose(page.getByTestId("transfer-to"), { label: `${to} · IQD` });
   await page.getByTestId("transfer-amount").fill("1000");
   await page.getByTestId("transfer-reason").fill("Lost answer test");
   await page.getByTestId("transfer-review").click();
@@ -302,7 +305,7 @@ test("a permission-limited user sees only the screens they may use", async ({ pa
   await expect(page.getByTestId("dashboard")).toBeVisible();
   const nav = page.getByTestId("sidebar-nav");
   for (const key of ["currencies", "periods", "ledger"]) {
-    await expect(nav.getByTestId(`nav-${key}`), key).toBeVisible();
+    await navLink(page, key);
   }
   for (const key of ["cashAccounts", "settings", "orders", "staff"]) {
     await expect(nav.getByTestId(`nav-${key}`), key).toHaveCount(0);

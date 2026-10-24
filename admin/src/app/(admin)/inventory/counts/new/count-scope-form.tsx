@@ -72,9 +72,9 @@ export function CountScopeForm({
         }}
       >
         <fieldset className="flex flex-wrap gap-4">
-          <legend className="mb-2 text-sm font-semibold">{t("count.scope")}</legend>
+          <legend className="mb-2 text-label">{t("count.scope")}</legend>
           {(["warehouse", "location", "sku"] as const).map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm">
+            <label key={option} className="flex items-center gap-2 text-body">
               <input
                 type="radio"
                 name="scope"
@@ -90,7 +90,7 @@ export function CountScopeForm({
         </fieldset>
         {scope === "warehouse" ? (
           <Field label={t("filters.warehouse")} name="scope" error={errors.scope}>
-            <Select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} data-testid="count-warehouse">
+            <Select value={warehouseId} onValueChange={(value) => setWarehouseId(value)} data-testid="count-warehouse">
               <option value="">{t("pickWarehouse")}</option>
               {warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
@@ -102,7 +102,7 @@ export function CountScopeForm({
         ) : null}
         {scope === "location" ? (
           <Field label={t("filters.location")} name="scope" error={errors.scope}>
-            <Select value={locationId} onChange={(event) => setLocationId(event.target.value)} data-testid="count-location">
+            <Select value={locationId} onValueChange={(value) => setLocationId(value)} data-testid="count-location">
               <option value="">{t("pickLocation")}</option>
               {locations.map((info) => (
                 <option key={info.id} value={info.id}>

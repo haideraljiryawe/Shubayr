@@ -7,7 +7,7 @@ import { useTableUrl } from "@/components/table/data-table";
 export function DateFilter({ name, label }: { name: string; label: string }) {
   const { update, searchParams } = useTableUrl();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input
         type="date"

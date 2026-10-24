@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { LAUNCH_MODULES } from "../../src/lib/modules";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, placeOrder, randomWorkPhone, requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import { choose, selectedValue } from "./controls";
 
 /**
  * The launch workflows from the owner's test run (PR A11), with exactly the
@@ -139,7 +140,7 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   const black = lines.and(page.locator(`[data-sku="${product.black.sku}"]`));
   await expect(red).toHaveAttribute("data-blank", "true");
   await expect(black).toHaveAttribute("data-blank", "true");
-  await expect(red.getByTestId("line-cost")).toHaveValue("9000");
+  await expect(red.getByTestId("line-pack-cost")).toContainText("9,000");
 
   // A new supplier, without leaving the form: name and phone.
   await form.getByTestId("invoice-new-supplier").click();
@@ -150,14 +151,19 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   await expect(dialog).toBeHidden();
   await expect(form.getByTestId("invoice-supplier-picked")).toContainText(`Basra Textiles ${run}`);
 
-  // Only the red one: 4 pieces. Black stays empty and is left out.
-  await red.getByTestId("line-packs").fill("4");
+  // Only the red one: 4 pieces, through the product editor (VIS-022). Black stays empty and is left out.
+  if ((await red.getAttribute("data-editing")) !== "true") await red.getByTestId("line-edit").click();
+  const editor = form.getByTestId("invoice-editor");
+  await expect(editor).toHaveAttribute("data-mode", "edit");
+  await expect(editor.getByTestId("line-cost")).toHaveValue("9,000");
+  await editor.getByTestId("line-packs").fill("4");
+  await editor.getByTestId("invoice-editor-submit").click();
   await expect(red).toHaveAttribute("data-blank", "false");
   await expect(black.getByTestId("line-blank-badge")).toBeVisible();
 
   // Paid now from the till.
   await form.getByTestId("invoice-payment-now").check();
-  await form.getByTestId("invoice-cash-account").selectOption(account);
+  await choose(form.getByTestId("invoice-cash-account"), account);
 
   // The whole invoice, 4 × 9,000, is what "paid now" pays.
   await expect(form.getByTestId("invoice-paid-amount")).toContainText("36,000");
@@ -217,7 +223,7 @@ test("opening stock with one empty line: it is skipped, the review lists only th
   const blackLine = lines.filter({ hasText: product.black.sku });
   const redLine = lines.filter({ hasText: product.red.sku });
   const location = blackLine.getByTestId("opening-location");
-  if (!(await location.inputValue())) await location.selectOption(LOCATION);
+  if (!(await selectedValue(location))) await choose(location, LOCATION);
   await blackLine.getByTestId("opening-quantity").fill("3");
   await blackLine.getByTestId("opening-cost").fill("8000");
   // The red line stays empty: marked, never refused.
@@ -281,7 +287,7 @@ test("delivery at launch: the first delivery party, hand over, deliver with the 
   await confirmDialog(page);
   await expect(page.getByTestId("order-detail")).toHaveAttribute("data-status", "dispatched");
   await page.getByTestId("order-action-deliver").click();
-  const deliver = page.locator("dialog[open]");
+  const deliver = page.getByRole("dialog");
   await expect(deliver.getByTestId("collection-fields")).toBeVisible();
   const due = digits(await deliver.getByTestId("collection-due").textContent());
   await deliver.getByTestId("collection-confirmed").check();
@@ -298,7 +304,7 @@ test("delivery at launch: the first delivery party, hand over, deliver with the 
   await page.goto(`/finance/cash-receipts/new?party_id=${partyId}`);
   await expect(page.getByTestId("receive-form")).toBeVisible();
   expect(digits(await page.getByTestId("receive-cash-held").textContent())).toBe(due);
-  await page.getByTestId("receive-cash-account").selectOption(account);
+  await choose(page.getByTestId("receive-cash-account"), account);
   await page.getByTestId("receive-all-held").click();
   await page.getByTestId("allocation-auto").click();
   await page.getByTestId("receive-review-button").click();

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, FilePicker, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
 import { DocumentDateFields } from "@/components/purchasing/document-date";
@@ -31,6 +31,7 @@ import {
   type ExpenseFormProblem,
 } from "@/lib/expenses";
 import { ExpenseRefusalNotice } from "../refusal";
+import { AmountInput } from "@/components/forms/amount-input";
 
 interface Receipt {
   id: string;
@@ -156,7 +157,7 @@ export function ExpenseForm({
             testId="expense-date"
           />
           <Field label={t("category")} error={problem("categoryId") ? t("problems.required") : null}>
-            <Select value={form.categoryId} disabled={pending} onChange={(event) => set({ categoryId: event.target.value })} data-testid="expense-category">
+            <Select value={form.categoryId} disabled={pending} onValueChange={(value) => set({ categoryId: value })} data-testid="expense-category">
               <option value="">{t("choose")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -169,10 +170,10 @@ export function ExpenseForm({
 
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("amount")} error={problem("amount") ? t(`problems.amount.${problem("amount")}`, { digits: precision }) : null}>
-            <Input inputMode="decimal" dir="ltr" value={form.amount} disabled={pending} onChange={(event) => set({ amount: event.target.value })} data-testid="expense-amount" />
+            <AmountInput value={form.amount} disabled={pending} onValueChange={(value) => set({ amount: value })} data-testid="expense-amount" />
           </Field>
           <Field label={t("currency")}>
-            <Select value={form.currency} disabled={pending} onChange={(event) => set({ currency: event.target.value, cashAccountId: "" })} data-testid="expense-currency">
+            <Select value={form.currency} disabled={pending} onValueChange={(value) => set({ currency: value, cashAccountId: "" })} data-testid="expense-currency">
               {currencies.map((currency) => (
                 <option key={currency.code} value={currency.code}>
                   {currency.code}
@@ -180,7 +181,7 @@ export function ExpenseForm({
               ))}
             </Select>
           </Field>
-          <div className="flex flex-col justify-end text-sm" data-testid="expense-rate">
+          <div className="flex flex-col justify-end text-body" data-testid="expense-rate">
             {form.currency === base ? null : rate.status === "ready" ? (
               <p>
                 {t("rate", { rate: rate.rate, currency: form.currency })}
@@ -201,9 +202,9 @@ export function ExpenseForm({
         </div>
 
         <fieldset className="flex flex-col gap-2" disabled={pending}>
-          <legend className="mb-1 text-sm font-semibold">{t("payee")}</legend>
+          <legend className="mb-1 text-label">{t("payee")}</legend>
           {suppliers ? (
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-wrap gap-4 text-body">
               {(["text", "supplier"] as const).map((kind) => (
                 <label key={kind} className="flex items-center gap-2">
                   <input type="radio" name="payee-kind" checked={form.payeeKind === kind} onChange={() => set({ payeeKind: kind })} data-testid={`expense-payee-${kind}`} />
@@ -214,7 +215,7 @@ export function ExpenseForm({
           ) : null}
           {form.payeeKind === "supplier" && suppliers ? (
             <Field label={<span className="sr-only">{t("supplier")}</span>} error={problem("supplierId") ? t("problems.required") : null}>
-              <Select value={form.supplierId} onChange={(event) => set({ supplierId: event.target.value })} data-testid="expense-supplier">
+              <Select value={form.supplierId} onValueChange={(value) => set({ supplierId: value })} data-testid="expense-supplier">
                 <option value="">{t("chooseSupplier")}</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
@@ -240,17 +241,17 @@ export function ExpenseForm({
         </div>
 
         <Field label={t("receipt")} hint={t("receiptHint")} error={upload && "error" in upload ? upload.error : null}>
-          <Input
-            type="file"
+          <FilePicker
             accept={RECEIPT_TYPES.join(",")}
             disabled={pending || Boolean(upload && "percent" in upload)}
-            onChange={(event) => void attach(event.target.files?.[0])}
+            selected={receipt}
+            onFiles={(files) => void attach(files[0])}
             data-testid="expense-receipt"
           />
         </Field>
-        {upload && "percent" in upload ? <p className="text-sm text-text-muted" data-testid="expense-receipt-progress">{t("uploading", { percent: upload.percent })}</p> : null}
+        {upload && "percent" in upload ? <p className="text-body text-text-muted" data-testid="expense-receipt-progress">{t("uploading", { percent: upload.percent })}</p> : null}
         {receipt ? (
-          <p className="flex items-center gap-3 text-sm" data-testid="expense-receipt-ready">
+          <p className="flex items-center gap-3 text-body" data-testid="expense-receipt-ready">
             {t("receiptAttached", { name: receipt.name })}
             <button
               type="button"
@@ -267,14 +268,14 @@ export function ExpenseForm({
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <fieldset className="flex flex-col gap-2 text-sm" disabled={pending}>
+        <fieldset className="flex flex-col gap-2 text-body" disabled={pending}>
           <legend className="mb-1 font-semibold">{t("paymentMode")}</legend>
           {(["paid_now", "owed"] as const).map((mode) => (
             <label key={mode} className="flex items-start gap-2">
               <input type="radio" name="payment-mode" checked={form.paymentMode === mode} onChange={() => set({ paymentMode: mode, cashAccountId: "" })} data-testid={`expense-mode-${mode}`} />
               <span>
                 {tm(`modes.${mode}`)}
-                <span className="block text-xs text-text-muted">{t(`modeHints.${mode}`)}</span>
+                <span className="block text-caption text-text-muted">{t(`modeHints.${mode}`)}</span>
               </span>
             </label>
           ))}
@@ -284,7 +285,7 @@ export function ExpenseForm({
             <Alert data-testid="expense-no-accounts">{t("cashAccountsForbidden")}</Alert>
           ) : (
             <Field label={t("cashAccount")} hint={t("cashAccountHint", { currency: form.currency })} error={problem("cashAccountId") ? t(`problems.cash.${problem("cashAccountId")}`) : null}>
-              <Select value={form.cashAccountId} disabled={pending} onChange={(event) => set({ cashAccountId: event.target.value })} data-testid="expense-cash-account">
+              <Select value={form.cashAccountId} disabled={pending} onValueChange={(value) => set({ cashAccountId: value })} data-testid="expense-cash-account">
                 <option value="">{accounts.length ? t("choose") : t("noAccountInCurrency", { currency: form.currency })}</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -298,12 +299,11 @@ export function ExpenseForm({
       </Card>
 
       {failure ? (expenseRefusal(failure) ? <ExpenseRefusalNotice error={failure} /> : <FormError kind={errorKind(failure)} />) : null}
-      <div className="flex justify-end gap-2">
+      <ActionBar start={t("draftHint")}>
         <Button type="submit" pending={pending} data-testid="expense-save">
           {t("saveDraft")}
         </Button>
-      </div>
-      <p className="text-end text-xs text-text-muted">{t("draftHint")}</p>
+      </ActionBar>
     </form>
   );
 }

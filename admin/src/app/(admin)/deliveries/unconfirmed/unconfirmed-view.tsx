@@ -77,7 +77,6 @@ export function UnconfirmedView({
     {
       key: "due",
       header: t("fields.due"),
-      className: "text-end",
       cell: (row) => (
         <span dir="ltr" className="font-semibold">
           {money(row)}
@@ -87,7 +86,7 @@ export function UnconfirmedView({
     {
       key: "actions",
       header: <span className="sr-only">{t("queue.columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (row) =>
         canConfirm ? (
           <Button
@@ -136,7 +135,7 @@ export function UnconfirmedView({
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("filters.note")}</p>
+      <p className="text-caption text-text-muted">{t("filters.note")}</p>
       <ConfirmDialog
         open={confirming !== null}
         requireReason={false}

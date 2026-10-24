@@ -2,6 +2,7 @@ import { deflateSync } from "node:zlib";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { API, adminApiToken, bearer, requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import { choose } from "./controls";
 
 /**
  * PR A9 in a real browser, through the BFF, against a real API:
@@ -70,8 +71,18 @@ function png(width: number, height: number, [r, g, b]: [number, number, number])
 async function pickAndCrop(page: Page, field: string, name: string, picture: Buffer, expectedSize: string) {
   const box = page.getByTestId(field);
   await box.getByTestId(`${field}-input`).setInputFiles({ name, mimeType: "image/png", buffer: picture });
-  const frame = box.getByTestId(`${field}-cropper-frame`);
+  // The shared image editor (VIS-021) opens on the centred crop: the Image size slider in the middle.
+  const editor = page.getByTestId(`${field}-editor`);
+  const frame = editor.getByTestId(`${field}-editor-cropper-frame`);
   await expect(frame).toBeVisible();
+  await expect(editor.getByTestId(`${field}-editor-cropper-zoom`)).toHaveValue("50");
+  // − really zooms out (a bigger crop), + back in to the same centred crop.
+  const centred = await frame.getAttribute("data-crop");
+  await editor.getByTestId(`${field}-editor-cropper-zoom-out`).click();
+  const out = (await frame.getAttribute("data-crop")) ?? "";
+  expect(Number(out.split(",")[2])).toBeGreaterThan(Number((centred ?? "").split(",")[2]));
+  await editor.getByTestId(`${field}-editor-cropper-zoom-in`).click();
+  await expect(frame).toHaveAttribute("data-crop", centred ?? "");
   // Drag the picture: the crop moves (its size doesn't).
   const before = await frame.getAttribute("data-crop");
   const area = (await frame.boundingBox())!;
@@ -83,8 +94,20 @@ async function pickAndCrop(page: Page, field: string, name: string, picture: Buf
   const [, , beforeWidth] = (before ?? "").split(",");
   const [, , afterWidth] = (after ?? "").split(",");
   expect(afterWidth).toBe(beforeWidth);
-  await box.getByTestId(`${field}-use-crop`).click();
+  await expect(editor.getByTestId(`${field}-editor-output-size`)).toHaveText(expectedSize);
+  await editor.getByTestId(`${field}-editor-confirm`).click();
+  await expect(editor).toBeHidden();
   await expect(box.getByTestId(`${field}-pending`)).toContainText(expectedSize);
+}
+
+/** The natural size of a stored picture, as the browser decodes it. */
+async function naturalSize(page: Page, url: string): Promise<[number, number]> {
+  return page.evaluate(async (source) => {
+    const image = new Image();
+    image.src = source;
+    await image.decode();
+    return [image.naturalWidth, image.naturalHeight] as [number, number];
+  }, url);
 }
 
 /** "2026-10-19T00:00" in Baghdad, `days` from now. */
@@ -134,6 +157,18 @@ test("category: description saved and cleared, picture cropped, replaced, kept o
     await expect(form.getByTestId("category-preview-description-ar")).toHaveText(longDescription);
     await pickAndCrop(page, "category-image", "kitchen.png", png(1200, 800, [200, 60, 40]), "800 × 800");
     await expect(form.getByTestId("category-preview-card-en").getByTestId("artwork-image")).toBeVisible();
+    // VIS-009: Arabic and English side by side at the same size, square artwork, the child tile on its own row.
+    const arCard = (await form.getByTestId("category-preview-card-ar").boundingBox())!;
+    const enCard = (await form.getByTestId("category-preview-card-en").boundingBox())!;
+    expect(Math.abs(arCard.y - enCard.y)).toBeLessThan(2);
+    expect(Math.abs(arCard.width - enCard.width)).toBeLessThan(2);
+    for (const lang of ["ar", "en"]) {
+      const art = (await form.getByTestId(`category-preview-art-${lang}`).boundingBox())!;
+      expect(Math.abs(art.width - art.height)).toBeLessThan(2);
+    }
+    const tile = (await form.getByTestId("category-preview-tile").boundingBox())!;
+    expect(tile.y).toBeGreaterThanOrEqual(arCard.y + arCard.height);
+    expect(Math.abs(tile.width - tile.height)).toBeLessThan(2);
     await form.getByTestId("dialog-submit").click();
     await expect(page.getByTestId("category-form")).toBeHidden();
     let stored = await read();
@@ -146,6 +181,8 @@ test("category: description saved and cleared, picture cropped, replaced, kept o
     const media = await request.get(first);
     expect(media.status()).toBe(200);
     expect(media.headers()["content-type"]).toMatch(/^image\/(webp|png)/);
+    // The saved file itself is square — not a CSS clip of the 1200 × 800 original.
+    expect(await naturalSize(page, first)).toEqual([800, 800]);
 
     // 2. A replacement whose upload fails keeps the saved picture; saving again works.
     form = await open();
@@ -253,7 +290,7 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     await expect(form.getByTestId("banner-preview-phone")).toBeVisible();
     await expect(form.getByTestId("banner-preview-desktop")).toBeVisible();
     await expect(form.getByTestId("banner-preview-action")).toContainText("بلا إجراء");
-    await form.getByTestId("banner-action").selectOption("url");
+    await choose(form.getByTestId("banner-action"), "url");
     await form.getByTestId("banner-link").fill("/offers");
     await form.getByTestId("dialog-submit").click();
     await expect(form).toContainText("أدخل عنوان ويب كاملًا");
@@ -351,9 +388,9 @@ test("banner: create → schedule → disable → duplicate → reorder → dele
     expect((await api(request, "GET", `/admin/banners/${copy.id}`)).status).toBe(404);
 
     // The status filter finds the disabled original.
-    await page.getByTestId("banner-filter").selectOption("disabled");
+    await choose(page.getByTestId("banner-filter"), "disabled");
     await expect(page.locator(`[data-banner-id="${mine.id}"]`)).toBeVisible();
-    await page.getByTestId("banner-filter").selectOption("active");
+    await choose(page.getByTestId("banner-filter"), "active");
     await expect(page.locator(`[data-banner-id="${mine.id}"]`)).toHaveCount(0);
   } finally {
     for (const id of createdBanners.splice(0)) await api(request, "DELETE", `/admin/banners/${id}`);

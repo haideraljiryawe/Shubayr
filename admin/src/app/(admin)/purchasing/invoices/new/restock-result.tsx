@@ -9,6 +9,7 @@ import { browserApi, unwrap } from "@/lib/api/client";
 import { formatQuantity, stockTotals, type StockTotals } from "@/lib/inventory";
 import type { PurchaseInvoice } from "@/lib/purchasing";
 import type { RestockPrefill } from "./invoice-form";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 /**
  * After a restock posts: what each restocked SKU now holds (read again from
@@ -49,33 +50,33 @@ export function RestockResult({ invoice, restock }: { invoice: PurchaseInvoice; 
   return (
     <Card className="flex flex-col gap-4 border-success/40" data-testid="restock-result">
       <div>
-        <h2 className="text-lg font-bold">{t("doneTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("doneBody", { name: restock.productName })}</p>
+        <h2 className="text-section">{t("doneTitle")}</h2>
+        <p className="text-body text-text-muted">{t("doneBody", { name: restock.productName })}</p>
       </div>
-      <table className="w-full text-sm">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-            <th className="px-3 py-1 text-end font-semibold">{t("columns.added")}</th>
-            <th className="px-3 py-1 text-end font-semibold">{t("columns.onHand")}</th>
-            <th className="px-3 py-1 text-end font-semibold">{t("columns.available")}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <THead>
+          <Tr>
+            <Th>{t("columns.sku")}</Th>
+            <Th>{t("columns.added")}</Th>
+            <Th>{t("columns.onHand")}</Th>
+            <Th>{t("columns.available")}</Th>
+          </Tr>
+        </THead>
+        <TBody>
           {variantIds.map((id) => (
-            <tr key={id} className="border-t border-border" data-testid="restock-result-row" data-sku={skuOf(id)}>
-              <td className="px-3 py-2 font-semibold" dir="ltr">{skuOf(id)}</td>
-              <td className="px-3 py-2 text-end" dir="ltr" data-testid="restock-result-added">+{formatQuantity(added.get(id), locale)}</td>
-              <td className="px-3 py-2 text-end" dir="ltr" data-testid="restock-result-on-hand">
+            <Tr key={id} data-testid="restock-result-row" data-sku={skuOf(id)}>
+              <Td className="font-semibold" dir="ltr">{skuOf(id)}</Td>
+              <Td dir="ltr" data-testid="restock-result-added">+{formatQuantity(added.get(id), locale)}</Td>
+              <Td dir="ltr" data-testid="restock-result-on-hand">
                 {totals ? (totals[id] ? formatQuantity(totals[id].onHand, locale) : "—") : "…"}
-              </td>
-              <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="restock-result-available">
+              </Td>
+              <Td className="font-semibold" dir="ltr" data-testid="restock-result-available">
                 {totals ? (totals[id] ? formatQuantity(totals[id].available, locale) : "—") : "…"}
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
       <div className="flex flex-wrap gap-2">
         <Link href={`/catalog/products/${restock.productId}`} className={buttonClasses({})} data-testid="restock-back-to-product">
           <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />

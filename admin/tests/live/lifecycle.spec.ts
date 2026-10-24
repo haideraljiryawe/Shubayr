@@ -305,20 +305,20 @@ async function act(page: Page, action: string, reason?: string) {
   await page.getByTestId(`order-action-${action}`).click();
   if (action === "accept") {
     await page
-      .locator("dialog[open]")
+      .getByRole("dialog")
       .getByTestId("customer-contacted")
       .check();
     await page
-      .locator("dialog[open]")
+      .getByRole("dialog")
       .getByTestId("customer-contact-note")
       .fill("Customer confirmed by phone");
   }
   if (reason)
     await page
-      .locator("dialog[open]")
+      .getByRole("dialog")
       .getByTestId("confirm-reason")
       .fill(reason);
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
 }
 
 async function expectStatus(page: Page, status: string) {
@@ -542,13 +542,13 @@ test("a shortage: propose a smaller quantity the customer accepts; another order
   await expect(page.getByTestId("order-attention-refused")).toBeVisible();
   await line.getByTestId("short-reduce").click();
   await expect(
-    page.locator("dialog[open]").getByTestId("reduce-quantity"),
+    page.getByRole("dialog").getByTestId("reduce-quantity"),
   ).toHaveValue("1");
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Only one left after the count");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expect(page.getByTestId("reduction-proposal")).toHaveAttribute(
     "data-status",
     "pending",
@@ -582,10 +582,10 @@ test("a shortage: propose a smaller quantity the customer accepts; another order
   await page.goto(`/orders/${second.id}`);
   await page.getByTestId("short-cancel-order").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Out of stock");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expectStatus(page, "cancelled");
 });
 
@@ -622,10 +622,10 @@ test("cancellation requests: one approved, one denied, each with a reason", asyn
   );
   await page.getByTestId("cancellation-approve").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Customer asked before preparation");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expectStatus(page, "cancelled");
   await expect(page.getByTestId("cancellation-request")).toHaveAttribute(
     "data-status",
@@ -635,10 +635,10 @@ test("cancellation requests: one approved, one denied, each with a reason", asyn
   await page.goto(`/orders/${denied.id}`);
   await page.getByTestId("cancellation-deny").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Already packed for today's route");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expect(page.getByTestId("cancellation-request")).toHaveAttribute(
     "data-status",
     "denied",
@@ -831,10 +831,10 @@ test("a failed delivery comes back by a partial retrieval", async ({
   await expect(page.getByTestId("order-action-retry")).toBeVisible();
   await page.getByTestId("retrieval-open").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Bring it back to retry tomorrow");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await page.waitForURL(/\/retrievals\/[0-9a-f-]{36}$/);
   await expect(page.getByTestId("retrieval-detail")).toHaveAttribute(
     "data-status",
@@ -901,10 +901,10 @@ test("below cost: confirmation blocked, self-approval refused, a different appro
   await expect(panel.getByTestId("below-cost-cost-column")).toBeVisible();
   await panel.getByTestId("below-cost-approve").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Clearance price agreed");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expect(page.getByTestId("below-cost-self-refused")).toBeVisible();
   await expectStatus(page, "pending");
 
@@ -913,9 +913,9 @@ test("below cost: confirmation blocked, self-approval refused, a different appro
   await act(page, "accept");
   await page.getByTestId("below-cost-approve").click();
   await page
-    .locator("dialog[open]")
+    .getByRole("dialog")
     .getByTestId("confirm-reason")
     .fill("Clearance price agreed by the manager");
-  await page.locator("dialog[open]").getByTestId("confirm-submit").click();
+  await page.getByRole("dialog").getByTestId("confirm-submit").click();
   await expectStatus(page, "confirmed");
 });

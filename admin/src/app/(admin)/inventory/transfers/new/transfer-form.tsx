@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { Alert, Button, Card, Input, Select, Textarea } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, Textarea, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
@@ -22,6 +22,8 @@ import {
   type Transfer,
   type Warehouse,
 } from "@/lib/inventory";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { useConfirm } from "@/components/forms/use-confirm";
 
 interface Line {
   row: Balance;
@@ -44,6 +46,8 @@ export function TransferForm({
   canSearchSku: boolean;
 }) {
   const t = useTranslations("inventory");
+  const tc = useTranslations("confirmRemove");
+  const { confirm: confirmRemove, dialog } = useConfirm();
   const locale = useLocale();
   const posting = usePosting<Transfer>();
   const [lines, setLines] = useState<Line[]>([]);
@@ -115,30 +119,30 @@ export function TransferForm({
   if (review) {
     return (
       <Card className="flex flex-col gap-4" data-testid="transfer-preview">
-        <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.sku")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.from")}</th>
-              <th className="px-3 py-1 text-start font-semibold">{t("columns.to")}</th>
-              <th className="px-3 py-1 text-end font-semibold">{t("columns.quantity")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <h2 className="text-section">{t("reviewTitle")}</h2>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.from")}</Th>
+              <Th>{t("columns.to")}</Th>
+              <Th>{t("columns.quantity")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {lines.map((line) => (
-              <tr key={lineKey(line.row)} className="border-t border-border">
-                <td className="px-3 py-2 font-semibold" dir="ltr">{line.row.sku}</td>
-                <td className="px-3 py-2" dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</td>
-                <td className="px-3 py-2" dir="ltr">{locationLabel(locations[line.toLocationId])}</td>
-                <td className="px-3 py-2 text-end" dir="ltr">{formatQuantity(line.quantity, locale)}</td>
-              </tr>
+              <Tr key={lineKey(line.row)}>
+                <Td className="font-semibold" dir="ltr">{line.row.sku}</Td>
+                <Td dir="ltr">{line.row.lot_number ?? t("noLotNumber")}</Td>
+                <Td dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</Td>
+                <Td dir="ltr">{locationLabel(locations[line.toLocationId])}</Td>
+                <Td dir="ltr">{formatQuantity(line.quantity, locale)}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-        <p className="text-sm text-text-muted">
+          </TBody>
+        </Table>
+        <p className="text-body text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
         <InventoryPostingStatus state={posting.state} type="transfer" onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
@@ -180,7 +184,7 @@ export function TransferForm({
     >
       <Card className="flex flex-col gap-3">
         <h2 className="font-bold">{t("transfer.pickTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("transfer.pickHint")}</p>
+        <p className="text-body text-text-muted">{t("transfer.pickHint")}</p>
         <BalancePicker
           warehouses={warehouses}
           locations={locations}
@@ -197,7 +201,7 @@ export function TransferForm({
         return (
           <Card key={key} className="flex flex-col gap-3" data-testid="transfer-line" data-sku={line.row.sku}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm">
+              <p className="text-body">
                 <span className="font-semibold" dir="ltr">{line.row.sku}</span>
                 <span className="text-text-muted"> · {t("lotLabel", { lot: line.row.lot_number ?? t("noLotNumber") })}</span>
                 <span className="text-text-muted" dir="ltr"> · {locationLabel(locations[line.row.location_id], line.row.location_code)}</span>
@@ -205,7 +209,7 @@ export function TransferForm({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setLines((current) => current.filter((row) => lineKey(row.row) !== key))}
+                onClick={() => confirmRemove({ body: tc("named", { name: line.row.sku ?? "" }), onConfirm: () => setLines((current) => current.filter((row) => lineKey(row.row) !== key)) })}
                 aria-label={t("removeLine")}
               >
                 <Trash2 className="size-4" aria-hidden />
@@ -221,7 +225,7 @@ export function TransferForm({
                 <DecimalInput value={line.quantity ?? ""} parse={{ maxDecimals: 3 }} onValueChange={(quantity) => patch(key, { quantity })} data-testid="transfer-quantity" />
               </Field>
               <Field label={t("columns.to")} name="to" error={e.to}>
-                <Select value={line.toLocationId} onChange={(event) => patch(key, { toLocationId: event.target.value })} data-testid="transfer-destination">
+                <Select value={line.toLocationId} onValueChange={(value) => patch(key, { toLocationId: value })} data-testid="transfer-destination">
                   <option value="">{t("pickLocation")}</option>
                   {active
                     .filter((info) => info.id !== line.row.location_id)
@@ -247,11 +251,12 @@ export function TransferForm({
         </Field>
       </Card>
       {formError ? <Alert data-testid="transfer-form-error">{formError}</Alert> : null}
-      <div className="flex justify-end">
+      <ActionBar>
         <Button type="submit" data-testid="transfer-review">
           {t("review")}
         </Button>
-      </div>
+      </ActionBar>
+      {dialog}
     </form>
   );
 }

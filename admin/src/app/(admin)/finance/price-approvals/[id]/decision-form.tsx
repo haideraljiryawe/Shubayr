@@ -8,6 +8,7 @@ import { FormError } from "@/components/forms/form-error";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, errorCode, errorKind, type ErrorKind } from "@/lib/api/errors";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Approval = components["schemas"]["PricePublishApproval"];
 
@@ -70,28 +71,28 @@ export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: str
     return (
       <Card className="flex flex-col gap-3 p-5" data-testid="price-approval-decided" data-status={decided.status}>
         <Badge tone={decided.status === "approved" ? "success" : "warning"}>{t(`status.${decided.status}`)}</Badge>
-        <p className="text-sm">{decided.status === "approved" ? t("approvedBody") : t("rejectedBody")}</p>
+        <p className="text-body">{decided.status === "approved" ? t("approvedBody") : t("rejectedBody")}</p>
         {breaches.length ? (
-          <table className="w-full text-sm" data-testid="price-approval-breaches">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-2 py-1 text-start">{t("columns.sku")}</th>
-                <th className="px-2 py-1 text-end">{t("columns.price")}</th>
-                <th className="px-2 py-1 text-end">{t("columns.threshold")}</th>
-                {canViewCost ? <th className="px-2 py-1 text-end">{t("columns.cost")}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="price-approval-breaches">
+            <THead>
+              <Tr>
+                <Th>{t("columns.sku")}</Th>
+                <Th>{t("columns.price")}</Th>
+                <Th>{t("columns.threshold")}</Th>
+                {canViewCost ? <Th>{t("columns.cost")}</Th> : null}
+              </Tr>
+            </THead>
+            <TBody>
               {breaches.map((breach, index) => (
-                <tr key={`${breach.sku}-${index}`} className="border-t border-border">
-                  <td className="px-2 py-1" dir="ltr">{breach.sku ?? "—"}</td>
-                  <td className="px-2 py-1 text-end" dir="ltr">{number(breach.price)}</td>
-                  <td className="px-2 py-1 text-end" dir="ltr">{breach.threshold_percent === undefined ? "—" : `${number(breach.threshold_percent)}%`}</td>
-                  {canViewCost ? <td className="px-2 py-1 text-end" dir="ltr">{number(breach.cost)}</td> : null}
-                </tr>
+                <Tr key={`${breach.sku}-${index}`}>
+                  <Td dir="ltr">{breach.sku ?? "—"}</Td>
+                  <Td dir="ltr">{number(breach.price)}</Td>
+                  <Td dir="ltr">{breach.threshold_percent === undefined ? "—" : `${number(breach.threshold_percent)}%`}</Td>
+                  {canViewCost ? <Td dir="ltr">{number(breach.cost)}</Td> : null}
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         ) : null}
       </Card>
     );
@@ -102,31 +103,31 @@ export function DecisionForm({ id, approval, canDecide, canViewCost }: { id: str
     <Card className="flex max-w-3xl flex-col gap-4 p-5" data-testid="price-approval-form">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="warning">{t(`status.${approval.status}`)}</Badge>
-        <span className="text-sm text-text-muted">{t(`kind.${approval.kind}`)}</span>
-        <span className="text-sm text-text-muted">{t("proposedBy", { name: approval.proposer.name ?? approval.proposed_by })}</span>
+        <span className="text-body text-text-muted">{t(`kind.${approval.kind}`)}</span>
+        <span className="text-body text-text-muted">{t("proposedBy", { name: approval.proposer.name ?? approval.proposed_by })}</span>
       </div>
-      <p className="text-sm text-text-muted">{t("body")}</p>
+      <p className="text-body text-text-muted">{t("body")}</p>
       {breaches.length ? (
-        <table className="w-full text-sm" data-testid="price-approval-breaches">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-2 py-1 text-start">{t("columns.sku")}</th>
-              <th className="px-2 py-1 text-end">{t("columns.price")}</th>
-              <th className="px-2 py-1 text-end">{t("columns.threshold")}</th>
-              {canViewCost ? <th className="px-2 py-1 text-end">{t("columns.cost")}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="price-approval-breaches">
+          <THead>
+            <Tr>
+              <Th>{t("columns.sku")}</Th>
+              <Th>{t("columns.price")}</Th>
+              <Th>{t("columns.threshold")}</Th>
+              {canViewCost ? <Th>{t("columns.cost")}</Th> : null}
+            </Tr>
+          </THead>
+          <TBody>
             {breaches.map((breach, index) => (
-              <tr key={`${breach.sku}-${index}`} className="border-t border-border">
-                <td className="px-2 py-1" dir="ltr">{breach.sku ?? "—"}</td>
-                <td className="px-2 py-1 text-end" dir="ltr">{number(breach.price)}</td>
-                <td className="px-2 py-1 text-end" dir="ltr">{breach.threshold_percent === undefined ? "—" : `${number(breach.threshold_percent)}%`}</td>
-                {canViewCost ? <td className="px-2 py-1 text-end" dir="ltr">{number(breach.cost)}</td> : null}
-              </tr>
+              <Tr key={`${breach.sku}-${index}`}>
+                <Td dir="ltr">{breach.sku ?? "—"}</Td>
+                <Td dir="ltr">{number(breach.price)}</Td>
+                <Td dir="ltr">{breach.threshold_percent === undefined ? "—" : `${number(breach.threshold_percent)}%`}</Td>
+                {canViewCost ? <Td dir="ltr">{number(breach.cost)}</Td> : null}
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       ) : null}
       {!canDecide ? (
         <Alert tone="info" data-testid="price-approval-read-only">{t("readOnly")}</Alert>

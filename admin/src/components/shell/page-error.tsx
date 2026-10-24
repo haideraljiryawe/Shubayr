@@ -25,10 +25,10 @@ export async function PageError({ error }: { error: ApiError }) {
       <span className="inline-flex size-14 items-center justify-center rounded-full bg-card text-primary-dark">
         <Icon className="size-7" aria-hidden />
       </span>
-      <h1 className="text-xl font-bold">
+      <h1 className="text-page-title">
         {forbidden ? t("forbiddenTitle") : t("loadFailedTitle")}
       </h1>
-      <p className="text-sm text-text-muted">
+      <p className="text-body text-text-muted">
         {forbidden ? t("forbiddenBody") : t("loadFailedBody")}
       </p>
       <Link href="/" className={buttonClasses({ variant: "secondary" })}>

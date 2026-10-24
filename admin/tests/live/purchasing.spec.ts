@@ -16,6 +16,7 @@ import {
   uiLoginAsAdmin,
   unique,
 } from "./helpers";
+import { choose, grouped } from "./controls";
 
 /**
  * Purchasing and suppliers (API 9.0) in the Web Admin, in a real browser,
@@ -129,7 +130,10 @@ async function pickSku(scope: Page | Locator, name: string, sku: string) {
   await expect(scope.getByTestId("line-sku-picked")).toContainText(sku);
 }
 
-/** Fill a new purchase invoice's line `index` (0-based) through the UI. */
+/**
+ * Add product `index` (0-based) to a new purchase invoice through the one
+ * product editor (VIS-022): pick, fill, "Add to invoice" — one summary row.
+ */
 async function fillLine(
   page: Page,
   index: number,
@@ -138,11 +142,15 @@ async function fillLine(
   size: string,
   cost: string,
 ) {
-  const line = page.getByTestId("invoice-line").nth(index);
-  await pickSku(line, item.name, item.sku);
-  await line.getByTestId("line-packs").fill(packs);
-  await line.getByTestId("line-pack-size").fill(size);
-  await line.getByTestId("line-cost").fill(cost);
+  const editor = page.getByTestId("invoice-editor");
+  await expect(editor).toHaveAttribute("data-mode", "add");
+  await pickSku(editor, item.name, item.sku);
+  await editor.getByTestId("line-packs").fill(packs);
+  await editor.getByTestId("line-pack-size").fill(size);
+  await editor.getByTestId("line-cost").fill(cost);
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(page.getByTestId("invoice-line")).toHaveCount(index + 1);
+  await expect(page.getByTestId("invoice-line").nth(index)).toHaveAttribute("data-sku", item.sku);
 }
 
 async function postInvoice(page: Page): Promise<string> {
@@ -184,7 +192,7 @@ async function startPayment(
   await page.goto(
     `/purchasing/payments/new?supplier_id=${supplierId}&invoice_id=${invoiceId}`,
   );
-  await page.getByTestId("payment-cash").selectOption(cashId);
+  await choose(page.getByTestId("payment-cash"), cashId);
 }
 
 /**
@@ -197,7 +205,7 @@ async function overrideRate(page: Page, value: string) {
   await expect(field).toBeEnabled();
   await expect(field).toHaveValue(/^\d/);
   await field.fill(value);
-  await expect(field).toHaveValue(value);
+  await expect(field).toHaveValue(grouped(value));
 }
 
 /** Review, confirm, and hand back what the API posted. */
@@ -371,7 +379,6 @@ test("suppliers: create through the UI, then the invoice screen converts packs a
   const first = page.getByTestId("invoice-line").nth(0);
   await expect(first.getByTestId("line-base")).toHaveText("24 piece");
   await expect(first.getByTestId("line-base-cost")).toHaveText("5,000.00 IQD");
-  await page.getByTestId("invoice-add-line").click();
   await fillLine(page, 1, b, "6", "1", "10000");
   // Freight 20,000 IQD by value: 120,000 and 60,000 → 13,333 and 6,667.
   await page.getByTestId("invoice-add-cost").click();
@@ -458,6 +465,135 @@ test("drafts are per user: one person's draft never appears for another", async 
   await other.close();
 });
 
+test("invoice products (VIS-022/023): one editor adds, edits in place, cancels, guards a switch, removes by name; repeats stay separate; search states", async ({
+  page,
+  request,
+}) => {
+  // A product with an Arabic name, found by that name.
+  const arName = `رز تجريبي ${run}`;
+  const sku = `RICE-${run}`;
+  const created = await api(request, "POST", "/admin/products", {
+    category_id: CATEGORY,
+    name_ar: arName,
+    name_en: `Test rice ${run}`,
+    price: 9000,
+    discount_type: null,
+    tracks_expiry: false,
+    status: "active",
+    published: true,
+    variants: [{ sku, base_unit: "piece", whole_units_only: true, pricing_mode: "fixed" }],
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+
+  await uiLoginAsAdmin(page);
+  await page.goto("/purchasing/invoices/new");
+  const editor = page.getByTestId("invoice-editor");
+  const rows = page.getByTestId("invoice-line");
+  await expect(page.getByTestId("invoice-products-section")).toContainText("منتجات الفاتورة");
+  await expect(editor).toHaveAttribute("data-mode", "add");
+  await expect(page.getByTestId("invoice-editor-title")).toHaveText("إضافة منتج إلى الفاتورة");
+  await expect(page.getByTestId("invoice-products-empty")).toBeVisible();
+  // No permanently expanded blank form in the list.
+  await expect(rows).toHaveCount(0);
+
+  // Add with nothing filled: errors beside the fields, no row.
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(editor.getByTestId("error-variant_id")).toBeVisible();
+  await expect(editor.getByTestId("error-quantity")).toBeVisible();
+  await expect(editor.getByTestId("error-unit_cost")).toBeVisible();
+  await expect(rows).toHaveCount(0);
+
+  // Search states: a successful empty search, a failed one, then the Arabic name.
+  const search = editor.getByTestId("line-sku-search");
+  await expect(search).toHaveAttribute("placeholder", "ابحث باسم المنتج أو رمز SKU");
+  await search.fill(`ZZQ-${run}`);
+  await expect(editor.getByTestId("line-sku-state")).toHaveAttribute("data-state", "none");
+  await expect(editor.getByTestId("line-sku-state")).toHaveText("لا توجد منتجات مطابقة");
+  await page.route("**/api/proxy/admin/products?*", (route) => route.fulfill({ status: 503, contentType: "application/json", body: '{"code":"UNAVAILABLE"}' }));
+  await search.fill(`ZZF-${run}`);
+  await expect(editor.getByTestId("line-sku-state")).toHaveAttribute("data-state", "failed");
+  await expect(editor.getByTestId("line-sku-state")).not.toContainText("لا توجد منتجات مطابقة");
+  await page.unroute("**/api/proxy/admin/products?*");
+  await search.fill(arName);
+  const option = editor.locator(`[data-testid="line-sku-option"][data-sku="${sku}"]`);
+  await expect(option).toContainText(arName);
+  await expect(option).toContainText(sku);
+  await option.click();
+  await editor.getByTestId("line-packs").fill("2");
+  await editor.getByTestId("line-cost").fill("1000");
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(rows).toHaveCount(1);
+  // The editor is clean again, ready for the next product.
+  await expect(editor).toHaveAttribute("data-mode", "add");
+  await expect(editor.getByTestId("line-sku-search")).toHaveValue("");
+
+  // The same product again, another batch and cost: a second row, never merged.
+  await editor.getByTestId("line-sku-search").fill(arName);
+  await editor.locator(`[data-testid="line-sku-option"][data-sku="${sku}"]`).click();
+  await editor.getByTestId("line-packs").fill("1");
+  await editor.getByTestId("line-cost").fill("1200");
+  await editor.getByTestId("line-lot").fill(`B-${run}`);
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toHaveAttribute("data-sku", sku);
+  await expect(rows.nth(1)).toHaveAttribute("data-sku", sku);
+  await expect(page.getByTestId("invoice-subtotal")).toHaveText("3,200 IQD");
+
+  // Edit loads the row; Cancel editing keeps the old values.
+  await rows.nth(0).getByTestId("line-edit").click();
+  await expect(editor).toHaveAttribute("data-mode", "edit");
+  await expect(page.getByTestId("invoice-editor-title")).toHaveText("تعديل منتج الفاتورة");
+  await expect(rows.nth(0)).toHaveAttribute("data-editing", "true");
+  await editor.getByTestId("line-packs").fill("9");
+  await editor.getByTestId("invoice-editor-cancel").click();
+  await expect(editor).toHaveAttribute("data-mode", "add");
+  await expect(rows.nth(0).getByTestId("line-quantity")).toHaveText("2");
+
+  // Save changes updates the same row in place.
+  await rows.nth(0).getByTestId("line-edit").click();
+  await editor.getByTestId("line-packs").fill("5");
+  await editor.getByTestId("invoice-editor-submit").click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).getByTestId("line-quantity")).toHaveText("5");
+  await expect(page.getByTestId("invoice-subtotal")).toHaveText("6,200 IQD");
+
+  // Switching rows with unsaved editor input asks first; Cancel keeps the input.
+  await rows.nth(0).getByTestId("line-edit").click();
+  await editor.getByTestId("line-cost").fill("1100");
+  await rows.nth(1).getByTestId("line-edit").click();
+  const ask = page.getByRole("dialog");
+  await expect(ask).toContainText("تجاهل ما في المحرر؟");
+  await ask.getByRole("button", { name: "إلغاء" }).click();
+  await expect(rows.nth(0)).toHaveAttribute("data-editing", "true");
+  await expect(editor.getByTestId("line-cost")).toHaveValue("1,100");
+  await rows.nth(1).getByTestId("line-edit").click();
+  await page.getByRole("dialog").getByRole("button", { name: "تجاهل وتعديل" }).click();
+  await expect(rows.nth(1)).toHaveAttribute("data-editing", "true");
+  // The discarded input never reached row 1's neighbour.
+  await expect(rows.nth(0).getByTestId("line-pack-cost")).toContainText("1,000");
+
+  // Remove names the product; Cancel leaves it, confirming removes only that row.
+  await rows.nth(1).getByTestId("line-remove").click();
+  const remove = page.getByRole("dialog");
+  await expect(remove).toContainText("إزالة المنتج من الفاتورة؟");
+  await expect(remove).toContainText(`هل تريد إزالة «${arName} · ${sku}» من هذه الفاتورة؟`);
+  await expect(remove).toContainText("مسودتك المحفوظة تلقائياً");
+  await remove.getByRole("button", { name: "إلغاء" }).click();
+  await expect(rows).toHaveCount(2);
+  await rows.nth(1).getByTestId("line-remove").click();
+  await page.getByRole("dialog").getByRole("button", { name: "إزالة المنتج" }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(editor).toHaveAttribute("data-mode", "add");
+  await expect(page.getByTestId("invoice-subtotal")).toHaveText("5,000 IQD");
+  // Nothing was posted: the catalog still has the product and no invoice exists for it.
+  expect((await api(request, "GET", `/admin/products/${created.body.id}`)).status).toBe(200);
+
+  // The draft holds the rows (saved automatically); leave nothing behind.
+  await expect(page.getByTestId("draft-status")).toHaveAttribute("data-status", "saved");
+  await page.getByTestId("draft-discard").click();
+  await expect(rows).toHaveCount(0);
+});
+
 test("double-submit creates one invoice, and a replay returns the same one", async ({
   page,
   request,
@@ -526,8 +662,8 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
   await page.goto(
     `/purchasing/invoices/new?supplier_id=${state.usdSupplier!.id}`,
   );
-  await expect(page.getByTestId("invoice-currency")).toHaveValue("USD");
-  await expect(page.getByTestId("invoice-rate")).toHaveValue("1500");
+  await expect(page.getByTestId("invoice-currency")).toHaveAttribute("data-value", "USD");
+  await expect(page.getByTestId("invoice-rate")).toHaveValue("1,500");
   await fillLine(page, 0, d, "2", "1", "100");
   await expect(page.getByTestId("invoice-subtotal")).toHaveText("200.00 USD");
   await expect(page.getByTestId("invoice-total-iqd")).toHaveText("300,000 IQD");
@@ -547,7 +683,7 @@ test("USD 100 × 2 at 1,500, then payments at 1,520 and 1,480 show the FX before
     await page.goto(
       `/purchasing/payments/new?supplier_id=${state.usdSupplier!.id}&invoice_id=${invoiceId}`,
     );
-    await page.getByTestId("payment-cash").selectOption(state.usdCash!);
+    await choose(page.getByTestId("payment-cash"), state.usdCash!);
     await page.getByTestId("payment-amount").fill("100");
     await overrideRate(page, rate);
     const row = page.locator(
@@ -723,7 +859,7 @@ test("an IQD invoice paid from a USD account at the payment-date rate, with no F
   await switchUser(page, state.payer!.username, state.payer!.password);
   await startPayment(page, state.iqdSupplier!.id, state.usdCash!, invoice.id);
   // The payment-date rate as recorded (1,500), not overridden.
-  await expect(page.getByTestId("payment-rate")).toHaveValue("1500");
+  await expect(page.getByTestId("payment-rate")).toHaveValue("1,500");
   const row = page.locator(
     `[data-testid="payment-invoice"][data-number="${invoice.document_number}"]`,
   );
@@ -790,7 +926,7 @@ test("a rate typed before the day's rate arrives is kept, and is the one posted"
   await loaded;
   await expect(rate).toHaveAttribute("data-prefill", "1500");
   await page.keyboard.type("20");
-  await expect(rate).toHaveValue("1520");
+  await expect(rate).toHaveValue("1,520");
   await expect(rate).toHaveAttribute("data-edited", "true");
   await page.getByTestId("payment-amount").fill("100");
   const row = page.locator(
@@ -937,18 +1073,17 @@ test("separation of duties: switching the level is saved and audited, and strict
   const level = async () =>
     (await api(request, "GET", "/admin/settings")).body.settings
       .separation_of_duties_level ?? "standard";
-  const choose = async (value: "standard" | "strict") => {
+  const chooseLevel = async (value: "standard" | "strict") => {
     await page.goto("/settings");
-    await page
-      .getByTestId("setting-separation_of_duties_level")
-      .selectOption(value);
+    await choose(page
+      .getByTestId("setting-separation_of_duties_level"), value);
     await page.getByTestId("settings-save").click();
     await expect.poll(level).toBe(value);
   };
   const before = await level();
   try {
     // invoiceFor() left the admin signed in.
-    await choose("strict");
+    await chooseLevel("strict");
     // Audited: the change history names the field.
     await page.goto("/settings");
     await expect(
@@ -962,7 +1097,7 @@ test("separation of duties: switching the level is saved and audited, and strict
     expect(refused.status, JSON.stringify(refused.body)).toBe(403);
     expect(refused.body.code).toBe("SEPARATION_OF_DUTIES_VIOLATION");
 
-    await choose("standard");
+    await chooseLevel("standard");
     const allowed = await payOwn();
     expect(allowed.status, JSON.stringify(allowed.body)).toBe(201);
   } finally {
@@ -1093,7 +1228,7 @@ test("a late landed cost previews its 3-way split (stock 6, custody 2, sold 2) a
   await switchUser(page, state.payer!.username, state.payer!.password);
   await page.goto(`/purchasing/corrections/new?invoice_id=${invoiceId}`);
   await page.getByTestId("correction-total").fill("1000");
-  await page.getByTestId("correction-method").selectOption("quantity");
+  await choose(page.getByTestId("correction-method"), "quantity");
   const line = page.locator(
     `[data-testid="correction-line"][data-sku="${e.sku}"]`,
   );

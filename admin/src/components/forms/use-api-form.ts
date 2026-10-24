@@ -18,6 +18,8 @@ export interface ApiFormState {
   formError: ErrorKind | null;
   /** The failure's documented code, for FormError's specific message. */
   formErrorCode: string | null;
+  /** What the last submit failed with, even when it all landed on fields. */
+  failure: ErrorKind | null;
 }
 
 interface Stored {
@@ -30,6 +32,7 @@ interface Stored {
   cleared: string[];
   formError: ErrorKind | null;
   formErrorCode: string | null;
+  failure: ErrorKind | null;
   /** The language the client messages were written in. */
   locale: string;
 }
@@ -58,6 +61,7 @@ export function useApiForm() {
     cleared: [],
     formError: null,
     formErrorCode: null,
+    failure: null,
     locale,
   });
 
@@ -70,6 +74,7 @@ export function useApiForm() {
         cleared: [],
         formError: null,
         formErrorCode: null,
+        failure: null,
         locale,
       });
       try {
@@ -87,6 +92,7 @@ export function useApiForm() {
           // A 422 whose errors all landed on fields needs no banner.
           formError: kind === "validation" && apiFieldErrors.length > 0 ? null : kind,
           formErrorCode: cause instanceof ApiError ? (cause.code ?? null) : null,
+          failure: kind,
           locale,
         });
         return undefined;
@@ -124,6 +130,7 @@ export function useApiForm() {
     fieldErrors,
     formError: state.formError,
     formErrorCode: state.formErrorCode,
+    failure: state.failure,
   };
   return { ...view, run, clearField, setFieldErrors };
 }

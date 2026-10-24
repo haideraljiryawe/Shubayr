@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to publish (e.g. v1.0.0-rc1); the current commit is built"
+        description: "Existing release tag to verify and publish (e.g. v1.0.0-rc3)"
         required: true
 
 permissions:
@@ -26,6 +26,111 @@ permissions:
   packages: write
 
 jobs:
+  acceptance:
+    name: Tagged acceptance evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports: [ "6379:6379" ]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+      search:
+        image: getmeili/meilisearch:v1.9
+        env:
+          MEILI_MASTER_KEY: masterKey_acceptance
+        ports: [ "7700:7700" ]
+    env:
+      APP_ENV: development
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres?schema=public
+      REDIS_URL: redis://localhost:6379
+      MEILI_HOST: http://localhost:7700
+      MEILI_MASTER_KEY: masterKey_acceptance
+      JWT_SECRET: acceptance_access_secret_at_least_32_chars
+      JWT_REFRESH_SECRET: acceptance_refresh_secret_at_least_32_chars
+      DEV_OTP: "000000"
+      PUBLIC_API_URL: http://localhost:8000/api/v1
+      CORS_ORIGINS: http://localhost:3000
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: shubayr-media
+      S3_ACCESS_KEY: shubayr
+      S3_SECRET_KEY: shubayr_minio_secret
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Resolve tagged build
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          [[ "$tag" =~ ^v[0-9A-Za-z._-]+$ ]] || { echo "bad release tag: $tag"; exit 1; }
+          actual="$(git describe --tags --exact-match HEAD)"
+          [ "$actual" = "$tag" ] || { echo "checked out $actual, expected $tag"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Start S3-compatible object storage
+        run: |
+          docker run --detach --name shubayr_release_acceptance_s3 \
+            --publish 9000:9000 \
+            --env AWS_ACCESS_KEY_ID=shubayr \
+            --env AWS_SECRET_ACCESS_KEY=shubayr_minio_secret \
+            --env S3_BUCKET=shubayr-media \
+            chrislusf/seaweedfs:4.47 mini -dir=/data -s3.port=9000 \
+              -master.telemetry=false
+          for attempt in $(seq 1 30); do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              http://localhost:9000/ || true)"
+            [ "$status" = "403" ] && exit 0
+            sleep 1
+          done
+          docker logs shubayr_release_acceptance_s3
+          exit 1
+      - name: Install, generate, and build
+        working-directory: backend
+        run: |
+          npm ci
+          npm run prisma:generate
+          npm run build
+      - name: Run the full acceptance suite against the tagged commit
+        working-directory: backend
+        env:
+          ACCEPTANCE_COMMIT: ${{ steps.release.outputs.commit }}
+          ACCEPTANCE_RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          ACCEPTANCE_RESULTS_PATH: ${{ runner.temp }}/acceptance-results.json
+        run: |
+          set -o pipefail
+          npm run test:acceptance 2>&1 | tee "$RUNNER_TEMP/acceptance.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: acceptance-results-${{ steps.release.outputs.tag }}
+          path: |
+            ${{ runner.temp }}/acceptance-results.json
+            ${{ runner.temp }}/acceptance.log
+          retention-days: 90
+          if-no-files-found: error
+
   images:
     name: ${{ matrix.image }}
     runs-on: ubuntu-latest
@@ -55,6 +160,8 @@ jobs:
             target: ""
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - name: Tag and names
         id: names
         env:
@@ -64,7 +171,10 @@ jobs:
         run: |
           tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
           [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "bad tag: $tag"; exit 1; }
+          actual="$(git describe --tags --exact-match HEAD)"
+          [ "$actual" = "$tag" ] || { echo "checked out $actual, expected $tag"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${OWNER,,}/${{ matrix.image }}:$tag" >> "$GITHUB_OUTPUT"
           if [ "${{ matrix.image }}" = shubayr-web ]; then
             [ -n "$DOMAIN" ] || { echo "Set the repository variable SHUBAYR_DOMAIN"; exit 1; }
@@ -79,8 +189,10 @@ jobs:
           target=()
           [ -n "${{ matrix.target }}" ] && target=(--target "${{ matrix.target }}")
           docker build "${target[@]}" ${{ steps.names.outputs.web_args }} \
+            --build-arg RELEASE_VERSION="${{ steps.names.outputs.tag }}" \
+            --build-arg RELEASE_COMMIT="${{ steps.names.outputs.revision }}" \
             --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.revision=${{ steps.names.outputs.revision }}" \
             --label "org.opencontainers.image.version=${{ steps.names.outputs.tag }}" \
             --file "${{ matrix.file }}" --tag "${{ steps.names.outputs.image }}" "${{ matrix.context }}"
       - name: Push

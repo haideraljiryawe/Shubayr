@@ -25,6 +25,7 @@ import {
   type CancellationResolution,
 } from "@/lib/orders";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Done = (order: AdminOrder) => void;
 type Refused = (cause: unknown) => Promise<void>;
@@ -89,28 +90,28 @@ export function AttentionPanel({
         <AlertTriangle className="size-4" aria-hidden />
         {t("title")}
       </h2>
-      <p className="text-sm text-text-muted">{t("body")}</p>
+      <p className="text-body text-text-muted">{t("body")}</p>
       {shortLines.length ? (
-        <table className="w-full text-sm">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-2 py-1 text-start font-semibold">{t("columns.item")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.ordered")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.allocated")}</th>
-              <th className="px-2 py-1 text-end font-semibold">{t("columns.short")}</th>
-              <th className="px-2 py-1" />
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>{t("columns.item")}</Th>
+              <Th>{t("columns.ordered")}</Th>
+              <Th>{t("columns.allocated")}</Th>
+              <Th>{t("columns.short")}</Th>
+              <Th />
+            </Tr>
+          </THead>
+          <TBody>
             {shortLines.map((line) => (
-              <tr key={line.orderItemId} className="border-t border-border" data-testid="short-line">
-                <td className="px-2 py-2">{itemName(order, line.orderItemId, locale)}</td>
-                <td className="px-2 py-2 text-end" dir="ltr">{formatQuantity(line.requested, locale)}</td>
-                <td className="px-2 py-2 text-end" dir="ltr" data-testid="short-allocated">{formatQuantity(line.allocated, locale)}</td>
-                <td className="px-2 py-2 text-end font-semibold text-error-dark" dir="ltr" data-testid="short-quantity">
+              <Tr key={line.orderItemId} data-testid="short-line">
+                <Td>{itemName(order, line.orderItemId, locale)}</Td>
+                <Td dir="ltr">{formatQuantity(line.requested, locale)}</Td>
+                <Td dir="ltr" data-testid="short-allocated">{formatQuantity(line.allocated, locale)}</Td>
+                <Td className="font-semibold text-error-dark" dir="ltr" data-testid="short-quantity">
                   {formatQuantity(line.short, locale)}
-                </td>
-                <td className="px-2 py-2">
+                </Td>
+                <Td>
                   {canAct ? (
                     <div className="flex flex-wrap justify-end gap-1">
                       {toMilli(line.allocated) > 0 ? (
@@ -132,11 +133,11 @@ export function AttentionPanel({
                       </Button>
                     </div>
                   ) : null}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       ) : null}
       {proposal ? (
         <Alert tone={proposal.status === "pending" ? "info" : proposal.status === "accepted" ? "success" : "danger"} data-testid="reduction-proposal" data-status={proposal.status}>
@@ -154,7 +155,7 @@ export function AttentionPanel({
           </Button>
         </div>
       ) : order.inventory_attention_required && !permissions.includes("orders.shortage.resolve") ? (
-        <p className="text-xs text-text-muted">{t("needsPermission")}</p>
+        <p className="text-caption text-text-muted">{t("needsPermission")}</p>
       ) : null}
 
       <ConfirmDialog
@@ -238,7 +239,7 @@ export function CancellationRequestPanel({
         {t("title")}
         <Badge tone={request.status === "pending" ? "warning" : request.status === "approved" ? "success" : "neutral"}>{t(`status.${request.status}`)}</Badge>
       </h2>
-      <dl className="grid gap-1 text-sm">
+      <dl className="grid gap-1 text-body">
         <div>
           <dt className="inline text-text-muted">{t("reason")}: </dt>
           <dd className="inline" data-testid="cancellation-reason">{request.reason ?? "—"}</dd>
@@ -269,7 +270,7 @@ export function CancellationRequestPanel({
         </div>
       ) : null}
       {request.status === "pending" && afterDispatch && !options.includes("approve") && options.length ? (
-        <p className="text-xs text-text-muted">{t("afterDispatchPermission")}</p>
+        <p className="text-caption text-text-muted">{t("afterDispatchPermission")}</p>
       ) : null}
       <ConfirmDialog
         open={decision !== null}
@@ -322,7 +323,7 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
         {t("title")}
       </h2>
       {rows.length ? (
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1 text-body">
           {rows.map((row) => (
             <li key={row.id} className="flex flex-wrap items-center gap-2" data-testid="retrieval-row">
               {permissions.includes("retrieval.view") ? (
@@ -338,10 +339,10 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-text-muted">{t("none")}</p>
+        <p className="text-body text-text-muted">{t("none")}</p>
       )}
       {rows.length && permissions.includes("retrieval.view") ? (
-        <Link href={`/retrievals?order_id=${order.id}`} className="text-sm font-semibold text-primary-dark hover:underline" data-testid="order-retrievals-all">
+        <Link href={`/retrievals?order_id=${order.id}`} className="text-label text-primary-dark hover:underline" data-testid="order-retrievals-all">
           {tList("viewAllForOrder")}
         </Link>
       ) : null}
@@ -402,37 +403,37 @@ export function BelowCostPanel({
         <AlertTriangle className="size-4" aria-hidden />
         {t("title")}
       </h2>
-      <p className="text-sm text-text-muted">{t("body")}</p>
-      <table className="w-full text-sm">
-        <thead className="text-text-muted">
-          <tr>
-            <th className="px-2 py-1 text-start font-semibold">{t("columns.sku")}</th>
-            <th className="px-2 py-1 text-end font-semibold">{t("columns.price")}</th>
-            <th className="px-2 py-1 text-end font-semibold">{t("columns.threshold")}</th>
+      <p className="text-body text-text-muted">{t("body")}</p>
+      <Table>
+        <THead>
+          <Tr>
+            <Th>{t("columns.sku")}</Th>
+            <Th>{t("columns.price")}</Th>
+            <Th>{t("columns.threshold")}</Th>
             {showCost ? (
               <>
-                <th className="px-2 py-1 text-end font-semibold" data-testid="below-cost-cost-column">{t("columns.cost")}</th>
-                <th className="px-2 py-1 text-end font-semibold">{t("columns.minimum")}</th>
+                <Th data-testid="below-cost-cost-column">{t("columns.cost")}</Th>
+                <Th>{t("columns.minimum")}</Th>
               </>
             ) : null}
-          </tr>
-        </thead>
-        <tbody>
+          </Tr>
+        </THead>
+        <TBody>
           {breaches.map((row) => (
-            <tr key={row.variantId ?? row.sku} className="border-t border-border" data-testid="below-cost-row">
-              <td className="px-2 py-2 font-semibold" dir="ltr">{row.sku}</td>
-              <td className="px-2 py-2 text-end" dir="ltr">{money(row.price)}</td>
-              <td className="px-2 py-2 text-end" dir="ltr">{row.thresholdPercent === null ? "—" : `${row.thresholdPercent}%`}</td>
+            <Tr key={row.variantId ?? row.sku} data-testid="below-cost-row">
+              <Td className="font-semibold" dir="ltr">{row.sku}</Td>
+              <Td dir="ltr">{money(row.price)}</Td>
+              <Td dir="ltr">{row.thresholdPercent === null ? "—" : `${row.thresholdPercent}%`}</Td>
               {showCost ? (
                 <>
-                  <td className="px-2 py-2 text-end" dir="ltr">{money(row.cost)}</td>
-                  <td className="px-2 py-2 text-end" dir="ltr">{money(row.minimumPrice)}</td>
+                  <Td dir="ltr">{money(row.cost)}</Td>
+                  <Td dir="ltr">{money(row.minimumPrice)}</Td>
                 </>
               ) : null}
-            </tr>
+            </Tr>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
       {selfRefused ? (
         <Alert data-testid="below-cost-self-refused">{t("selfRefused")}</Alert>
       ) : null}
@@ -443,7 +444,7 @@ export function BelowCostPanel({
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-text-muted" data-testid="below-cost-needs-approval">{note ?? t("needsApproval")}</p>
+        <p className="text-caption text-text-muted" data-testid="below-cost-needs-approval">{note ?? t("needsApproval")}</p>
       )}
       <ConfirmDialog
         open={open}
@@ -470,7 +471,7 @@ export function DeliveryAttemptsPanel({ order }: { order: AdminOrder }) {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="delivery-attempts">
       <h2 className="font-bold">{t("title")}</h2>
-      <ol className="flex flex-col gap-2 text-sm">
+      <ol className="flex flex-col gap-2 text-body">
         {attempts.map((attempt, index) => (
           <li key={attempt.id} className="flex flex-col gap-0.5 rounded-md bg-card p-3" data-testid="delivery-attempt" data-status={attempt.status}>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -480,7 +481,7 @@ export function DeliveryAttemptsPanel({ order }: { order: AdminOrder }) {
             <span className="text-text-muted" data-testid="delivery-attempt-party">
               {t("party", { name: attempt.party?.name || t("unnamedParty") })}
             </span>
-            <span className="text-xs text-text-muted">
+            <span className="text-caption text-text-muted">
               {t("started", { at: dateTime(attempt.started_at) })}
               {attempt.completed_at ? ` · ${t("ended", { at: dateTime(attempt.completed_at) })}` : ""}
             </span>

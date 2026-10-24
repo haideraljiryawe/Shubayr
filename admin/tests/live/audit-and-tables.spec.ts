@@ -11,6 +11,8 @@ import {
   uiLogin,
   uiLoginAsAdmin,
 } from "./helpers";
+import { choose } from "./controls";
+import { navLink } from "./shell";
 
 /**
  * The audit-log screen and the staff / presets / work-phones tables, all
@@ -30,7 +32,9 @@ function storeDay(offsetDays = 0): string {
 
 /** The range label's text with Arabic-Indic digits made Latin and grouping removed. */
 async function rangeText(page: import("@playwright/test").Page): Promise<string> {
-  const text = (await page.getByTestId("table-range").textContent()) ?? "";
+  const raw = (await page.getByTestId("table-range").textContent()) ?? "";
+  // The shared footer spells out one record and none (VIS-012).
+  const text = raw === "سجل واحد" || raw === "1 record" ? "1" : raw === "لا توجد سجلات" || raw === "No records" ? "0" : raw;
   return text
     .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
     .replace(/[,٬]/g, "");
@@ -47,7 +51,7 @@ test("the audit log filters by actor, action, entity and date, on the server", a
   const created = await createStaff(request, { permissionKeys: ["orders.view"], prefix: "audited" });
 
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-audit").click();
+  await (await navLink(page, "audit")).click();
   await expect(page.getByTestId("audit-table")).toBeVisible();
 
   // Action + entity + entity id together: exactly that record.
@@ -64,7 +68,7 @@ test("the audit log filters by actor, action, entity and date, on the server", a
   await expect.poll(() => rangeText(page)).toContain(String(byActor));
 
   // Action alone, through the select.
-  await page.getByTestId("filter-action").selectOption("staff.create");
+  await choose(page.getByTestId("filter-action"), "staff.create");
   await expect(page).toHaveURL(/action=staff.create/);
   for (const cell of await page.getByTestId("audit-action").all()) {
     await expect(cell).toHaveText("staff.create");

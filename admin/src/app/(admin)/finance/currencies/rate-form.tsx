@@ -16,6 +16,7 @@ import { changeDirection, formatPercentChange, STALE_PREVIEW } from "@/lib/catal
 import { storeDateTimeLocal, storeDay, storeLocalToIso } from "@/lib/finance/dates";
 import { decimalPlaces, formatAmount, formatRate as rateText, isPositive, per100ToPer1 } from "@/lib/finance/money";
 import type { components } from "@/types/api";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Currency = components["schemas"]["Currency"];
 type Preview = components["schemas"]["LinkedPricePreview"];
@@ -159,14 +160,14 @@ export function RateForm({
       {waiting ? (
         <Alert tone="info" data-testid="price-approval-waiting" data-request={waiting.id}>
           <p className="font-semibold">{tl("waiting.title", { rate: waiting.rate })}</p>
-          <p className="mt-1 text-sm">{tl("waiting.body")}</p>
-          <p className="mt-2 text-sm">
+          <p className="mt-1 text-body">{tl("waiting.body")}</p>
+          <p className="mt-2 text-body">
             {tl("waiting.share")}{" "}
             <Link href={`/finance/price-approvals/${waiting.id}`} className="font-semibold underline" dir="ltr" data-testid="price-approval-link">
               /finance/price-approvals/{waiting.id}
             </Link>
           </p>
-          <ul className="mt-2 list-inside list-disc text-sm" data-testid="price-approval-waiting-items">
+          <ul className="mt-2 list-inside list-disc text-body" data-testid="price-approval-waiting-items">
             {waiting.items.map((item) => (
               <li key={item.variant_id} dir="ltr">
                 {item.sku}: {money(item.old_price)} → {money(item.new_price)}
@@ -184,13 +185,13 @@ export function RateForm({
           void submit();
         }}
       >
-        <h2 className="text-lg font-bold">{t("form.title")}</h2>
+        <h2 className="text-section">{t("form.title")}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("form.currency")} name="currency_code" error={api.fieldErrors.currency_code}>
             <Select
               value={code}
-              onChange={(event) => {
-                setCode(event.target.value);
+              onValueChange={(value) => {
+                setCode(value);
                 edited();
               }}
               data-testid="rate-currency"
@@ -202,7 +203,7 @@ export function RateForm({
               ))}
             </Select>
           </Field>
-          <fieldset className="flex flex-col gap-1 text-sm font-semibold">
+          <fieldset className="flex flex-col gap-1 text-label">
             <legend className="mb-1">{t("form.basis")}</legend>
             {([1, 100] as const).map((value) => (
               <label key={value} className="flex items-center gap-2 font-normal">
@@ -240,7 +241,7 @@ export function RateForm({
           </Field>
         </div>
 
-        <p className="rounded-md bg-card px-4 py-3 text-sm" data-testid="rate-preview" aria-live="polite">
+        <p className="rounded-md bg-card px-4 py-3 text-body" data-testid="rate-preview" aria-live="polite">
           {perOne ? (
             <>
               {basis === 100 ? (
@@ -348,7 +349,7 @@ export function RateForm({
           )}
         </div>
         {preview && !canPublish ? (
-          <p className="text-end text-xs text-text-muted" data-testid="publish-forbidden">
+          <p className="text-end text-caption text-text-muted" data-testid="publish-forbidden">
             {tl("publishForbidden")}
           </p>
         ) : null}
@@ -388,7 +389,7 @@ function LinkedPreviewPanel({
       aria-live="polite"
     >
       <h3 className="font-bold">{tl("title")}</h3>
-      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+      <dl className="grid gap-x-6 gap-y-1 text-body sm:grid-cols-2">
         <div className="flex gap-2">
           <dt className="text-text-muted">{tl("rateChange")}</dt>
           <dd dir="ltr" data-testid="preview-rates">
@@ -405,47 +406,47 @@ function LinkedPreviewPanel({
         </div>
       </dl>
       {preview.items.length === 0 ? (
-        <p className="text-sm text-text-muted" data-testid="preview-empty">
+        <p className="text-body text-text-muted" data-testid="preview-empty">
           {tl("empty")}
         </p>
       ) : (
         <div className="max-h-96 overflow-auto">
-          <table className="w-full text-sm" data-testid="preview-table">
-            <thead className="sticky top-0 bg-surface text-text-muted">
-              <tr>
-                <th className="py-1 text-start font-semibold">{tl("columns.sku")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.old")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.new")}</th>
-                <th className="py-1 text-start font-semibold">{tl("columns.change")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="preview-table">
+            <THead className="sticky top-0">
+              <Tr>
+                <Th>{tl("columns.sku")}</Th>
+                <Th>{tl("columns.old")}</Th>
+                <Th>{tl("columns.new")}</Th>
+                <Th>{tl("columns.change")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {preview.items.map((item) => {
                 const direction = changeDirection(item.percent_change);
                 return (
-                  <tr
+                  <Tr
                     key={item.variant_id}
-                    className="border-t border-border"
+                   
                     data-testid="preview-row"
                     data-sku={item.sku}
                     data-direction={direction}
                     data-requires-approval={item.requires_below_cost_approval}
                   >
-                    <td className="py-1.5">
+                    <Td>
                       <code dir="ltr">{item.sku}</code>
                       {item.requires_below_cost_approval ? (
                         <Badge tone="warning" className="ms-2" data-testid="preview-below-cost">
                           {tl("belowCostApproval")}
                         </Badge>
                       ) : null}
-                    </td>
-                    <td className="py-1.5" dir="ltr" data-testid="preview-old">
+                    </Td>
+                    <Td dir="ltr" data-testid="preview-old">
                       {money(item.old_price)}
-                    </td>
-                    <td className="py-1.5 font-semibold" dir="ltr" data-testid="preview-new">
+                    </Td>
+                    <Td className="font-semibold" dir="ltr" data-testid="preview-new">
                       {money(item.new_price)}
-                    </td>
-                    <td
+                    </Td>
+                    <Td
                       className={`py-1.5 font-semibold ${direction === "down" ? "text-error-dark" : direction === "up" ? "text-success-dark" : "text-text-muted"}`}
                       dir="ltr"
                       data-testid="preview-change"
@@ -455,12 +456,12 @@ function LinkedPreviewPanel({
                         {direction === "down" ? <ArrowDown className="size-3.5" aria-hidden /> : null}
                         {direction === "new" ? tl("firstPrice") : formatPercentChange(item.percent_change)}
                       </span>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
     </section>

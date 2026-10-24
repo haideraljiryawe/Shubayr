@@ -1,8 +1,8 @@
 {
   "brand": {
     "name": "Shubayr",
-    "admin": "Shubayr Admin",
-    "adminShort": "Admin"
+    "adminShort": "Admin",
+    "admin": "Shubayr Admin"
   },
   "nav": {
     "label": "Main menu",
@@ -45,19 +45,33 @@
     "expenses": "Expenses",
     "expenseCategories": "Expense categories",
     "banners": "Home banners",
-    "reports": "Reports"
+    "reports": "Reports",
+    "groups": {
+      "catalog": "Products and catalog",
+      "ordersDelivery": "Orders and delivery",
+      "inventory": "Inventory and warehouses",
+      "purchasing": "Purchasing and suppliers",
+      "finance": "Finance and accounting",
+      "store": "Store and marketing",
+      "users": "Users and permissions"
+    }
   },
   "auth": {
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signInTitle": "Sign in to the admin",
-    "signInBody": "Use your username and password.",
+    "signInTitle": "Sign in",
+    "signInBody": "Enter your account details to access the admin dashboard.",
     "sessionExpired": "Your session ended. Please sign in again.",
     "locked": "This account is temporarily locked after repeated failed attempts. Wait 15 minutes and try again, or contact an administrator.",
-    "invalidCredentials": "The username or password is incorrect.",
+    "invalidCredentials": "Incorrect username or password.",
     "username": "Username",
     "password": "Password",
-    "backToAdmin": "Back to the admin"
+    "backToAdmin": "Back to the admin",
+    "usernameRequired": "Enter your username.",
+    "passwordRequired": "Enter your password.",
+    "connectionFailed": "Unable to connect. Please try again.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "password": {
     "title": "Change password",
@@ -92,7 +106,9 @@
     "reasonRequired": "Enter a reason of at least 3 characters.",
     "cancel": "Cancel",
     "save": "Save",
-    "switchLanguage": "Change language"
+    "switchLanguage": "Change language",
+    "close": "Close",
+    "version": "Version"
   },
   "errors": {
     "validation": "Some fields are not valid. Check them and try again.",
@@ -447,13 +463,15 @@
   },
   "table": {
     "pagination": "Pagination",
-    "range": "{from}–{to} of {total}",
-    "perPage": "Per page",
-    "previous": "Previous page",
-    "next": "Next page",
+    "empty": "No records",
+    "one": "1 record",
+    "all": "Total records: {total}",
+    "range": "Showing {from} to {to} of {total} records",
+    "perPage": "Records per page",
+    "previous": "Previous",
+    "next": "Next",
     "page": "Page {page} of {last}",
-    "goTo": "Page",
-    "go": "Go"
+    "pagePicker": "Choose page"
   },
   "permissions": {
     "filter": "Search permissions",
@@ -477,65 +495,9 @@
   },
   "dashboard": {
     "welcome": "Welcome, {name}",
-    "body": "Everything you need to run the store: products, stock, orders, settings and staff.",
-    "section": {
-      "staff": "Create, edit and deactivate staff accounts, and reset passwords.",
-      "presets": "Ready-made permission sets you assign to staff.",
-      "workPhones": "Register or revoke delivery-agent and order-monitor phones.",
-      "orders": "Follow orders and move them along, as your permissions allow.",
-      "currencies": "Enable currencies and record exchange rates with their history.",
-      "cashAccounts": "Cash boxes and bank accounts, their balances and transfers.",
-      "periods": "Accounting periods, the close checklist and reopening.",
-      "ledger": "Trial balance and entries by account and document.",
-      "settings": "Store data, business hours, timeouts and protection thresholds.",
-      "audit": "Who changed what, when and why — filter by user, action, entity and date.",
-      "products": "Products and their SKUs: unit, low-stock threshold, and a fixed or currency-linked price.",
-      "categories": "Departments and subcategories (two levels only), and converting a category to a brand.",
-      "brands": "Brands: create, edit and hide them.",
-      "stock": "On hand, reserved, available and in custody — by warehouse, location, SKU or lot.",
-      "movements": "Every stock movement, with its source document and who made it.",
-      "warehouses": "Warehouses and their locations, and which locations are sellable.",
-      "openings": "Opening stock documents: new lots with their cost and journal entry.",
-      "transfers": "Move unreserved stock between locations, keeping each lot's identity.",
-      "counts": "Physical counts: snapshot a scope, enter what was counted, approve the differences.",
-      "writeDowns": "Write damaged or expired stock down to inventory loss.",
-      "purchasing": "Receive purchase invoices into stock with pack sizes, landed costs and lots.",
-      "suppliers": "Suppliers, their opening balances, statements and credits.",
-      "supplierPayments": "Pay suppliers, allocate to invoices and see the FX gain or loss.",
-      "payables": "What is owed to each supplier, and accounts-payable aging.",
-      "deliveryParties": "Internal agents and external drivers, with the goods, cash and orders in their custody.",
-      "cashReceipts": "Cash handed in by delivery parties, and the orders it settles.",
-      "custodyExceptions": "Goods lost or damaged in custody, returns at the door and delivery-fee refunds.",
-      "trips": "External drivers' trips: handover, outcomes, fare and the cash to settle.",
-      "deliveryZones": "Delivery fees by governorate: zones, the governorates in each, and where you don't deliver yet.",
-      "discountTiers": "An automatic discount that grows with the order, such as 5% from 150,000 IQD.",
-      "catalogImport": "Add and update products and opening stock from an Excel file, with a preview before anything is saved.",
-      "catalogImages": "Upload many product pictures at once in a ZIP, each named by its SKU.",
-      "returns": "Review customer returns: approve, receive, inspect and refund.",
-      "expenses": "Record the store's expenses, post them to the books and pay what is owed.",
-      "expenseCategories": "The kinds of expense and the ledger account each one posts to.",
-      "banners": "The banners at the top of the store's home page: picture, schedule, order and link.",
-      "reports": "Sales, profitability, cash, stock and financial statements from posted records."
-    },
     "noSections": "Your current permissions don't open any sections yet.",
-    "summary": {
-      "title": "Owner overview",
-      "asOf": "Business date {date}, Baghdad",
-      "todaySales": "Today's net sales",
-      "monthSales": "Month-to-date net sales",
-      "monthProfit": "Month-to-date gross profit",
-      "orders": "{count, plural, one {# order} other {# orders}}",
-      "waitingCalls": "Waiting for confirmation call",
-      "lateOrders": "Late orders",
-      "lowStock": "Low-stock SKUs",
-      "payablesDue": "Payables due in 7 days",
-      "orderStatus": "Orders: {status}",
-      "cashAccount": "Cash on hand: {name}"
-    },
     "firstDay": {
       "title": "Set up your store",
-      "body": "A few steps to prepare the store: the catalog and its stock, who you buy from, and who delivers. You can come back to any step later.",
-      "progress": "{done} of {total}",
       "stepNumber": "{number}.",
       "optional": "(optional)",
       "done": "done",
@@ -566,6 +528,41 @@
           "body": "Your own driver or a courier company. An order can't be handed over for delivery without one."
         }
       }
+    },
+    "setup": {
+      "progress": "{done} of {total} completed",
+      "next": "Next: {step}",
+      "showSteps": "Show steps",
+      "hideSteps": "Hide steps",
+      "complete": "Store setup is complete",
+      "dismiss": "Hide"
+    },
+    "attention": {
+      "title": "Needs attention",
+      "waitingCalls": "Orders awaiting confirmation",
+      "lateOrders": "Late orders",
+      "lowStock": "Low-stock products",
+      "payablesDue": "Supplier payments due in 7 days",
+      "calm": "Nothing to do"
+    },
+    "performance": {
+      "title": "Performance",
+      "period": "Period",
+      "today": "Today",
+      "month": "This month",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To",
+      "apply": "Show",
+      "reversed": "The start date must be on or before the end date.",
+      "netSales": "Net sales",
+      "orders": "Orders",
+      "profit": "Gross profit",
+      "profitNote": "Gross profit = net sales minus the original cost of the goods sold, for orders posted in the period.",
+      "unavailable": "Performance figures could not be loaded right now."
+    },
+    "shortcuts": {
+      "title": "Quick access"
     }
   },
   "purchasing": {
@@ -878,6 +875,43 @@
           "available": "Available"
         },
         "openInvoice": "Purchase invoice {number}"
+      },
+      "editor": {
+        "listTitle": "Invoice products",
+        "addTitle": "Add product to invoice",
+        "editTitle": "Edit invoice product",
+        "product": "Product",
+        "searchPlaceholder": "Search by product name or SKU",
+        "add": "Add to invoice",
+        "save": "Save changes",
+        "cancelEdit": "Cancel editing",
+        "edit": "Edit",
+        "remove": "Remove",
+        "columns": {
+          "product": "Product",
+          "quantityCost": "Quantity and cost",
+          "derived": "Calculated costs",
+          "receiving": "Receiving",
+          "actions": "Actions"
+        },
+        "quantity": "Quantity",
+        "lineTotal": "Total",
+        "expiryShort": "Expiry",
+        "editingBadge": "Being edited",
+        "empty": "No products added yet. Choose a product in the editor above, then press “Add to invoice”.",
+        "noProducts": "Add at least one product to the invoice.",
+        "noQuantities": "Enter a quantity for at least one product.",
+        "removeTitle": "Remove product from invoice?",
+        "removeBody": "Do you want to remove “{name}” from this invoice?",
+        "removeNoteDraft": "Your draft is saved automatically, so it is updated too. The product stays in the catalog, and stock changes only when the invoice is posted.",
+        "removeNoteRestock": "The product stays in the catalog, and nothing is saved until the invoice is posted.",
+        "removeConfirm": "Remove product",
+        "switchTitle": "Discard the editor's changes?",
+        "switchBody": "The product editor has changes that aren't on the invoice yet. Discard them and edit “{name}”?",
+        "switchConfirm": "Discard and edit",
+        "thisProduct": "this product",
+        "reviewBody": "{count, plural, one {One product} other {# products}} · total {total}. Posting adds the stock, creates the lots and records the amount owed.",
+        "skipped": "{count, plural, one {One product without a quantity stays off the invoice.} other {# products without a quantity stay off the invoice.}}"
       }
     },
     "invoices": {
@@ -1440,7 +1474,11 @@
         "quantity": "Quantity",
         "order": "Order",
         "picked": "✓"
-      }
+      },
+      "printNone": "Print pick lists",
+      "selectGuide": "Tick the orders whose status is {statuses} in the table to print their pick lists — the items needed to prepare them — together.",
+      "selectedHint": "{count, plural, one {One order selected} other {# orders selected}}; some may be on other pages of the table.",
+      "clearSelection": "Clear selection"
     },
     "attention": {
       "title": "Needs attention: stock is short",
@@ -2374,7 +2412,10 @@
       "none": "No product matches.",
       "forbidden": "Searching SKUs needs the catalog.products permission.",
       "failed": "The search failed. Try again.",
-      "needsCatalog": "Choosing a SKU searches the catalog, which needs the catalog.products permission. Ask an administrator if you need it."
+      "needsCatalog": "Choosing a SKU searches the catalog, which needs the catalog.products permission. Ask an administrator if you need it.",
+      "searching": "Searching…",
+      "noMatches": "No matching products",
+      "retry": "Retry"
     },
     "filters": {
       "warehouse": "Warehouse",
@@ -3590,7 +3631,20 @@
       "upload": "The picture could not be uploaded. Check the connection and retry.",
       "forbidden": "You don't have permission to upload pictures.",
       "decode": "This picture could not be read. Try another one."
-    }
+    },
+    "guidance": "Product images are saved as squares. Cropping starts at the center; zoom and drag to choose the visible area before confirming.",
+    "guidanceSingle": "The logo is saved as a square. Cropping starts at the center; zoom and drag to choose the visible area before confirming.",
+    "pickHint": "Drop pictures here or choose them from your device — up to {max}, each adjusted on its own.",
+    "pickHintSingle": "One JPG, PNG, WebP or AVIF picture.",
+    "removeConfirm": {
+      "title": "Delete image?",
+      "body": "Do you want to delete this image? Deletion is applied only after you save the product.",
+      "bodyLogo": "Do you want to delete this logo? Deletion is applied only after you save the brand.",
+      "action": "Confirm deletion"
+    },
+    "pendingRemoval": "{count, plural, one {One image will be deleted} other {# images will be deleted}} when you save the product.",
+    "pendingRemovalLogo": "The logo will be deleted when you save the brand.",
+    "undoRemoval": "Undo"
   },
   "settingsTabs": {
     "label": "Settings sections",
@@ -4029,13 +4083,16 @@
       "unmatchedHelp": "Make sure the file name is exactly the SKU (-2 and -3 may follow), then upload just these files in a new ZIP.",
       "open": "Open product",
       "files": "{count, plural, one {# picture} other {# pictures}}",
-      "another": "Upload another file"
+      "another": "Upload another file",
+      "failedTitle": "{count, plural, one {One image was not processed} other {# images were not processed}}",
+      "failedHelp": "These files couldn't be read or turned into a square picture, so nothing was saved and the products' pictures didn't change. Fix the file and upload it again."
     },
     "errors": {
       "CATALOG_IMAGE_ZIP_INVALID": "The file couldn't be opened as a ZIP archive. Create the archive again and upload it.",
       "tooLarge": "The archive is too large or has too many pictures. Split it into several ZIP files.",
       "generic": "The pictures couldn't be uploaded. Try again."
-    }
+    },
+    "squareNotice": "Non-square product images will be center-cropped automatically before saving."
   },
   "returns": {
     "statuses": {
@@ -4602,6 +4659,22 @@
       "tooLarge": "The picture is larger than 8 MB. Choose a smaller one.",
       "decode": "This browser couldn't open that picture. Try another file or format.",
       "encode": "The crop couldn't be prepared in this browser. Try again or use another picture."
+    },
+    "size": "Image size",
+    "sizeValue": "{percent}%",
+    "zoomOut": "Make the image smaller",
+    "zoomIn": "Make the image larger",
+    "editTitle": "Adjust image",
+    "editTitleMany": "Adjust image {current} of {total}",
+    "skip": "Skip this image",
+    "useImage": "Use this image",
+    "opening": "Opening the image…",
+    "result": "Result",
+    "marginsWhite": "Empty edges are saved white.",
+    "marginsTransparent": "Empty edges stay transparent.",
+    "ratio": {
+      "square": "The image is saved square. Cropping starts at the center; make it smaller or larger and drag it to choose what shows.",
+      "wide": "The image is saved at {ratio}. Cropping starts at the center; make it smaller or larger and drag it to choose what shows."
     }
   },
   "banners": {
@@ -5090,5 +5163,32 @@
       "corrections_iqd": "Corrections",
       "total_iqd": "Total expense"
     }
+  },
+  "filePicker": {
+    "choose": "Choose file",
+    "chooseMany": "Choose files",
+    "none": "No file selected",
+    "count": "{count, plural, one {# file selected} other {# files selected}}"
+  },
+  "confirmRemove": {
+    "title": "Remove this line?",
+    "body": "Do you want to remove this line? What you entered in it is removed from the draft.",
+    "named": "Do you want to remove “{name}”? What you entered in it is removed from the draft.",
+    "action": "Remove",
+    "clearBlank": "Remove empty lines?",
+    "clearBlankBody": "Do you want to remove every line without a quantity?",
+    "variantTitle": "Remove this variant?",
+    "variantBody": "Do you want to remove this variant? It is only removed when you save the product.",
+    "costTitle": "Remove this cost?",
+    "costBody": "Do you want to remove this extra cost from the invoice?"
+  },
+  "account": {
+    "open": "Account menu",
+    "language": "Language",
+    "changePassword": "Change password",
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out",
+    "signOutBody": "Do you want to sign out of your account?",
+    "languageFailed": "Couldn't save your language. Try again."
   }
 }

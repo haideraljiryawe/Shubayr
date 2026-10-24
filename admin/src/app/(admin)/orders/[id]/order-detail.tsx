@@ -59,6 +59,7 @@ import {
   type OrderAction,
   type OrderStatus,
 } from "@/lib/orders";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Notice =
   | { kind: "conflict"; status: OrderStatus | null }
@@ -352,7 +353,7 @@ export function OrderDetailView({
     >
       <Link
         href="/orders"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark"
+        className="inline-flex items-center gap-1.5 text-label text-primary-dark"
       >
         <ArrowRight className="size-4 ltr:-scale-x-100" aria-hidden />
         {t("back")}
@@ -361,13 +362,13 @@ export function OrderDetailView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1
-            className="text-2xl font-bold"
+            className="text-page-title"
             dir="ltr"
             data-testid="order-number"
           >
             {order.order_number}
           </h1>
-          <span className="text-sm text-text-muted">
+          <span className="text-body text-text-muted">
             {dateTime(order.placed_at)}
           </span>
         </div>
@@ -438,7 +439,7 @@ export function OrderDetailView({
       <Card className="flex flex-col gap-3 p-5" data-testid="order-actions">
         <h2 className="font-bold">{t("detail.actions")}</h2>
         {actions.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="order-no-actions">
+          <p className="text-body text-text-muted" data-testid="order-no-actions">
             {t("detail.noActions")}
           </p>
         ) : (
@@ -480,7 +481,7 @@ export function OrderDetailView({
         {hasPickList(order, permissions) ? (
           <Link
             href={`/orders/${id}/pick-list`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dark hover:underline"
+            className="inline-flex items-center gap-1.5 text-label text-primary-dark hover:underline"
             data-testid="order-pick-list"
           >
             <ClipboardList className="size-4" aria-hidden />
@@ -489,7 +490,7 @@ export function OrderDetailView({
         ) : null}
         {order.delivery?.status === "failed" &&
         order.delivery.failure_reason ? (
-          <p className="text-sm" data-testid="delivery-failure">
+          <p className="text-body" data-testid="delivery-failure">
             {t("deliveryFailed", {
               reason: order.delivery.failure_reason,
               count: order.delivery.retry_count ?? 0,
@@ -498,7 +499,7 @@ export function OrderDetailView({
         ) : null}
         {actions.includes("dispatch") && blocker ? (
           <p
-            className="text-sm text-text-muted"
+            className="text-body text-text-muted"
             data-testid="order-dispatch-blocked"
           >
             {t(`dispatchBlocked.${blocker}`)}
@@ -510,43 +511,43 @@ export function OrderDetailView({
         <div className="flex flex-col gap-5 lg:col-span-2">
           <Card className="overflow-x-auto p-5">
             <h2 className="mb-3 font-bold">{t("detail.items")}</h2>
-            <table className="w-full text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="py-1 text-start font-semibold">
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>
                     {t("detail.items")}
-                  </th>
-                  <th className="py-1 text-center font-semibold">
+                  </Th>
+                  <Th align="center">
                     {t("detail.quantity")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
+                  </Th>
+                  <Th>
                     {t("detail.unitPrice")}
-                  </th>
-                  <th className="py-1 text-end font-semibold">
+                  </Th>
+                  <Th>
                     {t("detail.lineTotal")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {(order.items ?? []).map((item) => (
-                  <tr
+                  <Tr
                     key={item.id}
-                    className="border-t border-border"
+                   
                     data-testid="order-item"
                   >
-                    <td className="py-2">
+                    <Td>
                       {locale === "ar"
                         ? item.product_name_ar
                         : item.product_name_en}
-                    </td>
-                    <td className="py-2 text-center">{item.quantity}</td>
-                    <td className="py-2 text-end">{money(item.unit_price)}</td>
-                    <td className="py-2 text-end">{money(item.line_total)}</td>
-                  </tr>
+                    </Td>
+                    <Td align="center">{item.quantity}</Td>
+                    <Td>{money(item.unit_price)}</Td>
+                    <Td>{money(item.line_total)}</Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
-            <dl className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-sm">
+              </TBody>
+            </Table>
+            <dl className="mt-4 flex flex-col gap-1 border-t border-border pt-3 text-body">
               <SummaryRow
                 label={t("detail.subtotal")}
                 value={money(order.subtotal)}
@@ -566,7 +567,7 @@ export function OrderDetailView({
                 <dd data-testid="order-total">{money(order.total)}</dd>
               </div>
             </dl>
-            <p className="mt-3 text-sm">
+            <p className="mt-3 text-body">
               {t("detail.payment")}: {t("detail.cod")}
               {(order.payments ?? []).map((payment) => (
                 <Badge key={payment.id} className="ms-2">
@@ -582,7 +583,7 @@ export function OrderDetailView({
               {t("detail.timeline")}
             </h2>
             {events.length === 0 ? (
-              <p className="text-sm text-text-muted">
+              <p className="text-body text-text-muted">
                 {t("detail.noTimeline")}
               </p>
             ) : (
@@ -597,11 +598,11 @@ export function OrderDetailView({
                     <span className="font-semibold">
                       {event.status ? t(`status.${event.status}`) : ""}
                     </span>
-                    <span className="text-xs text-text-muted">
+                    <span className="text-caption text-text-muted">
                       {dateTime(event.at)}
                     </span>
                     {event.note ? (
-                      <span className="text-sm">{event.note}</span>
+                      <span className="text-body">{event.note}</span>
                     ) : null}
                   </li>
                 ))}
@@ -635,7 +636,7 @@ export function OrderDetailView({
               {t("detail.customer")}
             </h2>
             <span>{order.customer?.name || t("noName")}</span>
-            <span className="text-sm text-text-muted" dir="ltr">
+            <span className="text-body text-text-muted" dir="ltr">
               {order.customer?.phone}
             </span>
           </Card>
@@ -648,12 +649,12 @@ export function OrderDetailView({
             {address?.address_label ? (
               <span className="font-semibold">{address.address_label}</span>
             ) : null}
-            <span className="text-sm">
+            <span className="text-body">
               {[address?.city, address?.area, address?.street, address?.details]
                 .filter(Boolean)
                 .join("، ")}
             </span>
-            <span className="text-sm text-text-muted" dir="ltr">
+            <span className="text-body text-text-muted" dir="ltr">
               {address?.contact_phone}
             </span>
           </Card>
@@ -668,7 +669,7 @@ export function OrderDetailView({
             </h2>
             {order.delivery ? (
               <>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-body">
                   {order.delivery.status ? (
                     <Badge
                       tone="info"
@@ -693,7 +694,7 @@ export function OrderDetailView({
                       void assign();
                     }}
                   >
-                    <span className="text-sm font-semibold">
+                    <span className="text-label">
                       {carrier ? t("assign.reassign") : t("assign.title")}
                     </span>
                     <PartyPicker
@@ -715,7 +716,7 @@ export function OrderDetailView({
                 ) : null}
               </>
             ) : (
-              <p className="text-sm text-text-muted">
+              <p className="text-body text-text-muted">
                 {t("detail.noDelivery")}
               </p>
             )}
@@ -746,7 +747,7 @@ export function OrderDetailView({
             className="flex flex-col gap-4"
             data-testid="confirmation-contact-fields"
           >
-            <label className="flex items-start gap-2 text-sm font-semibold text-text">
+            <label className="flex items-start gap-2 text-label text-text">
               <input
                 type="checkbox"
                 required
@@ -780,7 +781,7 @@ export function OrderDetailView({
                   })}
                   name="adjusted_delivery_fee"
                 >
-                  <NumberInput
+                  <NumberInput grouping
                     value={adjustedDeliveryFee}
                     parse={{ integer: true, min: 0 }}
                     onValueChange={setAdjustedDeliveryFee}
@@ -789,7 +790,7 @@ export function OrderDetailView({
                 </Field>
                 {adjustedDeliveryFee !== null ? (
                   <div
-                    className="rounded-md bg-card px-4 py-3 text-sm"
+                    className="rounded-md bg-card px-4 py-3 text-body"
                     aria-live="polite"
                     data-testid="delivery-fee-preview"
                   >
@@ -799,13 +800,13 @@ export function OrderDetailView({
                         {money(Number(order.delivery_fee ?? 0))} → {money(adjustedDeliveryFee)}
                       </span>
                     </p>
-                    <p className="mt-1 text-base font-bold">
+                    <p className="mt-1 text-section">
                       {t("confirmation.newTotal")}{" "}
                       <span dir="ltr" data-testid="delivery-fee-preview-total">
                         {money(totalWithFee(order, adjustedDeliveryFee))}
                       </span>
                     </p>
-                    <p className="mt-1 text-xs text-text-muted">{t("confirmation.customerNotified")}</p>
+                    <p className="mt-1 text-caption text-text-muted">{t("confirmation.customerNotified")}</p>
                   </div>
                 ) : null}
                 {adjustedDeliveryFee !== null ? (

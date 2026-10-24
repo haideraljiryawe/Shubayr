@@ -36,7 +36,11 @@ RUN npm prune --omit=dev
 
 FROM node:24-alpine AS production
 WORKDIR /app
+ARG RELEASE_VERSION=development
+ARG RELEASE_COMMIT=unknown
 ENV NODE_ENV=production
+ENV RELEASE_VERSION=$RELEASE_VERSION
+ENV RELEASE_COMMIT=$RELEASE_COMMIT
 COPY --from=pruned --chown=node:node /app/package*.json ./
 COPY --from=pruned --chown=node:node /app/node_modules ./node_modules
 COPY --from=pruned --chown=node:node /app/dist ./dist

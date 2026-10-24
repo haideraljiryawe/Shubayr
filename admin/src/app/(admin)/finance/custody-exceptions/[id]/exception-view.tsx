@@ -13,6 +13,7 @@ import { OperationKey } from "@/lib/finance/cash-receipts";
 import type { CustodyException } from "@/lib/finance/custody-exceptions";
 import { entryHref } from "@/lib/finance/links";
 import { moneyText, toFixed } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export function ExceptionView({ exception, canReverse, canViewLedger }: { exception: CustodyException; canReverse: boolean; canViewLedger: boolean }) {
   const t = useTranslations("custodyExceptions");
@@ -31,7 +32,7 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
           {t("detail.reversedNotice", { number: reversedNumber })}
         </Alert>
       ) : null}
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("detail.type")}>
           <span data-testid="exception-type">{t(`types.${exception.type}`)}</span>
         </Item>
@@ -87,45 +88,45 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
       {exception.lines.length ? (
         <Card className="overflow-x-auto">
           <h2 className="mb-2 font-bold">{t("detail.lines")}</h2>
-          <table className="w-full text-sm">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("create.product")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("create.lot")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("detail.quantity")}</th>
-                {exception.type === "return_against_uncollected" ? <th className="px-3 py-2 text-end font-semibold">{t("detail.returnAmount")}</th> : null}
-                {exception.lines[0]?.location ? <th className="px-3 py-2 text-start font-semibold">{t("create.location")}</th> : null}
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>{t("create.product")}</Th>
+                <Th>{t("create.lot")}</Th>
+                <Th>{t("detail.quantity")}</Th>
+                {exception.type === "return_against_uncollected" ? <Th>{t("detail.returnAmount")}</Th> : null}
+                {exception.lines[0]?.location ? <Th>{t("create.location")}</Th> : null}
+              </Tr>
+            </THead>
+            <TBody>
               {exception.lines.map((line) => (
-                <tr key={line.id} className="border-t border-border" data-testid="exception-line">
-                  <td className="px-3 py-2">{locale === "ar" ? line.order_item.product_name_ar : line.order_item.product_name_en}</td>
-                  <td className="px-3 py-2" dir="ltr">
+                <Tr key={line.id} data-testid="exception-line">
+                  <Td>{locale === "ar" ? line.order_item.product_name_ar : line.order_item.product_name_en}</Td>
+                  <Td dir="ltr">
                     {line.batch.lot_number ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  </Td>
+                  <Td dir="ltr">
                     {line.quantity}
-                  </td>
+                  </Td>
                   {exception.type === "return_against_uncollected" ? (
-                    <td className="px-3 py-2 text-end" dir="ltr">
+                    <Td dir="ltr">
                       {money(line.return_amount_iqd)}
-                    </td>
+                    </Td>
                   ) : null}
                   {line.location ? (
-                    <td className="px-3 py-2" dir="ltr">
+                    <Td dir="ltr">
                       {line.location.code}
-                    </td>
+                    </Td>
                   ) : null}
-                </tr>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </Card>
       ) : null}
 
       {canViewLedger && exception.postings.length ? (
-        <Card className="flex flex-wrap gap-3 text-sm">
+        <Card className="flex flex-wrap gap-3 text-body">
           <span className="font-semibold">{t("detail.postings")}</span>
           {exception.postings.map((posting) => (
             <Link key={posting.journal_entry_id} href={entryHref(posting.journal_entry_id)} className="text-primary-dark hover:underline">
@@ -159,7 +160,7 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -196,7 +197,7 @@ function ReversePanel({ exception, partyLoss, onPosted }: { exception: CustodyEx
   if (!open) {
     return (
       <div className="flex flex-col items-end gap-2">
-        {partyLoss ? <p className="text-xs text-text-muted" data-testid="exception-receipt-rule">{t("receiptRule")}</p> : null}
+        {partyLoss ? <p className="text-caption text-text-muted" data-testid="exception-receipt-rule">{t("receiptRule")}</p> : null}
         <Button variant="danger" onClick={() => setOpen(true)} data-testid="exception-reverse">
           {t("reverse")}
         </Button>
@@ -205,8 +206,8 @@ function ReversePanel({ exception, partyLoss, onPosted }: { exception: CustodyEx
   }
   return (
     <Card className="flex flex-col gap-3 border-error/40" data-testid="exception-reverse-panel">
-      <h2 className="text-lg font-bold">{t("reverseTitle")}</h2>
-      <p className="text-sm text-text-muted">{t("reverseBody")}</p>
+      <h2 className="text-section">{t("reverseTitle")}</h2>
+      <p className="text-body text-text-muted">{t("reverseBody")}</p>
       {partyLoss ? (
         <Alert tone="info" data-testid="exception-receipt-rule">
           {t("receiptRule")}

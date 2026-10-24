@@ -7,6 +7,7 @@ import {
   isSameOrigin,
   respond,
 } from "@/lib/session/bff";
+import { preferredLocale, setLocaleCookie } from "@/lib/session/locale-cookie";
 
 /**
  * POST /api/auth/login — username + password → httpOnly session cookies.
@@ -15,7 +16,8 @@ import {
  * and never returned: the browser gets the user profile only. Failures pass
  * through with the API's status and error envelope, so the form can tell a
  * wrong password (401) from a locked account (429 ACCOUNT_LOCKED) from a rate
- * limit (429) from field errors (422).
+ * limit (429) from field errors (422). The staff member's saved interface
+ * language becomes this browser's.
  */
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return crossOriginRejected();
@@ -37,5 +39,9 @@ export async function POST(request: NextRequest) {
   // Start clean: a previous admin's cookies must not survive a new sign-in.
   clearSession(response);
   applySession(response, { access_token, refresh_token });
+  // The staff member's own language (VIS-004) replaces whatever this browser
+  // last showed, so a shared computer follows whoever signs in.
+  const locale = preferredLocale(user);
+  if (locale) setLocaleCookie(response, locale);
   return response;
 }

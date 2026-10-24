@@ -12,6 +12,7 @@ import { errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { formatRate as rateText } from "@/lib/finance/money";
 import type { components } from "@/types/api";
 import { RateForm } from "./rate-form";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Currency = components["schemas"]["Currency"];
 type ExchangeRate = components["schemas"]["ExchangeRate"];
@@ -87,25 +88,25 @@ export function CurrenciesView({
   return (
     <div className="flex flex-col gap-6">
       <Card className="p-5">
-        <h2 className="mb-3 text-lg font-bold">{t("currencies")}</h2>
-        <table className="w-full text-sm" data-testid="currency-table">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="py-1 text-start font-semibold">{t("columns.code")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.name")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.symbol")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.precision")}</th>
-              <th className="py-1 text-start font-semibold">{t("columns.status")}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <h2 className="mb-3 text-section">{t("currencies")}</h2>
+        <Table data-testid="currency-table">
+          <THead>
+            <Tr>
+              <Th>{t("columns.code")}</Th>
+              <Th>{t("columns.name")}</Th>
+              <Th>{t("columns.symbol")}</Th>
+              <Th>{t("columns.precision")}</Th>
+              <Th>{t("columns.status")}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {currencies.map((currency) => (
-              <tr key={currency.code} className="border-t border-border" data-testid={`currency-${currency.code}`}>
-                <td className="py-2 font-semibold" dir="ltr">{currency.code}</td>
-                <td className="py-2">{locale === "ar" ? currency.name_ar : currency.name_en}</td>
-                <td className="py-2" dir="ltr">{currency.symbol}</td>
-                <td className="py-2">{currency.display_precision}</td>
-                <td className="py-2">
+              <Tr key={currency.code} data-testid={`currency-${currency.code}`}>
+                <Td className="font-semibold" dir="ltr">{currency.code}</Td>
+                <Td>{locale === "ar" ? currency.name_ar : currency.name_en}</Td>
+                <Td dir="ltr">{currency.symbol}</Td>
+                <Td>{currency.display_precision}</Td>
+                <Td>
                   {currency.is_base ? (
                     <span className="inline-flex items-center gap-1" data-testid="currency-base">
                       <Lock className="size-3.5" aria-hidden />
@@ -132,12 +133,12 @@ export function CurrenciesView({
                   {toggleError?.code === currency.code ? (
                     <FormError kind={toggleError.kind} code={toggleError.errorCode} />
                   ) : null}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-        <p className="mt-3 text-xs text-text-muted">{t("baseLocked")}</p>
+          </TBody>
+        </Table>
+        <p className="mt-3 text-caption text-text-muted">{t("baseLocked")}</p>
       </Card>
 
       {staleLatest.map(({ code, latest }) => (
@@ -164,44 +165,44 @@ export function CurrenciesView({
       ) : null}
 
       <Card className="overflow-x-auto p-5">
-        <h2 className="mb-3 text-lg font-bold">{t("history.title")}</h2>
+        <h2 className="mb-3 text-section">{t("history.title")}</h2>
         {rates.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="rate-history-empty">{t("history.empty")}</p>
+          <p className="text-body text-text-muted" data-testid="rate-history-empty">{t("history.empty")}</p>
         ) : (
-          <table className="w-full text-sm" data-testid="rate-history">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="py-1 text-start font-semibold">{t("history.effective")}</th>
-                <th className="py-1 text-start font-semibold">{t("history.rate")}</th>
-                <th className="py-1 text-start font-semibold">{t("history.previous")}</th>
-                <th className="py-1 text-start font-semibold">{t("history.by")}</th>
-                <th className="py-1 text-start font-semibold">{t("history.reason")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="rate-history">
+            <THead>
+              <Tr>
+                <Th>{t("history.effective")}</Th>
+                <Th>{t("history.rate")}</Th>
+                <Th>{t("history.previous")}</Th>
+                <Th>{t("history.by")}</Th>
+                <Th>{t("history.reason")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {rates.map((rate) => {
                 const previous = previousOf(rate);
                 return (
-                  <tr key={rate.id} className="border-t border-border align-top" data-testid="rate-row" data-rate={String(rate.rate)}>
-                    <td className="py-2">
+                  <Tr key={rate.id} className="align-top" data-testid="rate-row" data-rate={String(rate.rate)}>
+                    <Td>
                       {dateTime(rate.effective_at)}
-                      <span className="block text-xs text-text-muted">
+                      <span className="block text-caption text-text-muted">
                         {t("history.recorded", { at: dateTime(rate.created_at) })}
                       </span>
-                    </td>
-                    <td className="py-2 font-semibold" dir="ltr">
+                    </Td>
+                    <Td className="font-semibold" dir="ltr">
                       {rateText(rate.currency_code ?? "", rate.base_currency_code ?? baseCode, rate.rate ?? "0", locale)}
-                    </td>
-                    <td className="py-2 text-text-muted" dir="ltr">
+                    </Td>
+                    <Td className="text-text-muted" dir="ltr">
                       {previous ? `${String(previous.rate)} → ${String(rate.rate)}` : t("history.first")}
-                    </td>
-                    <td className="py-2">{(rate.id && authors[rate.id]) || shortId(rate.set_by)}</td>
-                    <td className="py-2">{rate.reason}</td>
-                  </tr>
+                    </Td>
+                    <Td>{(rate.id && authors[rate.id]) || shortId(rate.set_by)}</Td>
+                    <Td>{rate.reason}</Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
     </div>

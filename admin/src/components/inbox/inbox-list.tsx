@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TableFooter } from "@/components/table/table-footer";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCheck } from "lucide-react";
 import { Alert, Button } from "@/components/ui";
@@ -83,7 +84,6 @@ export function InboxList({
     [onNavigate, router, t, toast],
   );
 
-  const pages = data ? Math.max(1, Math.ceil(data.total / perPage)) : 1;
   const hasUnread =
     (unread ?? 0) > 0 || Boolean(data?.data.some((item) => !item.read_at));
 
@@ -156,7 +156,7 @@ export function InboxList({
         <div className="h-24 animate-pulse rounded-md bg-card" aria-busy />
       ) : data.data.length === 0 ? (
         <p
-          className="py-6 text-center text-sm text-text-muted"
+          className="py-6 text-center text-body text-text-muted"
           data-testid="inbox-empty"
         >
           {unreadOnly ? t("emptyUnread") : t("empty")}
@@ -192,13 +192,13 @@ export function InboxList({
                   onClick={() => open(item)}
                   data-testid="inbox-open"
                 >
-                  <span className={cn("text-sm", isUnread && "font-bold")}>
+                  <span className={cn("text-body", isUnread && "font-bold")}>
                     {locale === "ar" ? item.title_ar : item.title_en}
                   </span>
-                  <span className="text-xs text-text-muted">
+                  <span className="text-caption text-text-muted">
                     {locale === "ar" ? item.body_ar : item.body_en}
                   </span>
-                  <span className="text-xs text-text-muted">
+                  <span className="text-caption text-text-muted">
                     {dateTime(item.created_at)}
                   </span>
                 </button>
@@ -220,31 +220,13 @@ export function InboxList({
         </ul>
       )}
 
-      {!compact && data && pages > 1 ? (
-        <nav
-          className="flex items-center justify-between gap-2"
-          aria-label={t("pageOf", { page, pages })}
-        >
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-          >
-            {t("previous")}
-          </Button>
-          <span className="text-sm text-text-muted">
-            {t("pageOf", { page, pages })}
-          </span>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={page >= pages}
-            onClick={() => setPage(page + 1)}
-          >
-            {t("next")}
-          </Button>
-        </nav>
+      {!compact && data && data.total > 0 ? (
+        <TableFooter
+          total={data.total}
+          page={page}
+          perPage={perPage}
+          onPage={setPage}
+        />
       ) : null}
     </div>
   );

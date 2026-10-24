@@ -86,11 +86,11 @@ export function PartiesView({
     {
       key: "actions",
       header: <span className="sr-only">{t("columns.actions")}</span>,
-      className: "text-end",
+      align: "end",
       cell: (party) => (
         <div className="flex flex-wrap justify-end gap-2">
           {canViewCustody ? (
-            <Link href={`/delivery-parties/${party.id}`} className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="party-custody-link">
+            <Link href={`/delivery-parties/${party.id}`} className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card" data-testid="party-custody-link">
               {t("viewCustody")}
             </Link>
           ) : null}
@@ -135,7 +135,7 @@ export function PartiesView({
       {canManageDrivers ? (
         <div ref={formRef} className="flex flex-col gap-3">
           {editing ? null : (
-            <div className="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label={t("addKind")} data-testid="party-add-kind">
+            <div className="flex flex-wrap gap-4 text-body" role="radiogroup" aria-label={t("addKind")} data-testid="party-add-kind">
               <span className="font-semibold">{t("addKind")}</span>
               {MANAGED_KINDS.map((kind) => (
                 <label key={kind} className="flex items-center gap-2">

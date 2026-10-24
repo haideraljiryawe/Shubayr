@@ -8,20 +8,12 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-} from "lucide-react";
-import { Button, Input, Select } from "@/components/ui";
-import { NumberInput } from "@/components/forms/number-input";
-import { cn } from "@/lib/cn";
-import { PER_PAGE_OPTIONS, type SortDir } from "@/lib/table-params";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
+import { Input, Select } from "@/components/ui";
+import type { SortDir } from "@/lib/table-params";
+import { EmptyRow, Table, TableCard, TBody, Td, Th, THead, Tr } from "./table";
+import { TableFooter } from "./table-footer";
 
 /* ---------------------------------------------------------------------------
  * DataTable — server-side pagination, sorting and filtering.
@@ -39,6 +31,8 @@ export interface Column<T> {
   /** Present when the server can sort on this column. */
   sortKey?: string;
   cell: (row: T) => ReactNode;
+  /** Logical alignment of heading and cells together; "end" for row actions. */
+  align?: "start" | "end" | "center";
   className?: string;
 }
 
@@ -99,11 +93,7 @@ export function DataTable<T>({
   caption: string;
   testId?: string;
 }) {
-  const t = useTranslations("table");
   const { pending, update } = useTableUrl();
-  const lastPage = Math.max(1, Math.ceil(state.total / state.perPage));
-  const from = state.total === 0 ? 0 : (state.page - 1) * state.perPage + 1;
-  const to = Math.min(state.total, state.page * state.perPage);
 
   function sortBy(key: string) {
     const dir: SortDir =
@@ -113,196 +103,80 @@ export function DataTable<T>({
 
   return (
     <PendingContext.Provider value={{ pending, update }}>
-      <div className="flex flex-col gap-4" data-testid={testId}>
-        {toolbar ? (
-          <div className="flex flex-wrap items-end gap-3">{toolbar}</div>
-        ) : null}
-
-        <div
-          className={cn(
-            // `relative` keeps the sr-only caption and header labels (which
-            // are absolutely positioned) inside this scroller; without it they
-            // are placed against the page and, in RTL, widen the document.
-            "relative overflow-x-auto rounded-lg border border-border bg-surface shadow-sm transition-opacity",
-            pending && "opacity-60",
-          )}
-          aria-busy={pending || undefined}
-        >
-          <table className="w-full min-w-[40rem] text-sm">
-            <caption className="sr-only">{caption}</caption>
-            <thead className="bg-card text-text-muted">
-              <tr>
-                {columns.map((column) => {
-                  const active =
-                    column.sortKey && state.sort === column.sortKey;
-                  const Icon = !active
-                    ? ArrowUpDown
-                    : state.dir === "asc"
-                      ? ArrowUp
-                      : ArrowDown;
-                  return (
-                    <th
-                      key={column.key}
-                      scope="col"
-                      className={cn(
-                        "px-4 py-3 text-start font-semibold",
-                        column.className,
-                      )}
-                      aria-sort={
-                        active
-                          ? state.dir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : undefined
-                      }
-                    >
-                      {column.sortKey ? (
-                        <button
-                          type="button"
-                          onClick={() => sortBy(column.sortKey!)}
-                          className="inline-flex cursor-pointer items-center gap-1 hover:text-text"
-                          data-testid={`sort-${column.sortKey}`}
-                        >
-                          {column.header}
-                          <Icon className="size-3.5" aria-hidden />
-                        </button>
-                      ) : (
-                        column.header
-                      )}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-4 py-10 text-center text-text-muted"
-                  >
-                    {emptyLabel}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr
-                    key={rowKey(row)}
-                    className="border-t border-border hover:bg-background"
-                    data-testid="table-row"
-                  >
-                    {columns.map((column) => (
-                      <td
-                        key={column.key}
-                        className={cn(
-                          "px-4 py-3 align-middle",
-                          column.className,
-                        )}
-                      >
-                        {column.cell(row)}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <nav
-          aria-label={t("pagination")}
-          className="flex flex-wrap items-center justify-between gap-3 text-sm text-text-muted"
-        >
-          <p data-testid="table-range">
-            {t("range", { from, to, total: state.total })}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2">
-              <span>{t("perPage")}</span>
-              <Select
-                className="h-9 w-20"
-                value={state.perPage}
-                onChange={(event) => update({ per_page: event.target.value })}
-              >
-                {PER_PAGE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={state.page <= 1 || pending}
-              onClick={() => update({ page: state.page - 1 }, false)}
-              aria-label={t("previous")}
-            >
-              <ChevronRight className="size-4 ltr:rotate-180" aria-hidden />
-            </Button>
-            <span data-testid="table-page">
-              {t("page", { page: state.page, last: lastPage })}
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={state.page >= lastPage || pending}
-              onClick={() => update({ page: state.page + 1 }, false)}
-              aria-label={t("next")}
-            >
-              <ChevronLeft className="size-4 ltr:rotate-180" aria-hidden />
-            </Button>
-            <GoToPage
-              key={state.page}
-              last={lastPage}
-              onGo={(page) => update({ page }, false)}
-            />
-          </div>
-        </nav>
-      </div>
-    </PendingContext.Provider>
-  );
-}
-
-function GoToPage({
-  last,
-  onGo,
-}: {
-  last: number;
-  onGo: (page: number) => void;
-}) {
-  const t = useTranslations("table");
-  const [page, setPage] = useState<number | null>(null);
-  return (
-    <form
-      className="flex items-start gap-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (page !== null) onGo(page);
-      }}
-    >
-      <label className="sr-only" htmlFor="table-go-to">
-        {t("goTo")}
-      </label>
-      <div className="flex w-20 flex-col gap-1">
-        <NumberInput
-          id="table-go-to"
-          className="h-9"
-          placeholder={t("goTo")}
-          value={page}
-          onValueChange={setPage}
-          parse={{ integer: true, min: 1, max: last }}
-        />
-      </div>
-      <Button
-        size="sm"
-        variant="secondary"
-        type="submit"
-        disabled={page === null}
+      <TableCard
+        toolbar={toolbar}
+        pending={pending}
+        data-testid={testId}
+        footer={
+          <TableFooter
+            total={state.total}
+            page={state.page}
+            perPage={state.perPage}
+            pending={pending}
+            onPage={(page) => update({ page }, false)}
+            onPerPage={(perPage) => update({ per_page: perPage })}
+          />
+        }
       >
-        {t("go")}
-      </Button>
-    </form>
+        <Table caption={caption} minWidth="40rem">
+          <THead>
+            <Tr>
+              {columns.map((column) => {
+                const active = column.sortKey && state.sort === column.sortKey;
+                const Icon = !active
+                  ? ArrowUpDown
+                  : state.dir === "asc"
+                    ? ArrowUp
+                    : ArrowDown;
+                return (
+                  <Th
+                    key={column.key}
+                    align={column.align}
+                    className={column.className}
+                    aria-sort={
+                      active
+                        ? state.dir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : undefined
+                    }
+                  >
+                    {column.sortKey ? (
+                      <button
+                        type="button"
+                        onClick={() => sortBy(column.sortKey!)}
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-text"
+                        data-testid={`sort-${column.sortKey}`}
+                      >
+                        {column.header}
+                        <Icon className="size-3.5" aria-hidden />
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </Th>
+                );
+              })}
+            </Tr>
+          </THead>
+          <TBody>
+            {rows.length === 0 ? (
+              <EmptyRow colSpan={columns.length}>{emptyLabel}</EmptyRow>
+            ) : (
+              rows.map((row) => (
+                <Tr key={rowKey(row)} data-testid="table-row">
+                  {columns.map((column) => (
+                    <Td key={column.key} align={column.align} className={column.className}>
+                      {column.cell(row)}
+                    </Td>
+                  ))}
+                </Tr>
+              ))
+            )}
+          </TBody>
+        </Table>
+      </TableCard>
+    </PendingContext.Provider>
   );
 }
 
@@ -351,13 +225,13 @@ export function TableFilter({
 }) {
   const { update, searchParams } = useTableUrl();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Select
         className="sm:min-w-40"
         value={searchParams.get(name) ?? ""}
         data-testid={`filter-${name}`}
-        onChange={(event) => update({ [name]: event.target.value || null })}
+        onValueChange={(value) => update({ [name]: value || null })}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

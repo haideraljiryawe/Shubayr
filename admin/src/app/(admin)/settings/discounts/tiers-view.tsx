@@ -60,7 +60,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{stacking ? t("stackingOn") : t("stackingOff")}</span>
         </p>
-        <p className="mt-1 text-xs">{t("noDeliveryFee")}</p>
+        <p className="mt-1 text-caption">{t("noDeliveryFee")}</p>
       </Alert>
 
       <div className="flex justify-end">
@@ -71,7 +71,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
       </div>
 
       {tiers.length === 0 ? (
-        <Card className="text-sm text-text-muted" data-testid="tiers-empty">
+        <Card className="text-body text-text-muted" data-testid="tiers-empty">
           {t("empty")}
         </Card>
       ) : (
@@ -88,7 +88,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
                         {tier.is_active ? t("active") : t("inactive")}
                       </Badge>
                     </p>
-                    <p className="text-sm text-text-muted" data-testid="tier-example">
+                    <p className="text-body text-text-muted" data-testid="tier-example">
                       {t("example", {
                         subtotal: money(minimum),
                         percent: percent(tier.percent),
@@ -96,7 +96,7 @@ export function TiersView({ tiers, stacking }: { tiers: DiscountTier[]; stacking
                       })}
                     </p>
                     {warnings.has(tier.id) ? (
-                      <p className="flex items-center gap-1 text-xs text-warning-dark" data-testid="tier-warning">
+                      <p className="flex items-center gap-1 text-caption text-warning-dark" data-testid="tier-warning">
                         <TriangleAlert className="size-3.5" aria-hidden />
                         {t("notBetter")}
                       </p>
@@ -203,17 +203,17 @@ function TierForm({ tier, onClose, onSaved }: { tier: DiscountTier | null; onClo
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("fields.minimum")} name="min_subtotal_iqd" error={errors.min_subtotal_iqd ?? api.fieldErrors.min_subtotal_iqd} hint={t("fields.minimumHint")}>
-          <NumberInput value={minimum} parse={{ integer: true, min: 0 }} onValueChange={setMinimum} data-testid="tier-minimum" />
+          <NumberInput grouping value={minimum} parse={{ integer: true, min: 0 }} onValueChange={setMinimum} data-testid="tier-minimum" />
         </Field>
         <Field label={t("fields.percent")} name="percent" error={errors.percent ?? api.fieldErrors.percent} hint={t("fields.percentHint")}>
           <NumberInput value={percent} parse={{ maxDecimals: 2, min: 0 }} onValueChange={setPercent} data-testid="tier-percent" />
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-sm font-semibold">
+      <label className="flex items-center gap-2 text-label">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} data-testid="tier-active" />
         {t("fields.active")}
       </label>
-      <div className="rounded-md bg-card px-4 py-3 text-sm" aria-live="polite" data-testid="tier-form-example">
+      <div className="rounded-md bg-card px-4 py-3 text-body" aria-live="polite" data-testid="tier-form-example">
         {valid
           ? t("example", { subtotal: money(minimum), percent: shownPercent(percent), discount: money(tierDiscount(minimum, percent)) })
           : t("exampleEmpty")}

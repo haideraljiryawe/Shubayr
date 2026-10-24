@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   UnprocessableEntityException,
@@ -28,6 +29,7 @@ import { businessDate } from '../finance/business-date';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OperationService } from '../finance/operation.service';
 import { BulkProductDto } from './dto/bulk-product.dto';
+import { normalizeCatalogSearch, normalizedArabicSql } from './arabic-search';
 
 export type FixedPriceApprovalPayload = {
   product_id: string;
@@ -52,6 +54,23 @@ const productInclude = {
 
 type ProductRow = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 
+type ProductAvailability = {
+  product_id: string;
+  in_stock: boolean;
+  availability: 'in_stock' | 'low_stock' | 'out_of_stock';
+  available_qty: number;
+  variants: Array<{
+    variant_id: string;
+    sku: string;
+    base_unit: string;
+    whole_units_only: boolean;
+    low_stock_threshold: number;
+    available_qty: number;
+    availability: 'in_stock' | 'low_stock' | 'out_of_stock';
+    in_stock: boolean;
+  }>;
+};
+
 type PreparedVariant = {
   id?: string;
   sku: string;
@@ -74,6 +93,8 @@ type PreparedVariant = {
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
@@ -755,6 +776,120 @@ export class ProductsService {
     await this.search?.indexProduct(id);
   }
 
+  async deleteOrArchive(
+    id: string,
+    actorId: string,
+  ): Promise<{ outcome: 'deleted' | 'archived'; reasons: string[] }> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          images: { select: { url: true } },
+          _count: {
+            select: {
+              purchase_invoice_items: true,
+              inventory_batches: true,
+              order_items: true,
+              product_reviews: true,
+              price_approval_requests: true,
+            },
+          },
+        },
+      });
+      if (!product) throw new NotFoundException('Product not found');
+
+      const bannerReferences = await tx.banner.count({
+        where: { action_type: 'product', action_target_id: id },
+      });
+      const variantHistory = await tx.productVariant.findFirst({
+        where: {
+          product_id: id,
+          OR: [
+            { sku_cost: { isNot: null } },
+            { opening_lines: { some: {} } },
+            { transfer_lines: { some: {} } },
+            { count_lines: { some: {} } },
+            { write_down_lines: { some: {} } },
+            { scoped_counts: { some: {} } },
+            { retrieval_lines: { some: {} } },
+          ],
+        },
+        select: { id: true },
+      });
+      const reasons = [
+        ...(product._count.order_items ? ['order_history'] : []),
+        ...(product._count.inventory_batches || variantHistory
+          ? ['inventory_history']
+          : []),
+        ...(product._count.purchase_invoice_items ? ['purchase_history'] : []),
+        ...(product._count.product_reviews ? ['product_reviews'] : []),
+        ...(product._count.price_approval_requests
+          ? ['price_approval_history']
+          : []),
+        ...(bannerReferences ? ['banner_action'] : []),
+      ];
+
+      if (reasons.length) {
+        await tx.product.update({
+          where: { id },
+          data: { status: 'archived', search_sync_required: true },
+        });
+        await this.audit.record(tx, {
+          actorId,
+          action: 'catalog.product.archive_referenced',
+          entityType: 'product',
+          entityId: id,
+          before: { status: product.status },
+          after: { status: 'archived', reasons },
+        });
+        return { outcome: 'archived' as const, reasons, mediaUrls: [] };
+      }
+
+      // Cart and wishlist rows are transient, so clearing them is safe. All
+      // financial, order, inventory and approval references above block hard
+      // deletion and preserve the product as archived instead.
+      await tx.cartItem.deleteMany({ where: { product_id: id } });
+      await tx.wishlistItem.deleteMany({ where: { product_id: id } });
+      await tx.product.delete({ where: { id } });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'catalog.product.delete_unreferenced',
+        entityType: 'product',
+        entityId: id,
+        before: { status: product.status },
+        after: { deleted: true },
+      });
+      return {
+        outcome: 'deleted' as const,
+        reasons: [],
+        mediaUrls: product.images.map(({ url }) => url),
+      };
+    });
+
+    for (const url of result.mediaUrls) {
+      const media = await this.prisma.mediaObject.findUnique({
+        where: { public_url: url },
+        select: { id: true },
+      });
+      if (media) {
+        try {
+          await this.media.remove(media.id);
+        } catch (error) {
+          // The product deletion is already committed. A media object may also
+          // be shared by a banner/category, or storage cleanup may be briefly
+          // unavailable; retain it for the explicit orphan-cleanup endpoint.
+          this.logger.warn(
+            `Deferred media cleanup after product deletion: ${media.id} (${error instanceof Error ? error.name : 'unknown error'})`,
+          );
+        }
+      }
+    }
+    await this.search?.indexProduct(id);
+    return { outcome: result.outcome, reasons: result.reasons };
+  }
+
   async availability(id: string, enforcePublicVisibility = false) {
     const product = await this.prisma.product.findUnique({
       where: { id },
@@ -879,54 +1014,77 @@ export class ProductsService {
     const offset = (page - 1) * per_page;
     const defaultThreshold = await this.defaultLowStockThreshold();
     const today = businessDate();
-    const conditions: Prisma.Sql[] = [];
-    const q = query.q?.trim();
+    const candidateConditions: Prisma.Sql[] = [];
+    const availabilityConditions: Prisma.Sql[] = [];
+    const q = query.q?.trim().replace(/\s+/g, ' ');
+    const exactIdentifier = q
+      ? await this.prisma.productVariant.findFirst({
+          where: { OR: [{ sku: q }, { barcode: q }] },
+          select: { product_id: true },
+        })
+      : null;
     if (q) {
       const pattern = `%${q}%`;
-      conditions.push(Prisma.sql`(
-        p.name_en ILIKE ${pattern}
-        OR p.name_ar ILIKE ${pattern}
-        OR p.description ILIKE ${pattern}
-        OR EXISTS (
-          SELECT 1 FROM product_variants search_variant
-          WHERE search_variant.product_id = p.id
-            AND (search_variant.sku ILIKE ${pattern}
-              OR search_variant.barcode ILIKE ${pattern})
-        )
-      )`);
+      const arabicNameMatch = /[\u0600-\u06ff]/u.test(q)
+        ? Prisma.sql`${normalizedArabicSql(Prisma.sql`p.name_ar`)} LIKE ${`%${normalizeCatalogSearch(q)}%`}`
+        : Prisma.sql`p.name_ar ILIKE ${pattern}`;
+      // An exact SKU/barcode is an unambiguous picker selection. Resolve it
+      // through the unique identifier indexes and avoid evaluating the broad
+      // substring search across the whole catalog. Partial terms retain the
+      // name/SKU/barcode search behaviour below.
+      candidateConditions.push(
+        exactIdentifier
+          ? Prisma.sql`p.id = ${exactIdentifier.product_id}::uuid`
+          : Prisma.sql`(
+              p.name_en ILIKE ${pattern}
+              OR ${arabicNameMatch}
+              OR p.description ILIKE ${pattern}
+              OR EXISTS (
+                SELECT 1 FROM product_variants search_variant
+                WHERE search_variant.product_id = p.id
+                  AND (search_variant.sku ILIKE ${pattern}
+                    OR search_variant.barcode ILIKE ${pattern})
+              )
+            )`,
+      );
     }
     if (query.category_id) {
-      conditions.push(Prisma.sql`p.category_id = ${query.category_id}::uuid`);
+      candidateConditions.push(
+        Prisma.sql`p.category_id = ${query.category_id}::uuid`,
+      );
     }
     if (query.brand_id?.length) {
-      conditions.push(
+      candidateConditions.push(
         Prisma.sql`p.brand_id IN (${Prisma.join(
           query.brand_id.map((id) => Prisma.sql`${id}::uuid`),
         )})`,
       );
     }
-    if (query.status?.length) {
-      conditions.push(
+    const statuses = query.status?.length
+      ? query.status
+      : (['active', 'hidden'] as const);
+    if (statuses.length) {
+      candidateConditions.push(
         Prisma.sql`p.status IN (${Prisma.join(
-          query.status.map((status) => Prisma.sql`${status}`),
+          statuses.map((status) => Prisma.sql`${status}`),
         )})`,
       );
     }
     if (query.min_price !== undefined) {
-      conditions.push(Prisma.sql`p.price >= ${query.min_price}`);
+      candidateConditions.push(Prisma.sql`p.price >= ${query.min_price}`);
     }
     if (query.max_price !== undefined) {
-      conditions.push(Prisma.sql`p.price <= ${query.max_price}`);
+      candidateConditions.push(Prisma.sql`p.price <= ${query.max_price}`);
     }
     if (query.has_image !== undefined) {
-      conditions.push(
+      candidateConditions.push(
         query.has_image
           ? Prisma.sql`EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`
           : Prisma.sql`NOT EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)`,
       );
     }
     if (query.availability?.length) {
-      conditions.push(
+      availabilityConditions.push(
         Prisma.sql`COALESCE(pa.availability, 'out_of_stock') IN (${Prisma.join(
           query.availability.map((state) => Prisma.sql`${state}`),
         )})`,
@@ -934,17 +1092,24 @@ export class ProductsService {
     }
     if (query.on_sale === true) {
       const now = new Date();
-      conditions.push(Prisma.sql`
+      candidateConditions.push(Prisma.sql`
         p.discount_type IS NOT NULL
         AND (p.discount_starts_at IS NULL OR p.discount_starts_at <= ${now})
         AND (p.discount_ends_at IS NULL OR p.discount_ends_at >= ${now})
       `);
     }
-    const where = conditions.length
-      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+    const candidateWhere = candidateConditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(candidateConditions, ' AND ')}`
+      : Prisma.empty;
+    const availabilityWhere = availabilityConditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(availabilityConditions, ' AND ')}`
       : Prisma.empty;
     const stockCte = Prisma.sql`
-      WITH variant_availability AS (
+      WITH candidate_products AS MATERIALIZED (
+        SELECT p.id
+        FROM products p
+        ${candidateWhere}
+      ), variant_availability AS (
         SELECT
           pv.product_id,
           pv.id AS variant_id,
@@ -959,7 +1124,8 @@ export class ProductsService {
             END
           ), 0), 0) AS available_qty,
           COALESCE(pv.low_stock_threshold, ${defaultThreshold}) AS threshold
-        FROM product_variants pv
+        FROM candidate_products candidate
+        JOIN product_variants pv ON pv.product_id = candidate.id
         LEFT JOIN inventory_batches ib ON ib.variant_id = pv.id
         LEFT JOIN batch_stock bs ON bs.batch_id = ib.id
         LEFT JOIN warehouse_locations wl ON wl.id = bs.location_id
@@ -994,24 +1160,33 @@ export class ProductsService {
                   : sort === 'sku_desc'
                     ? Prisma.sql`(SELECT MIN(v.sku) FROM product_variants v WHERE v.product_id = p.id) DESC NULLS LAST, p.id DESC`
                     : Prisma.sql`p.created_at DESC, p.id DESC`;
-    const [countRows, idRows] = await this.prisma.$transaction([
-      this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
-        ${stockCte}
-        SELECT COUNT(*)::bigint AS total
-        FROM products p
-        LEFT JOIN product_availability pa ON pa.product_id = p.id
-        ${where}
-      `),
-      this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        ${stockCte}
-        SELECT p.id
-        FROM products p
-        LEFT JOIN product_availability pa ON pa.product_id = p.id
-        ${where}
-        ORDER BY ${orderBy}
-        LIMIT ${per_page} OFFSET ${offset}
-      `),
-    ]);
+    const idRows = await this.prisma.$queryRaw<
+      Array<{ id: string; total: bigint }>
+    >(Prisma.sql`
+      ${stockCte}
+      SELECT p.id, COUNT(*) OVER()::bigint AS total
+      FROM candidate_products candidate
+      JOIN products p ON p.id = candidate.id
+      LEFT JOIN product_availability pa ON pa.product_id = p.id
+      ${availabilityWhere}
+      ORDER BY ${orderBy}
+      LIMIT ${per_page} OFFSET ${offset}
+    `);
+    const total =
+      idRows[0]?.total ??
+      (page > 1
+        ? (
+            await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+              ${stockCte}
+              SELECT COUNT(*)::bigint AS total
+              FROM candidate_products candidate
+              JOIN products p ON p.id = candidate.id
+              LEFT JOIN product_availability pa ON pa.product_id = p.id
+              ${availabilityWhere}
+            `)
+          )[0]?.total
+        : 0n) ??
+      0n;
     const ids = idRows.map(({ id }) => id);
     const rows = ids.length
       ? await this.prisma.product.findMany({
@@ -1021,16 +1196,23 @@ export class ProductsService {
       : [];
     const byId = new Map(rows.map((row) => [row.id, row]));
     const now = new Date();
+    const availabilityById = await this.adminAvailability(
+      rows,
+      defaultThreshold,
+      today,
+    );
     const data = await Promise.all(
       ids.flatMap((id) => {
         const row = byId.get(id);
-        return row ? [this.toResponse(row, now)] : [];
+        return row
+          ? [this.toResponse(row, now, availabilityById.get(row.id))]
+          : [];
       }),
     );
     return {
       page,
       per_page,
-      total: Number(countRows[0]?.total ?? 0),
+      total: Number(total),
       data,
       facets: { brands: [] },
     };
@@ -1139,9 +1321,97 @@ export class ProductsService {
     };
   }
 
-  private async toResponse(product: ProductRow, at: Date) {
+  private async adminAvailability(
+    products: ProductRow[],
+    defaultThreshold: number,
+    at: Date,
+  ): Promise<Map<string, ProductAvailability>> {
+    if (!products.length) return new Map();
+    const stock = await this.prisma.batchStock.findMany({
+      where: {
+        batch: {
+          product_id: { in: products.map(({ id }) => id) },
+          OR: [{ expiry_date: null }, { expiry_date: { gte: at } }],
+        },
+        location: {
+          is_active: true,
+          is_sellable: true,
+          warehouse: { is_active: true },
+        },
+      },
+      select: {
+        quantity: true,
+        reserved: true,
+        batch: { select: { product_id: true, variant_id: true } },
+      },
+    });
+    const quantities = new Map<string, number>();
+    for (const item of stock) {
+      quantities.set(
+        item.batch.variant_id,
+        (quantities.get(item.batch.variant_id) ?? 0) +
+          Number(item.quantity) -
+          Number(item.reserved ?? 0),
+      );
+    }
+    return new Map(
+      products.map((product) => {
+        const variants = product.variants.map((variant) => {
+          const available_qty = Math.max(0, quantities.get(variant.id) ?? 0);
+          const threshold =
+            variant.low_stock_threshold === null
+              ? defaultThreshold
+              : Number(variant.low_stock_threshold);
+          const availability =
+            available_qty === 0
+              ? ('out_of_stock' as const)
+              : available_qty <= threshold
+                ? ('low_stock' as const)
+                : ('in_stock' as const);
+          return {
+            variant_id: variant.id,
+            sku: variant.sku,
+            base_unit: variant.base_unit,
+            whole_units_only: variant.whole_units_only,
+            low_stock_threshold: threshold,
+            available_qty,
+            availability,
+            in_stock: available_qty > 0,
+          };
+        });
+        const available_qty = variants.reduce(
+          (sum, variant) => sum + variant.available_qty,
+          0,
+        );
+        const availability = variants.some(
+          (variant) => variant.availability === 'in_stock',
+        )
+          ? ('in_stock' as const)
+          : variants.some((variant) => variant.availability === 'low_stock')
+            ? ('low_stock' as const)
+            : ('out_of_stock' as const);
+        return [
+          product.id,
+          {
+            product_id: product.id,
+            in_stock: available_qty > 0,
+            availability,
+            available_qty,
+            variants,
+          },
+        ];
+      }),
+    );
+  }
+
+  private async toResponse(
+    product: ProductRow,
+    at: Date,
+    suppliedAvailability?: ProductAvailability,
+  ) {
     const productPricing = computeProductPricing(product, at);
-    const availability = await this.availability(product.id);
+    const availability =
+      suppliedAvailability ?? (await this.availability(product.id));
     const byVariant = new Map(
       availability.variants.map((entry) => [entry.variant_id, entry]),
     );

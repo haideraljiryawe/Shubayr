@@ -24,3 +24,11 @@ export const COOKIE_SECURE = process.env.ADMIN_COOKIE_SECURE !== "false";
  * exceptions off).
  */
 export const ADMIN_MODULES = process.env.ADMIN_MODULES ?? "";
+
+/**
+ * This image's own release tag (`--build-arg RELEASE_VERSION` from the
+ * release workflow, kept as an environment variable in admin/Dockerfile);
+ * "dev" for a local or untagged build. The version shown is the API's
+ * (src/lib/release-version.ts); this stands in only when the API is down.
+ */
+export const APP_VERSION = process.env.RELEASE_VERSION?.trim() || "dev";

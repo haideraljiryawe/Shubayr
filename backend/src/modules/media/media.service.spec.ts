@@ -11,6 +11,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { MediaService } from './media.service';
+import sharp from 'sharp';
 
 const config = {
   get: jest.fn((key: string, fallback?: unknown) => {
@@ -101,6 +102,57 @@ describe('MediaService', () => {
       service.requireManagedUrl('https://unmanaged.example/image.png'),
     ).rejects.toThrow(UnprocessableEntityException);
   });
+
+  it.each([
+    [120, 60],
+    [60, 120],
+    [80, 80],
+  ])(
+    'stores bulk catalog images as a real square (%sx%s)',
+    async (width, height) => {
+      let stored: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+      const prisma = {
+        mediaObject: {
+          create: jest.fn((input: { data: Record<string, unknown> }) =>
+            Promise.resolve({ ...input.data, created_at: new Date() }),
+          ),
+        },
+      };
+      const storage = {
+        put: jest.fn((_key: string, bytes: Buffer) => {
+          stored = bytes;
+          return Promise.resolve();
+        }),
+        remove: jest.fn(),
+      };
+      const roomyConfig = {
+        get: jest.fn((key: string, fallback?: unknown) =>
+          key === 'MEDIA_MAX_BYTES' ? 1024 * 1024 : fallback,
+        ),
+      };
+      const source = await sharp({
+        create: {
+          width,
+          height,
+          channels: 3,
+          background: { r: 10, g: 20, b: 30 },
+        },
+      })
+        .png()
+        .toBuffer();
+      const service = new MediaService(
+        prisma as never,
+        storage as never,
+        roomyConfig as never,
+      );
+
+      await service.uploadCatalogImage(source, 'uploader-id');
+
+      const metadata = await sharp(stored).metadata();
+      expect(metadata.width).toBe(metadata.height);
+      expect(metadata.width).toBe(Math.min(width, height));
+    },
+  );
 
   it('refuses to delete media while catalog data references it', async () => {
     const media = {

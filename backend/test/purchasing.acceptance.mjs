@@ -1746,6 +1746,258 @@ try {
     token: stock,
   });
 
+  const warehouseId = await scalar(
+    'SELECT warehouse_id::text AS value FROM warehouse_locations WHERE id=$1',
+    [locationId],
+  );
+  const section29Locations = (
+    await db.query(
+      `INSERT INTO warehouse_locations
+         (warehouse_id, code, description, is_sellable, is_active)
+       VALUES ($1,$2,'Section 13 default after edit',true,true),
+              ($1,$3,'Section 13 row override',true,true)
+       RETURNING id::text, code`,
+      [warehouseId, `A-03-${suffix}`, `B-02-${suffix}`],
+    )
+  ).rows;
+  const a03 = section29Locations.find((row) => row.code.startsWith('A-03'));
+  const b02 = section29Locations.find((row) => row.code.startsWith('B-02'));
+  const locationExample = await request('/admin/purchase-invoices', {
+    token: stock,
+    method: 'POST',
+    expected: 201,
+    body: invoiceBody({
+      supplierId: supplier.id,
+      locationId: a03.id,
+      variantId: paidNowVariant,
+      supplier_invoice_number: `SECTION29-LOCATIONS-${suffix}`,
+      lines: [movingVariant, packVariant, landedA, landedB, paidNowVariant].map(
+        (variantId, index) => ({
+          variant_id: variantId,
+          ...(index === 2 ? { location_id: b02.id } : {}),
+          quantity: '1',
+          pack_size: '1',
+          unit_cost: '1000',
+          lot_number: `SECTION29-LOCATION-${index + 1}`,
+        }),
+      ),
+    }),
+  });
+  const locationCounts = (
+    await db.query(
+      `SELECT location_id::text, count(*)::int AS count
+       FROM purchase_invoice_items WHERE invoice_id=$1
+       GROUP BY location_id ORDER BY location_id`,
+      [locationExample.id],
+    )
+  ).rows;
+  check(
+    locationCounts.find((row) => row.location_id === a03.id)?.count,
+    4,
+    'section 13.2 final default A-03 applies to the four following rows',
+  );
+  check(
+    locationCounts.find((row) => row.location_id === b02.id)?.count,
+    1,
+    'section 13.2 third-row B-02 override remains isolated from the default',
+  );
+
+  // Section 13.4 worked example: three lists, one cross-invoice payment, then
+  // a correction that changes debt without rewriting the real cash payment.
+  const workedInvoices = [];
+  for (const [index, total] of [100000, 70000, 50000].entries()) {
+    workedInvoices.push(
+      await request('/admin/purchase-invoices', {
+        token: stock,
+        method: 'POST',
+        expected: 201,
+        body: invoiceBody({
+          supplierId: supplier.id,
+          locationId,
+          variantId: paidNowVariant,
+          supplier_invoice_number: `SECTION29-AP-${index + 1}-${suffix}`,
+          lines: [
+            {
+              variant_id: paidNowVariant,
+              quantity: '1',
+              pack_size: '1',
+              unit_cost: String(total),
+              lot_number: `SECTION29-AP-${index + 1}`,
+            },
+          ],
+        }),
+      }),
+    );
+  }
+  const workedPayment = await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(),
+      document_date: today,
+      supplier_id: supplier.id,
+      cash_account_id: iqdCash.id,
+      currency_code: 'IQD',
+      amount: '150000',
+      reference: 'Section 13.4 worked allocation',
+      allocations: [
+        { invoice_id: workedInvoices[0].id, amount: '100000' },
+        { invoice_id: workedInvoices[1].id, amount: '50000' },
+      ],
+    },
+  });
+  const workedAfterPayment = await Promise.all(
+    workedInvoices.map((invoice) =>
+      request(`/admin/purchase-invoices/${invoice.id}`, { token: stock }),
+    ),
+  );
+  check(
+    workedAfterPayment.map((invoice) => amount(invoice.remaining_currency)),
+    [0, 20000, 50000],
+    'section 13.4 payment leaves exact 0 / 20,000 / 50,000 remainders',
+  );
+  check(
+    workedPayment.allocations.map((row) => amount(row.amount_payment_currency)),
+    [100000, 50000],
+    'section 13.4 stores the 100,000 + 50,000 allocation',
+  );
+  await request('/admin/purchase-cost-corrections', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(),
+      document_date: today,
+      invoice_id: workedInvoices[1].id,
+      kind: 'cost_correction',
+      allocation_method: 'manual',
+      reason: 'Section 13.4 approved reduction by 10,000',
+      lines: [
+        {
+          purchase_item_id: workedInvoices[1].items[0].id,
+          unit_difference_iqd: '-10000',
+        },
+      ],
+    },
+  });
+  const workedCorrected = await request(
+    `/admin/purchase-invoices/${workedInvoices[1].id}`,
+    { token: stock },
+  );
+  check(
+    amount(workedCorrected.remaining_currency),
+    10000,
+    'section 13.4 correction lowers the second remainder to 10,000',
+  );
+  check(
+    amount(
+      await scalar(
+        'SELECT amount_currency AS value FROM supplier_payments WHERE id=$1',
+        [workedPayment.id],
+      ),
+    ),
+    150000,
+    'section 13.4 correction leaves the actual 150,000 payment immutable',
+  );
+
+  // Section 13.4 and 17.1 worked FX examples use the transaction's stored
+  // 1,500 rate and settle 40 USD from IQD at 1,550 and 1,450 respectively.
+  async function workedFxInvoice(label) {
+    return request('/admin/purchase-invoices', {
+      token: stock,
+      method: 'POST',
+      expected: 201,
+      body: invoiceBody({
+        supplierId: usdSupplier.id,
+        locationId,
+        variantId: usdVariant,
+        supplier_invoice_number: `SECTION29-FX-${label}-${suffix}`,
+        currency_code: 'USD',
+        exchange_rate: '1500',
+        lines: [
+          {
+            variant_id: usdVariant,
+            quantity: '100',
+            pack_size: '1',
+            unit_cost: '1',
+            lot_number: `SECTION29-FX-${label}`,
+          },
+        ],
+      }),
+    });
+  }
+  const fxLossInvoice = await workedFxInvoice('LOSS');
+  const fxLossPayment = await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(),
+      document_date: today,
+      supplier_id: usdSupplier.id,
+      cash_account_id: iqdCash.id,
+      currency_code: 'IQD',
+      amount: '62000',
+      exchange_rate: '1550',
+      allocations: [{ invoice_id: fxLossInvoice.id, amount: '62000' }],
+    },
+  });
+  const fxLossOpen = await request(
+    `/admin/purchase-invoices/${fxLossInvoice.id}`,
+    { token: stock },
+  );
+  check(
+    [
+      amount(fxLossPayment.allocations[0].amount_invoice_currency),
+      amount(fxLossOpen.remaining_currency),
+      amount(fxLossOpen.remaining_currency) * 1500,
+    ],
+    [40, 60, 90000],
+    'section 13.4 FX loss payment settles 40 USD and leaves 60 USD / 90,000 IQD',
+  );
+  check(
+    amount(
+      await scalar(
+        "SELECT COALESCE(sum(line.debit_base-line.credit_base),0) AS value FROM journal_lines line JOIN ledger_accounts account ON account.id=line.account_id JOIN journal_entries entry ON entry.id=line.entry_id WHERE entry.source_id=$1 AND account.code='5030'",
+        [fxLossPayment.id],
+      ),
+    ),
+    2000,
+    'section 17.1 posts the exact 2,000 IQD FX loss',
+  );
+  const fxGainInvoice = await workedFxInvoice('GAIN');
+  const fxGainPayment = await request('/admin/supplier-payments', {
+    token: admin,
+    method: 'POST',
+    expected: 201,
+    body: {
+      operation_id: randomUUID(),
+      document_date: today,
+      supplier_id: usdSupplier.id,
+      cash_account_id: iqdCash.id,
+      currency_code: 'IQD',
+      amount: '58000',
+      exchange_rate: '1450',
+      allocations: [{ invoice_id: fxGainInvoice.id, amount: '58000' }],
+    },
+  });
+  check(
+    amount(fxGainPayment.allocations[0].amount_invoice_currency),
+    40,
+    'section 13.4 FX gain payment settles exactly 40 USD',
+  );
+  check(
+    amount(
+      await scalar(
+        "SELECT COALESCE(sum(line.credit_base-line.debit_base),0) AS value FROM journal_lines line JOIN ledger_accounts account ON account.id=line.account_id JOIN journal_entries entry ON entry.id=line.entry_id WHERE entry.source_id=$1 AND account.code='4020'",
+        [fxGainPayment.id],
+      ),
+    ),
+    2000,
+    'section 17.1 posts the exact 2,000 IQD FX gain',
+  );
+
   const inventoryLedger = amount(
     await scalar(`
     SELECT COALESCE(sum(line.debit_base-line.credit_base),0) AS value

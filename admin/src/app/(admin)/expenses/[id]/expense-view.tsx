@@ -29,6 +29,8 @@ import {
 } from "@/lib/expenses";
 import { STATUS_TONE } from "../expenses-view";
 import { ExpenseRefusalNotice } from "../refusal";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
+import { AmountInput } from "@/components/forms/amount-input";
 
 type Journal = NonNullable<Expense["journal_entry"]>;
 
@@ -106,7 +108,7 @@ export function ExpenseView({
         </Alert>
       ) : null}
 
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("detail.status")}>
           <Badge tone={STATUS_TONE[expense.status]} data-testid="expense-status" data-status={expense.status}>
             {t(`statuses.${expense.status}`)}
@@ -116,18 +118,18 @@ export function ExpenseView({
         <Item label={t("detail.payee")}>{expense.supplier?.name ?? expense.payee ?? "—"}</Item>
         <Item label={t("detail.date")}>{day(expense.document_date)}</Item>
         <Item label={t("detail.amount")}>
-          <span className="text-base font-bold" dir="ltr" data-testid="expense-amount">
+          <span className="text-section" dir="ltr" data-testid="expense-amount">
             {money(expense.amount_currency)}
           </span>
           {foreign && expense.amount_iqd !== null ? (
-            <span className="block text-xs text-text-muted" dir="ltr" data-testid="expense-amount-iqd">
+            <span className="block text-caption text-text-muted" dir="ltr" data-testid="expense-amount-iqd">
               {money(expense.amount_iqd, "IQD")} · {t("detail.rate", { rate: String(expense.exchange_rate ?? "—"), currency: expense.currency_code })}
             </span>
           ) : null}
         </Item>
         <Item label={t("detail.mode")}>
           {t(`modes.${expense.payment_mode}`)}
-          {expense.cash_account ? <span className="block text-xs text-text-muted">{expense.cash_account.name}</span> : null}
+          {expense.cash_account ? <span className="block text-caption text-text-muted">{expense.cash_account.name}</span> : null}
         </Item>
         <Item label={t("detail.paid")}>
           <span dir="ltr" data-testid="expense-paid">
@@ -138,7 +140,7 @@ export function ExpenseView({
           <span dir="ltr" className="font-semibold" data-testid="expense-balance">
             {money(expense.balance_currency)}
           </span>
-          {foreign && expense.balance_iqd !== null ? <span className="block text-xs text-text-muted" dir="ltr">{money(expense.balance_iqd, "IQD")}</span> : null}
+          {foreign && expense.balance_iqd !== null ? <span className="block text-caption text-text-muted" dir="ltr">{money(expense.balance_iqd, "IQD")}</span> : null}
         </Item>
         <Item label={t("detail.descriptionLabel")}>{expense.description}</Item>
         {expense.reference_number ? <Item label={t("detail.reference")}>{expense.reference_number}</Item> : null}
@@ -148,7 +150,7 @@ export function ExpenseView({
       </Card>
 
       {expense.receipt ? (
-        <Card className="flex flex-col gap-3 text-sm" data-testid="expense-receipt">
+        <Card className="flex flex-col gap-3 text-body" data-testid="expense-receipt">
           <h2 className="font-bold">{t("detail.receipt")}</h2>
           {expense.receipt.mime_type.startsWith("image/") ? (
             // A private receipt through the admin's own route; never optimised or cached.
@@ -183,33 +185,33 @@ export function ExpenseView({
       ) : null}
 
       {expense.payments.length ? (
-        <Card className="overflow-x-auto text-sm" data-testid="expense-payments">
+        <Card className="overflow-x-auto text-body" data-testid="expense-payments">
           <h2 className="mb-2 font-bold">{t("detail.payments")}</h2>
-          <table className="w-full">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("detail.paymentColumns.number")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("detail.paymentColumns.date")}</th>
-                <th className="px-3 py-2 text-start font-semibold">{t("detail.paymentColumns.account")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("detail.paymentColumns.amount")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>{t("detail.paymentColumns.number")}</Th>
+                <Th>{t("detail.paymentColumns.date")}</Th>
+                <Th>{t("detail.paymentColumns.account")}</Th>
+                <Th>{t("detail.paymentColumns.amount")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {expense.payments.map((payment) => (
-                <tr key={payment.id} className="border-t border-border" data-testid="expense-payment">
-                  <td className="px-3 py-2" dir="ltr">
+                <Tr key={payment.id} data-testid="expense-payment">
+                  <Td dir="ltr">
                     {payment.document_number}
-                  </td>
-                  <td className="px-3 py-2">{day(payment.document_date)}</td>
-                  <td className="px-3 py-2">{payment.cash_account.name}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">
+                  </Td>
+                  <Td>{day(payment.document_date)}</Td>
+                  <Td>{payment.cash_account.name}</Td>
+                  <Td dir="ltr">
                     {money(payment.amount_currency)}
-                    {foreign ? <span className="block text-xs text-text-muted">{money(payment.amount_iqd, "IQD")}</span> : null}
-                  </td>
-                </tr>
+                    {foreign ? <span className="block text-caption text-text-muted">{money(payment.amount_iqd, "IQD")}</span> : null}
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
           <p className="mt-2 text-end">
             {t("detail.remaining")}{" "}
             <span dir="ltr" className="font-bold" data-testid="expense-remaining">
@@ -220,7 +222,7 @@ export function ExpenseView({
       ) : null}
 
       {expense.corrections.length ? (
-        <Card className="flex flex-col gap-2 text-sm" data-testid="expense-corrections">
+        <Card className="flex flex-col gap-2 text-body" data-testid="expense-corrections">
           <h2 className="font-bold">{t("detail.corrections")}</h2>
           {expense.corrections.map((correction) => (
             <div key={correction.id} className="rounded-md border border-border p-3" data-testid="expense-correction">
@@ -228,7 +230,7 @@ export function ExpenseView({
                 {correction.document_number}
               </p>
               <p>{correction.reason}</p>
-              <p className="text-xs text-text-muted">
+              <p className="text-caption text-text-muted">
                 {day(correction.document_date)} · {who(correction.creator)}
               </p>
             </div>
@@ -237,7 +239,7 @@ export function ExpenseView({
       ) : null}
 
       {journals.length ? (
-        <Card className="flex flex-col gap-4 overflow-x-auto text-sm" data-testid="expense-journals">
+        <Card className="flex flex-col gap-4 overflow-x-auto text-body" data-testid="expense-journals">
           <h2 className="font-bold">{t("detail.journals")}</h2>
           {journals.map(({ label, entry }) => (
             <div key={entry.id} data-testid="expense-journal">
@@ -251,38 +253,38 @@ export function ExpenseView({
                   <span dir="ltr">{entry.document_number}</span>
                 )}
               </p>
-              <table className="w-full">
-                <tbody>
+              <Table>
+                <TBody>
                   {entry.lines.map((line) => (
-                    <tr key={line.id} className="border-t border-border">
-                      <td className="px-3 py-1.5">
+                    <Tr key={line.id}>
+                      <Td>
                         <span dir="ltr" className="font-mono">
                           {line.account.code}
                         </span>{" "}
                         {locale === "ar" ? line.account.name_ar : line.account.name_en}
-                      </td>
-                      <td className="px-3 py-1.5 text-end" dir="ltr">
+                      </Td>
+                      <Td dir="ltr">
                         {Number(line.debit_base) ? money(String(line.debit_base), "IQD") : ""}
-                      </td>
-                      <td className="px-3 py-1.5 text-end" dir="ltr">
+                      </Td>
+                      <Td dir="ltr">
                         {Number(line.credit_base) ? money(String(line.credit_base), "IQD") : ""}
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </div>
           ))}
         </Card>
       ) : null}
 
-      <Card className="text-sm" data-testid="expense-timeline">
+      <Card className="text-body" data-testid="expense-timeline">
         <h2 className="mb-3 font-bold">{t("detail.timelineTitle")}</h2>
         <ol className="flex flex-col gap-3 border-s border-border ps-4">
           {timeline.map((event, index) => (
             <li key={`${event.testId}-${index}`} data-testid="expense-event" data-type={event.testId}>
               <p className="font-semibold">{event.label}</p>
-              <p className="text-xs text-text-muted">
+              <p className="text-caption text-text-muted">
                 {moment(event.at)} · {event.who}
               </p>
               {event.note ? <p className="mt-1">{event.note}</p> : null}
@@ -297,7 +299,7 @@ export function ExpenseView({
 function Item({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -340,7 +342,7 @@ function OwnDocument({ state }: { state: ActionState }) {
   if (!state.shown) return null;
   if (state.blocked) return <Alert data-testid="expense-sod-blocked">{t("sodBlocked")}</Alert>;
   return state.ownDocument ? (
-    <p className="text-xs text-text-muted" data-testid="expense-sod-hint">
+    <p className="text-caption text-text-muted" data-testid="expense-sod-hint">
       {t("sodHint")}
     </p>
   ) : null;
@@ -350,8 +352,8 @@ function Panel({ title, body, children, testId }: { title: string; body: string;
   return (
     <Card className="flex flex-col gap-3 border-primary/40" data-testid={testId}>
       <div>
-        <h2 className="text-lg font-bold">{title}</h2>
-        <p className="mt-1 text-sm text-text-muted">{body}</p>
+        <h2 className="text-section">{title}</h2>
+        <p className="mt-1 text-body text-text-muted">{body}</p>
       </div>
       {children}
     </Card>
@@ -460,10 +462,10 @@ function PayPanel({
       {cashAccounts === null ? <Alert data-testid="expense-pay-no-accounts">{tf("cashAccountsForbidden")}</Alert> : null}
       <div className="grid gap-3 md:grid-cols-3">
         <Field label={t("payAmount")} hint={t("payAmountHint")} error={attempted && !parsed.ok ? tf(`problems.amount.${parsed.problem}`, { digits: precision }) : null}>
-          <Input inputMode="decimal" dir="ltr" value={amount} disabled={write.pending || blocked} onChange={(event) => setAmount(event.target.value)} data-testid="expense-pay-amount" />
+          <AmountInput value={amount} disabled={write.pending || blocked} onValueChange={(value) => setAmount(value)} data-testid="expense-pay-amount" />
         </Field>
         <Field label={tf("cashAccount")} error={attempted && !accountId ? tf("problems.cash.required") : null}>
-          <Select value={accountId} disabled={write.pending || blocked || !cashAccounts} onChange={(event) => setAccountId(event.target.value)} data-testid="expense-pay-account">
+          <Select value={accountId} disabled={write.pending || blocked || !cashAccounts} onValueChange={(value) => setAccountId(value)} data-testid="expense-pay-account">
             <option value="">{accounts.length ? tf("choose") : tf("noAccountInCurrency", { currency: expense.currency_code })}</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>

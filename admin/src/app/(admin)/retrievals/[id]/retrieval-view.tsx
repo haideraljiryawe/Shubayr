@@ -15,6 +15,7 @@ import { newOperationId } from "@/lib/finance/operations";
 import { formatCost, formatQuantity, fromMilli, locationLabel, toMilli, type LocationInfo } from "@/lib/inventory";
 import type { components } from "@/types/api";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type Retrieval = components["schemas"]["Retrieval"];
 type Line = components["schemas"]["RetrievalLine"];
@@ -109,7 +110,7 @@ export function RetrievalView({
   return (
     <div className="flex flex-col gap-6" data-testid="retrieval-detail" data-status={retrieval.status}>
       <Card>
-        <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-text-muted">{t("status")}</dt>
             <dd>
@@ -151,37 +152,37 @@ export function RetrievalView({
 
       <Card className="overflow-x-auto">
         <h2 className="mb-1 font-bold">{t("lines")}</h2>
-        <p className="mb-3 text-sm text-text-muted">{t("linesBody")}</p>
-        <table className="w-full min-w-[44rem] text-sm" data-testid="retrieval-lines">
-          <thead className="text-text-muted">
-            <tr>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.product")}</th>
-              <th className="px-3 py-2 text-start font-semibold">{t("columns.lot")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.expected")}</th>
-              <th className="px-3 py-2 text-end font-semibold">{t("columns.received")}</th>
-              {canViewCost ? <th className="px-3 py-2 text-end font-semibold">{t("columns.unitCost")}</th> : null}
+        <p className="mb-3 text-body text-text-muted">{t("linesBody")}</p>
+        <Table minWidth="44rem" data-testid="retrieval-lines">
+          <THead>
+            <Tr>
+              <Th>{t("columns.product")}</Th>
+              <Th>{t("columns.lot")}</Th>
+              <Th>{t("columns.expected")}</Th>
+              <Th>{t("columns.received")}</Th>
+              {canViewCost ? <Th>{t("columns.unitCost")}</Th> : null}
               {canReceive && open.length ? (
                 <>
-                  <th className="w-36 px-3 py-2 text-start font-semibold">{t("columns.receiveNow")}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.putBack")}</th>
+                  <Th className="w-36">{t("columns.receiveNow")}</Th>
+                  <Th>{t("columns.putBack")}</Th>
                 </>
               ) : null}
-            </tr>
-          </thead>
-          <tbody>
+            </Tr>
+          </THead>
+          <TBody>
             {lines.map((line) => {
               const left = outstanding(line);
               return (
-                <tr key={line.id} className="border-t border-border" data-testid="retrieval-line">
-                  <td className="px-3 py-2">{productName(line)}</td>
-                  <td className="px-3 py-2" dir="ltr">{lotNumber(line)}</td>
-                  <td className="px-3 py-2 text-end" dir="ltr">{qty(line.expected_quantity)}</td>
-                  <td className="px-3 py-2 text-end font-semibold" dir="ltr" data-testid="retrieval-received">{qty(line.received_quantity)}</td>
-                  {canViewCost ? <td className="px-3 py-2 text-end" dir="ltr">{formatCost(line.unit_cost_iqd, locale)}</td> : null}
+                <Tr key={line.id} data-testid="retrieval-line">
+                  <Td>{productName(line)}</Td>
+                  <Td dir="ltr">{lotNumber(line)}</Td>
+                  <Td dir="ltr">{qty(line.expected_quantity)}</Td>
+                  <Td className="font-semibold" dir="ltr" data-testid="retrieval-received">{qty(line.received_quantity)}</Td>
+                  {canViewCost ? <Td dir="ltr">{formatCost(line.unit_cost_iqd, locale)}</Td> : null}
                   {canReceive && open.length ? (
                     left > 0 ? (
                       <>
-                        <td className="px-3 py-2">
+                        <Td>
                           <DecimalInput
                             key={`${line.id}-${round}`}
                             value={quantities[line.id!] ?? ""}
@@ -191,14 +192,14 @@ export function RetrievalView({
                             onValueChange={(_, text) => setQuantities((current) => ({ ...current, [line.id!]: text.trim() }))}
                             data-testid="retrieval-quantity"
                           />
-                          <span className="text-xs text-text-muted" dir="ltr">{t("left", { value: qty(fromMilli(left)) })}</span>
-                        </td>
-                        <td className="px-3 py-2">
+                          <span className="text-caption text-text-muted" dir="ltr">{t("left", { value: qty(fromMilli(left)) })}</span>
+                        </Td>
+                        <Td>
                           <Select
                             value={placements[line.id!] ?? ""}
                             disabled={review !== null}
                             className="h-9"
-                            onChange={(event) => setPlacements((current) => ({ ...current, [line.id!]: event.target.value }))}
+                            onValueChange={(value) => setPlacements((current) => ({ ...current, [line.id!]: value }))}
                             data-testid="retrieval-location"
                           >
                             {locations.map((info) => (
@@ -207,17 +208,17 @@ export function RetrievalView({
                               </option>
                             ))}
                           </Select>
-                        </td>
+                        </Td>
                       </>
                     ) : (
-                      <td colSpan={2} className="px-3 py-2 text-xs text-text-muted">{t("lineDone")}</td>
+                      <Td colSpan={2} className="text-text-muted">{t("lineDone")}</Td>
                     )
                   ) : null}
-                </tr>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
 
       {/* Shown while lines are open, and kept after a receipt (even the last
@@ -227,7 +228,7 @@ export function RetrievalView({
           {problem ? <Alert data-testid="retrieval-problem">{problem}</Alert> : null}
           {review ? (
             <>
-              {posted ? null : <p className="text-sm">{t("reviewBody", { count: chosen.length })}</p>}
+              {posted ? null : <p className="text-body">{t("reviewBody", { count: chosen.length })}</p>}
               <PurchasingPostingStatus state={posting.state} href={(document) => `/retrievals/${document.id}`} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
               <div className="flex justify-end gap-2">
                 {posted ? (

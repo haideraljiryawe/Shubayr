@@ -6,6 +6,7 @@ import {
   requireLiveApi,
   uiLoginAsAdmin,
 } from "./helpers";
+import { navLink } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -17,7 +18,7 @@ test("creates a preset from grouped permissions, edits it, and deletes it", asyn
 }) => {
   const name = `live_${Date.now().toString(36)}`;
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-presets").click();
+  await (await navLink(page, "presets")).click();
   await page.getByTestId("preset-new").click();
 
   await page.getByTestId("input-name").fill(name);

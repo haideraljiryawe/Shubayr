@@ -76,7 +76,7 @@ export function PartySearch({
 
   if (value) {
     return (
-      <div className="flex flex-col gap-1 text-sm font-semibold" data-testid={testId} data-party={value.id}>
+      <div className="flex flex-col gap-1 text-label" data-testid={testId} data-party={value.id}>
         <span>{label}</span>
         <span className="flex h-11 items-center justify-between gap-2 rounded-md border border-border bg-surface px-3">
           <span className="truncate" data-testid={`${testId}-chosen`}>
@@ -94,7 +94,7 @@ export function PartySearch({
   }
 
   return (
-    <div className="relative flex flex-col gap-1 text-sm font-semibold" data-testid={testId}>
+    <div className="relative flex flex-col gap-1 text-label" data-testid={testId}>
       <label className="flex flex-col gap-1">
         <span>{label}</span>
         <span className="relative">
@@ -116,17 +116,17 @@ export function PartySearch({
       {open ? (
         <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-md border border-border bg-surface shadow-lg" data-testid={`${testId}-results`}>
           {failed ? (
-            <p className="p-3 text-sm text-error-dark">{t("failed")}</p>
+            <p className="p-3 text-body text-error-dark">{t("failed")}</p>
           ) : rows === null ? (
-            <p className="p-3 text-sm text-text-muted">{t("loading")}</p>
+            <p className="p-3 text-body text-text-muted">{t("loading")}</p>
           ) : rows.length === 0 ? (
-            <p className="p-3 text-sm text-text-muted">{t("none")}</p>
+            <p className="p-3 text-body text-text-muted">{t("none")}</p>
           ) : (
             rows.map((party) => (
               <button
                 key={party.id}
                 type="button"
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-sm font-normal hover:bg-card"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-body font-normal hover:bg-card"
                 onClick={() => {
                   onChange({ id: party.id, name: party.name, phone: party.phone });
                   setOpen(false);

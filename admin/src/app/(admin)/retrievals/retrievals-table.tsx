@@ -57,7 +57,7 @@ export function RetrievalsTable({
     },
     { key: "date", header: tl("columns.date"), cell: (row) => day(row.document_date) },
     { key: "outcome", header: tl("columns.outcome"), cell: (row) => t(`outcomes.${row.outcome}`) },
-    { key: "lines", header: tl("columns.lines"), className: "text-end", cell: (row) => <span dir="ltr">{row.line_count}</span> },
+    { key: "lines", header: tl("columns.lines"), cell: (row) => <span dir="ltr">{row.line_count}</span> },
     {
       key: "status",
       header: tl("columns.status"),

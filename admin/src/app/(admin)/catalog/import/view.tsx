@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { CheckCircle2, Download, FileSpreadsheet, RotateCw, Upload } from "lucide-react";
-import { Alert, Badge, Button, buttonClasses, Card, Input } from "@/components/ui";
+import { Alert, Badge, Button, buttonClasses, Card, FilePicker, Input } from "@/components/ui";
+import { Field } from "@/components/forms/field";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -41,6 +42,7 @@ import {
 import { postFile } from "@/lib/file-upload";
 import { documentHref } from "@/lib/inventory";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 const PREVIEW_PAGE = 50;
 
@@ -68,7 +70,7 @@ function sessionStore(): Storage | null {
 function Progress({ value, label, testId }: { value: number; label: string; testId: string }) {
   return (
     <div className="flex flex-col gap-1" data-testid={testId}>
-      <div className="flex justify-between text-sm">
+      <div className="flex justify-between text-body">
         <span>{label}</span>
         <span dir="ltr">{value}%</span>
       </div>
@@ -285,8 +287,8 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
     <div className="flex flex-col gap-6" data-testid="catalog-import">
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-4">
-          <h2 className="text-lg font-semibold">{t("template.title")}</h2>
-          <p className="text-sm leading-relaxed text-text-muted">{t("template.body")}</p>
+          <h2 className="text-section font-semibold">{t("template.title")}</h2>
+          <p className="text-body leading-relaxed text-text-muted">{t("template.body")}</p>
           <a
             href="/api/catalog-imports/template"
             className={buttonClasses({ variant: "secondary", className: "self-start" })}
@@ -299,23 +301,20 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
         </Card>
 
         <Card className="flex flex-col gap-3 p-4">
-          <h2 className="text-lg font-semibold">{t("upload.title")}</h2>
-          <label className="flex flex-col gap-1 text-sm font-semibold">
-            {t("upload.file")}
-            <Input
-              type="file"
+          <h2 className="text-section font-semibold">{t("upload.title")}</h2>
+          <Field label={t("upload.file")} hint={t("upload.fileHint")} name="file">
+            <FilePicker
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="h-auto py-2"
               disabled={busy}
-              onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
+              selected={file}
+              onFiles={(files) => {
+                setFile(files[0] ?? null);
                 setProblem(null);
               }}
               data-testid="import-file"
             />
-            <span className="font-normal text-text-muted">{t("upload.fileHint")}</span>
-          </label>
-          <label className="flex items-start gap-3 rounded-md border border-border p-3 text-sm">
+          </Field>
+          <label className="flex items-start gap-3 rounded-md border border-border p-3 text-body">
             <input
               type="checkbox"
               className="mt-1 size-4 shrink-0"
@@ -333,7 +332,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
             upload.phase === "uploading" ? (
               <Progress value={upload.percent} label={t("upload.uploading", { percent: upload.percent })} testId="import-upload-progress" />
             ) : (
-              <p className="text-sm text-text-muted" role="status">
+              <p className="text-body text-text-muted" role="status">
                 {t("upload.processing")}
               </p>
             )
@@ -352,7 +351,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
       {current ? (
         <Card className="flex flex-col gap-4 p-4" data-testid="import-current" data-id={current.id} data-status={current.status}>
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-lg font-semibold">{t("preview.title")}</h2>
+            <h2 className="text-section font-semibold">{t("preview.title")}</h2>
             <Badge
               tone={outcome === "partial" ? "warning" : statusTone(current.status)}
               data-testid="import-status"
@@ -360,7 +359,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
             >
               {outcome === "none" ? t(`status.${current.status}`) : t(`outcome.${outcome}`)}
             </Badge>
-            <span className="flex items-center gap-1 text-sm text-text-muted" dir="auto">
+            <span className="flex items-center gap-1 text-body text-text-muted" dir="auto">
               <FileSpreadsheet className="size-4" aria-hidden />
               {t("preview.file", { name: current.file_name })}
             </span>
@@ -371,7 +370,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
               <p className="font-semibold">{t("apply.title")}</p>
               <Progress value={appliedPercent(current)} label={t("apply.rows")} testId="import-apply-progress" />
               <p
-                className="text-sm font-medium"
+                className="text-body font-medium"
                 data-testid="import-commit-progress"
                 data-applied={current.applied_count}
                 data-batches-done={current.commit_batches_done}
@@ -384,19 +383,19 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                   batchesTotal: current.commit_batches_total,
                 })}
               </p>
-              <p className="text-sm text-text-muted">{t("apply.background")}</p>
+              <p className="text-body text-text-muted">{t("apply.background")}</p>
             </div>
           ) : running ? (
             <div className="flex flex-col gap-2">
               <Progress value={current.progress} label={t("progress.label")} testId="import-progress" />
-              <p className="text-sm text-text-muted">{t("progress.background")}</p>
+              <p className="text-body text-text-muted">{t("progress.background")}</p>
             </div>
           ) : null}
           {checkFailed(current) ? <Alert>{t("progress.failed")}</Alert> : null}
 
           {outcome === "partial" || outcome === "failed" ? (
             <Alert data-testid="import-stopped" data-outcome={outcome}>
-              <p className="text-base font-semibold">{outcome === "partial" ? t("apply.partialTitle") : t("apply.failedTitle")}</p>
+              <p className="text-section font-semibold">{outcome === "partial" ? t("apply.partialTitle") : t("apply.failedTitle")}</p>
               <p className="mt-1" data-testid="import-stopped-counts">
                 {outcome === "partial"
                   ? t("apply.partialBody", {
@@ -414,7 +413,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                         <span className="font-semibold">
                           {sheetName(row)} · {t("preview.row", { row: row.row })}
                         </span>
-                        <code dir="ltr" className="text-xs">
+                        <code dir="ltr" className="text-caption">
                           {row.sku ?? "—"}
                         </code>
                         <span>{row.commit_error?.code && tErrors.has(`codes.${row.commit_error.code}`) ? tErrors(`codes.${row.commit_error.code}`) : tErrors("codes.CATALOG_IMPORT_ROW_FAILED")}</span>
@@ -425,7 +424,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
               ) : null}
               {canResume(current) ? (
                 <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-sm">{t("apply.resumeHelp")}</p>
+                  <p className="text-body">{t("apply.resumeHelp")}</p>
                   <Button
                     className="self-start"
                     variant="secondary"
@@ -445,7 +444,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
           {current.preview ? (
             <>
               {outcome === "none" ? <Alert tone="info">{t("preview.nothingWritten")}</Alert> : null}
-              {current.create_missing ? <p className="text-sm text-text-muted">{t("preview.createsTaxonomy")}</p> : null}
+              {current.create_missing ? <p className="text-body text-text-muted">{t("preview.createsTaxonomy")}</p> : null}
 
               <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("preview.filterLabel")}>
                 <button
@@ -507,51 +506,51 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
               ) : null}
 
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[600px] text-sm" data-testid="import-preview">
-                  <thead className="bg-card text-text-muted">
-                    <tr>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.where")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.sku")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.action")}</th>
-                      <th className="p-2 text-start font-medium">{t("preview.columns.issues")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table minWidth="600px" data-testid="import-preview">
+                  <THead>
+                    <Tr>
+                      <Th>{t("preview.columns.where")}</Th>
+                      <Th>{t("preview.columns.sku")}</Th>
+                      <Th>{t("preview.columns.action")}</Th>
+                      <Th>{t("preview.columns.issues")}</Th>
+                    </Tr>
+                  </THead>
+                  <TBody>
                     {pageRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="p-4 text-center text-text-muted">
+                      <Tr>
+                        <Td align="center" colSpan={4} className="text-text-muted">
                           {t("preview.empty")}
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     ) : (
                       pageRows.map((row) => (
-                        <tr
+                        <Tr
                           key={`${row.sheet}-${row.row}`}
-                          className="border-t border-border align-top"
+                          className="align-top"
                           data-testid="import-row"
                           data-action={row.action}
                           data-commit={row.commit_status}
                           data-sku={row.sku ?? ""}
                         >
-                          <td className="whitespace-nowrap p-2">
+                          <Td className="whitespace-nowrap">
                             <span className="font-semibold">{sheetName(row)}</span>
                             <span className="block text-text-muted">{t("preview.row", { row: row.row })}</span>
-                          </td>
-                          <td className="p-2 font-mono text-xs" dir="ltr">
+                          </Td>
+                          <Td className="font-mono" dir="ltr">
                             {row.sku ?? "—"}
-                          </td>
-                          <td className="p-2">
+                          </Td>
+                          <Td>
                             <Badge tone={actionTone(row.action)}>{t(`preview.actions.${row.action}`)}</Badge>
                             {row.action === "warning" && row.apply_action ? (
-                              <span className="mt-1 block text-xs text-text-muted">{t(`preview.actions.${row.apply_action}`)}</span>
+                              <span className="mt-1 block text-caption text-text-muted">{t(`preview.actions.${row.apply_action}`)}</span>
                             ) : null}
                             {outcome !== "none" && row.apply_action ? (
                               <Badge tone={commitTone(row.commit_status)} className="mt-1" data-testid="import-row-commit">
                                 {t(`preview.commit.${row.commit_status}`)}
                               </Badge>
                             ) : null}
-                          </td>
-                          <td className="p-2">
+                          </Td>
+                          <Td>
                             {row.issues.length === 0 ? (
                               <span className="text-text-muted" dir="auto">
                                 {summary(row) ?? t("preview.fine")}
@@ -562,7 +561,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                   <li key={`${issue.cell}-${issue.code}-${index}`} className="flex flex-wrap items-start gap-2" data-testid="import-issue" data-code={issue.code}>
                                     <code
                                       dir="ltr"
-                                      className="rounded bg-card px-1.5 py-0.5 text-xs font-semibold"
+                                      className="rounded bg-card px-1.5 py-0.5 text-caption font-semibold"
                                       title={t("preview.cell", { cell: issue.cell })}
                                       data-testid="import-issue-cell"
                                     >
@@ -584,15 +583,15 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                                 ))}
                               </ul>
                             )}
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TBody>
+                </Table>
               </div>
               {shown.length > PREVIEW_PAGE ? (
-                <div className="flex items-center justify-end gap-2 text-sm">
+                <div className="flex items-center justify-end gap-2 text-body">
                   <Button size="sm" variant="ghost" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>
                     {t("preview.previous")}
                   </Button>
@@ -620,7 +619,7 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
                     <Download className="size-4" aria-hidden />
                     {t("report.download")}
                   </a>
-                  <span className="text-sm text-text-muted">{t("report.hint")}</span>
+                  <span className="text-body text-text-muted">{t("report.hint")}</span>
                 </div>
               ) : null}
             </>
@@ -630,16 +629,16 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
 
       {current?.preview && !completed && current.status === "ready" ? (
         <Card className="flex flex-col gap-3 p-4" data-testid="import-commit-card">
-          <h2 className="text-lg font-semibold">{t("commit.title")}</h2>
+          <h2 className="text-section font-semibold">{t("commit.title")}</h2>
           {canCommit(current) ? (
             <>
-              {current.preview.counts.error > 0 ? <p className="text-sm">{t("commit.skipped", { count: current.preview.counts.error })}</p> : null}
+              {current.preview.counts.error > 0 ? <p className="text-body">{t("commit.skipped", { count: current.preview.counts.error })}</p> : null}
               {hasStockRows(current) ? (
-                <p className="text-sm">{canPostStock ? t("commit.stockNote") : t("errors.CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED")}</p>
+                <p className="text-body">{canPostStock ? t("commit.stockNote") : t("errors.CATALOG_IMPORT_STOCK_PERMISSION_REQUIRED")}</p>
               ) : null}
-              <p className="text-sm text-text-muted">{t("commit.once")}</p>
+              <p className="text-body text-text-muted">{t("commit.once")}</p>
               {committing ? (
-                <p className="text-sm" role="status">
+                <p className="text-body" role="status">
                   {t("commit.applying")}
                 </p>
               ) : null}
@@ -649,14 +648,14 @@ export function CatalogImportView({ initial, canPostStock }: { initial: CatalogI
               </Button>
             </>
           ) : (
-            <p className="text-sm">{t("commit.none")}</p>
+            <p className="text-body">{t("commit.none")}</p>
           )}
         </Card>
       ) : null}
 
       {current && completed ? (
         <Alert tone="success" data-testid="import-result">
-          <p className="text-base font-semibold">{t("result.title")}</p>
+          <p className="text-section font-semibold">{t("result.title")}</p>
           <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
             <span data-testid="import-result-created">{t("result.created", { count: result?.created ?? current.create_count })}</span>
             <span data-testid="import-result-updated">{t("result.updated", { count: result?.updated ?? current.update_count })}</span>

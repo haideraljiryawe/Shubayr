@@ -20,6 +20,7 @@ import { decimalPlaces, formatAmount, isPositive } from "@/lib/finance/money";
 import { newOperationId } from "@/lib/finance/operations";
 import type { components } from "@/types/api";
 import { useLocaleScopedState } from "@/components/forms/use-locale-scoped-state";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 type CashAccount = components["schemas"]["CashAccount"];
 
@@ -57,36 +58,36 @@ export function CashAccountsView({
     <div className="flex flex-col gap-6">
       <Card className="overflow-x-auto p-5">
         {accounts.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="accounts-empty">{t("empty")}</p>
+          <p className="text-body text-text-muted" data-testid="accounts-empty">{t("empty")}</p>
         ) : (
-          <table className="w-full text-sm" data-testid="accounts-table">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="py-1 text-start font-semibold">{t("columns.name")}</th>
-                <th className="py-1 text-start font-semibold">{t("columns.kind")}</th>
-                <th className="py-1 text-end font-semibold">{t("columns.balance")}</th>
-                <th className="py-1 text-end font-semibold">{t("columns.baseBalance")}</th>
-                <th className="py-1 text-start font-semibold">{t("columns.status")}</th>
-                <th className="py-1" />
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="accounts-table">
+            <THead>
+              <Tr>
+                <Th>{t("columns.name")}</Th>
+                <Th>{t("columns.kind")}</Th>
+                <Th>{t("columns.balance")}</Th>
+                <Th>{t("columns.baseBalance")}</Th>
+                <Th>{t("columns.status")}</Th>
+                <Th />
+              </Tr>
+            </THead>
+            <TBody>
               {accounts.map((account) => (
-                <tr key={account.id} className="border-t border-border" data-testid="account-row" data-name={account.name}>
-                  <td className="py-2 font-semibold">{account.name}</td>
-                  <td className="py-2">{t(`kind.${account.kind}`)}</td>
-                  <td className="py-2 text-end" dir="ltr" data-testid="account-balance">
+                <Tr key={account.id} data-testid="account-row" data-name={account.name}>
+                  <Td className="font-semibold">{account.name}</Td>
+                  <Td>{t(`kind.${account.kind}`)}</Td>
+                  <Td dir="ltr" data-testid="account-balance">
                     {money(account.balance, account.currency_code)}
-                  </td>
-                  <td className="py-2 text-end text-text-muted" dir="ltr">
+                  </Td>
+                  <Td className="text-text-muted" dir="ltr">
                     {money(account.base_balance, account.base_currency_code)}
-                  </td>
-                  <td className="py-2">
+                  </Td>
+                  <Td>
                     <Badge tone={account.is_active ? "success" : "neutral"}>
                       {account.is_active ? t("active") : t("inactive")}
                     </Badge>
-                  </td>
-                  <td className="py-2">
+                  </Td>
+                  <Td>
                     {canManage ? <div className="flex flex-wrap justify-end gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setSelected({ id: account.id, mode: "edit" })} data-testid="account-edit">
                         {t("edit")}
@@ -98,11 +99,11 @@ export function CashAccountsView({
                         {t("delete")}
                       </Button>
                     </div> : null}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         )}
       </Card>
 
@@ -168,19 +169,19 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="account-create" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("createTitle")}</h2>
+        <h2 className="text-section">{t("createTitle")}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("columns.name")} name="name" error={nameError ?? api.fieldErrors.name}>
             <Input value={name} maxLength={160} onChange={(event) => { setName(event.target.value); api.clearField("name"); }} data-testid="account-name" />
           </Field>
           <Field label={t("columns.kind")} name="kind" error={api.fieldErrors.kind}>
-            <Select value={kind} onChange={(event) => setKind(event.target.value as "cash" | "bank")} data-testid="account-kind">
+            <Select value={kind} onValueChange={(value) => setKind(value as "cash" | "bank")} data-testid="account-kind">
               <option value="cash">{t("kind.cash")}</option>
               <option value="bank">{t("kind.bank")}</option>
             </Select>
           </Field>
           <Field label={t("currency")} name="currency_code" error={api.fieldErrors.currency_code}>
-            <Select value={code} onChange={(event) => setCode(event.target.value)} data-testid="account-currency">
+            <Select value={code} onValueChange={(value) => setCode(value)} data-testid="account-currency">
               {(enabled.length ? enabled : [{ code: "IQD" }]).map((currency) => (
                 <option key={currency.code} value={currency.code}>{currency.code}</option>
               ))}
@@ -223,12 +224,12 @@ function EditAccount({ account, onDone, onCancel }: { account: CashAccount; onDo
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="account-edit-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("editTitle", { name: account.name })}</h2>
+        <h2 className="text-section">{t("editTitle", { name: account.name })}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t("columns.name")} name="name" error={api.fieldErrors.name}>
             <Input value={name} maxLength={160} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <label className="flex items-center gap-2 self-center text-sm font-semibold">
+          <label className="flex items-center gap-2 self-center text-label">
             <input type="checkbox" className="size-4" checked={active} onChange={(event) => setActive(event.target.checked)} data-testid="account-active" />
             {t("active")}
           </label>
@@ -293,8 +294,8 @@ function OpeningBalance({
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="opening-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("openingTitle", { name: account.name })}</h2>
-        <p className="text-sm text-text-muted">{t("openingBody")}</p>
+        <h2 className="text-section">{t("openingTitle", { name: account.name })}</h2>
+        <p className="text-body text-text-muted">{t("openingBody")}</p>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("amountIn", { code: account.currency_code })} name="amount" error={errors.amount ?? server.amount}>
             <DecimalInput value="" parse={{ maxDecimals: precision }} onValueChange={(value) => setAmount(value)} data-testid="opening-amount" disabled={posted} />
@@ -359,8 +360,8 @@ function TransferPanel({
   if (active.length < 2) {
     return (
       <Card className="p-5">
-        <h2 className="text-lg font-bold">{t("transfer.title")}</h2>
-        <p className="mt-2 text-sm text-text-muted">{t("transfer.needTwo")}</p>
+        <h2 className="text-section">{t("transfer.title")}</h2>
+        <p className="mt-2 text-body text-text-muted">{t("transfer.needTwo")}</p>
       </Card>
     );
   }
@@ -411,7 +412,7 @@ function TransferPanel({
   return (
     <Card className="p-5">
       <div className="flex flex-col gap-4" data-testid="transfer-panel">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
+        <h2 className="flex items-center gap-2 text-section">
           <ArrowLeftRight className="size-5" aria-hidden />
           {t("transfer.title")}
         </h2>
@@ -419,14 +420,14 @@ function TransferPanel({
           <form className="flex flex-col gap-4" noValidate onSubmit={(event) => { event.preventDefault(); toReview(); }}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("transfer.from")} name="from_account_id" error={server.from_account_id}>
-                <Select value={fromId} onChange={(event) => { setFromId(event.target.value); setToId(""); }} data-testid="transfer-from">
+                <Select value={fromId} onValueChange={(value) => { setFromId(value); setToId(""); }} data-testid="transfer-from">
                   {active.map((account) => (
                     <option key={account.id} value={account.id}>{account.name} · {account.currency_code}</option>
                   ))}
                 </Select>
               </Field>
               <Field label={t("transfer.to")} name="to_account_id" error={errors.to_account_id ?? server.to_account_id} hint={t("transfer.sameCurrency")}>
-                <Select value={toId} onChange={(event) => setToId(event.target.value)} data-testid="transfer-to">
+                <Select value={toId} onValueChange={(value) => setToId(value)} data-testid="transfer-to">
                   <option value="">{t("transfer.pick")}</option>
                   {targets.map((account) => (
                     <option key={account.id} value={account.id}>{account.name} · {account.currency_code}</option>
@@ -452,7 +453,7 @@ function TransferPanel({
           </form>
         ) : (
           <div className="flex flex-col gap-4" data-testid="transfer-preview">
-            <dl className="grid gap-2 rounded-md bg-card p-4 text-sm md:grid-cols-2">
+            <dl className="grid gap-2 rounded-md bg-card p-4 text-body md:grid-cols-2">
               <dt className="text-text-muted">{t("transfer.from")}</dt>
               <dd className="font-semibold">{from?.name}</dd>
               <dt className="text-text-muted">{t("transfer.to")}</dt>

@@ -77,7 +77,7 @@ export function PermissionPicker({
               data-group={group.group}
             >
               <legend className="px-1">
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-bold">
+                <label className="flex cursor-pointer items-center gap-2 text-body font-bold">
                   <input
                     type="checkbox"
                     className="size-4 accent-primary-dark"
@@ -94,7 +94,7 @@ export function PermissionPicker({
                     }}
                   />
                   {groupLabel(group.group)}
-                  <span className="text-xs font-normal text-text-muted">
+                  <span className="text-caption font-normal text-text-muted">
                     {t("count", {
                       chosen: chosen + (group.permissions.length - own.length),
                       total: group.permissions.length,
@@ -109,7 +109,7 @@ export function PermissionPicker({
                     <li key={permission.key}>
                       <label
                         className={cn(
-                          "flex cursor-pointer items-start gap-2 text-sm",
+                          "flex cursor-pointer items-start gap-2 text-body",
                           locked && "cursor-default opacity-70",
                         )}
                       >
@@ -132,16 +132,16 @@ export function PermissionPicker({
                           }
                         />
                         <span className="flex flex-col">
-                          <code className="text-xs font-semibold" dir="ltr">
+                          <code className="text-caption font-semibold" dir="ltr">
                             {permission.key}
                           </code>
                           {permission.description ? (
-                            <span className="text-xs text-text-muted">
+                            <span className="text-caption text-text-muted">
                               {permission.description}
                             </span>
                           ) : null}
                           {locked ? (
-                            <span className="text-xs text-info-dark">
+                            <span className="text-caption text-info-dark">
                               {t("fromPreset")}
                             </span>
                           ) : null}

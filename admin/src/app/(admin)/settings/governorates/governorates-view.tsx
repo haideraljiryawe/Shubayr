@@ -12,6 +12,7 @@ import { FormError } from "@/components/forms/form-error";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { localName, type AdminGovernorate } from "@/lib/delivery-pricing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 /**
  * The 18 governorates and Halabja. An inactive one is not offered in the
@@ -27,23 +28,23 @@ export function GovernoratesView({ governorates }: { governorates: AdminGovernor
   return (
     <>
       <Card className="overflow-x-auto p-0">
-        <table className="w-full min-w-[36rem] text-sm" data-testid="governorates-table">
+        <Table minWidth="36rem" data-testid="governorates-table">
           <caption className="sr-only">{t("title")}</caption>
-          <thead className="bg-card text-text-muted">
-            <tr>
-              <th scope="col" className="px-4 py-3 text-start font-semibold">{t("columns.nameAr")}</th>
-              <th scope="col" className="px-4 py-3 text-start font-semibold">{t("columns.nameEn")}</th>
-              <th scope="col" className="px-4 py-3 text-start font-semibold">{t("columns.zone")}</th>
-              <th scope="col" className="px-4 py-3 text-start font-semibold">{t("columns.status")}</th>
-              <th scope="col" className="px-4 py-3"><span className="sr-only">{t("columns.actions")}</span></th>
-            </tr>
-          </thead>
-          <tbody>
+          <THead>
+            <Tr>
+              <Th scope="col">{t("columns.nameAr")}</Th>
+              <Th scope="col">{t("columns.nameEn")}</Th>
+              <Th scope="col">{t("columns.zone")}</Th>
+              <Th scope="col">{t("columns.status")}</Th>
+              <Th scope="col"><span className="sr-only">{t("columns.actions")}</span></Th>
+            </Tr>
+          </THead>
+          <TBody>
             {governorates.map((governorate) => (
-              <tr key={governorate.id} className="border-t border-border" data-testid="governorate-row" data-code={governorate.code}>
-                <td className="px-4 py-3 font-semibold" dir="rtl">{governorate.name_ar}</td>
-                <td className="px-4 py-3" dir="ltr">{governorate.name_en}</td>
-                <td className="px-4 py-3">
+              <Tr key={governorate.id} data-testid="governorate-row" data-code={governorate.code}>
+                <Td className="font-semibold" dir="rtl">{governorate.name_ar}</Td>
+                <Td dir="ltr">{governorate.name_en}</Td>
+                <Td>
                   {governorate.delivery_zone ? (
                     <span>
                       {localName(governorate.delivery_zone, locale)}
@@ -52,22 +53,22 @@ export function GovernoratesView({ governorates }: { governorates: AdminGovernor
                   ) : (
                     <Badge tone="warning">{t("noZone")}</Badge>
                   )}
-                </td>
-                <td className="px-4 py-3">
+                </Td>
+                <Td>
                   <Badge tone={governorate.is_active ? "success" : "neutral"} data-testid="governorate-status">
                     {governorate.is_active ? t("active") : t("inactive")}
                   </Badge>
-                </td>
-                <td className="px-4 py-3 text-end">
+                </Td>
+                <Td align="end">
                   <Button size="sm" variant="ghost" onClick={() => setEditing(governorate)} data-testid="governorate-edit">
                     <Pencil className="size-4" aria-hidden />
                     {t("edit")}
                   </Button>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </Card>
       {editing ? (
         <GovernorateForm
@@ -137,11 +138,11 @@ function GovernorateForm({
           <Input value={nameEn} dir="ltr" maxLength={120} onChange={(e) => setNameEn(e.target.value)} data-testid="governorate-name-en" />
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-sm font-semibold">
+      <label className="flex items-center gap-2 text-label">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} data-testid="governorate-active" />
         {t("activeLabel")}
       </label>
-      <p className="-mt-2 text-xs text-text-muted">{t("activeHint")}</p>
+      <p className="-mt-2 text-caption text-text-muted">{t("activeHint")}</p>
       <FormError kind={api.formError} code={api.formErrorCode} />
     </FormDialog>
   );

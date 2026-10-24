@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Alert, Button, Card, Input, Select } from "@/components/ui";
+import { Alert, Button, Card, Input, Select, ActionBar } from "@/components/ui";
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
@@ -28,6 +28,7 @@ import {
   type Supplier,
   type SupplierPayment,
 } from "@/lib/purchasing";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export function PaymentForm({
   suppliers,
@@ -183,8 +184,8 @@ export function PaymentForm({
           <Select
             value={supplierId}
             disabled={locked}
-            onChange={(event) => {
-              setSupplierId(event.target.value);
+            onValueChange={(value) => {
+              setSupplierId(value);
               setApplied({});
             }}
             data-testid="payment-supplier"
@@ -201,8 +202,8 @@ export function PaymentForm({
           <Select
             value={cashId}
             disabled={locked}
-            onChange={(event) => {
-              setCashId(event.target.value);
+            onValueChange={(value) => {
+              setCashId(value);
               setApplied({});
               setRate("");
             }}
@@ -260,10 +261,10 @@ export function PaymentForm({
       </Card>
 
       <Card className="flex flex-col gap-3 overflow-x-auto" data-testid="payment-allocations">
-        <h2 className="text-lg font-bold">{t("allocations")}</h2>
-        <p className="text-sm text-text-muted">{t("allocationsBody")}</p>
+        <h2 className="text-section">{t("allocations")}</h2>
+        <p className="text-body text-text-muted">{t("allocationsBody")}</p>
         {loaded?.error ? <FormError kind={loaded.error} /> : null}
-        {supplierId && cash && open.length === 0 && loaded ? <p className="text-sm text-text-muted">{t("noOpenInvoices")}</p> : null}
+        {supplierId && cash && open.length === 0 && loaded ? <p className="text-body text-text-muted">{t("noOpenInvoices")}</p> : null}
         {rateCurrency !== "IQD" && central.status === "hidden" && !overridden ? (
           // Without the exchange-rate read permission there is no preview to
           // show; the server applies the payment-date rate when posting.
@@ -281,21 +282,21 @@ export function PaymentForm({
         ) : null}
         {!ratesKnown ? <Alert tone="info">{t("fxNeedsCost")}</Alert> : null}
         {open.length ? (
-          <table className="w-full min-w-[64rem] text-sm">
-            <thead className="text-text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">{t("columns.invoice")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.remaining")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.invoiceRate")}</th>
-                <th className="w-48 px-3 py-2 text-start font-semibold">{t("columns.applyIn", { currency })}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.rateUsed")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.converted")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.carrying")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.paid")}</th>
-                <th className="px-3 py-2 text-end font-semibold">{t("columns.fx")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table minWidth="64rem">
+            <THead>
+              <Tr>
+                <Th>{t("columns.invoice")}</Th>
+                <Th>{t("columns.remaining")}</Th>
+                <Th>{t("columns.invoiceRate")}</Th>
+                <Th className="w-48">{t("columns.applyIn", { currency })}</Th>
+                <Th>{t("columns.rateUsed")}</Th>
+                <Th>{t("columns.converted")}</Th>
+                <Th>{t("columns.carrying")}</Th>
+                <Th>{t("columns.paid")}</Th>
+                <Th>{t("columns.fx")}</Th>
+              </Tr>
+            </THead>
+            <TBody>
               {open.map((invoice) => {
                 const row = preview.rows.find((entry) => entry.invoiceId === invoice.id);
                 const remaining = toFixed(invoice.remaining_currency ?? 0);
@@ -314,22 +315,22 @@ export function PaymentForm({
                     : null;
                 const booked = invoice.exchange_rate !== undefined;
                 return (
-                  <tr
+                  <Tr
                     key={invoice.id}
-                    className="border-t border-border"
+                   
                     data-testid="payment-invoice"
                     data-number={invoice.document_number}
                     data-currency={invoice.currency_code}
                     data-cross={crossCurrency ? "true" : "false"}
                   >
-                    <td className="px-3 py-2">
+                    <Td>
                       <Link href={`/purchasing/invoices/${invoice.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                         {invoice.document_number}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{money(remaining, invoice.currency_code)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{invoice.exchange_rate ?? "—"}</td>
-                    <td className="px-3 py-2">
+                    </Td>
+                    <Td dir="ltr">{money(remaining, invoice.currency_code)}</Td>
+                    <Td dir="ltr">{invoice.exchange_rate ?? "—"}</Td>
+                    <Td>
                       <div className="flex items-center gap-1">
                         <DecimalInput
                           key={`${invoice.id}-${filled[invoice.id] ?? 0}`}
@@ -354,23 +355,23 @@ export function PaymentForm({
                           {t("settle")}
                         </Button>
                       </div>
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="payment-row-rate">
+                    </Td>
+                    <Td dir="ltr" data-testid="payment-row-rate">
                       {rowRate === null ? (invoice.currency_code === "IQD" && currency === "IQD" ? "—" : t("rateUnknown")) : rowRate}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="payment-row-converted">
+                    </Td>
+                    <Td dir="ltr" data-testid="payment-row-converted">
                       {row && (settlementRate !== null || !rateNeeded) ? money(row.applied, invoice.currency_code) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{row && booked ? iqdMoney(row.carryingIqd) : "—"}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="payment-row-paid">{row ? iqdMoney(row.paidIqd) : "—"}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="payment-row-fx">{row && booked && iqdKnown ? fxText(row.fxIqd) : "—"}</td>
-                  </tr>
+                    </Td>
+                    <Td dir="ltr">{row && booked ? iqdMoney(row.carryingIqd) : "—"}</Td>
+                    <Td dir="ltr" data-testid="payment-row-paid">{row ? iqdMoney(row.paidIqd) : "—"}</Td>
+                    <Td dir="ltr" data-testid="payment-row-fx">{row && booked && iqdKnown ? fxText(row.fxIqd) : "—"}</Td>
+                  </Tr>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         ) : null}
-        <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4" data-testid="payment-summary">
+        <dl className="grid grid-cols-2 gap-3 text-body sm:grid-cols-4" data-testid="payment-summary">
           <Tile label={t("summary.payment")} value={iqdMoney(preview.amountIqd)} />
           <Tile label={t("summary.allocated")} value={iqdMoney(preview.allocatedIqd)} />
           <Tile label={t("summary.fx")} value={ratesKnown && iqdKnown ? fxText(preview.fxIqd) : "—"} testId="payment-fx" />
@@ -394,14 +395,14 @@ export function PaymentForm({
 
       {review ? (
         <Card className="flex flex-col gap-3" data-testid="payment-review">
-          <p className="text-sm" data-testid="payment-review-body">
+          <p className="text-body" data-testid="payment-review-body">
             {ratesKnown && iqdKnown
               ? t("reviewBody", { amount: money(toFixed(amount || "0"), currency), fx: fxText(preview.fxIqd) })
               : t("reviewBodyServerRate", { amount: money(toFixed(amount || "0"), currency) })}
           </p>
           <PurchasingPostingStatus state={posting.state} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
           {posted ? (
-            <p className="text-sm" data-testid="payment-posted">
+            <p className="text-body" data-testid="payment-posted">
               {t("postedSummary", {
                 fx: fxText((posted.allocations ?? []).reduce((sum, row) => sum + toFixed(row.fx_difference_iqd), 0n)),
                 credit: money(toFixed(posted.unallocated_currency), posted.currency_code),
@@ -419,14 +420,14 @@ export function PaymentForm({
           )}
         </Card>
       ) : (
-        <div className="flex justify-end">
+        <ActionBar>
           <Button onClick={toReview} data-testid="payment-review-button">
             {t("review")}
           </Button>
-        </div>
+        </ActionBar>
       )}
       {presetInvoiceId && !applied[presetInvoiceId] && open.some((invoice) => invoice.id === presetInvoiceId) && !locked ? (
-        <p className="text-xs text-text-muted">{t("presetHint")}</p>
+        <p className="text-caption text-text-muted">{t("presetHint")}</p>
       ) : null}
     </div>
   );
@@ -435,7 +436,7 @@ export function PaymentForm({
 function Tile({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>

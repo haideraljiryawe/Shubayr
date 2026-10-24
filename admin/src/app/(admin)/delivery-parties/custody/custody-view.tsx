@@ -46,7 +46,6 @@ export function CustodyView({
       key: "cash",
       header: t("custodyOverview.cashHeld"),
       sortKey: "cash_held",
-      className: "text-end",
       cell: (party) => (
         <span dir="ltr" className="font-semibold" data-testid="custody-cash-held">
           {moneyText(toFixed(party.custody_summary.cash_held), "IQD", 0, locale)}
@@ -57,7 +56,6 @@ export function CustodyView({
       key: "orders",
       header: t("custodyOverview.ordersHeld"),
       sortKey: "orders_held",
-      className: "text-end",
       cell: (party) => (
         <span dir="ltr" data-testid="custody-orders-held">
           {party.custody_summary.orders_held}
@@ -70,7 +68,6 @@ export function CustodyView({
             key: "value",
             header: t("custody.value"),
             sortKey: "goods_value_iqd",
-            className: "text-end",
             cell: (party) => <span dir="ltr">{formatCost(party.custody_summary.goods_value_iqd, locale)}</span>,
           },
         ] satisfies Column<Row>[])
@@ -79,7 +76,6 @@ export function CustodyView({
       key: "oldest",
       header: t("custody.oldest"),
       sortKey: "oldest_item_age_days",
-      className: "text-end",
       cell: (party) => days(party.custody_summary.oldest_item_age_days),
     },
     ...(canReceive
@@ -87,12 +83,12 @@ export function CustodyView({
           {
             key: "actions",
             header: <span className="sr-only">{t("columns.actions")}</span>,
-            className: "text-end",
+            align: "end",
             cell: (party) =>
               party.is_active && party.custody_summary.cash_held > 0 ? (
                 <Link
                   href={`/finance/cash-receipts/new?party_id=${party.id}`}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card"
+                  className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card"
                   data-testid="custody-receive"
                 >
                   {t("custodyOverview.receive")}

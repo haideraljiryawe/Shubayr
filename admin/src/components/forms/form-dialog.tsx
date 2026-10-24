@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui";
+import { Button, DialogShell } from "@/components/ui";
 
 /**
- * A modal form: a native <dialog>, so focus is trapped and Escape closes it
- * without extra code (as ConfirmDialog does). The caller owns the fields and
- * the submit; the dialog only frames them and stays open on failure, with
- * everything still typed.
+ * A modal form on the shared dialog shell (VIS-010): fixed title and action
+ * footer, a body that scrolls, focus trapped, Escape closes. The caller owns
+ * the fields and the submit; the dialog only frames them and stays open on
+ * failure, with everything still typed.
  */
 export function FormDialog({
   open,
   title,
+  description,
   children,
   submitLabel,
   pending = false,
@@ -21,9 +22,11 @@ export function FormDialog({
   testId,
   footer,
   wide = false,
+  size,
 }: {
   open: boolean;
   title: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   submitLabel: ReactNode;
   pending?: boolean;
@@ -34,45 +37,33 @@ export function FormDialog({
   footer?: ReactNode;
   /** Room for side-by-side previews (the banner editor). */
   wide?: boolean;
+  size?: "sm" | "md" | "lg" | "xl";
 }) {
   const t = useTranslations("common");
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
+    <DialogShell
+      open={open}
       onClose={onClose}
-      data-testid={testId}
-      className={`m-auto max-h-[90dvh] ${wide ? "w-[min(64rem,calc(100vw-2rem))]" : "w-[min(40rem,calc(100vw-2rem))]"} overflow-y-auto rounded-lg border border-border bg-surface p-0 text-text shadow-lg backdrop:bg-text/40`}
-    >
-      <form
-        className="flex flex-col gap-4 p-6"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <h2 className="text-lg font-bold">{title}</h2>
-        {children}
-        {footer ?? (
-          <div className="flex justify-end gap-2">
+      title={title}
+      description={description}
+      size={size ?? (wide ? "xl" : "md")}
+      busy={pending}
+      onSubmit={onSubmit}
+      testId={testId}
+      footer={
+        footer ?? (
+          <>
             <Button variant="ghost" onClick={onClose} disabled={pending}>
               {t("cancel")}
             </Button>
             <Button type="submit" pending={pending} data-testid="dialog-submit">
               {submitLabel}
             </Button>
-          </div>
-        )}
-      </form>
-    </dialog>
+          </>
+        )
+      }
+    >
+      {children}
+    </DialogShell>
   );
 }

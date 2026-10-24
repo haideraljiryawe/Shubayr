@@ -36,7 +36,7 @@ export function InvoicesTable({
           <Link href={`/purchasing/invoices/${invoice.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="invoice-link">
             {invoice.document_number}
           </Link>
-          {invoice.invoice_number ? <span className="text-xs text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
+          {invoice.invoice_number ? <span className="text-caption text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
         </div>
       ),
     },
@@ -45,19 +45,18 @@ export function InvoicesTable({
       key: "dates",
       header: t("columns.dates"),
       cell: (invoice) => (
-        <div className="flex flex-col text-xs">
+        <div className="flex flex-col text-caption">
           <span>{day(invoice.document_date)}</span>
           <span className="text-text-muted">{t("due", { date: day(invoice.due_date) })}</span>
         </div>
       ),
     },
     ...(canViewTotals
-      ? [{ key: "total", header: t("columns.total"), className: "text-end", cell: (invoice: PurchaseInvoice) => <span dir="ltr" data-testid="invoice-row-total">{money(invoice.total_cost, invoice.currency_code)}</span> }]
+      ? [{ key: "total", header: t("columns.total"), cell: (invoice: PurchaseInvoice) => <span dir="ltr" data-testid="invoice-row-total">{money(invoice.total_cost, invoice.currency_code)}</span> }]
       : []),
     {
       key: "remaining",
       header: t("columns.remaining"),
-      className: "text-end",
       cell: (invoice) => (
         <span dir="ltr" data-testid="invoice-row-remaining">
           {money(invoice.remaining_currency, invoice.currency_code)}

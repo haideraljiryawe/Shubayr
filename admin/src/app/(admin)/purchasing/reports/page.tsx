@@ -8,6 +8,7 @@ import { storeDay } from "@/lib/finance/dates";
 import { AGING_BUCKETS, agingTotals, moneyText, precisionOf, toFixed, type AgingBucket, type CurrencyCode } from "@/lib/purchasing";
 import type { RawSearchParams } from "@/lib/table-params";
 import { AsOfFilter } from "./as-of-filter";
+import { Table, THead, TBody, Tr, Th, Td } from "@/components/table/table";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -62,92 +63,92 @@ export default async function PayablesPage({ searchParams }: { searchParams: Pro
       <PageHeader title={t("title")} description={t("description")} />
       <div className="flex flex-col gap-6">
         <Card className="overflow-x-auto" data-testid="supplier-balances">
-          <h2 className="mb-3 text-lg font-bold">{t("balances")}</h2>
+          <h2 className="mb-3 text-section">{t("balances")}</h2>
           {balances.data.length === 0 ? (
-            <p className="text-sm text-text-muted">{t("noBalances")}</p>
+            <p className="text-body text-text-muted">{t("noBalances")}</p>
           ) : (
-            <table className="w-full min-w-[36rem] text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.supplier")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("columns.balance")}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{t("columns.balanceIqd")}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table minWidth="36rem">
+              <THead>
+                <Tr>
+                  <Th>{t("columns.supplier")}</Th>
+                  <Th>{t("columns.balance")}</Th>
+                  <Th>{t("columns.balanceIqd")}</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {balances.data.map((row) => (
-                  <tr key={`${row.supplier.id}:${row.currency_code}`} className="border-t border-border" data-testid="balance-row" data-supplier={row.supplier.name}>
-                    <td className="px-3 py-2">
+                  <Tr key={`${row.supplier.id}:${row.currency_code}`} data-testid="balance-row" data-supplier={row.supplier.name}>
+                    <Td>
                       <Link href={`/purchasing/suppliers/${row.supplier.id}`} className="font-semibold text-primary-dark hover:underline">
                         {row.supplier.name}
                       </Link>
-                    </td>
-                    <td className="px-3 py-2 text-end" dir="ltr" data-testid="balance-currency">{money(toFixed(row.balance_currency), row.currency_code)}</td>
-                    <td className="px-3 py-2 text-end" dir="ltr">{money(toFixed(row.balance_iqd), "IQD")}</td>
-                  </tr>
+                    </Td>
+                    <Td dir="ltr" data-testid="balance-currency">{money(toFixed(row.balance_currency), row.currency_code)}</Td>
+                    <Td dir="ltr">{money(toFixed(row.balance_iqd), "IQD")}</Td>
+                  </Tr>
                 ))}
-                <tr className="border-t-2 border-border font-bold">
-                  <td className="px-3 py-2">{t("total")}</td>
-                  <td />
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(balanceTotal, "IQD")}</td>
-                </tr>
-              </tbody>
-            </table>
+                <Tr className="border-t-2 font-bold">
+                  <Td>{t("total")}</Td>
+                  <Td />
+                  <Td dir="ltr">{money(balanceTotal, "IQD")}</Td>
+                </Tr>
+              </TBody>
+            </Table>
           )}
         </Card>
 
         <Card className="overflow-x-auto" data-testid="ap-aging">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">{t("aging")}</h2>
-              <p className="text-sm text-text-muted">{t("agingBody")}</p>
+              <h2 className="text-section">{t("aging")}</h2>
+              <p className="text-body text-text-muted">{t("agingBody")}</p>
             </div>
             <AsOfFilter value={asOf} />
           </div>
           {!aging.ok ? (
-            <p className="text-sm text-text-muted">{t("agingUnavailable")}</p>
+            <p className="text-body text-text-muted">{t("agingUnavailable")}</p>
           ) : lines.length === 0 ? (
-            <p className="text-sm text-text-muted">{t("noAging")}</p>
+            <p className="text-body text-text-muted">{t("noAging")}</p>
           ) : (
-            <table className="w-full min-w-[56rem] text-sm">
-              <thead className="text-text-muted">
-                <tr>
-                  <th className="px-3 py-2 text-start font-semibold">{t("columns.supplier")}</th>
+            <Table minWidth="56rem">
+              <THead>
+                <Tr>
+                  <Th>{t("columns.supplier")}</Th>
                   {AGING_BUCKETS.map((bucket) => (
-                    <th key={bucket} className="px-3 py-2 text-end font-semibold">
+                    <Th key={bucket}>
                       {t(`buckets.${bucket}`)}
-                    </th>
+                    </Th>
                   ))}
-                  <th className="px-3 py-2 text-end font-semibold">{t("total")}</th>
-                </tr>
-              </thead>
-              <tbody>
+                  <Th>{t("total")}</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {[...bySupplier.entries()].map(([id, entry]) => (
-                  <tr key={id} className="border-t border-border" data-testid="aging-row" data-supplier={entry.name}>
-                    <td className="px-3 py-2">
+                  <Tr key={id} data-testid="aging-row" data-supplier={entry.name}>
+                    <Td>
                       <Link href={`/purchasing/suppliers/${id}`} className="font-semibold text-primary-dark hover:underline">
                         {entry.name}
                       </Link>
-                    </td>
+                    </Td>
                     {AGING_BUCKETS.map((bucket) => (
-                      <td key={bucket} className="px-3 py-2 text-end" dir="ltr" data-testid={`aging-${bucket}`}>
+                      <Td key={bucket} dir="ltr" data-testid={`aging-${bucket}`}>
                         {entry.buckets.get(bucket) ? money(entry.buckets.get(bucket)!, "IQD") : "—"}
-                      </td>
+                      </Td>
                     ))}
-                    <td className="px-3 py-2 text-end font-semibold" dir="ltr">{money(entry.total, "IQD")}</td>
-                  </tr>
+                    <Td className="font-semibold" dir="ltr">{money(entry.total, "IQD")}</Td>
+                  </Tr>
                 ))}
-                <tr className="border-t-2 border-border font-bold">
-                  <td className="px-3 py-2">{t("total")}</td>
+                <Tr className="border-t-2 font-bold">
+                  <Td>{t("total")}</Td>
                   {AGING_BUCKETS.map((bucket) => (
-                    <td key={bucket} className="px-3 py-2 text-end" dir="ltr">
+                    <Td key={bucket} dir="ltr">
                       {money(totals.byBucket.get(bucket) ?? 0n, "IQD")}
-                    </td>
+                    </Td>
                   ))}
-                  <td className="px-3 py-2 text-end" dir="ltr">{money(totals.totalIqd, "IQD")}</td>
-                </tr>
-              </tbody>
-            </table>
+                  <Td dir="ltr">{money(totals.totalIqd, "IQD")}</Td>
+                </Tr>
+              </TBody>
+            </Table>
           )}
         </Card>
       </div>

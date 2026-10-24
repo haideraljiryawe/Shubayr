@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_ORIGIN, API_URL, COOKIE_SECURE } from "../config";
-import { refreshSession } from "./refresh";
+import { RefreshUnavailableError, refreshSession } from "./refresh";
 import { clientForwardHeaders } from "./forwarding";
 import {
   ACCESS_COOKIE,
@@ -80,7 +80,9 @@ export interface ForwardInit {
  * printable ASCII characters). The expense writes require it (contract 17.1);
  * a key of any other shape is dropped and the API answers its own refusal.
  */
-export function idempotencyHeader(request: Pick<Request, "headers">): Record<string, string> {
+export function idempotencyHeader(
+  request: Pick<Request, "headers">,
+): Record<string, string> {
   const key = request.headers.get("idempotency-key");
   return key && /^[ -~]{8,128}$/.test(key) ? { "Idempotency-Key": key } : {};
 }
@@ -98,6 +100,23 @@ export interface Forwarded<TBody = string> {
   retryAfter: string | null;
 }
 
+function unavailable(): Forwarded<string> {
+  return {
+    status: 503,
+    body: JSON.stringify({
+      status: 503,
+      code: "API_UNAVAILABLE",
+      message: "The API can't be reached",
+      errors: [],
+    }),
+    contentType: "application/json",
+    contentDisposition: null,
+    refreshed: null,
+    signedOut: false,
+    retryAfter: null,
+  };
+}
+
 async function send(
   init: ForwardInit,
   accessToken: string | undefined,
@@ -107,8 +126,13 @@ async function send(
   // member's address — taken only from a trusted front proxy, never from what
   // the client sent — lets the API rate-limit and audit per person once it
   // trusts this server (see forwarding.ts and docs/deploy/web-and-admin.md).
-  const headers: Record<string, string> = { Accept: "application/json", ...forwarded, ...init.headers };
-  if (typeof init.body === "string") headers["Content-Type"] = "application/json";
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...forwarded,
+    ...init.headers,
+  };
+  if (typeof init.body === "string")
+    headers["Content-Type"] = "application/json";
   if (init.authenticated !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -144,34 +168,40 @@ export async function forward(
   let refreshed: TokenPair | null = null;
   let refreshTried = false;
 
-  const tryRefresh = async (): Promise<boolean> => {
-    if (refreshTried || !refresh) return false;
+  const tryRefresh = async (): Promise<
+    "refreshed" | "refused" | "unavailable"
+  > => {
+    if (refreshTried || !refresh) return "refused";
     refreshTried = true;
-    refreshed = await refreshSession(refresh, fetch, forwarded);
+    try {
+      refreshed = await refreshSession(refresh, fetch, forwarded);
+    } catch (error) {
+      if (error instanceof RefreshUnavailableError) return "unavailable";
+      throw error;
+    }
     if (refreshed) access = refreshed.access_token;
-    return refreshed !== null;
+    return refreshed ? "refreshed" : "refused";
   };
 
-  if (authenticated && needsRefresh(access)) await tryRefresh();
+  if (authenticated && needsRefresh(access)) {
+    const refreshResult = await tryRefresh();
+    if (refreshResult === "unavailable") return unavailable();
+  }
 
   let response: Response;
   try {
     response = await send(init, access, forwarded);
-    if (response.status === 401 && authenticated && (await tryRefresh())) {
-      response = await send(init, access, forwarded);
+    if (response.status === 401 && authenticated) {
+      const refreshResult = await tryRefresh();
+      if (refreshResult === "unavailable") return unavailable();
+      if (refreshResult === "refreshed") {
+        response = await send(init, access, forwarded);
+      }
     }
   } catch {
     // The API is down or unreachable (refused, DNS, timeout): a declared 503
     // the screens can say plainly, instead of a crashed route handler.
-    return {
-      status: 503,
-      body: JSON.stringify({ status: 503, code: "API_UNAVAILABLE", message: "The API can't be reached", errors: [] }),
-      contentType: "application/json",
-      contentDisposition: null,
-      refreshed: null,
-      signedOut: false,
-      retryAfter: null,
-    };
+    return unavailable();
   }
 
   // Signed out means: the API refused us and no refresh could fix it.
