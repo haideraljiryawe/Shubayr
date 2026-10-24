@@ -54,6 +54,23 @@ const productInclude = {
 
 type ProductRow = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 
+type ProductAvailability = {
+  product_id: string;
+  in_stock: boolean;
+  availability: 'in_stock' | 'low_stock' | 'out_of_stock';
+  available_qty: number;
+  variants: Array<{
+    variant_id: string;
+    sku: string;
+    base_unit: string;
+    whole_units_only: boolean;
+    low_stock_threshold: number;
+    available_qty: number;
+    availability: 'in_stock' | 'low_stock' | 'out_of_stock';
+    in_stock: boolean;
+  }>;
+};
+
 type PreparedVariant = {
   id?: string;
   sku: string;
@@ -1179,10 +1196,17 @@ export class ProductsService {
       : [];
     const byId = new Map(rows.map((row) => [row.id, row]));
     const now = new Date();
+    const availabilityById = await this.adminAvailability(
+      rows,
+      defaultThreshold,
+      today,
+    );
     const data = await Promise.all(
       ids.flatMap((id) => {
         const row = byId.get(id);
-        return row ? [this.toResponse(row, now)] : [];
+        return row
+          ? [this.toResponse(row, now, availabilityById.get(row.id))]
+          : [];
       }),
     );
     return {
@@ -1297,9 +1321,97 @@ export class ProductsService {
     };
   }
 
-  private async toResponse(product: ProductRow, at: Date) {
+  private async adminAvailability(
+    products: ProductRow[],
+    defaultThreshold: number,
+    at: Date,
+  ): Promise<Map<string, ProductAvailability>> {
+    if (!products.length) return new Map();
+    const stock = await this.prisma.batchStock.findMany({
+      where: {
+        batch: {
+          product_id: { in: products.map(({ id }) => id) },
+          OR: [{ expiry_date: null }, { expiry_date: { gte: at } }],
+        },
+        location: {
+          is_active: true,
+          is_sellable: true,
+          warehouse: { is_active: true },
+        },
+      },
+      select: {
+        quantity: true,
+        reserved: true,
+        batch: { select: { product_id: true, variant_id: true } },
+      },
+    });
+    const quantities = new Map<string, number>();
+    for (const item of stock) {
+      quantities.set(
+        item.batch.variant_id,
+        (quantities.get(item.batch.variant_id) ?? 0) +
+          Number(item.quantity) -
+          Number(item.reserved ?? 0),
+      );
+    }
+    return new Map(
+      products.map((product) => {
+        const variants = product.variants.map((variant) => {
+          const available_qty = Math.max(0, quantities.get(variant.id) ?? 0);
+          const threshold =
+            variant.low_stock_threshold === null
+              ? defaultThreshold
+              : Number(variant.low_stock_threshold);
+          const availability =
+            available_qty === 0
+              ? ('out_of_stock' as const)
+              : available_qty <= threshold
+                ? ('low_stock' as const)
+                : ('in_stock' as const);
+          return {
+            variant_id: variant.id,
+            sku: variant.sku,
+            base_unit: variant.base_unit,
+            whole_units_only: variant.whole_units_only,
+            low_stock_threshold: threshold,
+            available_qty,
+            availability,
+            in_stock: available_qty > 0,
+          };
+        });
+        const available_qty = variants.reduce(
+          (sum, variant) => sum + variant.available_qty,
+          0,
+        );
+        const availability = variants.some(
+          (variant) => variant.availability === 'in_stock',
+        )
+          ? ('in_stock' as const)
+          : variants.some((variant) => variant.availability === 'low_stock')
+            ? ('low_stock' as const)
+            : ('out_of_stock' as const);
+        return [
+          product.id,
+          {
+            product_id: product.id,
+            in_stock: available_qty > 0,
+            availability,
+            available_qty,
+            variants,
+          },
+        ];
+      }),
+    );
+  }
+
+  private async toResponse(
+    product: ProductRow,
+    at: Date,
+    suppliedAvailability?: ProductAvailability,
+  ) {
     const productPricing = computeProductPricing(product, at);
-    const availability = await this.availability(product.id);
+    const availability =
+      suppliedAvailability ?? (await this.availability(product.id));
     const byVariant = new Map(
       availability.variants.map((entry) => [entry.variant_id, entry]),
     );

@@ -195,6 +195,32 @@ describe('ProductsService', () => {
     expect(sql).not.toContain('search_variant.sku ILIKE');
   });
 
+  it('hydrates page availability in one bulk query without per-product reads', async () => {
+    const productFindUnique = jest.fn();
+    const batchStockFindMany = jest.fn().mockResolvedValue([]);
+    const service = new ProductsService(
+      {
+        storeSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+        productVariant: { findFirst: jest.fn().mockResolvedValue(null) },
+        $queryRaw: jest.fn().mockResolvedValue([{ id: product.id, total: 1n }]),
+        product: {
+          findMany: jest.fn().mockResolvedValue([product]),
+          findUnique: productFindUnique,
+        },
+        batchStock: { findMany: batchStockFindMany },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const page = await service.listAdmin({ page: 1, per_page: 20 });
+
+    expect(page.total).toBe(1);
+    expect(page.data).toHaveLength(1);
+    expect(batchStockFindMany).toHaveBeenCalledTimes(1);
+    expect(productFindUnique).not.toHaveBeenCalled();
+  });
+
   it('hard-deletes an unreferenced product and clears transient cart/media data', async () => {
     const tx = {
       product: {
