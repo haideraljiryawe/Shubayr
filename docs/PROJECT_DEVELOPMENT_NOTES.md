@@ -78,7 +78,7 @@ This document is the ongoing collection of the project owner's development notes
 | NOTE-010 | Mark All Notifications as Read | Flutter implemented using existing bulk API |
 | NOTE-011 | Product Purchase Quantity Limits | Per-order Backend/API delivered in 17.7.0; client adoption pending; rolling quota deferred |
 | NOTE-012 | Web Applications – Branding and Localization Improvements | Source audit complete; Web Admin/Web Store requirements; conditional Backend error-code follow-up |
-| NOTE-013 | OTPIQ SMS OTP Delivery | Local adapter implemented; configuration and missing OTP controls require follow-up; no live SMS or deployment |
+| NOTE-013 | OTPIQ SMS OTP Delivery | Adapter reviewed; C23 adds shared cooldown/quotas, atomic attempt limits, anti-fraud IP and an operator live-check; activation remains manual |
 
 ## NOTE-001 — Home Page Banner Management
 
@@ -883,6 +883,29 @@ The existing strict route throttle is IP-based (default 30 requests/minute). It 
 
 **Flutter follow-up:** once server policy/contract is agreed, render the authoritative retry time with localized feedback and disable resend until eligible; retain existing phone formatting, session ownership, and navigation. A UI-only timer is not a security control. Do not invent retry fields or local attempt limits before the backend contract exists.
 
+### C23 review and hardening follow-up
+
+Contract 17.13.0 closes the backend controls listed above. Redis atomically
+reserves a 60-second cooldown before delivery, applies 3-per-10-minute and
+10-per-rolling-24-hour phone quotas plus 60-per-rolling-hour IP quota, and uses
+an expiring per-phone lock. A failed or unknown provider result keeps its
+reservation. PostgreSQL atomically increments each challenge's attempt counter
+and invalidates it on the fifth wrong code. Development still makes no outbound
+request, but it passes through the same Redis policy.
+
+The adapter review tightened the SMS id to OTPIQ's documented 24-hex form,
+passes a validated IPv4/IPv6 `req.ip` through one isolated camelCase
+`antiFraud.requesterIp` helper, and retains the shared submit/tracking deadline,
+redirect refusal and no-retry POST rule. Provider status/category logging is
+sanitized: it contains no API key, OTP, provider body or phone number. Provider
+429 remains an internal delivery failure and maps to
+`OTP_DELIVERY_UNAVAILABLE`; Shubayr's own rate decisions use the new stable 429
+codes and retry fields.
+
+The manually authorized live check is documented in
+`docs/operations/otpiq-live-check.md`. It was not run by C23 and no key,
+production environment or deployment was changed.
+
 ### Verification and handoff
 
 Focused mocked adapter/configuration/authentication tests cover payload/normalization, dispatch confirmation, pending/failure handling, insufficient credit, rate limiting, timeouts, malformed responses, no automatic resend, digest/TTL preservation, expired/consumed OTP rejection, and atomic replay rejection. Existing Flutter phone, OTP, refresh, and session-lifecycle tests passed **78 tests**. Backend verification passed **80 Jest tests across 5 suites**, **2 strict-schema tests**, TypeScript type checking, and the contract error-code check (349 declared codes). Focused ESLint, `git diff --check`, and static Compose YAML/configuration checks also passed.
@@ -925,3 +948,4 @@ States below describe each historical step; the executive summary records the cu
 | 2026-10-18 | Reconciled all 12 notes against current code and API 17.4.0, added team ownership/priorities/dependencies, corrected superseded category and notification findings, recorded phone direction/radio/typography completion, and flagged delivery add-on release scope without removing requirements. | Draft / Pending Team Review; owner-authorized mobile handoff; remaining requirements unapproved. |
 | 2026-10-19 | Delivered the additive 17.7.0 Backend/API contract for NOTE-001 structured/default banners, NOTE-004 Recently Added, and NOTE-011 per-order limits; documented compatibility and deferred rolling quotas/client adoption. | Backend complete for C16; client UI work remains. |
 | 2026-10-24 | Added NOTE-013: opt-in backend OTPIQ SMS adapter, mocked verification, configuration, preserved Flutter/API behavior, and exact missing attempt/cooldown/concurrency work. | Local implementation only; no commit, push, deployment, live SMS or database changes. |
+| 2026-10-24 | C23 reviewed NOTE-013 and added the agreed shared OTP controls, localized additive contract and one-message operator check. | Backend/API implementation; live provider activation and Flutter adoption remain separate. |

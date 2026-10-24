@@ -24,8 +24,8 @@ export class AuthController {
   @Post('request-otp')
   @RateLimitTier(RateLimitRisk.Strict)
   @HttpCode(200)
-  requestOtp(@Body() input: RequestOtpDto) {
-    return this.auth.requestOtp(input);
+  requestOtp(@Body() input: RequestOtpDto, @Req() request: Request) {
+    return this.auth.requestOtp(input, request.ip);
   }
 
   @Post('verify-otp')

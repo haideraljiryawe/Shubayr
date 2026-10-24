@@ -48,11 +48,16 @@ check_env() {
   fi
   local key
   for key in SHUBAYR_DOMAIN ACME_EMAIL SHUBAYR_TAG POSTGRES_PASSWORD REDIS_PASSWORD MEILI_MASTER_KEY \
-             JWT_SECRET JWT_REFRESH_SECRET S3_ACCESS_KEY S3_SECRET_KEY SMS_GATEWAY_URL; do
+             JWT_SECRET JWT_REFRESH_SECRET S3_ACCESS_KEY S3_SECRET_KEY; do
     [ -n "$(env_value "$key")" ] || fail "${key} is empty in ${ENV_FILE}"
   done
-  if [ "$(env_value SMS_GATEWAY_URL)" != "disabled" ]; then
-    [ -n "$(env_value SMS_GATEWAY_TOKEN)" ] || fail "SMS_GATEWAY_TOKEN is empty in ${ENV_FILE}"
+  if [ "$(env_value SMS_PROVIDER)" = "otpiq" ]; then
+    [ -n "$(env_value OTPIQ_API_KEY)" ] || fail "OTPIQ_API_KEY is empty in ${ENV_FILE}"
+  else
+    [ -n "$(env_value SMS_GATEWAY_URL)" ] || fail "SMS_GATEWAY_URL is empty in ${ENV_FILE}"
+    if [ "$(env_value SMS_GATEWAY_URL)" != "disabled" ]; then
+      [ -n "$(env_value SMS_GATEWAY_TOKEN)" ] || fail "SMS_GATEWAY_TOKEN is empty in ${ENV_FILE}"
+    fi
   fi
   for key in JWT_SECRET JWT_REFRESH_SECRET; do
     [ "$(env_value "$key" | wc -c)" -gt 32 ] || fail "${key} must be at least 32 characters"

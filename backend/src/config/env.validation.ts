@@ -62,13 +62,31 @@ const schema = Joi.object({
     .max(120)
     .default(30),
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
+  OTP_MAX_VERIFY_ATTEMPTS: Joi.number().integer().min(1).max(10).default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: Joi.number()
+    .integer()
+    .min(1)
+    .max(3600)
+    .default(60),
+  OTP_PHONE_WINDOW_MAX: Joi.number().integer().min(1).max(100).default(3),
+  OTP_PHONE_WINDOW_SECONDS: Joi.number()
+    .integer()
+    .min(60)
+    .max(86_400)
+    .default(600),
+  OTP_PHONE_DAILY_MAX: Joi.number().integer().min(1).max(1000).default(10),
+  OTP_IP_HOURLY_MAX: Joi.number().integer().min(1).max(10_000).default(60),
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)
     .default('000000'),
   SMS_PROVIDER: Joi.string().valid('gateway', 'otpiq').default('gateway'),
   OTPIQ_API_KEY: Joi.string().when('SMS_PROVIDER', {
     is: 'otpiq',
-    then: Joi.string().trim().min(8).required(),
+    then: Joi.when('APP_ENV', {
+      is: 'production',
+      then: Joi.string().trim().min(8).required(),
+      otherwise: Joi.optional().allow(''),
+    }),
     otherwise: Joi.optional().allow(''),
   }),
   // Total submit + tracking budget, below Flutter's 20-second receive timeout.

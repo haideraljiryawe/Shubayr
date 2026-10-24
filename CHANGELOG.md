@@ -1,5 +1,23 @@
 # Changelog
 
+## 17.13.0 - 2026-10-24
+
+### Added
+
+- Phone OTP delivery now has shared Redis-backed resend, rolling phone and IP
+  quotas, plus an atomic per-code verification-attempt ceiling.
+- OTP responses provide optional authoritative countdown/attempt information
+  and localized Arabic/English messages for the new stable refusal codes.
+- OTPIQ delivery forwards a validated client IP in its isolated anti-fraud
+  shape, and an operator-only live-check command verifies one delivery without
+  touching the database or exposing credentials.
+
+### Changed
+
+- The API contract is 17.13.0. All response fields and errors are additive and
+  backward compatible. Provider failures remain the sanitized
+  `OTP_DELIVERY_UNAVAILABLE` response.
+
 ## 17.12.0 - 2026-10-24
 
 ### Added
