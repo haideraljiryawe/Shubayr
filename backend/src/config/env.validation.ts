@@ -82,7 +82,11 @@ const schema = Joi.object({
   SMS_PROVIDER: Joi.string().valid('gateway', 'otpiq').default('gateway'),
   OTPIQ_API_KEY: Joi.string().when('SMS_PROVIDER', {
     is: 'otpiq',
-    then: Joi.string().trim().min(8).required(),
+    then: Joi.when('APP_ENV', {
+      is: 'production',
+      then: Joi.string().trim().min(8).required(),
+      otherwise: Joi.optional().allow(''),
+    }),
     otherwise: Joi.optional().allow(''),
   }),
   // Total submit + tracking budget, below Flutter's 20-second receive timeout.

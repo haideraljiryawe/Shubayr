@@ -81,6 +81,17 @@ describe('validateEnvironment OTPIQ', () => {
     },
   );
 
+  it('allows OTPIQ without a key in development because SMS is bypassed', () => {
+    expect(
+      validateEnvironment({
+        ...production,
+        APP_ENV: 'development',
+        SMS_PROVIDER: 'otpiq',
+        OTPIQ_API_KEY: '',
+      }),
+    ).toMatchObject({ APP_ENV: 'development', SMS_PROVIDER: 'otpiq' });
+  });
+
   it.each([999, 15001, 1000.5])(
     'rejects an unsafe total timeout %s',
     (timeout) => {
