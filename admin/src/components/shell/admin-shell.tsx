@@ -173,7 +173,7 @@ export function AdminShell({
           </div>
           <div className="ms-auto flex items-center gap-1">
             <NotificationBell />
-            <AccountMenu name={user.name ?? ""} username={user.username} />
+            <AccountMenu name={user.name ?? ""} username={user.username} presets={user.presets} />
           </div>
         </header>
 

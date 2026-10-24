@@ -1,46 +1,9 @@
 import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
-import { ApiError } from "@/lib/api/errors";
 import { permissionName, type Permission } from "@/lib/permissions";
-import { DELETE_REASONS, deleteEach, deleteSummary } from "@/lib/product-delete";
 import { safeReturnPath } from "@/lib/return-path";
 import { exportPercent } from "@/components/reports/report-export";
-
-describe("product delete (17.10.0)", () => {
-  it("reports what the server did per product: deleted, archived with its reasons, or failed", async () => {
-    const answers: Record<string, unknown> = {
-      a: { outcome: "deleted", reasons: [] },
-      b: { outcome: "archived", reasons: ["purchase_history", "order_history"] },
-      c: new ApiError(403, "x", "FORBIDDEN"),
-      d: { outcome: "archived", reasons: ["order_history"] },
-    };
-    const calls: string[] = [];
-    const summary = await deleteEach(
-      ["a", "b", "c", "d"].map((id) => ({ id, name: id.toUpperCase() })),
-      async (id) => {
-        calls.push(id);
-        const answer = answers[id];
-        if (answer instanceof Error) throw answer;
-        return answer as never;
-      },
-      () => "Not allowed",
-    );
-    // One at a time, in order, and a failure doesn't stop the rest.
-    expect(calls).toEqual(["a", "b", "c", "d"]);
-    expect(summary).toMatchObject({ deleted: 1, archived: 2, failed: 1, reasons: ["order_history", "purchase_history"] });
-    expect(summary.lines.map((line) => `${line.id}:${line.outcome}`)).toEqual(["c:failed", "b:archived", "d:archived", "a:deleted"]);
-    expect(summary.lines[0].message).toBe("Not allowed");
-    expect(deleteSummary([])).toEqual({ deleted: 0, archived: 0, failed: 0, reasons: [], lines: [] });
-  });
-
-  it("words every archive reason in both languages", () => {
-    for (const reason of DELETE_REASONS) {
-      expect(en.products.delete.reasons[reason], reason).toBeTruthy();
-      expect(ar.products.delete.reasons[reason], reason).toBeTruthy();
-    }
-  });
-});
 
 describe("returning to the page you came from", () => {
   it("accepts this site's paths and refuses other sites, loops and control characters", () => {

@@ -2395,13 +2395,32 @@
         "failed": "Not deleted"
       },
       "reasons": {
-        "order_history": "It appears in orders",
-        "inventory_history": "It has stock or stock movements",
-        "purchase_history": "It appears in purchases",
-        "product_reviews": "It has customer reviews",
-        "price_approval_history": "It has price approvals",
-        "banner_action": "A home banner opens it"
-      }
+        "order_history": "It appears in past orders",
+        "inventory_history": "It has stock movements",
+        "purchase_history": "It appears in purchase invoices",
+        "product_reviews": "It has reviews",
+        "price_approval_history": "It has price approval requests",
+        "banner_action": "It's linked to a banner",
+        "product_not_found": "The product doesn't exist",
+        "unknown": "It has other records that must be kept"
+      },
+      "checking": "Checking what will happen to this product…",
+      "checkingMany": "Checking the selected products…",
+      "willDelete": "This product will be deleted permanently because it has never been used.",
+      "willArchive": "This product can't be deleted because it has history, so it will be archived (hidden from the store and kept in the records).",
+      "why": "Why:",
+      "cannot": "This product can't be deleted or archived:",
+      "previewFailed": "Couldn't check in advance what will happen. The rule:",
+      "confirmArchive": "Archive",
+      "willDeleteCount": "{count, plural, one {# product will be} other {# products will be}} deleted permanently",
+      "willArchiveCount": "{count, plural, one {# product will be archived (it has history)} other {# products will be archived (they have history)}}",
+      "cannotCount": "{count, plural, one {# product} other {# products}} can't be processed",
+      "nothingToDo": "None of the selected products can be deleted or archived.",
+      "confirmBoth": "Delete {deleted} and archive {archived}",
+      "confirmArchiveMany": "Archive {count, plural, one {# product} other {# products}}",
+      "batches": "The {count} selected products are sent in batches of up to 500.",
+      "conflict": "This request had already been used for a different selection, so it changed nothing. Press the button again to send it as a new request.",
+      "retry": "The request didn't finish ({error}). Press the button again: products already handled won't be handled twice."
     }
   },
   "linkedPrices": {
