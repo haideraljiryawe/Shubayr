@@ -28,7 +28,8 @@ export interface InvoiceProductRow {
 /**
  * The compact list of invoice products (VIS-022): one row per product added,
  * grouped — product, quantity and cost, derived costs, receiving details —
- * with Edit and Remove. The row being edited is marked. Rows are never merged:
+ * with Edit and Remove — a table on wide screens, one stacked card per product
+ * on a phone. The row being edited is marked. Rows are never merged:
  * the same product can be on the invoice twice with another batch, location
  * or cost.
  */
@@ -47,8 +48,8 @@ export function InvoiceProductsList({
 }) {
   const t = useTranslations("purchasing.invoice");
   return (
-    <Table caption={t("editor.listTitle")} minWidth="52rem" framed data-testid="invoice-products">
-      <THead>
+    <Table caption={t("editor.listTitle")} framed className="max-md:block md:min-w-[52rem]" data-testid="invoice-products">
+      <THead className="max-md:hidden">
         <Tr>
           <Th>{t("editor.columns.product")}</Th>
           <Th>{t("editor.columns.quantityCost")}</Th>
@@ -61,7 +62,7 @@ export function InvoiceProductsList({
           )}
         </Tr>
       </THead>
-      <TBody>
+      <TBody className="max-md:block">
         {rows.length === 0 ? (
           <EmptyRow colSpan={locked ? 4 : 5}>
             <span data-testid="invoice-products-empty">{t("editor.empty")}</span>
@@ -73,7 +74,11 @@ export function InvoiceProductsList({
           return (
             <Tr
               key={row.line.key}
-              className={cn("align-top", editing && "bg-primary/5 outline outline-2 -outline-offset-2 outline-primary", row.blank && "text-text-muted")}
+              className={cn(
+                "align-top max-md:grid max-md:gap-1 max-md:py-2",
+                editing && "bg-primary/5 outline outline-2 -outline-offset-2 outline-primary",
+                row.blank && "text-text-muted",
+              )}
               data-testid="invoice-line"
               data-key={row.line.key}
               data-sku={sku?.sku ?? ""}
@@ -81,7 +86,7 @@ export function InvoiceProductsList({
               data-editing={editing ? "true" : "false"}
               aria-current={editing ? "true" : undefined}
             >
-              <Td className="align-top">
+              <Td className="align-top max-md:block max-md:py-1">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-semibold text-text" data-testid="line-product">
                     {sku?.productName ?? "—"}
@@ -107,7 +112,7 @@ export function InvoiceProductsList({
                   ))}
                 </div>
               </Td>
-              <Td className="align-top">
+              <Td className="align-top max-md:block max-md:py-1">
                 <Pairs
                   items={[
                     [t("editor.quantity"), row.quantity, "line-quantity"],
@@ -116,7 +121,7 @@ export function InvoiceProductsList({
                   ]}
                 />
               </Td>
-              <Td className="align-top">
+              <Td className="align-top max-md:block max-md:py-1">
                 <Pairs
                   items={[
                     [t("baseQuantity"), row.baseQuantity, "line-base"],
@@ -126,7 +131,7 @@ export function InvoiceProductsList({
                   ]}
                 />
               </Td>
-              <Td className="align-top">
+              <Td className="align-top max-md:block max-md:py-1">
                 <Pairs
                   items={[
                     [t("lineLocation"), row.location, "line-location-shown"],
@@ -136,8 +141,8 @@ export function InvoiceProductsList({
                 />
               </Td>
               {locked ? null : (
-                <Td align="end" className="align-top">
-                  <div className="flex flex-wrap justify-end gap-1">
+                <Td align="end" className="align-top max-md:block max-md:py-1">
+                  <div className="flex flex-wrap justify-end gap-1 max-md:justify-start">
                     <Button size="sm" variant="ghost" onClick={() => onEdit(row.line.key)} disabled={editing} data-testid="line-edit">
                       <Pencil className="size-4" aria-hidden />
                       {t("editor.edit")}
