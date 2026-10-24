@@ -206,8 +206,9 @@ export function InvoiceForm({
 
   // What the one product editor holds (VIS-022). Not part of the draft: only
   // rows added to the invoice are.
-  const [entry, setEntry] = useState<InvoiceEntry>(blankEntry);
-  const [editingKey, setEditingKey] = useState<number | null>(null);
+  // A restock opens with its first variant in the editor: type the quantity, save.
+  const [entry, setEntry] = useState<InvoiceEntry>(() => (restock && initial.lines[0] ? entryOf(initial.lines[0]) : blankEntry()));
+  const [editingKey, setEditingKey] = useState<number | null>(() => (restock && initial.lines[0] ? initial.lines[0].key : null));
   const [entryErrors, setEntryErrors] = useState<EntryErrors>({});
   const [editorGeneration, setEditorGeneration] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -524,6 +525,11 @@ export function InvoiceForm({
 
   /** Choosing a supplier sets the invoice currency to theirs (and re-reads the costs). */
   function chooseSupplier(next: Supplier | undefined, id: string) {
+    // The editor's starting cost follows the new currency like the rows do.
+    if (next && entry.lastCost !== undefined && (entry.cost === "" || entry.cost === startingCost(entry.lastCost ?? null, state.currency))) {
+      setEntry((current) => ({ ...current, cost: startingCost(current.lastCost ?? null, next.default_currency) }));
+      setEditorGeneration((value) => value + 1);
+    }
     setState((current) => {
       const currency = next?.default_currency ?? current.currency;
       return {
