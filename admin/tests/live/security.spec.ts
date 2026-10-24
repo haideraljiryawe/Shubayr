@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { requireLiveApi, uiLoginAsAdmin } from "./helpers";
+import { toggleLocale } from "./shell";
 
 /**
  * Production hardening of the Web Admin, as the browser receives it: the
@@ -92,9 +93,9 @@ test("screens and the live inbox work under the CSP with no violation", async ({
   await page.goto("/");
   expect((await stream).status()).toBe(200);
   // Client-side work still runs: the locale switch round-trips.
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await page.getByTestId("locale-switch").click();
+  await toggleLocale(page);
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   expect(violations).toEqual([]);
 });

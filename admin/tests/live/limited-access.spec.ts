@@ -6,6 +6,7 @@ import {
   setAccess,
   uiLogin,
 } from "./helpers";
+import { navLink } from "./shell";
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request);
@@ -72,13 +73,13 @@ test("grants and revocations reach the menu without signing in again", async ({
   // Someone else grants users.manage; the next navigation shows it.
   await setAccess(request, staff.id, ["catalog_editor"], ["users.manage"]);
   await page.goto("/");
-  await expect(nav.getByTestId("nav-staff")).toBeVisible();
-  await nav.getByTestId("nav-staff").click();
+  await navLink(page, "staff");
+  await (await navLink(page, "staff")).click();
   await expect(page.getByTestId("staff-table")).toBeVisible();
 
   // …and revokes it: the next click hides the entry and the page is refused.
   await setAccess(request, staff.id, ["catalog_editor"], []);
-  await nav.getByTestId("nav-dashboard").click();
+  await (await navLink(page, "dashboard")).click();
   await expect(nav.getByTestId("nav-staff")).toHaveCount(0);
   await page.goto("/staff");
   await expect(page.getByTestId("forbidden")).toBeVisible();

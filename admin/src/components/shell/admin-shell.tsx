@@ -9,59 +9,18 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import {
-  ArrowLeftRight,
-  BookOpenText,
-  Boxes,
-  ClipboardCheck,
-  History,
-  PackagePlus,
-  PackageX,
-  Warehouse,
-  CalendarCheck,
-  Bike,
-  ClipboardList,
-  Coins,
-  FolderTree,
-  KeyRound,
-  Landmark,
-  Settings,
-  MapPinned,
-  BadgePercent,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Package,
-  FileSpreadsheet,
-  Images,
-  ScrollText,
-  Tags,
-  GalleryHorizontal,
-  Smartphone,
-  ChartColumn,
-  ChartNoAxesCombined,
-  HandCoins,
-  Banknote,
-  Route,
-  RotateCcw,
-  Receipt,
-  FolderCog,
-  ShieldAlert,
-  ShoppingCart,
-  Truck,
-  Users,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { Menu, X } from "lucide-react";
 import type { components } from "@/types/api";
-import { Button } from "@/components/ui";
-import { cn } from "@/lib/cn";
-import { activeNavKey, visibleNav, type NavKey } from "@/lib/nav";
+import { Dialog } from "@/components/ui";
+import { localeDirection, type Locale } from "@/i18n/config";
+import { activeNavKey, groupNav, visibleNav, type NavEntry, type NavKey } from "@/lib/nav";
 import type { ModuleKey } from "@/lib/modules";
 import { NotificationBell } from "@/components/inbox/notification-bell";
-import { LocaleSwitch } from "./locale-switch";
+import { AccountMenu } from "./account-menu";
+import { AppVersion } from "./app-version";
 import { OfficialSymbol } from "./official-symbol";
+import { SidebarNav } from "./sidebar-nav";
 import { hardNavigate } from "@/lib/hard-navigate";
 
 type User = components["schemas"]["User"];
@@ -91,49 +50,15 @@ async function fetchSession(): Promise<SessionResult> {
   return { kind: "user", user: (await response.json()) as User };
 }
 
-const ICONS: Record<NavKey, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  orders: ClipboardList,
-  returns: RotateCcw,
-  expenses: Receipt,
-  expenseCategories: FolderCog,
-  deliveryParties: Bike,
-  products: Package,
-  catalogImport: FileSpreadsheet,
-  catalogImages: Images,
-  categories: FolderTree,
-  brands: Tags,
-  banners: GalleryHorizontal,
-  stock: Boxes,
-  movements: History,
-  warehouses: Warehouse,
-  openings: PackagePlus,
-  transfers: ArrowLeftRight,
-  counts: ClipboardCheck,
-  writeDowns: PackageX,
-  suppliers: Truck,
-  purchasing: ShoppingCart,
-  supplierPayments: HandCoins,
-  payables: ChartColumn,
-  reports: ChartNoAxesCombined,
-  currencies: Coins,
-  cashAccounts: Landmark,
-  cashReceipts: Banknote,
-  custodyExceptions: ShieldAlert,
-  trips: Route,
-  periods: CalendarCheck,
-  ledger: BookOpenText,
-  settings: Settings,
-  deliveryZones: MapPinned,
-  discountTiers: BadgePercent,
-  staff: Users,
-  presets: KeyRound,
-  workPhones: Smartphone,
-  audit: ScrollText,
-};
 
 /**
- * Sidebar + top bar around every signed-in screen.
+ * Sidebar + top bar around every signed-in screen (VIS-002, VIS-004).
+ *
+ * The top bar stays fixed above the content and the sidebar is its own
+ * full-height column: the logo stays put, the menu scrolls inside itself
+ * (reaching its end does not scroll the page), and the release version sits
+ * in a footer below it. Below the wide breakpoint the sidebar becomes an
+ * overlay drawer from the language's side.
  *
  * The menu is derived from the staff member's permissions, and those are
  * re-read from GET /me (through /api/auth/session) on every navigation and
@@ -146,20 +71,21 @@ const ICONS: Record<NavKey, LucideIcon> = {
 export function AdminShell({
   initialUser,
   modules,
+  version: appVersion,
   children,
 }: {
   initialUser: User;
   /** The modules ADMIN_MODULES enables (src/lib/modules.ts). */
   modules: readonly ModuleKey[];
+  /** The running release (releaseVersion()), shown in the sidebar footer. */
+  version: string;
   children: ReactNode;
 }) {
   const t = useTranslations("nav");
-  const tAuth = useTranslations("auth");
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState(initialUser);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const version = useRef(initialUser.permission_version);
   const mountedPath = useRef(false);
 
@@ -214,119 +140,162 @@ export function AdminShell({
     return () => window.removeEventListener("focus", onFocus);
   }, [applySession]);
 
-  async function signOut() {
-    setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    hardNavigate("/login");
-  }
-
   const items = visibleNav(user.permissions, undefined, modules);
+  const entries = groupNav(items);
   const current = activeNavKey(items, pathname);
 
-  const nav = (
-    <nav aria-label={t("label")} data-testid="sidebar-nav">
-      <ul className="flex flex-col gap-1">
-        {items.map((item) => {
-          const Icon = ICONS[item.key];
-          const active = item.key === current;
-          return (
-            <li key={item.key}>
-              <Link
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                data-testid={`nav-${item.key}`}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors",
-                  active
-                    ? "bg-primary-dark text-on-primary"
-                    : "text-text hover:bg-card",
-                )}
-              >
-                <Icon className="size-5 shrink-0" aria-hidden />
-                {t(item.key)}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-
   return (
-    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[16rem_1fr] print:block print:bg-white">
-      <aside className="hidden border-e border-border bg-surface lg:flex lg:flex-col lg:gap-6 lg:p-4 print:hidden">
-        <Brand />
-        {nav}
+    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[17rem_1fr] print:block print:bg-white">
+      <aside
+        className="hidden border-e border-border bg-surface lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col print:hidden"
+        data-testid="sidebar"
+      >
+        <SidebarColumn entries={entries} active={current} version={appVersion} />
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-8 print:hidden">
+        <header
+          className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur lg:px-8 print:hidden"
+          data-testid="top-bar"
+        >
           <button
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-md hover:bg-card lg:hidden"
-            aria-label={menuOpen ? t("closeMenu") : t("openMenu")}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
+            className="inline-flex size-10 cursor-pointer items-center justify-center rounded-md hover:bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/40 lg:hidden"
+            aria-label={t("openMenu")}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            data-testid="drawer-open"
           >
-            {menuOpen ? (
-              <X className="size-5" aria-hidden />
-            ) : (
-              <Menu className="size-5" aria-hidden />
-            )}
+            <Menu className="size-5" aria-hidden />
           </button>
           <div className="lg:hidden">
             <Brand />
           </div>
-          <div className="ms-auto flex items-center gap-2">
-            <div className="hidden text-end sm:block">
-              <p className="text-sm font-semibold" data-testid="current-user">
-                {user.name || user.username}
-              </p>
-              <p className="text-xs text-text-muted" dir="ltr">
-                {user.username}
-              </p>
-            </div>
+          <div className="ms-auto flex items-center gap-1">
             <NotificationBell />
-            <LocaleSwitch />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              pending={signingOut}
-              data-testid="sign-out"
-            >
-              <LogOut className="size-4 rtl:-scale-x-100" aria-hidden />
-              <span className="hidden sm:inline">{tAuth("signOut")}</span>
-            </Button>
+            <AccountMenu name={user.name ?? ""} username={user.username} />
           </div>
         </header>
-
-        {menuOpen ? (
-          <div className="border-b border-border bg-surface p-4 lg:hidden">
-            {nav}
-          </div>
-        ) : null}
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8 print:max-w-none print:p-0">
           {children}
         </main>
       </div>
+
+      <NavDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        entries={entries}
+        active={current}
+        version={appVersion}
+      />
     </div>
   );
 }
 
-function Brand() {
+/** Logo on top, the menu scrolling on its own, the version at the bottom. */
+function SidebarColumn({
+  entries,
+  active,
+  version,
+  onNavigate,
+  testId,
+}: {
+  entries: readonly NavEntry[];
+  active: NavKey | null;
+  version: string;
+  onNavigate?: () => void;
+  testId?: string;
+}) {
+  return (
+    <>
+      <div className="shrink-0 border-b border-border px-4 py-4">
+        <Brand onNavigate={onNavigate} />
+      </div>
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3" data-nav-scroller>
+        <SidebarNav entries={entries} active={active} onNavigate={onNavigate} testId={testId} />
+      </div>
+      <div className="shrink-0 border-t border-border px-4 py-3" data-testid="sidebar-footer">
+        <AppVersion version={version} />
+      </div>
+    </>
+  );
+}
+
+/**
+ * The narrow-screen menu (VIS-002): an overlay drawer of about 300 px (at most
+ * 85% of the width) from the right in Arabic and the left in English, over a
+ * dimmed page that cannot be scrolled or clicked. The close button, a click on
+ * the backdrop and Escape close it; following a link closes it too.
+ */
+function NavDrawer({
+  open,
+  onOpenChange,
+  entries,
+  active,
+  version,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  entries: readonly NavEntry[];
+  active: NavKey | null;
+  version: string;
+}) {
+  const t = useTranslations("nav");
+  const dir = localeDirection[useLocale() as Locale];
+  // Widening the window to the permanent sidebar closes the drawer.
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 64rem)");
+    const onChange = () => {
+      if (wide.matches) onOpenChange(false);
+    };
+    wide.addEventListener("change", onChange);
+    return () => wide.removeEventListener("change", onChange);
+  }, [onOpenChange]);
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="drawer-overlay fixed inset-0 z-50 bg-text/50 lg:hidden" data-testid="drawer-backdrop" />
+        <Dialog.Content
+          dir={dir}
+          aria-describedby={undefined}
+          data-testid="nav-drawer"
+          className="drawer-panel fixed inset-y-0 start-0 z-50 flex w-[min(18.75rem,85vw)] flex-col bg-surface shadow-xl focus:outline-none lg:hidden"
+        >
+          <Dialog.Title className="sr-only">{t("label")}</Dialog.Title>
+          <Dialog.Close
+            className="absolute end-2 top-3 inline-flex size-10 cursor-pointer items-center justify-center rounded-md text-text-muted hover:bg-card hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/40"
+            aria-label={t("closeMenu")}
+            data-testid="drawer-close"
+          >
+            <X className="size-5" aria-hidden />
+          </Dialog.Close>
+          <SidebarColumn
+            entries={entries}
+            active={active}
+            version={version}
+            onNavigate={() => onOpenChange(false)}
+            testId="drawer-nav"
+          />
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function Brand({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations("brand");
   return (
     <Link
       href="/"
+      onClick={onNavigate}
       className="flex items-center gap-2 font-bold text-primary-dark"
+      data-testid="shell-brand"
     >
       <OfficialSymbol size={36} />
       <span className="leading-tight">
         {t("name")}
-        <span className="block text-xs font-semibold text-text-muted">
+        <span className="block text-caption font-semibold text-text-muted">
           {t("adminShort")}
         </span>
       </span>

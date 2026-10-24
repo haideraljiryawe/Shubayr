@@ -1,10 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Visual sanity checks for the shared design foundation (PR A13, the VIS IDs
+ * Visual sanity checks for the Web Admin review (PR A13 foundation, PR A14 shell; the VIS IDs
  * in docs/reviews/web-admin-2026-10-22): Arabic and English, wide and narrow.
  * Each check asserts the layout rule it photographs, then writes
- * docs/reviews/web-admin-2026-10-22/a13-evidence/<name>.<locale>.<width>.png.
+ * docs/reviews/web-admin-2026-10-22/a13-evidence/ or a14-evidence/<name>.<locale>.<width>.png.
  * Like the owner's-guide shots it is not part of `npm test` or the live suite:
  *
  *   ADMIN_LIVE_API=http://localhost:8000/api/v1 npm run test:visual

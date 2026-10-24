@@ -174,13 +174,16 @@ test("the owner's first day: password → categories → brand → product with 
   await expect(page.getByTestId("dashboard")).toBeVisible();
   await expectTabletRtl(page);
   // The launch core leads the menu (opened from the tablet's menu button).
+  await hydrated(page, "drawer-open");
   await page.getByRole("button", { name: "فتح القائمة" }).click();
-  const nav = page.getByTestId("sidebar-nav").first();
-  const keys = await nav.locator('[data-testid^="nav-"]').evaluateAll((links) =>
+  const nav = page.getByTestId("drawer-nav");
+  await expect(nav).toBeVisible();
+  const keys = await nav.locator('a[data-testid^="nav-"]').evaluateAll((links) =>
     links.map((link) => link.getAttribute("data-testid")),
   );
   expect(keys.slice(0, 4)).toEqual(["nav-dashboard", "nav-products", "nav-categories", "nav-brands"]);
   await page.getByRole("button", { name: "إغلاق القائمة" }).click();
+  await expect(nav).toBeHidden();
 
   // 2. A department and a subcategory, Arabic names only: the English name and
   //    the slug fill themselves in.
