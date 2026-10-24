@@ -196,7 +196,6 @@ export function OrdersTable({
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("utcNote")}</p>
     </div>
   );
 }

@@ -67,6 +67,8 @@ export function BulkImagesView() {
   }
 
   const groups = result ? groupMatched(result.matched) : [];
+  // Files the server could not turn into a square picture (VIS-008): reported, never saved as they were.
+  const failedFiles = result?.failed ?? [];
 
   return (
     <div className="flex flex-col gap-6" data-testid="bulk-images">
@@ -132,7 +134,7 @@ export function BulkImagesView() {
       {result ? (
         <Card className="flex flex-col gap-4 p-4" data-testid="images-result">
           <h2 className="text-lg font-semibold">{t("result.title")}</h2>
-          <Alert tone={result.unmatched.length ? "info" : "success"}>
+          <Alert tone={result.unmatched.length || failedFiles.length ? "info" : "success"}>
             <p className="font-semibold" data-testid="images-matched-count" data-count={result.matched.length}>
               {t("result.matched", { count: result.matched.length })}
               {groups.length ? ` ${t("result.products", { count: groups.length })}` : ""}
@@ -186,6 +188,22 @@ export function BulkImagesView() {
                 {result.unmatched.map((name) => (
                   <li key={name} className="rounded bg-card px-2 py-1 font-mono text-xs" dir="ltr" data-testid="images-unmatched-file">
                     {name}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {failedFiles.length ? (
+            <section className="flex flex-col gap-2" data-testid="images-failed">
+              <h3 className="flex items-center gap-2 font-semibold text-error-dark">
+                <ImageOff className="size-4" aria-hidden />
+                {t("result.failedTitle", { count: failedFiles.length })}
+              </h3>
+              <p className="text-sm text-text-muted">{t("result.failedHelp")}</p>
+              <ul className="flex flex-wrap gap-2">
+                {failedFiles.map((item) => (
+                  <li key={item.file} className="rounded bg-error/5 px-2 py-1 font-mono text-xs text-error-dark" dir="ltr" data-testid="images-failed-file" data-code={item.code}>
+                    {item.file}
                   </li>
                 ))}
               </ul>

@@ -4089,7 +4089,9 @@
       "unmatchedHelp": "Make sure the file name is exactly the SKU (-2 and -3 may follow), then upload just these files in a new ZIP.",
       "open": "Open product",
       "files": "{count, plural, one {# picture} other {# pictures}}",
-      "another": "Upload another file"
+      "another": "Upload another file",
+      "failedTitle": "{count, plural, one {One image was not processed} other {# images were not processed}}",
+      "failedHelp": "These files couldn't be read or turned into a square picture, so nothing was saved and the products' pictures didn't change. Fix the file and upload it again."
     },
     "errors": {
       "CATALOG_IMAGE_ZIP_INVALID": "The file couldn't be opened as a ZIP archive. Create the archive again and upload it.",
