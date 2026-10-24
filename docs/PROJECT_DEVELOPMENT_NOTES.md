@@ -2,12 +2,14 @@
 
 **Status:** Draft / Pending Team Review — not final. Completed Flutter work was separately authorized; remaining requirements and recommendations are pending review.
 **Created:** 2026-10-18
-**Last updated:** 2026-10-19
+**Last updated:** 2026-10-24
 **Primary audience:** Backend, Web Admin, Web Store, and Flutter teams.
 
 ## Executive summary — team review handoff
 
 All **12 notes (NOTE-001–NOTE-012)** were reconciled on 2026-10-18 against the current Flutter working copy and the Backend, Web Admin, Web Store, and API sources from `origin/main` at `17161ea` (contract **17.4.0**). This is a source-based handoff, not production or browser acceptance. “Implemented” below means present in the reviewed code; it does not mean deployed. Earlier review observations and test counts are historical evidence; later implementation sections and this summary take precedence for current status.
+
+NOTE-013 was added on 2026-10-24 from a focused OTP review against `origin/main` at `af09cf2` (contract **17.12.0**). It records the locally implemented OTPIQ adapter and outstanding OTP controls; it does not re-audit or supersede the historical evidence for NOTE-001–012.
 
 ### Remaining work by team and dependency
 
@@ -76,6 +78,7 @@ This document is the ongoing collection of the project owner's development notes
 | NOTE-010 | Mark All Notifications as Read | Flutter implemented using existing bulk API |
 | NOTE-011 | Product Purchase Quantity Limits | Per-order Backend/API delivered in 17.7.0; client adoption pending; rolling quota deferred |
 | NOTE-012 | Web Applications – Branding and Localization Improvements | Source audit complete; Web Admin/Web Store requirements; conditional Backend error-code follow-up |
+| NOTE-013 | OTPIQ SMS OTP Delivery | Local adapter implemented; configuration and missing OTP controls require follow-up; no live SMS or deployment |
 
 ## NOTE-001 — Home Page Banner Management
 
@@ -844,6 +847,68 @@ No images were copied, resized, generated, or installed as part of this document
 
 **Evidence locations:** `admin/src/components/shell/auth-frame.tsx`; `admin/src/app/login/`; `admin/src/lib/api/errors.ts`; `admin/src/components/forms/`; `admin/src/app/global-error.tsx`; `web/src/components/auth/`; `web/src/components/layout/logo.tsx`, `locale-switcher.tsx`, `footer.tsx`; `web/src/components/account/return-request-form.tsx`; `web/src/components/work/delivery-detail.tsx`; `web/src/app/icon.svg`; both applications' layouts, locale configuration, message catalogs and toast providers; and the `Error`/`FieldError` schemas in `api/openapi.yaml`.
 
+## NOTE-013 — OTPIQ SMS OTP Delivery
+
+**Date / scope:** 2026-10-24. User-authorized local implementation only, on `codex/otpiq-sms-delivery`, based on `origin/main` at `af09cf2`. Contract **17.12.0** is unchanged. No migrations, commits, push, real SMS, production secret changes, deployment, or database operations were performed.
+
+### Existing flow and preserved behavior
+
+- `AuthService.requestOtp` generates six digits with `crypto.randomInt` outside development, stores an HMAC digest keyed by the existing JWT secret, and expires the code using `OTP_TTL_SECONDS` (default 300 seconds). Only after delivery succeeds does its transaction consume previous codes and create the replacement. Development retains the existing fixed `DEV_OTP` and response behavior, with no outbound SMS.
+- `verifyOtp` looks up an unconsumed, unexpired code, compares its digest with timing-safe equality, and atomically consumes it before customer lookup/creation and token issuance. Session versions, role checks, refresh rotation, and logout are unchanged.
+- Flutter's international phone field converts Iraqi national input such as `07701234567` to `+9647701234567`; digit folding, RTL/LTR presentation, and country selection are unchanged. Request, verification, and resend keep that canonical identity. The adapter alone converts it to `9647701234567`. It rejects ambiguous/noncanonical input without guessing a country or changing account identities. OTPIQ requires 10–15 digits; shorter numbers allowed by the broader E.164 API syntax cannot be submitted through this provider and receive the existing delivery-unavailable error.
+- Flutter's flow remains screen → session controller → remote repository → ApiClient. Duplicate in-flight operations, session ownership, secure credential storage, login navigation, and localized failure handling remain intact. No Flutter source changes were needed. The latest mobile migration note (17.9.0 → 17.10.0) adds optional-to-client language information; it does not alter OTP behavior.
+
+### Implemented adapter and delivery semantics
+
+`SmsGatewayService` selects OTPIQ only with `SMS_PROVIDER=otpiq`; the existing generic gateway remains the default. It uses the documented [send endpoint](https://docs.otpiq.com/api-reference/messaging/post), a backend-only bearer key, `smsType=verification`, `provider=sms`, and the existing backend-generated code. No OTPIQ secret or response data enters Flutter, application logs, or public API responses.
+
+A successful POST creates a task, which is insufficient for `otp_sent: true`. The adapter checks the documented [tracking endpoint](https://docs.otpiq.com/api-reference/messaging/track) for the same SMS ID and phone. Success requires `sent` or `delivered` plus a successful SMS channel attempt. `otp_sent` means provider-confirmed dispatch; it is **not a claim of handset delivery** when tracking only reports `sent`.
+
+Pending jobs are checked every 500 ms within one shared submit/tracking deadline, default 10 seconds and configurable from 1–15 seconds (below Flutter's 20-second receive timeout). Redirects are rejected. POST is never retried automatically because a timeout can still represent a billable submission. HTTP failures (including insufficient balance and 429), `canCover: false`, malformed responses, failed dispatches, mismatched tracking identities, and deadline expiry return the existing sanitized `503 OTP_DELIVERY_UNAVAILABLE`. Missing configuration uses `SMS_NOT_CONFIGURED`. Neither case creates a replacement OTP or invalidates the previous one. Provider rate limits are upstream failures, not a new client-facing rate-limit contract.
+
+If a task is sent after the deadline, its code will not have been persisted and will not verify. The old OTP remains usable until its original expiration/consumption. A later approved asynchronous delivery design would need durable message correlation, authenticated/replay-safe callbacks or a worker, cleanup and expiry rules, and a documented pending/error UX; none of those components currently exist for SMS. They are not required for this bounded synchronous adapter, but are required before claiming eventual delivery reconciliation.
+
+### Configuration and activation work
+
+- Set **backend only** `SMS_PROVIDER=otpiq`, `OTPIQ_API_KEY=<shubayr project API key from the secret store>`, and optionally `OTPIQ_TIMEOUT_MS=10000`. Keep `SMS_GATEWAY_URL=disabled` and `SMS_GATEWAY_TOKEN=` when using the production Compose template; the OTPIQ branch ignores these legacy settings. Empty keys fail startup validation when OTPIQ is selected.
+- `APP_ENV=development` always bypasses SMS, including with OTPIQ selected. Do not change that setting merely to test with real phone numbers. Automated tests mock all outbound calls and database operations.
+- Placeholder configuration is documented in `backend/.env.example` and `.env.production.example`. `docker-compose.prod.yml` forwards the three new settings to the backend environment; no Compose service was started or changed.
+- Before real activation, the owner must authorize installing the project secret and a separately approved controlled end-to-end SMS test. Verify project credit, SMS channel availability, tracking fields, latency, and successful phone verification/session issuance. These live checks were explicitly excluded from this task.
+
+### Missing controls: exact follow-up work
+
+The existing strict route throttle is IP-based (default 30 requests/minute). It is preserved, but it is **not** a per-code failed-attempt limit or a per-phone resend cooldown. `OtpCode` has no attempt counter. Neither `AuthService` nor the Flutter resend screen implements a timed cooldown; Flutter only prevents overlapping requests. Do not describe those absent controls as preserved or implemented.
+
+**Backend/API follow-up:** agree the attempt ceiling, resend interval, phone/IP quotas, and lockout/recovery policy. Add shared, atomic state (database or the existing Redis infrastructure) so limits work across API instances and concurrent requests. Increment failed verification attempts and invalidate exhausted challenges atomically; reserve the resend window before a billable provider call; define behavior for failed/unknown submissions without allowing rapid paid retries. Serialize concurrent sends for the same phone so a delayed request cannot replace a newer challenge. Cover restarts, concurrent verification, resend races, and limit expiry. If database fields or client-facing fields/errors are added, follow the migration/contract version/generated-types/mobile-migration-note workflow and obtain approval before running migrations.
+
+**Flutter follow-up:** once server policy/contract is agreed, render the authoritative retry time with localized feedback and disable resend until eligible; retain existing phone formatting, session ownership, and navigation. A UI-only timer is not a security control. Do not invent retry fields or local attempt limits before the backend contract exists.
+
+### Verification and handoff
+
+Focused mocked adapter/configuration/authentication tests cover payload/normalization, dispatch confirmation, pending/failure handling, insufficient credit, rate limiting, timeouts, malformed responses, no automatic resend, digest/TTL preservation, expired/consumed OTP rejection, and atomic replay rejection. Existing Flutter phone, OTP, refresh, and session-lifecycle tests passed **78 tests**. Backend verification passed **80 Jest tests across 5 suites**, **2 strict-schema tests**, TypeScript type checking, and the contract error-code check (349 declared codes). Focused ESLint, `git diff --check`, and static Compose YAML/configuration checks also passed.
+
+Reproduce from `backend/` using Node **24** and the committed lockfile:
+
+```sh
+npm ci --ignore-scripts --no-audit --no-fund
+DATABASE_URL=postgresql://unused:unused@127.0.0.1:1/shubayr_otpiq_verify npm run prisma:generate
+npx jest --runInBand src/modules/auth/otpiq-sms.spec.ts src/modules/auth/sms-gateway.service.spec.ts src/modules/auth/auth.service.spec.ts src/config/env.validation.spec.ts src/common/guards/tiered-throttler.guard.spec.ts
+npm run typecheck
+npm run contract:error-codes
+node --test test/openapi-response-validator.spec.mjs
+npx eslint src/modules/auth/sms-gateway.service.ts src/modules/auth/otpiq-sms.spec.ts src/modules/auth/auth.service.spec.ts src/config/env.validation.ts src/config/env.validation.spec.ts
+```
+
+Prisma generation uses an unreachable placeholder URL and generates local types only; it neither connects to nor migrates a database. The pre-existing local dependencies/types were stale and were refreshed from the committed lockfile. No dependency manifests or lockfiles were changed. The shell defaults to Node 22; backend verification uses an npm-cached Node 24 executable instead.
+
+From `mobile/`:
+
+```sh
+flutter test --no-pub test/core/utils/international_phone_test.dart test/core/utils/phone_otp_input_formatters_test.dart test/features/auth/international_phone_flow_test.dart test/core/network/auth_refresh_test.dart test/app/auth_shell_lifecycle_test.dart
+```
+
+**Handoff:** base commit `af09cf2`; implementation remains uncommitted at the user's request. No PR/merge exists. Next steps are review of this diff and the missing-controls policy, then separately authorized activation/live acceptance. Database acceptance packs and real provider behavior are untested. No containers were started.
+
 ## Revision history
 
 States below describe each historical step; the executive summary records the current handoff status.
@@ -859,3 +924,4 @@ States below describe each historical step; the executive summary records the cu
 | 2026-10-18 | Added NOTE-012 after reviewing Web Admin/Web Store login branding, official artwork, browser metadata, translation catalogs, locale switching and error presentation. Distinguished existing localization from raw-message and branding gaps; assigned implementation ownership. | Working draft; documentation only; no application or asset changes. |
 | 2026-10-18 | Reconciled all 12 notes against current code and API 17.4.0, added team ownership/priorities/dependencies, corrected superseded category and notification findings, recorded phone direction/radio/typography completion, and flagged delivery add-on release scope without removing requirements. | Draft / Pending Team Review; owner-authorized mobile handoff; remaining requirements unapproved. |
 | 2026-10-19 | Delivered the additive 17.7.0 Backend/API contract for NOTE-001 structured/default banners, NOTE-004 Recently Added, and NOTE-011 per-order limits; documented compatibility and deferred rolling quotas/client adoption. | Backend complete for C16; client UI work remains. |
+| 2026-10-24 | Added NOTE-013: opt-in backend OTPIQ SMS adapter, mocked verification, configuration, preserved Flutter/API behavior, and exact missing attempt/cooldown/concurrency work. | Local implementation only; no commit, push, deployment, live SMS or database changes. |

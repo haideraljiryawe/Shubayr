@@ -65,20 +65,40 @@ const schema = Joi.object({
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)
     .default('000000'),
+  SMS_PROVIDER: Joi.string().valid('gateway', 'otpiq').default('gateway'),
+  OTPIQ_API_KEY: Joi.string().when('SMS_PROVIDER', {
+    is: 'otpiq',
+    then: Joi.string().trim().min(8).required(),
+    otherwise: Joi.optional().allow(''),
+  }),
+  // Total submit + tracking budget, below Flutter's 20-second receive timeout.
+  OTPIQ_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(15_000)
+    .default(10_000),
   SMS_GATEWAY_URL: Joi.alternatives()
     .try(Joi.string().uri(), Joi.string().valid('disabled'))
-    .when('APP_ENV', {
-      is: 'production',
-      then: Joi.required(),
-      otherwise: Joi.optional().allow(''),
+    .when('SMS_PROVIDER', {
+      is: 'otpiq',
+      then: Joi.optional().allow(''),
+      otherwise: Joi.when('APP_ENV', {
+        is: 'production',
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(''),
+      }),
     }),
-  SMS_GATEWAY_TOKEN: Joi.string().when('SMS_GATEWAY_URL', {
-    is: 'disabled',
+  SMS_GATEWAY_TOKEN: Joi.string().when('SMS_PROVIDER', {
+    is: 'otpiq',
     then: Joi.optional().allow(''),
-    otherwise: Joi.when('APP_ENV', {
-      is: 'production',
-      then: Joi.string().min(8).required(),
-      otherwise: Joi.optional().allow(''),
+    otherwise: Joi.when('SMS_GATEWAY_URL', {
+      is: 'disabled',
+      then: Joi.optional().allow(''),
+      otherwise: Joi.when('APP_ENV', {
+        is: 'production',
+        then: Joi.string().min(8).required(),
+        otherwise: Joi.optional().allow(''),
+      }),
     }),
   }),
   SMS_GATEWAY_TIMEOUT_MS: Joi.number()

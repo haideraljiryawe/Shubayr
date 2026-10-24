@@ -56,3 +56,52 @@ describe('validateEnvironment SMS gateway', () => {
     ).toThrow(/ADMIN_REFRESH_ROTATION_GRACE_SECONDS/);
   });
 });
+
+describe('validateEnvironment OTPIQ', () => {
+  it('accepts OTPIQ without legacy gateway configuration', () => {
+    const result = validateEnvironment({
+      ...production,
+      SMS_PROVIDER: 'otpiq',
+      OTPIQ_API_KEY: 'test-project-key',
+    });
+    expect(result.SMS_PROVIDER).toBe('otpiq');
+    expect(result.OTPIQ_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it.each([undefined, '', 'short', '        '])(
+    'requires a nonempty OTPIQ key (%#)',
+    (key) => {
+      expect(() =>
+        validateEnvironment({
+          ...production,
+          SMS_PROVIDER: 'otpiq',
+          OTPIQ_API_KEY: key,
+        }),
+      ).toThrow(/OTPIQ_API_KEY/);
+    },
+  );
+
+  it.each([999, 15001, 1000.5])(
+    'rejects an unsafe total timeout %s',
+    (timeout) => {
+      expect(() =>
+        validateEnvironment({
+          ...production,
+          SMS_PROVIDER: 'otpiq',
+          OTPIQ_API_KEY: 'test-project-key',
+          OTPIQ_TIMEOUT_MS: timeout,
+        }),
+      ).toThrow(/OTPIQ_TIMEOUT_MS/);
+    },
+  );
+
+  it('rejects unknown providers', () => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        SMS_PROVIDER: 'unknown',
+        SMS_GATEWAY_URL: 'disabled',
+      }),
+    ).toThrow(/SMS_PROVIDER/);
+  });
+});

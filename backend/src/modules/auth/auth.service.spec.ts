@@ -25,6 +25,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { createHash, createHmac } from 'node:crypto';
 import { AuthService } from './auth.service';
+import { SmsGatewayService } from './sms-gateway.service';
 
 const accessSecret = 'access-secret-at-least-thirty-two-characters';
 const refreshSecret = 'refresh-secret-at-least-thirty-two-characters';
@@ -448,5 +449,181 @@ describe('AuthService', () => {
     await expect(
       service.verifyOtp({ phone: '+9647700000000', code: '000000' }),
     ).rejects.toThrow(UnauthorizedException);
+  });
+});
+
+describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
+  const phone = '+9647701234567';
+  const smsId = 'sms-0123456789abcdef01234567';
+  const productionConfig = {
+    ...config,
+    get: (key: string, fallback?: unknown) => {
+      const values: Record<string, unknown> = {
+        APP_ENV: 'production',
+        SMS_PROVIDER: 'otpiq',
+        OTPIQ_API_KEY: 'test-project-key',
+        OTPIQ_TIMEOUT_MS: 25,
+      };
+      return values[key] ?? config.get(key, fallback);
+    },
+  };
+  const tracking = {
+    smsId,
+    phoneNumber: phone.slice(1),
+    status: 'sent',
+    isFinalStatus: true,
+    lastChannel: 'sms',
+    channelFlow: [{ channel: 'sms', tried: true, success: true }],
+  };
+  afterEach(() => jest.restoreAllMocks());
+
+  function fixture() {
+    const create = jest.fn().mockResolvedValue({});
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const prisma = {
+      otpCode: { create, updateMany },
+      $transaction: jest.fn((operations: Promise<unknown>[]) =>
+        Promise.all(operations),
+      ),
+    };
+    return {
+      prisma,
+      service: new AuthService(
+        prisma as never,
+        new JwtService(),
+        productionConfig as never,
+        new SmsGatewayService(productionConfig as never),
+      ),
+    };
+  }
+
+  it('stores only the generated code digest after confirmed dispatch and preserves TTL and E.164 identity', async () => {
+    const { prisma, service } = fixture();
+    let deliveredCode = '';
+    const before = Date.now();
+    jest.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      expect(prisma.otpCode.create).not.toHaveBeenCalled();
+      expect(prisma.otpCode.updateMany).not.toHaveBeenCalled();
+      if (init?.method === 'POST') {
+        const payload = JSON.parse(init.body as string) as {
+          verificationCode: string;
+        };
+        deliveredCode = payload.verificationCode;
+        return Promise.resolve(
+          new Response(JSON.stringify({ smsId, canCover: true })),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(tracking)));
+    });
+    await expect(service.requestOtp({ phone })).resolves.toEqual({
+      otp_sent: true,
+    });
+    expect(deliveredCode).toMatch(/^\d{6}$/);
+    const [{ data }] = prisma.otpCode.create.mock.calls[0] as [
+      {
+        data: { phone: string; code_hash: string; expires_at: Date };
+      },
+    ];
+    expect(data.phone).toBe(phone);
+    expect(data.code_hash).toBe(
+      createHmac('sha256', accessSecret)
+        .update(`${phone}:${deliveredCode}`)
+        .digest('hex'),
+    );
+    expect(data.expires_at.getTime()).toBeGreaterThanOrEqual(before + 300000);
+    expect(data.expires_at.getTime()).toBeLessThanOrEqual(Date.now() + 300000);
+    expect(prisma.otpCode.updateMany).toHaveBeenCalledWith({
+      where: { phone, consumed_at: null },
+      data: { consumed_at: expect.any(Date) as Date },
+    });
+  });
+
+  it.each(['failed', 'pending'])(
+    'does not invalidate the previous OTP or issue a usable replacement for %s dispatch',
+    async (status) => {
+      const { prisma, service } = fixture();
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ smsId, canCover: true })),
+        )
+        .mockImplementation(() =>
+          Promise.resolve(
+            new Response(
+              JSON.stringify({
+                ...tracking,
+                status,
+                isFinalStatus: status !== 'pending',
+              }),
+            ),
+          ),
+        );
+      await expect(service.requestOtp({ phone })).rejects.toMatchObject({
+        status: 503,
+        response: { code: 'OTP_DELIVERY_UNAVAILABLE' },
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.otpCode.create).not.toHaveBeenCalled();
+      expect(prisma.otpCode.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects an expired or already consumed OTP without issuing a session', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const transaction = jest.fn();
+    const jwt = new JwtService();
+    const sign = jest.spyOn(jwt, 'signAsync');
+    const service = new AuthService(
+      { otpCode: { findFirst }, $transaction: transaction } as never,
+      jwt,
+      productionConfig as never,
+      {} as never,
+    );
+    await expect(
+      service.verifyOtp({ phone, code: '123456' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        phone,
+        consumed_at: null,
+        expires_at: { gt: expect.any(Date) as Date },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    expect(transaction).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
+  });
+
+  it('rejects a concurrent OTP replay when atomic consumption loses', async () => {
+    const tx = {
+      otpCode: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      user: { findUnique: jest.fn() },
+    };
+    const prisma = {
+      otpCode: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'otp-id',
+          code_hash: createHmac('sha256', accessSecret)
+            .update(`${phone}:123456`)
+            .digest('hex'),
+        }),
+      },
+      $transaction: jest.fn((operation: (client: typeof tx) => unknown) =>
+        operation(tx),
+      ),
+    };
+    const jwt = new JwtService();
+    const sign = jest.spyOn(jwt, 'signAsync');
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      productionConfig as never,
+      {} as never,
+    );
+    await expect(
+      service.verifyOtp({ phone, code: '123456' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(tx.user.findUnique).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
   });
 });
