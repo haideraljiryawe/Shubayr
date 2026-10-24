@@ -25,7 +25,7 @@ function pageQuery(params: Params, page: number, perPage: number) {
   return { ...productQuery(params), page, per_page: perPage };
 }
 
-/** Every product, hidden and archived included (catalog.products). */
+/** Active and hidden products; archived ones only when the status filter asks for them (17.10.0, catalog.products). */
 export default async function ProductsPage({
   searchParams,
 }: {

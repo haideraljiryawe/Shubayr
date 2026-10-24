@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeReturnPath } from "@/lib/return-path";
 import { clearSession } from "@/lib/session/bff";
 
 /**
@@ -10,7 +11,7 @@ import { clearSession } from "@/lib/session/bff";
 export function GET(request: NextRequest) {
   const next = request.nextUrl.searchParams.get("next");
   const url = new URL("/login", request.url);
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
+  if (next && safeReturnPath(next, "") === next) {
     url.searchParams.set("next", next);
   }
   url.searchParams.set("expired", "1");

@@ -4,13 +4,9 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Eye, EyeOff, Wand2 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
-import { cn } from "@/lib/cn";
-import {
-  PASSWORD_RULES,
-  generateTemporaryPassword,
-  passwordChecks,
-} from "@/lib/password";
+import { generateTemporaryPassword } from "@/lib/password";
 import { Field } from "./field";
+import { PasswordChecklist } from "./password-checklist";
 
 /**
  * A temporary password for someone else: generate one that meets the policy,
@@ -29,7 +25,6 @@ export function TemporaryPasswordField({
 }) {
   const t = useTranslations("password");
   const [visible, setVisible] = useState(false);
-  const checks = passwordChecks(value);
 
   return (
     <div className="flex flex-col gap-2">
@@ -74,19 +69,7 @@ export function TemporaryPasswordField({
           {visible ? t("hide") : t("show")}
         </Button>
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-caption">
-        {PASSWORD_RULES.map((rule) => (
-          <li
-            key={rule}
-            className={cn(
-              checks[rule] ? "text-success-dark" : "text-text-muted",
-            )}
-          >
-            {checks[rule] ? "✓ " : "○ "}
-            {t(`rule.${rule}`)}
-          </li>
-        ))}
-      </ul>
+      <PasswordChecklist value={value} testId={`checklist-${name}`} />
     </div>
   );
 }

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Copy, EyeOff, ImageOff, ListChecks, Send, X, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, EyeOff, ImageOff, ListChecks, Send, Trash2, X, XCircle } from "lucide-react";
 import { Alert, Badge, Button, Select } from "@/components/ui";
 import { DataTable, TableFilter, TableSearch, type Column, type TableState } from "@/components/table/data-table";
+import { ProductDeleteDialog, ProductDeleteOutcome } from "@/components/catalog/product-delete";
+import type { DeleteSummary } from "@/lib/product-delete";
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, describeError } from "@/lib/api/errors";
 import { flattenTree, subcategories, type Brand, type Category, type Product } from "@/lib/catalog";
@@ -76,6 +78,8 @@ export function ProductsTable({
   const [problem, setProblem] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState("");
   const [brandTo, setBrandTo] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteSummary, setDeleteSummary] = useState<DeleteSummary | null>(null);
   // One operation id per exact change: a double click or a retry after a lost
   // answer replays it instead of applying it twice.
   const operation = useRef(new OperationKey(() => `bulk-${crypto.randomUUID()}`));
@@ -395,12 +399,39 @@ export function ProductsTable({
               {t("bulk.apply")}
             </Button>
           </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-error-dark"
+            disabled={busy}
+            onClick={() => {
+              setDeleteSummary(null);
+              setOutcome(null);
+              setDeleting(true);
+            }}
+            data-testid="bulk-delete"
+          >
+            <Trash2 className="size-4" aria-hidden />
+            {t("delete.bulk")}
+          </Button>
           <Button size="sm" variant="ghost" className="ms-auto" disabled={busy} onClick={clearSelection} data-testid="bulk-clear">
             <X className="size-4" aria-hidden />
             {t("bulk.clear")}
           </Button>
         </div>
       ) : null}
+
+      <ProductDeleteDialog
+        open={deleting}
+        products={chosen.map((product) => ({ id: product.id ?? "", name: nameOf(product) }))}
+        onClose={() => setDeleting(false)}
+        onDone={(summary) => {
+          setDeleteSummary(summary);
+          clearSelection();
+          router.refresh();
+        }}
+      />
+      {deleteSummary ? <ProductDeleteOutcome summary={deleteSummary} /> : null}
 
       {problem ? (
         <Alert tone="danger" data-testid="bulk-problem">
@@ -473,7 +504,7 @@ export function ProductsTable({
               name="status"
               label={t("columns.status")}
               options={[
-                { value: "", label: t("filters.allStatuses") },
+                { value: "", label: t("filters.allButArchived") },
                 ...STATUS_FILTERS.map((value) => ({ value, label: t(`status.${value}`) })),
               ]}
             />

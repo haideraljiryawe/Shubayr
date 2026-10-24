@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { AuthFrame } from "@/components/shell/auth-frame";
 import { ERROR_CODES, toApiError } from "@/lib/api/errors";
 import { serverApi } from "@/lib/api/server";
+import { safeReturnPath } from "@/lib/return-path";
 import { ChangePasswordForm } from "./change-password-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,7 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * this page knows the change is forced, and why it does not use `load()`
  * (that helper redirects here on exactly that code).
  */
-export default async function ChangePasswordPage() {
+export default async function ChangePasswordPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const returnTo = safeReturnPath((await searchParams).next);
   const api = await serverApi();
   let status = 0;
   let body: unknown = null;
@@ -37,7 +39,7 @@ export default async function ChangePasswordPage() {
 
   return (
     <AuthFrame>
-      <ChangePasswordForm forced={forced} />
+      <ChangePasswordForm forced={forced} returnTo={returnTo} />
     </AuthFrame>
   );
 }

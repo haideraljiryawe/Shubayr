@@ -98,7 +98,7 @@ export function AdminShell({
           );
           return;
         case "passwordChange":
-          router.replace("/change-password");
+          router.replace(`/change-password?next=${encodeURIComponent(window.location.pathname)}`);
           return;
         case "user":
           setUser(session.user);

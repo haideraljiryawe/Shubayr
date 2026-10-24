@@ -8,6 +8,7 @@ import { Check, Circle, CircleDot, Minus } from "lucide-react";
 import { Alert, Card } from "@/components/ui";
 import { entryHref } from "@/lib/finance/links";
 import { cn } from "@/lib/cn";
+import { permissionName, type Permission } from "@/lib/permissions";
 import { moneyText, toFixed } from "@/lib/purchasing";
 import {
   ACTION_PERMISSION,
@@ -51,6 +52,7 @@ export function ReturnView({
   locations,
   cashAccounts,
   collection,
+  registry = [],
 }: {
   ret: Return;
   permissions: readonly string[];
@@ -62,6 +64,8 @@ export function ReturnView({
   /** Null: the person can't list cash accounts (cash_accounts.view). */
   cashAccounts: Array<{ id: string; name: string }> | null;
   collection: CollectionChoice | null;
+  /** The permission registry, when this person may read it, to name a missing permission. */
+  registry?: readonly Permission[];
 }) {
   const t = useTranslations("returns");
   const locale = useLocale();
@@ -127,7 +131,7 @@ export function ReturnView({
       {action === "refund" ? <RefundPanel ret={ret} cashAccounts={cashAccounts} collection={collection} onPosted={() => posted("refund")} /> : null}
       {pending && !action ? (
         <Alert tone="info" data-testid="return-waiting" data-step={pending}>
-          {t("detail.waiting", { step: t(`steps.${pending}`), permission: ACTION_PERMISSION[pending] })}
+          {t("detail.waiting", { step: t(`steps.${pending}`), permission: permissionName(registry, ACTION_PERMISSION[pending], locale) })}
         </Alert>
       ) : null}
 

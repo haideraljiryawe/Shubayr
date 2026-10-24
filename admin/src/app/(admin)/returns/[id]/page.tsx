@@ -46,6 +46,9 @@ export default async function ReturnPage({ params }: { params: Promise<{ id: str
   }
   const permissions = me.ok ? (me.data.permissions ?? []) : [];
   const action = availableAction(ret.data.status, permissions);
+  // Permission names for "the next step needs …" (VIS-019); the registry needs roles.manage, else the key is shown.
+  const registryRead = permissions.includes("roles.manage") ? await load(api.GET("/admin/permissions")) : null;
+  const registry = registryRead?.ok ? registryRead.data : [];
 
   // The customer and the order's delivery come from the order (orders.view).
   const order = permissions.includes("orders.view") ? await load(api.GET("/admin/orders/{id}", { params: { path: { id: ret.data.order_id } } })) : null;
@@ -92,6 +95,7 @@ export default async function ReturnPage({ params }: { params: Promise<{ id: str
         locations={locations}
         cashAccounts={cashAccounts}
         collection={collection}
+        registry={registry}
       />
     </>
   );

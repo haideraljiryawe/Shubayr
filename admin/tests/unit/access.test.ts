@@ -7,7 +7,9 @@ import {
 } from "@/lib/api/errors";
 import { NAV_ITEMS, activeNavKey, isNavActive, visibleNav } from "@/lib/nav";
 import {
+  foldSearchText,
   groupPermissions,
+  permissionText,
   keysFromPresets,
   presetKeys,
   toggleKey,
@@ -184,11 +186,20 @@ describe("API errors", () => {
 });
 
 describe("permissions", () => {
+  const entry = (key: string, group: string, ar: string, en: string, dAr = "", dEn = "") => ({
+    key,
+    group,
+    description: null,
+    name_ar: ar,
+    name_en: en,
+    description_ar: dAr,
+    description_en: dEn,
+  });
   const registry = [
-    { key: "orders.view", group: "orders", description: "View orders" },
-    { key: "users.manage", group: "access", description: null },
-    { key: "orders.accept", group: "orders", description: "Accept" },
-    { key: "roles.manage", group: "access" },
+    entry("orders.view", "orders", "عرض الطلبات", "View orders", "رؤية قائمة الطلبات وتفاصيلها", "See the order list and details"),
+    entry("users.manage", "access", "إدارة الموظفين", "Manage staff"),
+    entry("orders.accept", "orders", "قبول الطلبات", "Accept orders", "قبول الطلبات الجديدة", "Accept new orders"),
+    entry("roles.manage", "access", "إدارة الصلاحيات", "Manage permissions"),
   ];
   const presets: PermissionPreset[] = [
     {
@@ -214,23 +225,46 @@ describe("permissions", () => {
     },
   ];
 
-  it("groups by area in registry order, keys sorted within", () => {
-    expect(groupPermissions(registry)).toEqual([
+  it("groups by area in registry order, named in the interface language and sorted by that name", () => {
+    expect(groupPermissions(registry, "en")).toEqual([
       {
         group: "orders",
         permissions: [
-          { key: "orders.accept", description: "Accept" },
-          { key: "orders.view", description: "View orders" },
+          { key: "orders.accept", name: "Accept orders", description: "Accept new orders" },
+          { key: "orders.view", name: "View orders", description: "See the order list and details" },
         ],
       },
       {
         group: "access",
         permissions: [
-          { key: "roles.manage", description: null },
-          { key: "users.manage", description: null },
+          { key: "roles.manage", name: "Manage permissions", description: null },
+          { key: "users.manage", name: "Manage staff", description: null },
         ],
       },
     ]);
+    expect(groupPermissions(registry, "ar")[0].permissions.map((item) => item.name)).toEqual(["عرض الطلبات", "قبول الطلبات"]);
+  });
+
+  it("searches the names and descriptions in both languages and the key, folding Arabic letter forms", () => {
+    const keys = (query: string, locale = "ar") =>
+      groupPermissions(registry, locale, query).flatMap((group) => group.permissions.map((item) => item.key));
+    expect(keys("قبول")).toEqual(["orders.accept"]);
+    // Typed without hamza or with ه for ة, as people do.
+    expect(keys("اداره الموظفين")).toEqual(["users.manage"]);
+    expect(keys("staff", "ar")).toEqual(["users.manage"]);
+    expect(keys("تفاصيلها", "en")).toEqual(["orders.view"]);
+    expect(keys("roles.")).toEqual(["roles.manage"]);
+    expect(keys("لا شيء")).toEqual([]);
+    expect(foldSearchText(" الأسعارُ ")).toBe("الاسعار");
+  });
+
+  it("falls back to the other language, then the key", () => {
+    expect(permissionText({ ...entry("a.b", "a", "", "Only English"), description: "Legacy" }, "ar")).toEqual({
+      key: "a.b",
+      name: "Only English",
+      description: "Legacy",
+    });
+    expect(permissionText(entry("a.c", "a", "", ""), "en").name).toBe("a.c");
   });
 
   it("reads the keys a preset grants and what a selection inherits", () => {

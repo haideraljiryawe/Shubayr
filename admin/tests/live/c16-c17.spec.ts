@@ -2,7 +2,7 @@ import { deflateSync } from "node:zlib";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { LAUNCH_MODULES } from "../../src/lib/modules";
 import { expect, test } from "./fixtures";
-import { API, activateStaff, adminApiToken, bearer, createStaff, placeOrder, randomWorkPhone, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { API, activateStaff, adminApiToken, bearer, createStaff, placeOrder, postNewestRate, randomWorkPhone, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
 import { choose } from "./controls";
 
 /**
@@ -395,13 +395,7 @@ test("supplier search on the server by phone; restock owed, then paid now in one
   const product = await restockable(request, "RST");
   const account = await till(request);
   // A USD rate for the landed cost below (newer than any earlier spec's).
-  const rate = await api(request, "POST", "/admin/exchange-rates", {
-    currency_code: "USD",
-    rate: "1500",
-    basis: 1,
-    effective_at: new Date().toISOString(),
-    reason: `A12 paid-now landed cost ${run}`,
-  });
+  const rate = await postNewestRate(request, { currency: "USD", rate: "1500", reason: `A12 paid-now landed cost ${run}` });
   expect(rate.status, JSON.stringify(rate.body)).toBe(201);
 
   await uiLoginAsAdmin(page);

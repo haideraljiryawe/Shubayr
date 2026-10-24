@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { ADMIN_PASSWORD, ADMIN_USERNAME, API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
+import { ADMIN_PASSWORD, ADMIN_USERNAME, API, KNOWN_PASSWORD, activateStaff, adminApiToken, bearer, createStaff, postNewestRate, requireLiveApi, switchUser, uiLoginAsAdmin } from "./helpers";
 import { choose, optionCount } from "./controls";
 
 /**
@@ -37,7 +37,8 @@ async function prepare(request: APIRequestContext) {
   expect(category.status, JSON.stringify(category.body)).toBe(201);
   const till = await api(request, "POST", "/admin/cash-accounts", { name: `Expense till ${run}`, kind: "cash", currency_code: "IQD" });
   expect(till.status, JSON.stringify(till.body)).toBe(201);
-  const rate = await api(request, "POST", "/admin/exchange-rates", { currency_code: "USD", rate: "1500", basis: 1, effective_at: new Date(Date.now() - 60_000).toISOString(), reason: `Live expenses ${run}` });
+  // The newest USD rate, whatever earlier specs posted in this run.
+  const rate = await postNewestRate(request, { currency: "USD", rate: "1500", reason: `Live expenses ${run}` });
   expect(rate.status, JSON.stringify(rate.body)).toBe(201);
   const usdName = `Expense USD ${run}`;
   const usd = await api(request, "POST", "/admin/cash-accounts", { name: usdName, kind: "cash", currency_code: "USD" });
