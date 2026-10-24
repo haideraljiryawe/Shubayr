@@ -1,14 +1,19 @@
 "use client";
 
 import { MAX_UPLOAD_BYTES } from "./product-images";
-import { cropRect, outputSize, type CropState, type CropTarget, type Size } from "./image-crop";
+import { cropRect, drawPlacement, outputSize, type CropState, type CropTarget, type Size } from "./image-crop";
 
 /* ---------------------------------------------------------------------------
  * Drawing the crop in the browser. The picture is decoded once (honouring the
- * camera's orientation), then each "use this crop" draws the chosen part at
- * the output size and encodes it: WebP when the browser can, otherwise PNG
- * where transparency must survive (category artwork) or JPEG on white
- * (banners, which fill their card).
+ * camera's orientation), then each confirmed crop is drawn at the output size
+ * and encoded — the file that is uploaded is exactly what the editor showed,
+ * square for products, categories and brands (VIS-021), never a CSS clip.
+ *
+ * The whole picture is drawn at its place on the canvas, so a zoomed-out crop
+ * gets even margins: white where the picture fills a card (products,
+ * banners), transparent where transparency must survive (category artwork,
+ * logos). WebP when the browser can write it, otherwise PNG for transparency
+ * or JPEG on white.
  * ------------------------------------------------------------------------- */
 
 export class CropError extends Error {
@@ -54,19 +59,17 @@ export async function drawCrop(
   canvas.height = size.height;
   const context = canvas.getContext("2d");
   if (!context) throw new CropError("encode");
+  if (!keepTransparency) {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, size.width, size.height);
+  }
   context.imageSmoothingQuality = "high";
-  context.drawImage(decoded.bitmap, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, size.width, size.height);
+  const place = drawPlacement(decoded.size, rect, size);
+  context.drawImage(decoded.bitmap, place.dx, place.dy, place.dw, place.dh);
 
   let blob = await canvasBlob(canvas, "image/webp", 0.88);
   if (!blob || blob.type !== "image/webp") {
-    if (keepTransparency) {
-      blob = await canvasBlob(canvas, "image/png", 1);
-    } else {
-      context.globalCompositeOperation = "destination-over";
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, size.width, size.height);
-      blob = await canvasBlob(canvas, "image/jpeg", 0.88);
-    }
+    blob = await canvasBlob(canvas, keepTransparency ? "image/png" : "image/jpeg", keepTransparency ? 1 : 0.88);
   }
   if (!blob) throw new CropError("encode");
   if (blob.size > MAX_UPLOAD_BYTES) throw new CropError("tooLarge");

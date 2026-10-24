@@ -9,7 +9,9 @@ import { Alert, Badge, Button, Card, Input, Select, Textarea, ActionBar } from "
 import { DecimalInput } from "@/components/forms/decimal-input";
 import { Field } from "@/components/forms/field";
 import { usePosting } from "@/components/finance/use-posting";
-import { SkuPicker, type PickedSku } from "@/components/inventory/sku-picker";
+import type { PickedSku } from "@/components/inventory/sku-picker";
+import { InvoiceProductEditor } from "@/components/purchasing/invoice-product-editor";
+import { InvoiceProductsList, type InvoiceProductRow } from "@/components/purchasing/invoice-products-list";
 import { DocumentDateFields, documentDateError, type DocumentDateValue } from "@/components/purchasing/document-date";
 import { PurchasingPostingStatus } from "@/components/purchasing/posting-status";
 import { useCentralRate } from "@/components/purchasing/use-central-rate";
@@ -40,22 +42,24 @@ import {
   type Supplier,
 } from "@/lib/purchasing";
 import { useConfirm } from "@/components/forms/use-confirm";
+import {
+  blankEntry,
+  entryIsDirty,
+  entryOf,
+  productLabel,
+  removeLine,
+  restoredLines,
+  upsertLine,
+  validateEntry,
+  type EntryErrors,
+  type InvoiceEntry,
+  type InvoiceLine,
+} from "@/lib/invoice-entry";
 
 /* ---------------------------------------------------------------- state */
 
-interface Line {
-  key: number;
-  sku: PickedSku | null;
-  packs: string;
-  packSize: string;
-  cost: string;
-  locationId: string;
-  lot: string;
-  expiry: string;
-  manual: string;
-  /** Restock: what was last paid for this SKU (shown; used when the currency matches). */
-  lastCost?: LastCost | null;
-}
+/** One invoice product (shared with the editor's pure logic). */
+type Line = InvoiceLine;
 
 interface Landed {
   key: number;
@@ -108,14 +112,14 @@ const DRAFT_TYPE = "purchase_invoice";
 const DRAFT_VERSION = 1;
 
 function blankLine(key: number): Line {
-  return { key, sku: null, packs: "", packSize: "1", cost: "", locationId: "", lot: "", expiry: "", manual: "" };
+  return { ...blankEntry(), key };
 }
 
 function initialState(supplier: Supplier | undefined, today: string, defaultLocationId: string, restock?: RestockPrefill | null): FormState {
   const currency = supplier?.default_currency ?? "IQD";
   const lines = restock?.lines.length
     ? restock.lines.map((line, index) => ({ ...blankLine(index + 1), sku: line.sku, cost: startingCost(line.lastCost, currency), lastCost: line.lastCost }))
-    : [blankLine(1)];
+    : [];
   return {
     nextKey: lines.length + 1,
     supplierId: supplier?.id ?? "",
@@ -198,8 +202,75 @@ export function InvoiceForm({
   const baseline = useRef<string | null>(null);
 
   const set = (patch: Partial<FormState>) => setState((current) => ({ ...current, ...patch }));
-  const setLine = (key: number, patch: Partial<Line>) =>
-    setState((current) => ({ ...current, lines: current.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)) }));
+  /* ---------------------------------------------------- product editor */
+
+  // What the one product editor holds (VIS-022). Not part of the draft: only
+  // rows added to the invoice are.
+  const [entry, setEntry] = useState<InvoiceEntry>(blankEntry);
+  const [editingKey, setEditingKey] = useState<number | null>(null);
+  const [entryErrors, setEntryErrors] = useState<EntryErrors>({});
+  const [editorGeneration, setEditorGeneration] = useState(0);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editingLine = editingKey === null ? null : (state.lines.find((line) => line.key === editingKey) ?? null);
+
+  function loadEditor(next: InvoiceEntry, key: number | null) {
+    setEntry(next);
+    setEditingKey(key);
+    setEntryErrors({});
+    setEditorGeneration((value) => value + 1);
+  }
+
+  /** Add the product as one row, or save the row being edited — after the same checks as the review. */
+  function submitEntry() {
+    const errors = validateEntry(entry);
+    setEntryErrors(errors);
+    if (Object.keys(errors).length) return;
+    setState((current) => {
+      const next = upsertLine(current.lines, entry, editingKey, current.nextKey);
+      return { ...current, lines: next.lines, nextKey: next.nextKey };
+    });
+    loadEditor(blankEntry(), null);
+  }
+
+  function startEdit(key: number) {
+    const line = state.lines.find((row) => row.key === key);
+    if (!line) return;
+    const open = () => {
+      loadEditor(entryOf(line), key);
+      window.requestAnimationFrame(() => editorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    };
+    // Unsaved editor input is never replaced silently: keep it, or discard it and switch.
+    if (entryIsDirty(entry, editingLine)) {
+      confirmRemove({
+        title: t("editor.switchTitle"),
+        body: t("editor.switchBody", { name: line.sku ? productLabel(line.sku) : t("editor.thisProduct") }),
+        confirmLabel: t("editor.switchConfirm"),
+        onConfirm: open,
+      });
+      return;
+    }
+    open();
+  }
+
+  function askRemove(key: number) {
+    const line = state.lines.find((row) => row.key === key);
+    if (!line) return;
+    confirmRemove({
+      title: t("editor.removeTitle"),
+      body: (
+        <>
+          <span className="block">{t("editor.removeBody", { name: line.sku ? productLabel(line.sku) : t("editor.thisProduct") })}</span>
+          <span className="mt-2 block text-text-muted">{restock ? t("editor.removeNoteRestock") : t("editor.removeNoteDraft")}</span>
+        </>
+      ),
+      confirmLabel: t("editor.removeConfirm"),
+      onConfirm: () => {
+        setState((current) => ({ ...current, lines: removeLine(current.lines, key) }));
+        if (editingKey === key) loadEditor(blankEntry(), null);
+      },
+    });
+  }
+
   const setLanded = (key: number, patch: Partial<Landed>) =>
     setState((current) => ({ ...current, landed: current.landed.map((cost) => (cost.key === key ? { ...cost, ...patch } : cost)) }));
 
@@ -220,8 +291,9 @@ export function InvoiceForm({
         setDraftId(draft.id);
         const payload = draft.payload as { version?: number; state?: FormState };
         if (payload.version === DRAFT_VERSION && payload.state) {
-          baseline.current = JSON.stringify(payload.state);
-          setState(payload.state);
+          const restored = { ...payload.state, lines: restoredLines(payload.state.lines) };
+          baseline.current = JSON.stringify(restored);
+          setState(restored);
           setRestoredAt(draft.updated_at);
           setGeneration((value) => value + 1);
         }
@@ -279,6 +351,7 @@ export function InvoiceForm({
     setReview(null);
     setShowErrors(false);
     setGeneration((value) => value + 1);
+    loadEditor(blankEntry(), null);
   }
 
   /* ------------------------------------------------------------- rates */
@@ -351,7 +424,7 @@ export function InvoiceForm({
       if (!overridden && central.status === "missing") found.rate = t("errors.noCentralRate");
     }
     if (!state.defaultLocationId) found.location = t("errors.location");
-    if (postedLines.length === 0) found.lines = state.lines.length ? t("errors.noQuantities") : t("errors.noLines");
+    if (postedLines.length === 0) found.lines = state.lines.length ? t("editor.noQuantities") : t("editor.noProducts");
     if (state.payment === "now" && !state.cashAccountId) found.cashAccount = t("payNow.errors.account");
     for (const row of preview.lines) {
       const k = `line-${row.line.key}`;
@@ -479,6 +552,45 @@ export function InvoiceForm({
     value === null ? t("atPosting") : moneyText(value, currency, precisionOf(currency), locale);
   const err = (key: string) => (showErrors ? problems[key] ?? null : null);
   const locked = review !== null;
+  const rowProblemKeys = ["sku", "packs", "packSize", "cost"] as const;
+  const productRows: InvoiceProductRow[] = state.lines.map((line) => {
+    // A row without a quantity (a restock variant left empty) stays listed but isn't
+    // part of the invoice, its totals or its checks.
+    const at = postedLines.indexOf(line);
+    const blank = at < 0;
+    const row = blank ? { line, ...packConversion("0", line.packSize || "1", line.cost || "0") } : preview.lines[at];
+    const exactShare = blank ? null : (preview.allocation?.shares[at] ?? null);
+    const share = blank ? null : (preview.shown?.[at] ?? null);
+    const landedUnit =
+      preview.rateFixed !== null && exactShare !== null && row.baseQuantity > 0n
+        ? landedUnitCostIqd(row.baseUnitCost, preview.rateFixed, exactShare, row.baseQuantity)
+        : null;
+    const unit = line.sku?.baseUnit ?? "";
+    const place = line.locationId ? locations.find((info) => info.id === line.locationId) : null;
+    return {
+      line,
+      blank,
+      quantity: blank ? (
+        "—"
+      ) : (
+        <span dir="ltr">
+          {line.packs}
+          {line.packSize && line.packSize !== "1" ? ` × ${line.packSize}` : ""}
+        </span>
+      ),
+      packCost: line.cost ? <span dir="ltr">{moneyText(toFixed(line.cost), state.currency, Math.max(precision, 2), locale)}</span> : "—",
+      lineTotal: blank ? "—" : <span dir="ltr">{moneyText(row.lineTotal, state.currency, precision, locale)}</span>,
+      baseQuantity: blank ? "—" : <span dir="ltr">{fixedText(row.baseQuantity, 3)} {unit}</span>,
+      baseUnitCost: blank ? "—" : <span dir="ltr">{moneyText(row.baseUnitCost, state.currency, Math.max(precision, 2), locale)}</span>,
+      landedShare: blank ? "—" : share === null ? t("atPosting") : <span dir="ltr">{moneyText(share, "IQD", 0, locale)}</span>,
+      landedUnitCost: blank ? "—" : landedUnit === null ? t("atPosting") : <span dir="ltr">{moneyText(landedUnit, "IQD", 2, locale)}</span>,
+      location: place ? locationLabel(place) : t("useDefaultLocation"),
+      problems: rowProblemKeys.flatMap((key) => {
+        const message = err(`line-${line.key}-${key}`);
+        return message ? [message] : [];
+      }),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6" data-testid="invoice-form" data-mode={restock ? "restock" : "invoice"}>
@@ -592,138 +704,26 @@ export function InvoiceForm({
         </Field>
       </Card>
 
-      {/* -------------------------------------------------------- lines */}
-      <Card className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">{t("lines")}</h2>
-        {err("lines") ? <Alert>{err("lines")}</Alert> : null}
-        {state.lines.map((line, index) => {
-          // A line without a quantity stays where it is, but isn't part of the
-          // invoice, its totals or its checks.
-          const at = postedLines.indexOf(line);
-          const blank = at < 0;
-          const row = blank ? { line, ...packConversion("0", line.packSize || "1", line.cost || "0"), unitError: null } : preview.lines[at];
-          const k = `line-${row.line.key}`;
-          const share = blank ? null : (preview.shown?.[at] ?? null);
-          const exactShare = blank ? null : (preview.allocation?.shares[at] ?? null);
-          const landedUnit =
-            preview.rateFixed !== null && exactShare !== null && row.baseQuantity > 0n
-              ? landedUnitCostIqd(row.baseUnitCost, preview.rateFixed, exactShare, row.baseQuantity)
-              : null;
-          const unit = row.line.sku?.baseUnit ?? "";
-          return (
-            <div
-              key={row.line.key}
-              className={`flex flex-col gap-3 rounded-md border p-4 ${blank ? "border-dashed border-border" : "border-border"}`}
-              data-testid="invoice-line"
-              data-blank={blank ? "true" : "false"}
-              data-sku={row.line.sku?.sku ?? ""}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">
-                  {t("lineNumber", { number: index + 1 })}
-                  {blank ? (
-                    <Badge tone="neutral" className="ms-2" data-testid="line-blank-badge">
-                      {t("blankLine")}
-                    </Badge>
-                  ) : null}
-                </span>
-                {state.lines.length > 1 && !locked ? (
-                  <Button size="sm" variant="ghost" onClick={() =>
-                      confirmRemove({
-                        body: row.line.sku ? tc("named", { name: row.line.sku.sku }) : tc("body"),
-                        onConfirm: () => set({ lines: state.lines.filter((line) => line.key !== row.line.key) }),
-                      })
-                    } aria-label={t("removeLine")}>
-                    <Trash2 className="size-4" aria-hidden />
-                  </Button>
-                ) : null}
-              </div>
-              <div className="grid gap-3 md:grid-cols-4">
-                <div className="md:col-span-2">
-                  <Field label={t("sku")} name="variant_id" error={err(`${k}-sku`)}>
-                    <div>
-                      <SkuPicker value={row.line.sku} onChange={(sku) => setLine(row.line.key, { sku })} testId="line-sku" disabled={locked} />
-                    </div>
-                  </Field>
-                </div>
-                <Field key={`packs-${generation}`} label={t("packs")} name="quantity" error={err(`${k}-packs`)} hint={t("packsHint")}>
-                  <DecimalInput value={row.line.packs} parse={{ maxDecimals: 3 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { packs: text.trim() })} data-testid="line-packs" />
-                </Field>
-                <Field key={`size-${generation}`} label={t("packSize", { unit: unit || t("baseUnits") })} name="pack_size" error={err(`${k}-packSize`)}>
-                  <DecimalInput value={row.line.packSize} parse={{ maxDecimals: 3 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { packSize: text.trim() })} data-testid="line-pack-size" />
-                </Field>
-                <Field
-                  key={`cost-${generation}`}
-                  label={t("costPerPack", { currency: state.currency })}
-                  name="unit_cost"
-                  error={err(`${k}-cost`)}
-                  hint={row.line.lastCost ? t("restock.lastCost", { cost: row.line.lastCost.value, currency: row.line.lastCost.currency }) : undefined}
-                >
-                  <DecimalInput value={row.line.cost} parse={{ maxDecimals: 6 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { cost: text.trim() })} data-testid="line-cost" />
-                </Field>
-                <Field label={t("lineLocation")} name="location_id">
-                  <Select value={row.line.locationId} disabled={locked} onValueChange={(value) => setLine(row.line.key, { locationId: value })} data-testid="line-location">
-                    <option value="">{t("useDefaultLocation")}</option>
-                    {locations.map((info) => (
-                      <option key={info.id} value={info.id}>
-                        {locationLabel(info)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label={t("lot")} name="lot_number">
-                  <Input value={row.line.lot} maxLength={80} dir="ltr" disabled={locked} onChange={(event) => setLine(row.line.key, { lot: event.target.value })} data-testid="line-lot" />
-                </Field>
-                <Field label={row.line.sku?.tracksExpiry ? t("expiryTracked") : t("expiry")} name="expiry_date">
-                  <Input type="date" value={row.line.expiry} disabled={locked} onChange={(event) => setLine(row.line.key, { expiry: event.target.value })} data-testid="line-expiry" />
-                </Field>
-                {state.method === "manual" ? (
-                  <Field key={`manual-${generation}`} label={t("manualShare")} name="manual_landed_cost_iqd">
-                    <DecimalInput value={row.line.manual} parse={{ maxDecimals: 4 }} disabled={locked} onValueChange={(_, text) => setLine(row.line.key, { manual: text.trim() })} data-testid="line-manual" />
-                  </Field>
-                ) : null}
-              </div>
-              <dl className="grid gap-2 rounded-md bg-card p-3 text-sm sm:grid-cols-4" data-testid="line-preview">
-                <div>
-                  <dt className="text-xs text-text-muted">{t("baseQuantity")}</dt>
-                  <dd className="font-semibold" dir="ltr" data-testid="line-base">
-                    {fixedText(row.baseQuantity, 3)} {unit}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-text-muted">{t("costPerBaseUnit")}</dt>
-                  <dd className="font-semibold" dir="ltr" data-testid="line-base-cost">
-                    {moneyText(row.baseUnitCost, state.currency, Math.max(precision, 2), locale)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-text-muted">{t("landedShare")}</dt>
-                  <dd className="font-semibold" dir="ltr" data-testid="line-share">
-                    {share === null ? t("atPosting") : moneyText(share, "IQD", 0, locale)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-text-muted">{t("landedUnitCost")}</dt>
-                  <dd className="font-semibold" dir="ltr" data-testid="line-landed-unit">
-                    {landedUnit === null ? t("atPosting") : moneyText(landedUnit, "IQD", 2, locale)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          );
-        })}
+      {/* ------------------------------------------- invoice products */}
+      <Card className="flex flex-col gap-4" data-testid="invoice-products-section">
+        <h2 className="text-lg font-bold">{t("editor.listTitle")}</h2>
         {locked ? null : (
-          <div>
-            <Button
-              variant="secondary"
-              onClick={() => set({ lines: [...state.lines, blankLine(state.nextKey)], nextKey: state.nextKey + 1 })}
-              data-testid="invoice-add-line"
-            >
-              <Plus className="size-4" aria-hidden />
-              {t("addLine")}
-            </Button>
-          </div>
+          <InvoiceProductEditor
+            ref={editorRef}
+            entry={entry}
+            onChange={(patch) => setEntry((current) => ({ ...current, ...patch }))}
+            errors={entryErrors}
+            mode={editingLine ? "edit" : "add"}
+            onSubmit={submitEntry}
+            onCancelEdit={() => loadEditor(blankEntry(), null)}
+            currency={state.currency}
+            locations={locations}
+            manualShares={state.method === "manual"}
+            generation={editorGeneration}
+          />
         )}
+        {err("lines") ? <Alert data-testid="invoice-lines-error">{err("lines")}</Alert> : null}
+        <InvoiceProductsList rows={productRows} editingKey={editingLine ? editingKey : null} onEdit={startEdit} onRemove={askRemove} locked={locked} />
       </Card>
 
       {/* ------------------------------------------------- landed costs */}
@@ -881,11 +881,11 @@ export function InvoiceForm({
       {/* --------------------------------------------------------- submit */}
       {review ? (
         <Card className="flex flex-col gap-3" data-testid="invoice-review">
-          <p className="text-sm">{t("reviewBody", { lines: postedLines.length, total: money(preview.totalIqd, "IQD") })}</p>
+          <p className="text-sm">{t("editor.reviewBody", { count: postedLines.length, total: money(preview.totalIqd, "IQD") })}</p>
           <ul className="flex flex-col gap-1 text-sm" data-testid="invoice-review-lines">
             {postedLines.map((line) => (
               <li key={line.key} data-testid="invoice-review-line" data-sku={line.sku?.sku}>
-                <span className="font-semibold" dir="ltr">{line.sku?.sku}</span> ·{" "}
+                <span className="font-semibold">{line.sku ? productLabel(line.sku) : ""}</span> ·{" "}
                 <span dir="ltr">
                   {line.packs}
                   {line.packSize && line.packSize !== "1" ? ` × ${line.packSize}` : ""}
@@ -895,7 +895,7 @@ export function InvoiceForm({
           </ul>
           {skipped ? (
             <p className="text-xs text-text-muted" data-testid="invoice-review-skipped">
-              {t("skippedLines", { count: skipped })}
+              {t("editor.skipped", { count: skipped })}
             </p>
           ) : null}
           {state.payment === "now" ? (

@@ -12,6 +12,7 @@ import { FormError } from "@/components/forms/form-error";
 import { BelowCostPanel } from "@/components/orders/lifecycle-panels";
 import { BrandQuickCreate } from "@/components/catalog/brand-quick-create";
 import { ImageManager } from "@/components/catalog/image-manager";
+import { PRODUCT_CROP } from "@/lib/image-crop";
 import { belowCostBreaches, type BelowCostBreach } from "@/lib/orders";
 import { NumberInput } from "@/components/forms/number-input";
 import { useApiForm } from "@/components/forms/use-api-form";
@@ -399,7 +400,7 @@ export function ProductEditor({
             <h2 className="text-lg font-bold">{t("sections.images")}</h2>
             <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
           </div>
-          <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} testId="product-images" />
+          <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} target={PRODUCT_CROP} testId="product-images" />
           {imageProblem && settled !== "ready" ? (
             <Alert data-testid="images-not-ready">{t(imageProblem === "busy" ? "imagesBusy" : "imagesFailed")}</Alert>
           ) : null}

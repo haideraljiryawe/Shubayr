@@ -72,7 +72,7 @@ export function BulkImagesView() {
     <div className="flex flex-col gap-6" data-testid="bulk-images">
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-3 p-4">
-          <Field label={t("file")} name="file">
+          <Field label={t("file")} name="file" hint={<span data-testid="images-square-notice">{t("squareNotice")}</span>}>
             <FilePicker
               accept=".zip,application/zip,application/x-zip-compressed"
               disabled={upload !== null}

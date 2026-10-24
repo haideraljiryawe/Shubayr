@@ -16,6 +16,7 @@ import { DataTable, TableSearch, type Column, type TableState } from "@/componen
 import { browserApi, unwrap } from "@/lib/api/client";
 import { ApiError, errorKind, type ErrorKind, errorCode } from "@/lib/api/errors";
 import { ImageManager } from "@/components/catalog/image-manager";
+import { BRAND_CROP } from "@/lib/image-crop";
 import { englishOrArabic, SLUG_PATTERN, slugFor, type Brand } from "@/lib/catalog";
 import { imagesSettled, type ImageDraft } from "@/lib/product-images";
 import { discardUploads, orphanedUploads } from "@/lib/media-cleanup";
@@ -285,7 +286,7 @@ function BrandForm({
       <div className="flex flex-col gap-1.5" data-field="logo_url">
         <p className="text-sm font-semibold">{t("fields.logo")}</p>
         <p className="text-xs text-text-muted">{t("fields.logoHint")}</p>
-        <ImageManager images={logo} onChange={setLogo} onUploaded={(url) => uploads.current.push(url)} single testId="brand-logo" />
+        <ImageManager images={logo} onChange={setLogo} onUploaded={(url) => uploads.current.push(url)} target={BRAND_CROP} transparent single testId="brand-logo" />
         {error("logo_url") ? (
           <p className="text-xs font-semibold text-error-dark" data-testid="error-logo_url">
             {error("logo_url")}
