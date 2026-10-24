@@ -257,6 +257,10 @@ try {
     'account deletion is audited',
   );
 
+  // Account deletion releases the identity but does not bypass the abuse
+  // cooldown. The combined runner configures that production rule to one
+  // second, so wait before proving that the phone can register anew.
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   const replacement = await login(deletablePhone);
   check(
     replacement.user.id === deletable.user.id,
