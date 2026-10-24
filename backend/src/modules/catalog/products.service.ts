@@ -30,6 +30,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { OperationService } from '../finance/operation.service';
 import { BulkProductDto } from './dto/bulk-product.dto';
 import { normalizeCatalogSearch, normalizedArabicSql } from './arabic-search';
+import {
+  BulkProductDeleteDto,
+  ProductDeletePreviewListDto,
+} from './dto/product-delete.dto';
 
 export type FixedPriceApprovalPayload = {
   product_id: string;
@@ -89,6 +93,20 @@ type PreparedVariant = {
   price_proposed_by?: string | null;
   awaiting_rate_id: null;
   updated_at: Date;
+};
+
+type ProductDeletionReason =
+  | 'order_history'
+  | 'inventory_history'
+  | 'purchase_history'
+  | 'product_reviews'
+  | 'price_approval_history'
+  | 'banner_action';
+type ProductDeletionDecision = {
+  id: string;
+  status: string;
+  images: Array<{ url: string }>;
+  reasons: ProductDeletionReason[];
 };
 
 @Injectable()
@@ -776,118 +794,91 @@ export class ProductsService {
     await this.search?.indexProduct(id);
   }
 
+  async deletePreview(id: string) {
+    const [decision] = await this.deletionDecisions(this.prisma, [id]);
+    if (!decision) throw new NotFoundException('Product not found');
+    return this.presentDeletionPreview(decision);
+  }
+
+  async deletePreviews(input: ProductDeletePreviewListDto) {
+    const decisions = await this.deletionDecisions(this.prisma, input.ids);
+    const byId = new Map(decisions.map((decision) => [decision.id, decision]));
+    return {
+      results: input.ids.map((id) => {
+        const decision = byId.get(id);
+        return decision
+          ? this.presentDeletionPreview(decision)
+          : { id, outcome: 'failed' as const, reasons: ['product_not_found'] };
+      }),
+    };
+  }
+
   async deleteOrArchive(
     id: string,
     actorId: string,
   ): Promise<{ outcome: 'deleted' | 'archived'; reasons: string[] }> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          status: true,
-          images: { select: { url: true } },
-          _count: {
-            select: {
-              purchase_invoice_items: true,
-              inventory_batches: true,
-              order_items: true,
-              product_reviews: true,
-              price_approval_requests: true,
-            },
-          },
-        },
-      });
-      if (!product) throw new NotFoundException('Product not found');
-
-      const bannerReferences = await tx.banner.count({
-        where: { action_type: 'product', action_target_id: id },
-      });
-      const variantHistory = await tx.productVariant.findFirst({
-        where: {
-          product_id: id,
-          OR: [
-            { sku_cost: { isNot: null } },
-            { opening_lines: { some: {} } },
-            { transfer_lines: { some: {} } },
-            { count_lines: { some: {} } },
-            { write_down_lines: { some: {} } },
-            { scoped_counts: { some: {} } },
-            { retrieval_lines: { some: {} } },
-          ],
-        },
-        select: { id: true },
-      });
-      const reasons = [
-        ...(product._count.order_items ? ['order_history'] : []),
-        ...(product._count.inventory_batches || variantHistory
-          ? ['inventory_history']
-          : []),
-        ...(product._count.purchase_invoice_items ? ['purchase_history'] : []),
-        ...(product._count.product_reviews ? ['product_reviews'] : []),
-        ...(product._count.price_approval_requests
-          ? ['price_approval_history']
-          : []),
-        ...(bannerReferences ? ['banner_action'] : []),
-      ];
-
-      if (reasons.length) {
-        await tx.product.update({
-          where: { id },
-          data: { status: 'archived', search_sync_required: true },
-        });
-        await this.audit.record(tx, {
-          actorId,
-          action: 'catalog.product.archive_referenced',
-          entityType: 'product',
-          entityId: id,
-          before: { status: product.status },
-          after: { status: 'archived', reasons },
-        });
-        return { outcome: 'archived' as const, reasons, mediaUrls: [] };
-      }
-
-      // Cart and wishlist rows are transient, so clearing them is safe. All
-      // financial, order, inventory and approval references above block hard
-      // deletion and preserve the product as archived instead.
-      await tx.cartItem.deleteMany({ where: { product_id: id } });
-      await tx.wishlistItem.deleteMany({ where: { product_id: id } });
-      await tx.product.delete({ where: { id } });
-      await this.audit.record(tx, {
-        actorId,
-        action: 'catalog.product.delete_unreferenced',
-        entityType: 'product',
-        entityId: id,
-        before: { status: product.status },
-        after: { deleted: true },
-      });
-      return {
-        outcome: 'deleted' as const,
-        reasons: [],
-        mediaUrls: product.images.map(({ url }) => url),
-      };
+      const [decision] = await this.deletionDecisions(tx, [id]);
+      if (!decision) throw new NotFoundException('Product not found');
+      return this.applyDeletionDecision(tx, decision, actorId);
     });
 
-    for (const url of result.mediaUrls) {
-      const media = await this.prisma.mediaObject.findUnique({
-        where: { public_url: url },
-        select: { id: true },
-      });
-      if (media) {
-        try {
-          await this.media.remove(media.id);
-        } catch (error) {
-          // The product deletion is already committed. A media object may also
-          // be shared by a banner/category, or storage cleanup may be briefly
-          // unavailable; retain it for the explicit orphan-cleanup endpoint.
-          this.logger.warn(
-            `Deferred media cleanup after product deletion: ${media.id} (${error instanceof Error ? error.name : 'unknown error'})`,
-          );
-        }
-      }
-    }
+    await this.cleanupDeletedMedia(result.mediaUrls);
     await this.search?.indexProduct(id);
     return { outcome: result.outcome, reasons: result.reasons };
+  }
+
+  async bulkDelete(input: BulkProductDeleteDto, actorId: string) {
+    if (!this.operations) throw new Error('Operation service is unavailable');
+    const mediaUrls: string[] = [];
+    const changedIds: string[] = [];
+    const result = await this.operations.execute({
+      userId: actorId,
+      operationId: input.operation_id,
+      endpoint: 'POST /admin/products/bulk-delete',
+      payload: input,
+      work: async (tx) => {
+        const decisions = await this.deletionDecisions(tx, input.ids);
+        const byId = new Map(
+          decisions.map((decision) => [decision.id, decision]),
+        );
+        const results: Array<{
+          id: string;
+          outcome: 'deleted' | 'archived' | 'failed';
+          reasons: string[];
+        }> = [];
+        for (const id of input.ids) {
+          const decision = byId.get(id);
+          if (!decision) {
+            results.push({
+              id,
+              outcome: 'failed',
+              reasons: ['product_not_found'],
+            });
+            continue;
+          }
+          const applied = await this.applyDeletionDecision(
+            tx,
+            decision,
+            actorId,
+            input.operation_id,
+          );
+          mediaUrls.push(...applied.mediaUrls);
+          changedIds.push(id);
+          results.push({
+            id,
+            outcome: applied.outcome,
+            reasons: applied.reasons,
+          });
+        }
+        return { operation_id: input.operation_id, results };
+      },
+    });
+    await this.cleanupDeletedMedia(mediaUrls);
+    if (this.search) {
+      for (const id of changedIds) await this.search.indexProduct(id);
+    }
+    return result;
   }
 
   async availability(id: string, enforcePublicVisibility = false) {
@@ -992,6 +983,170 @@ export class ProductsService {
       available_qty,
       variants,
     };
+  }
+
+  private async deletionDecisions(
+    database: Prisma.TransactionClient | PrismaService,
+    ids: string[],
+  ): Promise<ProductDeletionDecision[]> {
+    const db = database;
+    const products = await db.product.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        status: true,
+        images: { select: { url: true } },
+        _count: {
+          select: {
+            purchase_invoice_items: true,
+            inventory_batches: true,
+            order_items: true,
+            product_reviews: true,
+            price_approval_requests: true,
+          },
+        },
+      },
+    });
+    if (!products.length) return [];
+    const productIds = products.map(({ id }) => id);
+    const [bannerReferences, variantHistory] = await Promise.all([
+      db.banner.findMany({
+        where: {
+          action_type: 'product',
+          action_target_id: { in: productIds },
+        },
+        select: { action_target_id: true },
+      }),
+      db.productVariant.findMany({
+        where: {
+          product_id: { in: productIds },
+          OR: [
+            { sku_cost: { isNot: null } },
+            { opening_lines: { some: {} } },
+            { transfer_lines: { some: {} } },
+            { count_lines: { some: {} } },
+            { write_down_lines: { some: {} } },
+            { scoped_counts: { some: {} } },
+            { retrieval_lines: { some: {} } },
+          ],
+        },
+        select: { product_id: true },
+      }),
+    ]);
+    const bannerProductIds = new Set(
+      bannerReferences.flatMap(({ action_target_id }) =>
+        action_target_id ? [action_target_id] : [],
+      ),
+    );
+    const historyProductIds = new Set(
+      variantHistory.map(({ product_id }) => product_id),
+    );
+    return products.map((product) => {
+      const reasons: ProductDeletionReason[] = [];
+      if (product._count.order_items) reasons.push('order_history');
+      if (
+        product._count.inventory_batches ||
+        historyProductIds.has(product.id)
+      ) {
+        reasons.push('inventory_history');
+      }
+      if (product._count.purchase_invoice_items)
+        reasons.push('purchase_history');
+      if (product._count.product_reviews) reasons.push('product_reviews');
+      if (product._count.price_approval_requests)
+        reasons.push('price_approval_history');
+      if (bannerProductIds.has(product.id)) reasons.push('banner_action');
+      return {
+        id: product.id,
+        status: product.status,
+        images: product.images,
+        reasons,
+      };
+    });
+  }
+
+  private presentDeletionPreview(decision: ProductDeletionDecision) {
+    return {
+      id: decision.id,
+      outcome: decision.reasons.length
+        ? ('archive' as const)
+        : ('delete' as const),
+      reasons: decision.reasons,
+    };
+  }
+
+  private async applyDeletionDecision(
+    tx: Prisma.TransactionClient,
+    decision: ProductDeletionDecision,
+    actorId: string,
+    operationId?: string,
+  ) {
+    if (decision.reasons.length) {
+      await tx.product.update({
+        where: { id: decision.id },
+        data: { status: 'archived', search_sync_required: true },
+      });
+      await this.audit.record(tx, {
+        actorId,
+        action: 'catalog.product.archive_referenced',
+        entityType: 'product',
+        entityId: decision.id,
+        before: { status: decision.status },
+        after: {
+          status: 'archived',
+          reasons: decision.reasons,
+          ...(operationId ? { operation_id: operationId } : {}),
+        },
+      });
+      return {
+        outcome: 'archived' as const,
+        reasons: decision.reasons,
+        mediaUrls: [] as string[],
+      };
+    }
+
+    // Cart and wishlist rows are transient, so clearing them is safe. All
+    // durable financial, order, inventory and approval references above block
+    // hard deletion and preserve the product as archived instead.
+    await tx.cartItem.deleteMany({ where: { product_id: decision.id } });
+    await tx.wishlistItem.deleteMany({ where: { product_id: decision.id } });
+    await tx.product.delete({ where: { id: decision.id } });
+    await this.audit.record(tx, {
+      actorId,
+      action: 'catalog.product.delete_unreferenced',
+      entityType: 'product',
+      entityId: decision.id,
+      before: { status: decision.status },
+      after: {
+        deleted: true,
+        ...(operationId ? { operation_id: operationId } : {}),
+      },
+    });
+    return {
+      outcome: 'deleted' as const,
+      reasons: [] as ProductDeletionReason[],
+      mediaUrls: decision.images.map(({ url }) => url),
+    };
+  }
+
+  private async cleanupDeletedMedia(urls: string[]): Promise<void> {
+    for (const url of urls) {
+      const media = await this.prisma.mediaObject.findUnique({
+        where: { public_url: url },
+        select: { id: true },
+      });
+      if (!media) continue;
+      try {
+        await this.media.remove(media.id);
+      } catch (error) {
+        // The product deletion is already committed. A media object may also
+        // be shared by a banner/category, or storage cleanup may be briefly
+        // unavailable; retain it for the explicit orphan-cleanup endpoint.
+        this.logger.warn(
+          `Deferred media cleanup after product deletion: ${media.id} (${error instanceof Error ? error.name : 'unknown error'})`,
+        );
+      }
+    }
   }
 
   /**

@@ -8768,6 +8768,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/products/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview delete-or-archive outcomes for up to 500 products
+         * @description Read-only. Uses exactly the same durable-reference rule as single and bulk deletion; missing ids are returned as failed results.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProductDeletePreviewListInput"];
+                };
+            };
+            responses: {
+                /** @description Per-product deletion previews */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductDeletePreviewListResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete or archive up to 500 products
+         * @description Applies the same durable-reference rule as single deletion. Reusing the operation id with the same ids returns the original result without applying or auditing any product twice; a different payload returns 409.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProductBulkDeleteInput"];
+                };
+            };
+            responses: {
+                /** @description Idempotent per-product deletion outcomes */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductBulkDeleteResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["Validation"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/products/{id}": {
         parameters: {
             query?: never;
@@ -8899,6 +8990,49 @@ export interface paths {
                 404: components["responses"]["NotFound"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/{id}/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview whether deleting a product will hard-delete or archive it
+         * @description Read-only. Uses exactly the same durable-reference rule as the delete mutation and returns every reason that requires archival.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Product deletion preview */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductDeletePreview"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -13992,8 +14126,18 @@ export interface components {
              * @enum {string}
              */
             preferred_ui_language: "ar" | "en";
+            /** @description Assigned permission presets with localized labels. Present only on the Admin surface; built-in labels come from the permission registry and owner-created presets fall back to their stored name in both languages. */
+            presets?: components["schemas"]["StaffPresetIdentity"][];
             /** Format: date-time */
             created_at: string;
+        };
+        StaffPresetIdentity: {
+            /** Format: uuid */
+            id: string;
+            /** @description Stable stored preset name used by access-management APIs. */
+            name: string;
+            name_ar: string;
+            name_en: string;
         };
         /** @description Fields the authenticated user may update without identity re-verification. Phone is intentionally excluded; changing it requires OTP re-verification. */
         UserSelfUpdate: {
@@ -14731,10 +14875,39 @@ export interface components {
                 message?: string;
             }[];
         };
+        /** @enum {string} */
+        ProductDeleteReason: "order_history" | "inventory_history" | "purchase_history" | "product_reviews" | "price_approval_history" | "banner_action" | "product_not_found";
+        ProductDeletePreview: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            outcome: "delete" | "archive" | "failed";
+            reasons: components["schemas"]["ProductDeleteReason"][];
+        };
+        ProductDeletePreviewListInput: {
+            ids: string[];
+        };
+        ProductDeletePreviewListResult: {
+            results: components["schemas"]["ProductDeletePreview"][];
+        };
+        ProductBulkDeleteInput: {
+            operation_id: string;
+            ids: string[];
+        };
+        ProductBulkDeleteResult: {
+            operation_id: string;
+            results: {
+                /** Format: uuid */
+                id: string;
+                /** @enum {string} */
+                outcome: "deleted" | "archived" | "failed";
+                reasons: components["schemas"]["ProductDeleteReason"][];
+            }[];
+        };
         ProductDeleteResult: {
             /** @enum {string} */
             outcome: "deleted" | "archived";
-            reasons: ("order_history" | "inventory_history" | "purchase_history" | "product_reviews" | "price_approval_history" | "banner_action")[];
+            reasons: components["schemas"]["ProductDeleteReason"][];
         };
         ProductImage: {
             /** Format: uuid */

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shubayr API
-  version: 17.11.0
+  version: 17.12.0
   description: >
     REST/JSON API contract for Shubayr — an online multi-section store
     (single-owner, white-label). This document is the SHARED CONTRACT between
@@ -4430,6 +4430,46 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/PostingConflict" }
         "422": { $ref: "#/components/responses/Validation" }
+  /admin/products/delete-preview:
+    post:
+      tags: [Admin]
+      summary: Preview delete-or-archive outcomes for up to 500 products
+      description: Read-only. Uses exactly the same durable-reference rule as single and bulk deletion; missing ids are returned as failed results.
+      x-permission: catalog.products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductDeletePreviewListInput" }
+      responses:
+        "200":
+          description: Per-product deletion previews
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductDeletePreviewListResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /admin/products/bulk-delete:
+    post:
+      tags: [Admin]
+      summary: Delete or archive up to 500 products
+      description: Applies the same durable-reference rule as single deletion. Reusing the operation id with the same ids returns the original result without applying or auditing any product twice; a different payload returns 409.
+      x-permission: catalog.products
+      x-error-codes: [PRODUCT_NOT_FOUND]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductBulkDeleteInput" }
+      responses:
+        "201":
+          description: Idempotent per-product deletion outcomes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductBulkDeleteResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
   /admin/products/{id}:
     get:
       tags: [Admin]
@@ -4494,6 +4534,22 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProductDeleteResult" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /admin/products/{id}/delete-preview:
+    get:
+      tags: [Admin]
+      summary: Preview whether deleting a product will hard-delete or archive it
+      description: Read-only. Uses exactly the same durable-reference rule as the delete mutation and returns every reason that requires archival.
+      x-permission: catalog.products
+      parameters: [ { $ref: "#/components/parameters/PathId" } ]
+      responses:
+        "200":
+          description: Product deletion preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductDeletePreview" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
@@ -6643,7 +6699,21 @@ components:
         must_change_password: { type: boolean }
         permission_version: { type: integer, minimum: 1 }
         preferred_ui_language: { type: string, enum: [ar, en], description: Staff member's preferred Web Admin language; defaults to Arabic. }
+        presets:
+          type: array
+          description: Assigned permission presets with localized labels. Present only on the Admin surface; built-in labels come from the permission registry and owner-created presets fall back to their stored name in both languages.
+          items: { $ref: "#/components/schemas/StaffPresetIdentity" }
         created_at: { type: string, format: date-time }
+
+    StaffPresetIdentity:
+      type: object
+      additionalProperties: false
+      required: [id, name, name_ar, name_en]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, description: Stable stored preset name used by access-management APIs. }
+        name_ar: { type: string }
+        name_en: { type: string }
 
     UserSelfUpdate:
       type: object
@@ -7445,6 +7515,66 @@ components:
               code: { type: string }
               message: { type: string }
 
+    ProductDeleteReason:
+      type: string
+      enum: [order_history, inventory_history, purchase_history, product_reviews, price_approval_history, banner_action, product_not_found]
+
+    ProductDeletePreview:
+      type: object
+      additionalProperties: false
+      required: [id, outcome, reasons]
+      properties:
+        id: { type: string, format: uuid }
+        outcome: { type: string, enum: [delete, archive, failed] }
+        reasons:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ProductDeleteReason" }
+
+    ProductDeletePreviewListInput:
+      type: object
+      additionalProperties: false
+      required: [ids]
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+
+    ProductDeletePreviewListResult:
+      type: object
+      additionalProperties: false
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/ProductDeletePreview" }
+
+    ProductBulkDeleteInput:
+      type: object
+      additionalProperties: false
+      required: [operation_id, ids]
+      properties:
+        operation_id: { type: string, minLength: 8, maxLength: 128 }
+        ids: { type: array, minItems: 1, maxItems: 500, uniqueItems: true, items: { type: string, format: uuid } }
+
+    ProductBulkDeleteResult:
+      type: object
+      additionalProperties: false
+      required: [operation_id, results]
+      properties:
+        operation_id: { type: string }
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, outcome, reasons]
+            properties:
+              id: { type: string, format: uuid }
+              outcome: { type: string, enum: [deleted, archived, failed] }
+              reasons:
+                type: array
+                uniqueItems: true
+                items: { $ref: "#/components/schemas/ProductDeleteReason" }
+
     ProductDeleteResult:
       type: object
       additionalProperties: false
@@ -7454,9 +7584,7 @@ components:
         reasons:
           type: array
           uniqueItems: true
-          items:
-            type: string
-            enum: [order_history, inventory_history, purchase_history, product_reviews, price_approval_history, banner_action]
+          items: { $ref: "#/components/schemas/ProductDeleteReason" }
 
     ProductImage:
       type: object

@@ -151,7 +151,9 @@ function run(script, args = [], env = environment) {
       if (settled) return;
       settled = true;
       const error =
-        code === 0 ? null : new Error(`${script} exited with ${code ?? signal}`);
+        code === 0
+          ? null
+          : new Error(`${script} exited with ${code ?? signal}`);
       if (pack) {
         packResults.push({
           pack: basename(script),
@@ -365,6 +367,7 @@ try {
   await waitForApi(apiUrl);
   await run('test/c13-settings.acceptance.mjs', [], acceptanceEnv);
   await run('test/c21-admin-review.acceptance.mjs', [], acceptanceEnv);
+  await run('test/c22-admin-followups.acceptance.mjs', [], acceptanceEnv);
   await run('test/notes-contract-c16.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);

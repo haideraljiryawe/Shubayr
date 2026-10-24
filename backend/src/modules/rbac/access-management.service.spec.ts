@@ -1,5 +1,6 @@
 jest.mock('../../database/prisma.service', () => ({ PrismaService: class {} }));
 
+import { presetPresentation } from '../../common/access/permission-registry';
 import { AccessManagementService } from './access-management.service';
 
 describe('AccessManagementService permission metadata', () => {
@@ -30,5 +31,16 @@ describe('AccessManagementService permission metadata', () => {
     expect(service.permissions('sale prices')).toEqual([
       expect.objectContaining({ key: 'prices.change' }),
     ]);
+  });
+
+  it('localizes built-in presets and safely falls back for owner presets', () => {
+    expect(presetPresentation('super_admin')).toEqual({
+      name_ar: 'صاحب المتجر',
+      name_en: 'Store owner',
+    });
+    expect(presetPresentation('night_shift')).toEqual({
+      name_ar: 'night_shift',
+      name_en: 'night_shift',
+    });
   });
 });

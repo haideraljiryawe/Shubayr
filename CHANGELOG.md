@@ -1,5 +1,23 @@
 # Changelog
 
+## 17.12.0 - 2026-10-24
+
+### Added
+
+- Admin-surface `/me` profiles include every assigned permission preset with
+  stable stored names and Arabic/English display labels. Built-in labels come
+  from the access registry; owner-created presets fall back to their stored
+  name in both languages.
+- Product deletion has read-only single and batched previews that use the same
+  durable-reference policy as the mutation.
+- An audited, idempotent bulk product delete-or-archive operation handles up to
+  500 ids and reports deleted, archived or failed results per product.
+
+### Changed
+
+- The API contract is 17.12.0. All changes are additive and backward
+  compatible; app-surface `/me` payloads and roles are unchanged.
+
 ## 17.11.0 - 2026-10-24
 
 ### Added
