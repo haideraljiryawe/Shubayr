@@ -110,7 +110,10 @@ if errorlevel 1 (
 :docker_ready
 echo Starting PostgreSQL, Redis, search, object storage, Mailpit, API, and Admin...
 echo The first run builds images and installs dependencies, so it can take a few minutes.
-docker compose --profile full up -d --build
+rem Recreate only anonymous volumes (the API/Admin node_modules mounts) so a
+rem newly added dependency cannot be hidden by a stale volume. Named database,
+rem search, Redis, and media volumes are not affected by this option.
+docker compose --profile full up -d --build --renew-anon-volumes
 if errorlevel 1 (
   echo.
   echo ERROR: The Docker stack could not be started.

@@ -39,7 +39,9 @@ docker info >/dev/null 2>&1 || {
 }
 
 echo "Starting PostgreSQL, Redis, search, object storage, Mailpit, API, and Admin..."
-docker compose --profile full up -d --build
+# Recreate only the anonymous API/Admin dependency volumes. Named database,
+# search, Redis, and media volumes remain intact.
+docker compose --profile full up -d --build --renew-anon-volumes
 
 wait_url() {
   url=$1
