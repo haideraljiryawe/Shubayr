@@ -62,6 +62,20 @@ const schema = Joi.object({
     .max(120)
     .default(30),
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
+  OTP_MAX_VERIFY_ATTEMPTS: Joi.number().integer().min(1).max(10).default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: Joi.number()
+    .integer()
+    .min(1)
+    .max(3600)
+    .default(60),
+  OTP_PHONE_WINDOW_MAX: Joi.number().integer().min(1).max(100).default(3),
+  OTP_PHONE_WINDOW_SECONDS: Joi.number()
+    .integer()
+    .min(60)
+    .max(86_400)
+    .default(600),
+  OTP_PHONE_DAILY_MAX: Joi.number().integer().min(1).max(1000).default(10),
+  OTP_IP_HOURLY_MAX: Joi.number().integer().min(1).max(10_000).default(60),
   DEV_OTP: Joi.string()
     .pattern(/^\d{6}$/)
     .default('000000'),

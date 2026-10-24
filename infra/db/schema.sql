@@ -123,6 +123,7 @@ CREATE TABLE otp_codes (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     phone           VARCHAR(32) NOT NULL,
     code_hash       VARCHAR(255) NOT NULL,
+    attempt_count   INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
     expires_at      TIMESTAMPTZ NOT NULL,
     consumed_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()

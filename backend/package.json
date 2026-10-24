@@ -30,6 +30,7 @@
     "catalog:depth-report": "node scripts/category-depth-report.mjs",
     "push:diagnose": "ts-node --transpile-only src/cli/push-diagnostic.ts",
     "push:test": "ts-node --transpile-only src/cli/push-test.ts",
+    "otp:live-check": "ts-node --transpile-only scripts/otpiq-live-check.ts",
     "bootstrap:reference": "node dist/src/cli/bootstrap-reference.js",
     "bootstrap:owner": "node dist/src/cli/create-owner.js"
   },

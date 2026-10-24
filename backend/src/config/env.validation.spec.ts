@@ -104,4 +104,37 @@ describe('validateEnvironment OTPIQ', () => {
       }),
     ).toThrow(/SMS_PROVIDER/);
   });
+
+  it('applies the agreed OTP hardening defaults', () => {
+    const result = validateEnvironment({
+      ...production,
+      SMS_GATEWAY_URL: 'disabled',
+    });
+    expect(result).toMatchObject({
+      OTP_TTL_SECONDS: 300,
+      OTP_MAX_VERIFY_ATTEMPTS: 5,
+      OTP_RESEND_COOLDOWN_SECONDS: 60,
+      OTP_PHONE_WINDOW_MAX: 3,
+      OTP_PHONE_WINDOW_SECONDS: 600,
+      OTP_PHONE_DAILY_MAX: 10,
+      OTP_IP_HOURLY_MAX: 60,
+    });
+  });
+
+  it.each([
+    ['OTP_MAX_VERIFY_ATTEMPTS', 0],
+    ['OTP_RESEND_COOLDOWN_SECONDS', 0],
+    ['OTP_PHONE_WINDOW_MAX', 0],
+    ['OTP_PHONE_WINDOW_SECONDS', 59],
+    ['OTP_PHONE_DAILY_MAX', 0],
+    ['OTP_IP_HOURLY_MAX', 0],
+  ])('rejects unsafe %s=%s', (name, value) => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        SMS_GATEWAY_URL: 'disabled',
+        [name]: value,
+      }),
+    ).toThrow(String(name));
+  });
 });

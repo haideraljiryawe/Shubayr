@@ -79,6 +79,8 @@ export interface paths {
                             otp_sent: boolean;
                             /** @description Present only when APP_ENV=development; never returned in production. */
                             dev_otp?: string;
+                            /** @description Authoritative minimum wait before requesting another code; clients may show a countdown. */
+                            resend_after_seconds?: number;
                         };
                     };
                 };
@@ -13968,6 +13970,14 @@ export interface components {
             /** @example VALIDATION_FAILED */
             code: string;
             message: string;
+            /** @description Safe Arabic message when the coded error defines one. */
+            message_ar?: string;
+            /** @description Safe English message when the coded error defines one. */
+            message_en?: string;
+            /** @description Present on OTP resend/quota refusals. */
+            retry_after_seconds?: number;
+            /** @description Present on OTP verification failures when a current challenge remains identifiable. */
+            attempts_remaining?: number;
             /** @description Empty for non-validation errors. */
             errors: components["schemas"]["FieldError"][];
         };

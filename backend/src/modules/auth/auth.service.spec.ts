@@ -19,6 +19,7 @@ jest.mock('@nestjs/jwt', () => ({
 }));
 
 import {
+  HttpException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -94,7 +95,11 @@ describe('AuthService', () => {
     await expect(
       service.requestOtp({ phone: '+9647700000000' }),
     ).resolves.toEqual({ otp_sent: true, dev_otp: '000000' });
-    expect(sms.sendOtp).toHaveBeenCalledWith('+9647700000000', '000000');
+    expect(sms.sendOtp).toHaveBeenCalledWith(
+      '+9647700000000',
+      '000000',
+      undefined,
+    );
     const createInput = createdInput as {
       data: { phone: string; code_hash: string };
     };
@@ -435,10 +440,16 @@ describe('AuthService', () => {
   it('rejects an incorrect OTP without creating a user', async () => {
     const prisma = {
       otpCode: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValue({ id: 'otp-id', code_hash: 'bad' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'otp-id',
+          code_hash: 'bad',
+          attempt_count: 0,
+          consumed_at: null,
+        }),
       },
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValue([{ attempt_count: 1, consumed_at: null }]),
     };
     const service = new AuthService(
       prisma as never,
@@ -449,6 +460,105 @@ describe('AuthService', () => {
     await expect(
       service.verifyOtp({ phone: '+9647700000000', code: '000000' }),
     ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('allows exactly one of two concurrent sends for the same phone', async () => {
+    const release = jest.fn().mockResolvedValue(undefined);
+    const reserve = jest
+      .fn()
+      .mockResolvedValueOnce({ resendAfterSeconds: 60, release })
+      .mockRejectedValueOnce(
+        new HttpException(
+          {
+            status: 429,
+            code: 'OTP_RESEND_TOO_SOON',
+            retry_after_seconds: 60,
+          },
+          429,
+        ),
+      );
+    const sms = { sendOtp: jest.fn().mockResolvedValue(undefined) };
+    const prisma = {
+      otpCode: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn().mockResolvedValue({}),
+      },
+      $transaction: jest.fn((operations: Promise<unknown>[]) =>
+        Promise.all(operations),
+      ),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      sms as never,
+      undefined,
+      undefined,
+      { reserve } as never,
+    );
+    const results = await Promise.allSettled([
+      service.requestOtp({ phone: '+9647700000000' }, '203.0.113.8'),
+      service.requestOtp({ phone: '+9647700000000' }, '203.0.113.8'),
+    ]);
+    expect(results.map((result) => result.status).sort()).toEqual([
+      'fulfilled',
+      'rejected',
+    ]);
+    expect(sms.sendOtp).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('atomically counts parallel wrong codes and invalidates at the exact limit', async () => {
+    let attempts = 0;
+    let consumedAt: Date | null = null;
+    const otpHash = createHmac('sha256', accessSecret)
+      .update('+9647700000000:654321')
+      .digest('hex');
+    const prisma = {
+      otpCode: {
+        findFirst: jest.fn(() =>
+          Promise.resolve({
+            id: 'otp-id',
+            code_hash: otpHash,
+            attempt_count: attempts,
+            consumed_at: consumedAt,
+          }),
+        ),
+      },
+      $queryRaw: jest.fn(() => {
+        if (consumedAt || attempts >= 5) return Promise.resolve([]);
+        attempts += 1;
+        if (attempts >= 5) consumedAt = new Date();
+        return Promise.resolve([
+          { attempt_count: attempts, consumed_at: consumedAt },
+        ]);
+      }),
+    };
+    const service = new AuthService(
+      prisma as never,
+      jwt,
+      config as never,
+      { sendOtp: jest.fn() } as never,
+    );
+    const results = await Promise.allSettled(
+      Array.from({ length: 5 }, () =>
+        service.verifyOtp({ phone: '+9647700000000', code: '000000' }),
+      ),
+    );
+    expect(attempts).toBe(5);
+    expect(
+      results.filter(
+        (result) =>
+          result.status === 'rejected' &&
+          (result.reason as { response?: { code?: string } }).response?.code ===
+            'OTP_ATTEMPTS_EXCEEDED',
+      ),
+    ).toHaveLength(1);
+    await expect(
+      service.verifyOtp({ phone: '+9647700000000', code: '654321' }),
+    ).rejects.toMatchObject({
+      response: { code: 'OTP_ATTEMPTS_EXCEEDED', attempts_remaining: 0 },
+    });
   });
 });
 
@@ -585,7 +695,6 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: {
         phone,
-        consumed_at: null,
         expires_at: { gt: expect.any(Date) as Date },
       },
       orderBy: { created_at: 'desc' },
@@ -606,6 +715,8 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
           code_hash: createHmac('sha256', accessSecret)
             .update(`${phone}:123456`)
             .digest('hex'),
+          attempt_count: 0,
+          consumed_at: null,
         }),
       },
       $transaction: jest.fn((operation: (client: typeof tx) => unknown) =>

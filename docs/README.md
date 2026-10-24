@@ -21,6 +21,7 @@ its Section 30 build-status narrative is historical. Use the repository
 - [Production deployment](deploy/production.md)
 - [Web/Admin deployment details](deploy/web-and-admin.md)
 - [Daily operations and incident runbook](operations/runbook.md)
+- [OTPIQ one-message live check (Arabic/English)](operations/otpiq-live-check.md)
 - [Push-notification deployment](deploy/push-notifications.md)
 
 ## Store owner

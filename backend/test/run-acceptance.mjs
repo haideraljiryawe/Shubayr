@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { basename, dirname } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import pg from 'pg';
 
 const { Client } = pg;
@@ -35,6 +35,15 @@ const environment = {
   RATE_LIMIT_CATALOG_PER_MINUTE: '600',
   RATE_LIMIT_NORMAL_PER_MINUTE: '120',
   RATE_LIMIT_STRICT_PER_MINUTE: '30',
+  // Shared OTP controls remain active in development. The combined acceptance
+  // runner represents many independent clients, so its normal packs use wide
+  // quotas and a one-second cooldown; the dedicated C23 pack below restores
+  // and proves production defaults.
+  OTP_RESEND_COOLDOWN_SECONDS: '1',
+  OTP_PHONE_WINDOW_MAX: '100',
+  OTP_PHONE_WINDOW_SECONDS: '600',
+  OTP_PHONE_DAILY_MAX: '1000',
+  OTP_IP_HOURLY_MAX: '10000',
 };
 const node = process.execPath;
 const prisma = 'node_modules/prisma/build/index.js';
@@ -283,6 +292,44 @@ try {
   // both historical-upgrade ordering and the isolated delivery safeguards are
   // continuously verified.
   await run('test/push-test-migration.acceptance.mjs', [], environment);
+
+  // C23 exercises the real HTTP/auth/database/Redis path while replacing only
+  // OTPIQ's network boundary. The preload never records the generated code or
+  // key, and this production-mode API is stopped before the normal dev packs.
+  const otpiqMockCallsPath = join(
+    process.env.RUNNER_TEMP ?? process.cwd(),
+    `otpiq-mock-${name}.jsonl`,
+  );
+  writeFileSync(otpiqMockCallsPath, '', 'utf8');
+  const otpEnvironment = {
+    ...environment,
+    APP_ENV: 'production',
+    SMS_PROVIDER: 'otpiq',
+    OTPIQ_API_KEY: 'test-project-key-not-a-secret',
+    SMS_GATEWAY_URL: 'disabled',
+    OTPIQ_MOCK_CALLS_PATH: otpiqMockCallsPath,
+    OTP_RESEND_COOLDOWN_SECONDS: '60',
+    OTP_PHONE_WINDOW_MAX: '3',
+    OTP_PHONE_WINDOW_SECONDS: '600',
+    OTP_PHONE_DAILY_MAX: '10',
+    OTP_IP_HOURLY_MAX: '60',
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ''} --import=./test/otpiq-provider-mock.mjs`.trim(),
+  };
+  const otpPort = await freePort();
+  const otpApiUrl = `http://127.0.0.1:${otpPort}/api/v1`;
+  otpEnvironment.API_PORT = String(otpPort);
+  otpEnvironment.PUBLIC_API_URL = otpApiUrl;
+  api = spawn(node, [apiEntry], { env: otpEnvironment, stdio: 'inherit' });
+  await waitForApi(otpApiUrl);
+  await run('test/otp-hardening.acceptance.mjs', [], {
+    ...otpEnvironment,
+    ACCEPTANCE_API_URL: otpApiUrl,
+    ACCEPTANCE_DATABASE_NAME: name,
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ''} --import=./test/openapi-response-validator.mjs`.trim(),
+  });
+  await stopApi();
 
   api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
   await waitForApi(apiUrl);

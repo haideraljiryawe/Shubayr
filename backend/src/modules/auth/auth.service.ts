@@ -28,6 +28,7 @@ import {
 } from './dto/auth.dto';
 import { hashPassword, verifyPassword } from './password';
 import { SmsGatewayService } from './sms-gateway.service';
+import { OtpProtectionService } from './otp-protection.service';
 
 const userAccessInclude = { role: true, work_profile: true } as const;
 const APP_ROLES = new Set(['customer', 'delivery_agent', 'order_monitor']);
@@ -86,10 +87,12 @@ export class AuthService {
     private readonly sms: SmsGatewayService,
     @Optional() private readonly permissions?: PermissionResolverService,
     @Optional() private readonly audit?: AuditService,
+    @Optional() private readonly otpProtection?: OtpProtectionService,
   ) {}
 
-  async requestOtp(input: RequestOtpDto) {
+  async requestOtp(input: RequestOtpDto, requesterIp?: string) {
     const phone = input.phone.trim();
+    const reservation = await this.otpProtection?.reserve(phone, requesterIp);
     const development = this.config.get<string>('APP_ENV') === 'development';
     const code = development
       ? this.config.get<string>('DEV_OTP', '000000')
@@ -98,43 +101,93 @@ export class AuthService {
     const expiresAt = new Date(
       now.getTime() + this.config.get<number>('OTP_TTL_SECONDS', 300) * 1000,
     );
-    await this.sms.sendOtp(phone, code);
-    await this.prisma.$transaction([
-      this.prisma.otpCode.updateMany({
-        where: { phone, consumed_at: null },
-        data: { consumed_at: now },
-      }),
-      this.prisma.otpCode.create({
-        data: {
-          phone,
-          code_hash: this.hashOtp(phone, code),
-          expires_at: expiresAt,
-        },
-      }),
-    ]);
-    if (development) {
-      return { otp_sent: true, dev_otp: code };
+    try {
+      await this.sms.sendOtp(phone, code, requesterIp);
+      await this.prisma.$transaction([
+        this.prisma.otpCode.updateMany({
+          where: { phone, consumed_at: null },
+          data: { consumed_at: now },
+        }),
+        this.prisma.otpCode.create({
+          data: {
+            phone,
+            code_hash: this.hashOtp(phone, code),
+            expires_at: expiresAt,
+          },
+        }),
+      ]);
+      if (development) {
+        return {
+          otp_sent: true,
+          dev_otp: code,
+          ...(reservation
+            ? { resend_after_seconds: reservation.resendAfterSeconds }
+            : {}),
+        };
+      }
+      return {
+        otp_sent: true,
+        ...(reservation
+          ? { resend_after_seconds: reservation.resendAfterSeconds }
+          : {}),
+      };
+    } finally {
+      await reservation?.release();
     }
-    return { otp_sent: true };
   }
 
   async verifyOtp(input: VerifyOtpDto) {
     const phone = input.phone.trim();
     const now = new Date();
+    const maxAttempts = this.config.get<number>('OTP_MAX_VERIFY_ATTEMPTS', 5);
     const otp = await this.prisma.otpCode.findFirst({
-      where: { phone, consumed_at: null, expires_at: { gt: now } },
+      where: { phone, expires_at: { gt: now } },
       orderBy: { created_at: 'desc' },
     });
-    if (
-      !otp ||
-      !this.matchesHash(otp.code_hash, this.hashOtp(phone, input.code))
-    ) {
+    if (!otp) throw new UnauthorizedException('Invalid or expired OTP');
+    if (otp.attempt_count >= maxAttempts) this.attemptsExceeded();
+    if (otp.consumed_at)
       throw new UnauthorizedException('Invalid or expired OTP');
+    if (!this.matchesHash(otp.code_hash, this.hashOtp(phone, input.code))) {
+      const rows = await this.prisma.$queryRaw<
+        Array<{ attempt_count: number; consumed_at: Date | null }>
+      >`
+        UPDATE "otp_codes"
+        SET "attempt_count" = "attempt_count" + 1,
+            "consumed_at" = CASE
+              WHEN "attempt_count" + 1 >= ${maxAttempts} THEN ${now}
+              ELSE "consumed_at"
+            END
+        WHERE "id" = ${otp.id}::uuid
+          AND "consumed_at" IS NULL
+          AND "expires_at" > ${now}
+          AND "attempt_count" < ${maxAttempts}
+        RETURNING "attempt_count", "consumed_at"
+      `;
+      const attempts = rows[0]?.attempt_count;
+      if (attempts === undefined || attempts >= maxAttempts) {
+        this.attemptsExceeded();
+      }
+      const attemptsRemaining = maxAttempts - attempts;
+      throw new UnauthorizedException({
+        status: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Invalid or expired OTP',
+        message_ar: 'رمز التحقق غير صحيح أو منتهي الصلاحية',
+        message_en: 'Invalid or expired OTP',
+        errors: [],
+        attempts_remaining: attemptsRemaining,
+      });
     }
 
     const user = await this.prisma.$transaction(async (tx) => {
       const consumed = await tx.otpCode.updateMany({
-        where: { id: otp.id, consumed_at: null, expires_at: { gt: now } },
+        where: {
+          id: otp.id,
+          consumed_at: null,
+          expires_at: { gt: now },
+          attempt_count: { lt: maxAttempts },
+        },
         data: { consumed_at: now },
       });
       if (consumed.count !== 1) {
@@ -588,6 +641,18 @@ export class AuthService {
     return createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET'))
       .update(`${phone}:${code}`)
       .digest('hex');
+  }
+
+  private attemptsExceeded(): never {
+    throw new UnauthorizedException({
+      status: 401,
+      code: 'OTP_ATTEMPTS_EXCEEDED',
+      message: 'Too many incorrect codes; request a new verification code',
+      message_ar: 'تم تجاوز عدد المحاولات؛ اطلب رمز تحقق جديداً',
+      message_en: 'Too many incorrect codes; request a new verification code',
+      errors: [],
+      attempts_remaining: 0,
+    });
   }
 
   private hashToken(token: string): string {

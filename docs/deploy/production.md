@@ -164,10 +164,19 @@ edit it and fill in:
 - read every comment once: `.env.production.example` documents each variable.
 
 An OTP is persisted only after the gateway confirms delivery. A disabled,
-timed-out, unreachable, or non-2xx gateway creates no OTP record, consumes no
-OTP verification attempt, and leaves any previously delivered unexpired code
-unchanged. The HTTP endpoint remains abuse-throttled even when delivery fails.
-Gateway tokens and OTP values are never written to application logs.
+timed-out, unreachable, or non-2xx gateway creates no OTP record or usable new
+code and leaves any previously delivered unexpired code unchanged. Its Redis
+cooldown/quota reservation is deliberately retained, preventing rapid paid
+retries after an unknown provider outcome. Verification allows five wrong
+attempts by default and atomically invalidates an exhausted code. Phone quotas
+use rolling 10-minute and 24-hour windows; the IP quota uses a rolling hour and
+the real `req.ip` produced by the trusted-proxy configuration. Gateway tokens,
+OTP values and complete phone numbers are never written to application logs.
+
+OTPIQ is opt-in with `SMS_PROVIDER=otpiq` and a backend-only
+`OTPIQ_API_KEY`. Its provider 429/credit/auth/timeout details are kept internal
+and clients receive `OTP_DELIVERY_UNAVAILABLE`. Before activation, an authorized
+operator can run the documented [one-message live check](../operations/otpiq-live-check.md).
 
 **The off-server backup target.** Create `deploy/secrets/rclone.conf`
 (git-ignored, `chmod 600`) with a remote named `offsite`, and point
