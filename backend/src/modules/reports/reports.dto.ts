@@ -161,8 +161,11 @@ export class CreateReportExportDto {
     | 'stock_movement'
     | 'expenses';
 
-  @IsIn(['csv', 'xlsx']) format!: 'csv' | 'xlsx';
+  @IsIn(['csv', 'xlsx', 'pdf']) format!: 'csv' | 'xlsx' | 'pdf';
   @IsOptional() @IsIn(['ar', 'en']) language?: 'ar' | 'en';
+  @IsOptional()
+  @IsIn(['portrait', 'landscape'])
+  orientation?: 'portrait' | 'landscape';
   @IsOptional() @Matches(DATE) from?: string;
   @IsOptional() @Matches(DATE) to?: string;
   @IsOptional() @Matches(DATE) as_of?: string;

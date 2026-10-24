@@ -5,6 +5,7 @@ import { MediaModule } from '../media/media.module';
 import { ReportExportProcessor } from './report-export.processor';
 import { ReportExportScheduler } from './report-export.scheduler';
 import { ReportExportService } from './report-export.service';
+import { ReportPdfService } from './report-pdf.service';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 import { ReportsPart2Service } from './reports-part2.service';
@@ -20,6 +21,7 @@ export const reportWorkerProviders = () =>
     ReportsService,
     ReportsPart2Service,
     ReportsPart3Service,
+    ReportPdfService,
     ReportExportService,
     ...reportWorkerProviders(),
   ],

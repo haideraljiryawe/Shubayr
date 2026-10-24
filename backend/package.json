@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
+    "@digicole/pdfmake-rtl": "2.1.2",
     "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^11.2.7",
     "@nestjs/config": "^12.0.0",
@@ -96,9 +97,12 @@
     "typescript-eslint": "^8.69.0",
     "yaml": "^2.9.1"
   },
-  "_securityOverrideComment": "Prisma 7.10.0 is the latest stable Prisma 7 release but pins advisory-affected deepmerge-ts and mysql2 versions; @nestjs/swagger 11.4.7 pins an affected js-yaml patch while the next parent release is a major. Keep these tested overrides until patched compatible parents ship; do not use npm audit's proposed Prisma downgrade or Swagger major upgrade.",
+  "_securityOverrideComment": "Prisma 7.10.0 is the latest stable Prisma 7 release but pins advisory-affected deepmerge-ts and mysql2 versions; @nestjs/swagger 11.4.7 and the current Nest/pdfmake-rtl/AJV parents pin advisory-affected js-yaml, multer, body-parser and fast-uri patches while their next parent releases are unavailable or incompatible. Keep these tested overrides until patched compatible parents ship; do not use npm audit's proposed Prisma downgrade, ExcelJS downgrade or Swagger major upgrade.",
   "overrides": {
+    "body-parser": "2.4.0",
     "deepmerge-ts": "8.0.2",
+    "fast-uri": "3.1.9",
+    "multer": "2.5.0",
     "mysql2": "3.24.5",
     "@nestjs/swagger": {
       "js-yaml": "5.4.3"

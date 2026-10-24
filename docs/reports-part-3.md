@@ -17,8 +17,8 @@ stable drill-down parameters.
   effects by category, payee or month and reconciles with the P&L expense
   accounts.
 
-All four reports use the existing background export queue for CSV and XLSX.
-CSV begins with a UTF-8 BOM, and both formats support Arabic headings. Report
+All four reports use the existing background export queue for CSV, XLSX and PDF.
+CSV begins with a UTF-8 BOM, and every format supports Arabic headings. Report
 rows carry document/resource identifiers and query parameters for drill-down.
 Cost-bearing reads and exports are audited.
 
