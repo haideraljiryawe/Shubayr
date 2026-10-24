@@ -118,6 +118,16 @@ function toast(page: Page) {
   return page.getByTestId("toast").last();
 }
 
+/** The natural size of a stored picture, as the browser decodes it. */
+async function naturalSize(page: Page, url: string): Promise<[number, number]> {
+  return page.evaluate(async (source) => {
+    const image = new Image();
+    image.src = source;
+    await image.decode();
+    return [image.naturalWidth, image.naturalHeight] as [number, number];
+  }, url);
+}
+
 async function tileUrls(images: Locator): Promise<string[]> {
   const tiles = images.locator('[data-testid^="product-images-tile-"]');
   const count = await tiles.count();
@@ -211,13 +221,22 @@ test("the owner's first day: password → categories → brand → product with 
   await page.getByTestId("brand-new").click();
   const brandForm = page.getByTestId("brand-form");
   await brandForm.getByTestId("brand-name-ar").fill(`شبير ${run}`);
+  // A tall logo goes through the shared image editor and comes out square (VIS-021).
+  await brandForm.getByTestId("brand-logo-input").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: png(600, 900, [20, 20, 20]) });
+  const logoEditor = page.getByTestId("brand-logo-editor");
+  await expect(logoEditor.getByTestId("brand-logo-editor-output-size")).toHaveText("600 × 600");
+  await logoEditor.getByTestId("brand-logo-editor-confirm").click();
+  await expect(logoEditor).toBeHidden();
+  await expect(brandForm.getByTestId("brand-logo-tile-0")).toHaveAttribute("data-phase", "ready", { timeout: 60_000 });
   await brandForm.getByTestId("dialog-submit").click();
   await expect(brandForm).toBeHidden();
   await expect(toast(page)).toBeVisible();
   const brand = (await api(request, "GET", `/admin/brands?q=${encodeURIComponent(run)}`)).body.data.find(
     (row: { name_ar: string }) => row.name_ar === `شبير ${run}`,
-  ) as { id: string; slug: string; name_en: string };
+  ) as { id: string; slug: string; name_en: string; logo_url: string | null };
   expect(brand.name_en).toBe(`شبير ${run}`);
+  expect(brand.logo_url).toMatch(/\/media\//);
+  expect(await naturalSize(page, brand.logo_url!)).toEqual([600, 600]);
   expect(brand.slug).toMatch(/^shbyr-[a-z0-9-]+$/);
   state.brandId = brand.id;
 
@@ -256,6 +275,22 @@ test("the owner's first day: password → categories → brand → product with 
     { name: "blue.png", mimeType: "image/png", buffer: png(1200, 900, [40, 60, 200]) },
     { name: "yellow.png", mimeType: "image/png", buffer: png(640, 480, [230, 200, 40]) },
   ]);
+  // Each picture is adjusted on its own in the shared editor (VIS-021/008): it opens
+  // centred with the Image size slider in the middle, and confirms an exact square.
+  const editor = page.getByTestId("product-images-editor");
+  const expectedSquares = [
+    ["big-red.png", "1600 × 1600"],
+    ["green.png", "800 × 800"],
+    ["blue.png", "900 × 900"],
+    ["yellow.png", "480 × 480"],
+  ];
+  for (const [name, size] of expectedSquares) {
+    await expect(editor.getByTestId("product-images-editor-file")).toHaveText(name);
+    await expect(editor.getByTestId("product-images-editor-cropper-zoom")).toHaveValue("50");
+    await expect(editor.getByTestId("product-images-editor-output-size")).toHaveText(size);
+    await editor.getByTestId("product-images-editor-confirm").click();
+  }
+  await expect(editor).toBeHidden();
   const tiles = images.locator('[data-testid^="product-images-tile-"]');
   await expect(tiles).toHaveCount(4);
   for (let index = 0; index < 4; index += 1) {
@@ -264,14 +299,10 @@ test("the owner's first day: password → categories → brand → product with 
   const uploaded = await tileUrls(images);
   expect(uploaded.every((url) => /\/media\/[0-9a-f-]{36}$/.test(url))).toBe(true);
 
-  // The big picture was shrunk to 1600 px before it was sent.
-  const bigSize = await page.evaluate(async (url) => {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    return [image.naturalWidth, image.naturalHeight];
-  }, uploaded[0]);
-  expect(bigSize).toEqual([1600, 1200]);
+  // The big 2400 × 1800 photo was cropped to its centred square and sent at 1600 px:
+  // the stored files are square, not clipped by CSS.
+  expect(await naturalSize(page, uploaded[0])).toEqual([1600, 1600]);
+  expect(await naturalSize(page, uploaded[3])).toEqual([480, 480]);
 
   // Reorder: drag the yellow (last) picture to the front, then make the blue one main.
   await dragTile(page, images, 3, 0);
@@ -311,6 +342,33 @@ test("the owner's first day: password → categories → brand → product with 
   // Reopened, the editor shows the same pictures in the same order.
   await page.reload();
   await expect.poll(() => tileUrls(page.getByTestId("product-images"))).toEqual(order);
+
+  // Deleting a saved picture asks first, then is only pending until the product is saved (VIS-008).
+  const savedImages = page.getByTestId("product-images");
+  await savedImages.getByTestId("product-images-remove-1").click();
+  const ask = page.getByRole("dialog");
+  await expect(ask).toContainText("حذف الصورة؟");
+  await expect(ask).toContainText("هل تريد حذف هذه الصورة؟ لن يُطبّق الحذف فعلياً إلا بعد الضغط على «حفظ المنتج».");
+  await expect(ask.getByRole("button", { name: "تأكيد الحذف" })).toBeVisible();
+  // Cancel leaves it.
+  await ask.getByRole("button", { name: "إلغاء" }).click();
+  await expect(ask).toBeHidden();
+  await expect(savedImages.locator('[data-testid^="product-images-tile-"]')).toHaveCount(4);
+  // Confirm takes it off the screen, marked pending; Undo brings it back.
+  await savedImages.getByTestId("product-images-remove-1").click();
+  await page.getByRole("dialog").getByRole("button", { name: "تأكيد الحذف" }).click();
+  await expect(savedImages.locator('[data-testid^="product-images-tile-"]')).toHaveCount(3);
+  await expect(savedImages.getByTestId("product-images-pending-removal")).toBeVisible();
+  await savedImages.getByTestId("product-images-undo-removal").click();
+  await expect(savedImages.locator('[data-testid^="product-images-tile-"]')).toHaveCount(4);
+  await expect(savedImages.getByTestId("product-images-pending-removal")).toHaveCount(0);
+  // Confirmed but never saved: leaving the editor deletes nothing.
+  await savedImages.getByTestId("product-images-remove-1").click();
+  await page.getByRole("dialog").getByRole("button", { name: "تأكيد الحذف" }).click();
+  await expect(savedImages.locator('[data-testid^="product-images-tile-"]')).toHaveCount(3);
+  await page.reload();
+  await expect.poll(() => tileUrls(page.getByTestId("product-images"))).toEqual(order);
+  expect(((await api(request, "GET", `/admin/products/${state.productId}`)).body.images as unknown[]).length).toBe(4);
 
   // 5. Opening stock, straight from the product: one line per variant.
   await page.getByTestId("next-opening-stock").click();
