@@ -50,7 +50,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
     <>
       <Link
         href="/catalog/products"
-        className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline"
+        className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline"
       >
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToList")}

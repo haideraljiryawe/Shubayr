@@ -61,8 +61,8 @@ export function StaffEditor({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold">{t("accountTitle")}</h2>
-            <p className="text-sm text-text-muted">{t("accountHint")}</p>
+            <h2 className="text-section">{t("accountTitle")}</h2>
+            <p className="text-body text-text-muted">{t("accountHint")}</p>
           </div>
           <StaffStatus user={user} />
         </div>
@@ -206,7 +206,7 @@ function ProfileSection({
           void submit();
         }}
       >
-        <h2 className="text-lg font-bold">{t("profileTitle")}</h2>
+        <h2 className="text-section">{t("profileTitle")}</h2>
         <FormError kind={form.formError} code={form.formErrorCode} />
         <div className="grid gap-4 md:grid-cols-2">
           <Field
@@ -321,8 +321,8 @@ function AccessSection({
         }}
       >
         <div>
-          <h2 className="text-lg font-bold">{t("accessTitle")}</h2>
-          <p className="text-sm text-text-muted">{t("accessHint")}</p>
+          <h2 className="text-section">{t("accessTitle")}</h2>
+          <p className="text-body text-text-muted">{t("accessHint")}</p>
         </div>
         <FormError kind={form.formError} code={form.formErrorCode} />
         <AccessFields

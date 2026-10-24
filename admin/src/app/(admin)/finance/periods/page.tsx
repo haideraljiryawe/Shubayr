@@ -54,7 +54,7 @@ export default async function PeriodsPage() {
                   {row.reopenedAt ? (
                     <>
                       {when(row.reopenedAt)}
-                      <span className="block text-xs text-text-muted">{row.reopenReason}</span>
+                      <span className="block text-caption text-text-muted">{row.reopenReason}</span>
                     </>
                   ) : (
                     "—"

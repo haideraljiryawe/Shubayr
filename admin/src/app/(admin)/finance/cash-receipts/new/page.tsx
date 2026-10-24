@@ -52,7 +52,7 @@ export default async function ReceiveCashPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <Link href="/finance/cash-receipts" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href="/finance/cash-receipts" className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("back")}
       </Link>

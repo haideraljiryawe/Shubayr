@@ -69,7 +69,7 @@ export function EntriesView({
           <Link className="font-semibold text-primary-dark hover:underline" href={entryHref(entry.id)} dir="ltr" data-testid="entry-number">
             {entry.document_number}
           </Link>
-          <span className="text-xs text-text-muted">{t.has(`source.${entry.source_type}`) ? t(`source.${entry.source_type}`) : entry.source_type}</span>
+          <span className="text-caption text-text-muted">{t.has(`source.${entry.source_type}`) ? t(`source.${entry.source_type}`) : entry.source_type}</span>
           {entry.reverses_id ? (
             <Badge tone="warning" data-testid="entry-reversal">{t("reversal")}</Badge>
           ) : null}
@@ -80,7 +80,7 @@ export function EntriesView({
       key: "dates",
       header: t("columns.dates"),
       cell: (entry) => (
-        <div className="flex flex-col text-xs">
+        <div className="flex flex-col text-caption">
           <span>{t("accountingDate", { date: day(entry.accounting_date) })}</span>
           <span className="text-text-muted">{t("documentDate", { date: day(entry.document_date) })}</span>
         </div>
@@ -123,7 +123,7 @@ export function EntriesView({
       cell: (entry) => {
         const document = sourceDocumentHref(entry);
         return (
-          <div className="flex flex-col gap-1 text-xs">
+          <div className="flex flex-col gap-1 text-caption">
             {entry.description ? <span className="text-text-muted">{entry.description}</span> : null}
             {document ? (
               <Link className="text-primary-dark hover:underline" href={document} data-testid="entry-document-link">
@@ -152,10 +152,10 @@ export function EntriesView({
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4" data-testid="account-balance-card">
           <div>
             <p className="font-bold" dir="ltr">{String((balance.account as { code?: string })?.code ?? "")}</p>
-            <p className="text-sm text-text-muted">{selected ? accountName(selected) : ""}</p>
+            <p className="text-body text-text-muted">{selected ? accountName(selected) : ""}</p>
           </div>
-          <div className="text-end text-sm">
-            <p className="text-lg font-bold" dir="ltr" data-testid="account-balance">{money(String(balance.balance ?? "0"))}</p>
+          <div className="text-end text-body">
+            <p className="text-section" dir="ltr" data-testid="account-balance">{money(String(balance.balance ?? "0"))}</p>
             <p className="text-text-muted">
               {balance.as_of ? t("asOfDate", { date: String(balance.as_of) }) : t("asOfNow")}
             </p>

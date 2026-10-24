@@ -42,7 +42,7 @@ export function CategoriesView({ categories, canManage }: { categories: ExpenseC
             ))}
           </TBody>
         </Table>
-        {!categories.length ? <p className="px-3 py-4 text-sm text-text-muted">{t("empty")}</p> : null}
+        {!categories.length ? <p className="px-3 py-4 text-body text-text-muted">{t("empty")}</p> : null}
       </Card>
     </div>
   );
@@ -149,14 +149,14 @@ function CategoryRow({ category, canManage }: { category: ExpenseCategory; canMa
           <div className="grid gap-2 md:grid-cols-2">
             <Input dir="rtl" aria-label={t("nameAr")} maxLength={160} value={names.ar} disabled={pending} onChange={(event) => setNames({ ...names, ar: event.target.value })} data-testid="expense-category-edit-ar" />
             <Input dir="ltr" aria-label={t("nameEn")} maxLength={160} value={names.en} disabled={pending} onChange={(event) => setNames({ ...names, en: event.target.value })} data-testid="expense-category-edit-en" />
-            {problems.ar || problems.en ? <p className="text-xs text-error-dark md:col-span-2">{t(`problems.${problems.ar ?? problems.en}`)}</p> : null}
+            {problems.ar || problems.en ? <p className="text-caption text-error-dark md:col-span-2">{t(`problems.${problems.ar ?? problems.en}`)}</p> : null}
           </div>
         ) : (
           <>
             <span className="font-medium" data-testid="expense-category-name">
               {locale === "ar" ? category.name_ar : category.name_en}
             </span>
-            <span className="block text-xs text-text-muted">{locale === "ar" ? category.name_en : category.name_ar}</span>
+            <span className="block text-caption text-text-muted">{locale === "ar" ? category.name_en : category.name_ar}</span>
           </>
         )}
         {failure ? (
@@ -174,7 +174,7 @@ function CategoryRow({ category, canManage }: { category: ExpenseCategory; canMa
       </Td>
       <Td>
         <Badge tone={category.is_active ? "success" : "neutral"}>{category.is_active ? t("active") : t("inactive")}</Badge>
-        {category.is_system ? <span className="ms-2 text-xs text-text-muted">{t("system")}</span> : null}
+        {category.is_system ? <span className="ms-2 text-caption text-text-muted">{t("system")}</span> : null}
       </Td>
       {canManage ? (
         <Td>

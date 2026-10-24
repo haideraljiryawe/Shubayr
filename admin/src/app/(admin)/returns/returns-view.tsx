@@ -75,7 +75,7 @@ export function ReturnsView({
   return (
     <div className="flex flex-col gap-3">
       {order.kind === "found" ? (
-        <p className="text-sm" data-testid="returns-order-filter">
+        <p className="text-body" data-testid="returns-order-filter">
           {t("list.forOrder", { number: order.number })}
         </p>
       ) : null}

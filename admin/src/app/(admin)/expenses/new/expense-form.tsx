@@ -181,7 +181,7 @@ export function ExpenseForm({
               ))}
             </Select>
           </Field>
-          <div className="flex flex-col justify-end text-sm" data-testid="expense-rate">
+          <div className="flex flex-col justify-end text-body" data-testid="expense-rate">
             {form.currency === base ? null : rate.status === "ready" ? (
               <p>
                 {t("rate", { rate: rate.rate, currency: form.currency })}
@@ -202,9 +202,9 @@ export function ExpenseForm({
         </div>
 
         <fieldset className="flex flex-col gap-2" disabled={pending}>
-          <legend className="mb-1 text-sm font-semibold">{t("payee")}</legend>
+          <legend className="mb-1 text-label">{t("payee")}</legend>
           {suppliers ? (
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-wrap gap-4 text-body">
               {(["text", "supplier"] as const).map((kind) => (
                 <label key={kind} className="flex items-center gap-2">
                   <input type="radio" name="payee-kind" checked={form.payeeKind === kind} onChange={() => set({ payeeKind: kind })} data-testid={`expense-payee-${kind}`} />
@@ -249,9 +249,9 @@ export function ExpenseForm({
             data-testid="expense-receipt"
           />
         </Field>
-        {upload && "percent" in upload ? <p className="text-sm text-text-muted" data-testid="expense-receipt-progress">{t("uploading", { percent: upload.percent })}</p> : null}
+        {upload && "percent" in upload ? <p className="text-body text-text-muted" data-testid="expense-receipt-progress">{t("uploading", { percent: upload.percent })}</p> : null}
         {receipt ? (
-          <p className="flex items-center gap-3 text-sm" data-testid="expense-receipt-ready">
+          <p className="flex items-center gap-3 text-body" data-testid="expense-receipt-ready">
             {t("receiptAttached", { name: receipt.name })}
             <button
               type="button"
@@ -268,14 +268,14 @@ export function ExpenseForm({
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <fieldset className="flex flex-col gap-2 text-sm" disabled={pending}>
+        <fieldset className="flex flex-col gap-2 text-body" disabled={pending}>
           <legend className="mb-1 font-semibold">{t("paymentMode")}</legend>
           {(["paid_now", "owed"] as const).map((mode) => (
             <label key={mode} className="flex items-start gap-2">
               <input type="radio" name="payment-mode" checked={form.paymentMode === mode} onChange={() => set({ paymentMode: mode, cashAccountId: "" })} data-testid={`expense-mode-${mode}`} />
               <span>
                 {tm(`modes.${mode}`)}
-                <span className="block text-xs text-text-muted">{t(`modeHints.${mode}`)}</span>
+                <span className="block text-caption text-text-muted">{t(`modeHints.${mode}`)}</span>
               </span>
             </label>
           ))}

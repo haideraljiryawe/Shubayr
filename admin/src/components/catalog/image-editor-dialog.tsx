@@ -156,12 +156,12 @@ export function ImageEditorDialog({
       }
     >
       {file ? (
-        <p className="truncate text-xs text-text-muted" dir="auto" data-testid={`${testId}-file`}>
+        <p className="truncate text-caption text-text-muted" dir="auto" data-testid={`${testId}-file`}>
           {file.name}
         </p>
       ) : null}
       {loaded.status === "loading" ? (
-        <p className="text-sm text-text-muted" data-testid={`${testId}-loading`}>
+        <p className="text-body text-text-muted" data-testid={`${testId}-loading`}>
           {t("opening")}
         </p>
       ) : null}
@@ -179,7 +179,7 @@ export function ImageEditorDialog({
             testId={`${testId}-cropper`}
           />
           <div className="flex flex-col gap-2 sm:w-36">
-            <p className="text-sm font-semibold">{t("result")}</p>
+            <p className="text-label">{t("result")}</p>
             <div
               className="relative w-full overflow-hidden rounded-md border border-border"
               style={{ aspectRatio: String(target.aspect), backgroundColor: transparent ? undefined : "#ffffff" }}
@@ -188,16 +188,16 @@ export function ImageEditorDialog({
               {/* eslint-disable-next-line @next/next/no-img-element -- the same local picture, positioned like the frame */}
               <img src={ready.source} alt="" className="pointer-events-none absolute max-w-none" style={cropStyle(ready.decoded.size, rect)} />
             </div>
-            <p className="text-xs text-text-muted" dir="ltr" data-testid={`${testId}-output-size`}>
+            <p className="text-caption text-text-muted" dir="ltr" data-testid={`${testId}-output-size`}>
               {output.width} × {output.height}
             </p>
             {hasMargins(ready.decoded.size, rect) ? (
-              <p className="text-xs text-text-muted" data-testid={`${testId}-margins`}>
+              <p className="text-caption text-text-muted" data-testid={`${testId}-margins`}>
                 {transparent ? t("marginsTransparent") : t("marginsWhite")}
               </p>
             ) : null}
             {isLowResolution(rect, target) ? (
-              <p className="text-xs font-semibold text-warning-dark" data-testid={`${testId}-low-resolution`}>
+              <p className="text-caption font-semibold text-warning-dark" data-testid={`${testId}-low-resolution`}>
                 {t("lowResolution", { width: target.width })}
               </p>
             ) : null}

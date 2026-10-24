@@ -332,7 +332,7 @@ export function ProductEditor({
         ) : null}
 
         <Card className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold">{t("sections.basics")}</h2>
+          <h2 className="text-section">{t("sections.basics")}</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("fields.nameAr")} name="name_ar" error={error("name_ar")}>
               <Input value={nameAr} dir="rtl" onChange={(e) => setNameAr(e.target.value)} data-testid="product-name-ar" />
@@ -397,8 +397,8 @@ export function ProductEditor({
 
         <Card className="flex flex-col gap-4" data-testid="images-section">
           <div>
-            <h2 className="text-lg font-bold">{t("sections.images")}</h2>
-            <p className="text-sm text-text-muted">{t("sections.imagesHint")}</p>
+            <h2 className="text-section">{t("sections.images")}</h2>
+            <p className="text-body text-text-muted">{t("sections.imagesHint")}</p>
           </div>
           <ImageManager images={images} onChange={setImages} onUploaded={(url) => uploads.current.push(url)} target={PRODUCT_CROP} testId="product-images" />
           {imageProblem && settled !== "ready" ? (
@@ -409,8 +409,8 @@ export function ProductEditor({
         <Card className="flex flex-col gap-4" data-testid="variants-section">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">{t("sections.variants")}</h2>
-              <p className="text-sm text-text-muted">{t("sections.variantsHint")}</p>
+              <h2 className="text-section">{t("sections.variants")}</h2>
+              <p className="text-body text-text-muted">{t("sections.variantsHint")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {missingSkus ? (
@@ -452,8 +452,8 @@ export function ProductEditor({
         </Card>
 
         <Card className="flex flex-col gap-3" data-testid="purchase-limit-section">
-          <h2 className="text-lg font-bold">{t("limit.title")}</h2>
-          <label className="flex items-center gap-2 text-sm font-semibold">
+          <h2 className="text-section">{t("limit.title")}</h2>
+          <label className="flex items-center gap-2 text-label">
             <input
               type="checkbox"
               checked={limit.enabled}
@@ -465,7 +465,7 @@ export function ProductEditor({
             />
             {t("limit.enabled")}
           </label>
-          <p className="-mt-1 text-xs text-text-muted">{t("limit.hint")}</p>
+          <p className="-mt-1 text-caption text-text-muted">{t("limit.hint")}</p>
           {limit.enabled ? (
             <Field label={t("limit.max")} name="purchase_limit_max_quantity" error={error("purchase_limit_max_quantity")} hint={t("limit.maxHint")}>
               <AmountInput
@@ -483,7 +483,7 @@ export function ProductEditor({
         </Card>
 
         <Card className="flex flex-col gap-3" data-testid="visibility-section">
-          <h2 className="text-lg font-bold">{t("sections.visibility")}</h2>
+          <h2 className="text-section">{t("sections.visibility")}</h2>
           <div className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label={t("sections.visibility")} data-testid="product-status">
             {(["active", "hidden", ...(product ? (["archived"] as const) : [])] as const).map((value) => (
               <label
@@ -500,7 +500,7 @@ export function ProductEditor({
                 />
                 <span className="flex flex-col">
                   <span className="font-semibold">{t(`statusChoice.${value}.title`)}</span>
-                  <span className="text-xs text-text-muted">{t(`statusChoice.${value}.body`)}</span>
+                  <span className="text-caption text-text-muted">{t(`statusChoice.${value}.body`)}</span>
                 </span>
               </label>
             ))}
@@ -510,8 +510,8 @@ export function ProductEditor({
         {pendingApprovalId ? (
           <Alert tone="info" data-testid="fixed-price-approval-pending" data-request={pendingApprovalId}>
             <p className="font-semibold">{t("approvalPendingTitle")}</p>
-            <p className="mt-1 text-sm">{t("approvalPendingBody")}</p>
-            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-sm font-semibold underline" data-testid="fixed-price-approval-link">
+            <p className="mt-1 text-body">{t("approvalPendingBody")}</p>
+            <Link href={`/finance/price-approvals/${pendingApprovalId}`} className="mt-2 inline-block text-label underline" data-testid="fixed-price-approval-link">
               {t("openApproval")}
             </Link>
           </Alert>
@@ -581,7 +581,7 @@ function AttributeRows({
     onChange(shown.map((row, i) => (i === at ? { ...row, ...patch } : row)));
   return (
     <fieldset className="flex flex-col gap-2" data-testid={`variant-attributes-${index}`}>
-      <legend className="mb-1 text-sm font-semibold">{t("attributes")}</legend>
+      <legend className="mb-1 text-label">{t("attributes")}</legend>
       {shown.map((row, at) => (
         <div key={at} className="flex items-center gap-2">
           <Input
@@ -614,14 +614,14 @@ function AttributeRows({
         </div>
       ))}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-text-muted">{t("attributesHint")}</p>
+        <p className="text-caption text-text-muted">{t("attributesHint")}</p>
         <Button size="sm" variant="ghost" onClick={() => onChange([...shown, { name: "", value: "" }])} data-testid={`variant-attr-add-${index}`}>
           <Plus className="size-4" aria-hidden />
           {t("attributeAdd")}
         </Button>
       </div>
       {error ? (
-        <p className="text-xs font-semibold text-error-dark" data-testid="error-attributes">
+        <p className="text-caption font-semibold text-error-dark" data-testid="error-attributes">
           {error}
         </p>
       ) : null}
@@ -666,7 +666,7 @@ function VariantCard({
 
   return (
     <fieldset className="flex flex-col gap-4 rounded-md border border-border p-4" data-testid={`variant-${index}`}>
-      <legend className="px-1 text-sm font-bold">
+      <legend className="px-1 text-body font-bold">
         {t("variantTitle", { number: index + 1 })}
         {label ? <span className="ms-2 font-normal">{label}</span> : null}
         {draft.sku ? (
@@ -743,7 +743,7 @@ function VariantCard({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <label className="flex items-center gap-2 text-label">
           <input
             type="checkbox"
             checked={piece ? true : draft.whole_units_only}
@@ -753,16 +753,16 @@ function VariantCard({
           />
           {t("variant.wholeOnly")}
         </label>
-        <p className="text-xs text-text-muted" data-testid={id("whole-hint")}>
+        <p className="text-caption text-text-muted" data-testid={id("whole-hint")}>
           {piece ? t("variant.wholeForced") : t("variant.wholeOptional", { unit: unitLabel(draft.base_unit) })}
         </p>
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm font-semibold">{t("variant.pricingMode")}</legend>
+        <legend className="mb-1 text-label">{t("variant.pricingMode")}</legend>
         <div className="flex flex-wrap gap-4">
           {(["fixed", "linked"] as const).map((mode) => (
-            <label key={mode} className="flex items-center gap-2 text-sm">
+            <label key={mode} className="flex items-center gap-2 text-body">
               <input
                 type="radio"
                 name={`pricing-mode-${draft.key}`}
@@ -782,7 +782,7 @@ function VariantCard({
 
       {canRemove ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {draft.id ? <span className="text-xs text-text-muted">{t("variant.removeHint")}</span> : null}
+          {draft.id ? <span className="text-caption text-text-muted">{t("variant.removeHint")}</span> : null}
           <Button size="sm" variant="ghost" className="text-error-dark" onClick={onRemove} data-testid={id("remove")}>
             <Trash2 className="size-4" aria-hidden />
             {t("variant.remove")}
@@ -860,7 +860,7 @@ function LinkedPricing({
         </Field>
       </div>
 
-      <div className="rounded-md bg-card px-4 py-3 text-sm" aria-live="polite" data-testid={id("computed")}>
+      <div className="rounded-md bg-card px-4 py-3 text-body" aria-live="polite" data-testid={id("computed")}>
         {!draft.reference_currency_code ? (
           <p className="text-text-muted">{t("linked.chooseCurrency")}</p>
         ) : !currency?.rate ? (
@@ -883,19 +883,19 @@ function LinkedPricing({
                   ? t("linked.roundingMultiple", { multiple: formatAmount(rule.multiple, base, Math.min(decimalPlaces(rule.multiple), 6), locale) })
                   : t("linked.roundingPrecision", { precision: rule.precision })}
             </p>
-            <p className="text-base font-bold">
+            <p className="text-section">
               {t("linked.localPrice")}{" "}
               <span dir="ltr" data-testid={id("local-price")} data-value={computed.local}>
                 {formatAmount(computed.local, base, pricing.basePrecision, locale)}
               </span>
             </p>
-            <p className="text-xs text-text-muted">{t("linked.discountsAfter")}</p>
+            <p className="text-caption text-text-muted">{t("linked.discountsAfter")}</p>
           </div>
         )}
       </div>
 
       {storedLinked ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={id("published")}>
+        <div className="flex flex-wrap items-center gap-2 text-body" data-testid={id("published")}>
           <span className="text-text-muted">{t("linked.publishedNow")}</span>
           <strong dir="ltr" data-testid={id("published-price")}>
             {formatAmount(stored?.published_price ?? null, base, pricing.basePrecision, locale)}

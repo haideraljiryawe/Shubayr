@@ -166,7 +166,7 @@ export function CorrectionForm({
             </Field>
           </>
         ) : (
-          <p className="text-sm text-text-muted md:col-span-2">{t("correctionHint")}</p>
+          <p className="text-body text-text-muted md:col-span-2">{t("correctionHint")}</p>
         )}
         <DocumentDateFields
           value={date}
@@ -186,8 +186,8 @@ export function CorrectionForm({
       </Card>
 
       <Card className="overflow-x-auto" data-testid="correction-preview">
-        <h2 className="mb-1 text-lg font-bold">{t("splitTitle")}</h2>
-        <p className="mb-3 text-sm text-text-muted">{t("splitBody")}</p>
+        <h2 className="mb-1 text-section">{t("splitTitle")}</h2>
+        <p className="mb-3 text-body text-text-muted">{t("splitBody")}</p>
         {!facts ? <Alert tone="info" data-testid="correction-no-preview">{t("previewNeedsInventory")}</Alert> : null}
         <Table minWidth="56rem">
           <THead>
@@ -242,14 +242,14 @@ export function CorrectionForm({
           </TBody>
         </Table>
         {split ? (
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-body sm:grid-cols-4">
             <Tile label={t("totals.stock")} value={iqd(split.inventoryIqd)} testId="split-stock" />
             <Tile label={t("totals.custody")} value={iqd(split.custodyIqd)} testId="split-custody" />
             <Tile label={t("totals.sold")} value={iqd(split.cogsIqd)} testId="split-sold" />
             <Tile label={t("totals.total")} value={iqd(split.totalIqd)} testId="split-total" />
           </dl>
         ) : null}
-        {facts && Object.values(facts).some((fact) => !fact.complete) ? <p className="mt-2 text-xs text-warning-dark">{t("partialHistory")}</p> : null}
+        {facts && Object.values(facts).some((fact) => !fact.complete) ? <p className="mt-2 text-caption text-warning-dark">{t("partialHistory")}</p> : null}
       </Card>
 
       {showErrors && problems.length ? (
@@ -266,7 +266,7 @@ export function CorrectionForm({
         <Card className="flex flex-col gap-3" data-testid="correction-review">
           <PurchasingPostingStatus state={posting.state} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
           {posted ? (
-            <p className="text-sm" data-testid="correction-posted-split">
+            <p className="text-body" data-testid="correction-posted-split">
               {t("postedSplit", { stock: iqd(toFixed(posted.inventory_iqd)), custody: iqd(toFixed(posted.custody_iqd)), sold: iqd(toFixed(posted.cogs_iqd)) })}
             </p>
           ) : (
@@ -294,7 +294,7 @@ export function CorrectionForm({
 function Tile({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>

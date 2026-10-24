@@ -79,19 +79,19 @@ export function PartyPicker({
       {result === null ? (
         <div className="h-16 animate-pulse rounded-md bg-card" aria-busy />
       ) : result.rows.length === 0 && q.trim() ? (
-        <p className="text-xs text-text-muted" data-testid="party-none">
+        <p className="text-caption text-text-muted" data-testid="party-none">
           {t("noMatch")}
         </p>
       ) : result.rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-border p-3" data-testid="party-none">
-          <p className="text-sm">{t("noPartiesYet")}</p>
+          <p className="text-body">{t("noPartiesYet")}</p>
           {addPartyHref ? (
             <Link href={addPartyHref} className={buttonClasses({ size: "sm" })} data-testid="party-add-first">
               <UserPlus className="size-4" aria-hidden />
               {t("addFirstParty")}
             </Link>
           ) : (
-            <p className="text-xs text-text-muted">{t("askToAddParty")}</p>
+            <p className="text-caption text-text-muted">{t("askToAddParty")}</p>
           )}
         </div>
       ) : (
@@ -99,7 +99,7 @@ export function PartyPicker({
           {result.rows.map((party) => (
             <label
               key={party.id}
-              className="flex cursor-pointer flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-card"
+              className="flex cursor-pointer flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-body hover:bg-card"
               data-testid="party-option"
               data-party-id={party.id}
               data-kind={party.kind}
@@ -111,8 +111,8 @@ export function PartyPicker({
                 onChange={() => onChange(party)}
               />
               <span className="font-semibold">{party.name}</span>
-              <span className="text-xs text-text-muted" dir="ltr">{party.phone}</span>
-              {party.contact_person ? <span className="text-xs text-text-muted">{party.contact_person}</span> : null}
+              <span className="text-caption text-text-muted" dir="ltr">{party.phone}</span>
+              {party.contact_person ? <span className="text-caption text-text-muted">{party.contact_person}</span> : null}
               <Badge tone={PARTY_TONE[party.kind]}>{t(`kinds.${party.kind}`)}</Badge>
             </label>
           ))}

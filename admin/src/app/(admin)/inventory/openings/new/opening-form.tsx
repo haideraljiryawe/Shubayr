@@ -166,7 +166,7 @@ export function OpeningForm({
   if (review) {
     return (
       <Card className="flex flex-col gap-4" data-testid="opening-preview">
-        <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
+        <h2 className="text-section">{t("reviewTitle")}</h2>
         <Table>
           <THead>
             <Tr>
@@ -184,7 +184,7 @@ export function OpeningForm({
                 <Td dir="ltr">{locationLabel(byId.get(line.locationId))}</Td>
                 <Td dir="ltr">
                   {line.lotNumber || t("lotAutomatic")}
-                  {line.expiry ? <span className="block text-xs text-text-muted">{t("expires", { date: line.expiry })}</span> : null}
+                  {line.expiry ? <span className="block text-caption text-text-muted">{t("expires", { date: line.expiry })}</span> : null}
                 </Td>
                 <Td dir="ltr">{formatQuantity(line.quantity, locale)} {unitName(line.sku?.baseUnit)}</Td>
                 <Td dir="ltr">{formatCost(line.unitCost, locale)}</Td>
@@ -192,7 +192,7 @@ export function OpeningForm({
             ))}
           </TBody>
         </Table>
-        <p className="text-sm">
+        <p className="text-body">
           {t("opening.value")}{" "}
           <span className="font-bold" dir="ltr" data-testid="opening-preview-value">
             {formatCost(
@@ -203,7 +203,7 @@ export function OpeningForm({
           <span className="text-text-muted"> · {t("documentDateIs", { date })}</span>
         </p>
         {review.skipped ? (
-          <p className="text-xs text-text-muted" data-testid="opening-preview-skipped">
+          <p className="text-caption text-text-muted" data-testid="opening-preview-skipped">
             {t("opening.skipped", { count: review.skipped })}
           </p>
         ) : null}
@@ -260,7 +260,7 @@ export function OpeningForm({
               <h2 className="font-bold">
                 {t("lineNumber", { number: index + 1 })}
                 {isBlankQuantity(line.quantity) ? (
-                  <span className="ms-2 text-xs font-normal text-text-muted" data-testid="opening-line-skipped">
+                  <span className="ms-2 text-caption font-normal text-text-muted" data-testid="opening-line-skipped">
                     {t("opening.lineSkipped")}
                   </span>
                 ) : null}

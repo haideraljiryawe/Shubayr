@@ -83,7 +83,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs">{t("unservedHint")}</p>
+          <p className="mt-2 text-caption">{t("unservedHint")}</p>
         </Alert>
       ) : (
         <Alert tone="success" data-testid="all-governorates-served">
@@ -92,7 +92,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-text-muted">{t("oneZoneRule")}</p>
+        <p className="text-body text-text-muted">{t("oneZoneRule")}</p>
         <Button onClick={() => setDialog({ kind: "form", zone: null })} data-testid="zone-new">
           <Plus className="size-4" aria-hidden />
           {t("new")}
@@ -100,7 +100,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
       </div>
 
       {zones.length === 0 ? (
-        <Card className="text-sm text-text-muted" data-testid="zones-empty">
+        <Card className="text-body text-text-muted" data-testid="zones-empty">
           {t("empty")}
         </Card>
       ) : null}
@@ -112,7 +112,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col">
                   <span className="font-bold">{localName(zone, locale)}</span>
-                  <span className="text-xs text-text-muted">{localName(zone, locale === "ar" ? "en" : "ar")}</span>
+                  <span className="text-caption text-text-muted">{localName(zone, locale === "ar" ? "en" : "ar")}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold" dir="ltr" data-testid="zone-fee">
@@ -132,7 +132,7 @@ export function ZonesView({ zones, governorates }: { zones: DeliveryZone[]; gove
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-text-muted">{t("noGovernorates")}</p>
+                <p className="text-caption text-text-muted">{t("noGovernorates")}</p>
               )}
               <div className="mt-auto flex flex-wrap justify-end gap-1.5">
                 <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: "form", zone })} data-testid="zone-edit">
@@ -273,14 +273,14 @@ function ZoneForm({
         <Field label={t("fields.fee")} name="fee_iqd" error={error("fee_iqd")} hint={t("fields.feeHint")}>
           <NumberInput grouping value={fee} parse={{ integer: true, min: 0 }} onValueChange={setFee} data-testid="zone-fee-input" />
         </Field>
-        <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold">
+        <label className="flex items-center gap-2 self-end pb-3 text-label">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} data-testid="zone-active" />
           {t("fields.active")}
         </label>
       </div>
 
       <fieldset className="flex flex-col gap-2" data-testid="zone-governorates">
-        <legend className="mb-1 text-sm font-semibold">
+        <legend className="mb-1 text-label">
           {t("fields.governorates")} <span className="font-normal text-text-muted">({t("selectedCount", { count: selected.length })})</span>
         </legend>
         <div className="relative">
@@ -303,7 +303,7 @@ function ZoneForm({
               <li key={governorate.id}>
                 <label
                   className={cn(
-                    "flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-card",
+                    "flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-body hover:bg-card",
                     checked && elsewhere && "bg-warning/10",
                   )}
                 >
@@ -318,9 +318,9 @@ function ZoneForm({
                   <span className="flex flex-col">
                     <span className="font-semibold">
                       {localName(governorate, locale)}
-                      {governorate.is_active ? null : <span className="ms-1 text-xs font-normal text-text-muted">({t("governorateInactive")})</span>}
+                      {governorate.is_active ? null : <span className="ms-1 text-caption font-normal text-text-muted">({t("governorateInactive")})</span>}
                     </span>
-                    <span className="text-xs text-text-muted" data-testid="zone-governorate-owner">
+                    <span className="text-caption text-text-muted" data-testid="zone-governorate-owner">
                       {elsewhere ? t("inZone", { zone: localName(elsewhere, locale) }) : owner ? t("inThisZone") : t("noZoneYet")}
                     </span>
                   </span>
@@ -341,7 +341,7 @@ function ZoneForm({
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-xs">{t("conflictHint")}</p>
+          <p className="mt-1 text-caption">{t("conflictHint")}</p>
         </Alert>
       ) : refused ? (
         <Alert data-testid="zone-conflict">{t("conflictRefusedStale")}</Alert>

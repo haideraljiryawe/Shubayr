@@ -50,8 +50,8 @@ export function RestockResult({ invoice, restock }: { invoice: PurchaseInvoice; 
   return (
     <Card className="flex flex-col gap-4 border-success/40" data-testid="restock-result">
       <div>
-        <h2 className="text-lg font-bold">{t("doneTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("doneBody", { name: restock.productName })}</p>
+        <h2 className="text-section">{t("doneTitle")}</h2>
+        <p className="text-body text-text-muted">{t("doneBody", { name: restock.productName })}</p>
       </div>
       <Table>
         <THead>

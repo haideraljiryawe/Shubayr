@@ -34,7 +34,7 @@ export function OrdersTabs({
       {label}
       {count !== undefined && count !== null ? (
         <span
-          className={cn("rounded-full px-2 py-0.5 text-xs", count > 0 ? "bg-warning/20 text-text" : "bg-card text-text-muted")}
+          className={cn("rounded-full px-2 py-0.5 text-caption", count > 0 ? "bg-warning/20 text-text" : "bg-card text-text-muted")}
           data-testid={`orders-queue-count-${key}`}
         >
           {count}

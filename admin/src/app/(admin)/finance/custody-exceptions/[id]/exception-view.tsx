@@ -32,7 +32,7 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
           {t("detail.reversedNotice", { number: reversedNumber })}
         </Alert>
       ) : null}
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("detail.type")}>
           <span data-testid="exception-type">{t(`types.${exception.type}`)}</span>
         </Item>
@@ -126,7 +126,7 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
       ) : null}
 
       {canViewLedger && exception.postings.length ? (
-        <Card className="flex flex-wrap gap-3 text-sm">
+        <Card className="flex flex-wrap gap-3 text-body">
           <span className="font-semibold">{t("detail.postings")}</span>
           {exception.postings.map((posting) => (
             <Link key={posting.journal_entry_id} href={entryHref(posting.journal_entry_id)} className="text-primary-dark hover:underline">
@@ -160,7 +160,7 @@ export function ExceptionView({ exception, canReverse, canViewLedger }: { except
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -197,7 +197,7 @@ function ReversePanel({ exception, partyLoss, onPosted }: { exception: CustodyEx
   if (!open) {
     return (
       <div className="flex flex-col items-end gap-2">
-        {partyLoss ? <p className="text-xs text-text-muted" data-testid="exception-receipt-rule">{t("receiptRule")}</p> : null}
+        {partyLoss ? <p className="text-caption text-text-muted" data-testid="exception-receipt-rule">{t("receiptRule")}</p> : null}
         <Button variant="danger" onClick={() => setOpen(true)} data-testid="exception-reverse">
           {t("reverse")}
         </Button>
@@ -206,8 +206,8 @@ function ReversePanel({ exception, partyLoss, onPosted }: { exception: CustodyEx
   }
   return (
     <Card className="flex flex-col gap-3 border-error/40" data-testid="exception-reverse-panel">
-      <h2 className="text-lg font-bold">{t("reverseTitle")}</h2>
-      <p className="text-sm text-text-muted">{t("reverseBody")}</p>
+      <h2 className="text-section">{t("reverseTitle")}</h2>
+      <p className="text-body text-text-muted">{t("reverseBody")}</p>
       {partyLoss ? (
         <Alert tone="info" data-testid="exception-receipt-rule">
           {t("receiptRule")}

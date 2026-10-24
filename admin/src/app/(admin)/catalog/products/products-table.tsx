@@ -218,7 +218,7 @@ export function ProductsTable({
         const category = nodes.get(product.category_id);
         const department = category?.parent_id ? nodes.get(category.parent_id) : undefined;
         return category ? (
-          <span className="text-sm">
+          <span className="text-body">
             {department ? <span className="text-text-muted">{nameOf(department)} › </span> : null}
             {nameOf(category)}
           </span>
@@ -241,7 +241,7 @@ export function ProductsTable({
       // Visible on a tablet: it carries the SKU sort.
       className: "hidden md:table-cell",
       cell: (product) => (
-        <span className="text-sm" data-testid="product-sku-count">
+        <span className="text-body" data-testid="product-sku-count">
           {t("skuCount", { count: product.variants?.length ?? 0 })}
           {(product.variants ?? []).some((variant) => variant.pricing_mode === "linked") ? (
             <Badge tone="info" className="ms-2">
@@ -317,7 +317,7 @@ export function ProductsTable({
           role="region"
           aria-label={t("bulk.label")}
         >
-          <span className="me-2 text-sm font-semibold" data-testid="bulk-count" aria-live="polite">
+          <span className="me-2 text-label" data-testid="bulk-count" aria-live="polite">
             {running ? t("bulk.applying", { count: chosen.length }) : t("bulk.selected", { count: chosen.length })}
           </span>
           {canSelectMatching ? (
@@ -414,8 +414,8 @@ export function ProductsTable({
           {outcome.failed ? <p className="mt-1">{t("bulk.failed", { count: outcome.failed })}</p> : null}
           {outcome.lines.length ? (
             <details className="mt-2" open={outcome.failed > 0 && outcome.lines.length <= 20}>
-              <summary className="cursor-pointer text-sm font-semibold">{t("bulk.perProduct", { count: outcome.lines.length })}</summary>
-              <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto pe-2 text-sm" data-testid="bulk-results">
+              <summary className="cursor-pointer text-label">{t("bulk.perProduct", { count: outcome.lines.length })}</summary>
+              <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto pe-2 text-body" data-testid="bulk-results">
                 {outcome.lines.map((line) => (
                   <li key={line.id} className="flex items-start gap-2" data-testid="bulk-result" data-status={line.ok ? "updated" : "error"}>
                     {line.ok ? (

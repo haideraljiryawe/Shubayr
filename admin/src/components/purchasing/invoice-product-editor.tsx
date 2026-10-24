@@ -52,7 +52,7 @@ export const InvoiceProductEditor = forwardRef<
       data-testid="invoice-editor"
       data-mode={mode}
     >
-      <h3 className="flex items-center gap-2 text-base font-bold" data-testid="invoice-editor-title">
+      <h3 className="flex items-center gap-2 text-section" data-testid="invoice-editor-title">
         {editing ? <Pencil className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}
         {editing ? t("editor.editTitle") : t("editor.addTitle")}
       </h3>

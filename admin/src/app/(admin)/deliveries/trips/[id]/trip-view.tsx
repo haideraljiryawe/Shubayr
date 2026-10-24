@@ -52,7 +52,7 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
         </Alert>
       ) : null}
 
-      <Card className="grid gap-4 text-sm md:grid-cols-4">
+      <Card className="grid gap-4 text-body md:grid-cols-4">
         <Item label={t("detail.status")}>
           <Badge tone={STATUS_TONES[trip.status]} data-testid="trip-status" data-status={trip.status}>
             {t(`statuses.${trip.status}`)}
@@ -62,7 +62,7 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
           <Link href={`/delivery-parties/${trip.driver.id}`} className="font-semibold text-primary-dark hover:underline" data-testid="trip-driver">
             {trip.driver.name}
           </Link>
-          <span className="block text-xs text-text-muted" dir="ltr">
+          <span className="block text-caption text-text-muted" dir="ltr">
             {trip.driver.phone}
             {trip.driver.vehicle_number ? ` · ${trip.driver.vehicle_number}` : ""}
           </span>
@@ -71,15 +71,15 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
           <span className="font-bold" dir="ltr" data-testid="trip-fare">
             {money(trip.fare.amount_iqd)}
           </span>
-          <span className="block text-xs text-text-muted" data-testid="trip-fare-bearer" data-bearer={trip.fare.bearer}>
+          <span className="block text-caption text-text-muted" data-testid="trip-fare-bearer" data-bearer={trip.fare.bearer}>
             {t(`bearers.${trip.fare.bearer}`)} · {t(`methods.${trip.fare.settlement_method}`)}
             {trip.fare.cash_account ? ` · ${trip.fare.cash_account.name}` : ""}
           </span>
         </Item>
         <Item label={t("detail.documentDate")}>
           {day(trip.document_date)}
-          {trip.started_at ? <span className="block text-xs text-text-muted">{t("detail.startedAt", { at: dateTime(trip.started_at) })}</span> : null}
-          {trip.closed_at ? <span className="block text-xs text-text-muted">{t("detail.closedAt", { at: dateTime(trip.closed_at) })}</span> : null}
+          {trip.started_at ? <span className="block text-caption text-text-muted">{t("detail.startedAt", { at: dateTime(trip.started_at) })}</span> : null}
+          {trip.closed_at ? <span className="block text-caption text-text-muted">{t("detail.closedAt", { at: dateTime(trip.closed_at) })}</span> : null}
         </Item>
         {trip.fare.failure_cancellation_agreement ? (
           <div className="md:col-span-4">
@@ -89,9 +89,9 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
       </Card>
 
       <Card className="flex flex-col gap-3" data-testid="trip-orders">
-        <h2 className="text-lg font-bold">{t("detail.orders")}</h2>
+        <h2 className="text-section">{t("detail.orders")}</h2>
         {trip.orders.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="trip-no-orders">
+          <p className="text-body text-text-muted" data-testid="trip-no-orders">
             {t("detail.noOrders")}
           </p>
         ) : (
@@ -103,14 +103,14 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
       {trip.status === "open" && can("trips.manage") && trip.orders.length ? <StartTrip trip={trip} onDone={done} /> : null}
 
       <Card className="flex flex-col gap-3" data-testid="trip-settlement">
-        <h2 className="text-lg font-bold">{t("detail.settlement")}</h2>
-        <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+        <h2 className="text-section">{t("detail.settlement")}</h2>
+        <dl className="grid grid-cols-2 gap-3 text-body md:grid-cols-4">
           <Tile label={t("detail.expected")} value={money(settlement.expected)} testId="trip-expected" />
           <Tile label={t("detail.received")} value={money(settlement.received)} testId="trip-received" />
           <Tile label={t("detail.netted")} value={money(settlement.netted)} testId="trip-netted" />
           <Tile label={t("detail.outstanding")} value={money(settlement.outstanding)} testId="trip-outstanding" />
         </dl>
-        {trip.fare.bearer === "customer_direct" ? <p className="text-xs text-text-muted">{t("detail.customerDirectNote")}</p> : null}
+        {trip.fare.bearer === "customer_direct" ? <p className="text-caption text-text-muted">{t("detail.customerDirectNote")}</p> : null}
         {settlement.outstanding > 0n && can("cash_receipts.receive") && trip.status !== "open" ? (
           <Link
             href={`/finance/cash-receipts/new?party_id=${trip.driver.id}&amount=${fixedText(settlement.outstanding, 0)}`}
@@ -121,12 +121,12 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
           </Link>
         ) : null}
         {trip.status === "closed" ? (
-          <p className="text-sm" data-testid="trip-result" data-result={trip.settlement.result}>
+          <p className="text-body" data-testid="trip-result" data-result={trip.settlement.result}>
             {t(`detail.results.${trip.settlement.result}`)}
           </p>
         ) : null}
         {can("ledger.view") ? (
-          <p className="flex flex-wrap gap-3 text-sm">
+          <p className="flex flex-wrap gap-3 text-body">
             {[trip.fare.accrual_journal_entry_id, trip.fare.payment_journal_entry_id, trip.fare.netting_journal_entry_id].flatMap((entry, index) =>
               entry ? [
                 <Link key={entry} href={entryHref(entry)} className="text-primary-dark hover:underline">
@@ -141,7 +141,7 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
       {trip.status === "in_progress" && can("trips.settle") ? <CloseTrip trip={trip} today={today} onDone={done} /> : null}
 
       {trip.events.length ? (
-        <Card className="flex flex-col gap-2 text-sm" data-testid="trip-events">
+        <Card className="flex flex-col gap-2 text-body" data-testid="trip-events">
           <h2 className="font-bold">{t("detail.events")}</h2>
           <ol className="flex flex-col gap-1">
             {trip.events.map((event) => (
@@ -161,7 +161,7 @@ export function TripView({ trip, permissions, today }: { trip: Trip; permissions
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-text-muted">{label}</span>
+      <span className="text-caption text-text-muted">{label}</span>
       <span>{children}</span>
     </div>
   );
@@ -170,7 +170,7 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 function Tile({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
     <div className="rounded-md bg-card p-3">
-      <dt className="text-xs text-text-muted">{label}</dt>
+      <dt className="text-caption text-text-muted">{label}</dt>
       <dd className="font-bold" dir="ltr" data-testid={testId}>
         {value}
       </dd>
@@ -196,12 +196,12 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
 
   return (
     <div className="rounded-md border border-border p-3" data-testid="trip-order" data-order={order.order_number} data-blocker={blocker ?? ""}>
-      <div className="flex flex-wrap items-start justify-between gap-3 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 text-body">
         <div className="flex flex-col gap-1">
           <Link href={`/orders/${order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
             {order.order_number}
           </Link>
-          <span className="text-xs text-text-muted">
+          <span className="text-caption text-text-muted">
             {order.destination.city}
             {order.destination.area ? ` · ${order.destination.area}` : ""}
           </span>
@@ -221,7 +221,7 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
             ) : null}
           </span>
         </div>
-        <dl className="grid grid-cols-3 gap-x-4 gap-y-1 text-xs">
+        <dl className="grid grid-cols-3 gap-x-4 gap-y-1 text-caption">
           <dt className="text-text-muted">{t("detail.toCollect")}</dt>
           <dt className="text-text-muted">{t("detail.storeFee")}</dt>
           <dt className="text-text-muted">{t("detail.fareShare")}</dt>
@@ -232,7 +232,7 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
           <dd dir="ltr">{money(order.fare_share_iqd)}</dd>
         </dl>
         {order.collection && order.collection.collected_amount_iqd !== null ? (
-          <p className="w-full text-end text-xs">
+          <p className="w-full text-end text-caption">
             <span className="text-text-muted">{t("detail.collected")}: </span>
             <span dir="ltr" className="font-semibold" data-testid="trip-order-collected">
               {money(order.collection.collected_amount_iqd)}
@@ -241,7 +241,7 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
         ) : null}
       </div>
       {order.exceptions.length ? (
-        <p className="mt-2 flex flex-wrap gap-2 text-xs">
+        <p className="mt-2 flex flex-wrap gap-2 text-caption">
           {order.exceptions.map((exception) => (
             <Link key={exception.id} href={exceptionHref(exception.id)} className="text-primary-dark hover:underline" data-testid="trip-order-exception" data-type={exception.type}>
               {exception.document_number} · {t(`exceptionTypes.${exception.type}`)}
@@ -261,17 +261,17 @@ function TripOrderRow({ trip, order, permissions, onDone }: { trip: Trip; order:
           </Button>
         ) : null}
         {out && can("orders.deliver") && can("custody_exceptions.return_uncollected") ? (
-          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=return_against_uncollected`} className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="trip-order-return">
+          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=return_against_uncollected`} className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card" data-testid="trip-order-return">
             {t("actions.returned")}
           </Link>
         ) : null}
         {trip.status === "in_progress" && ["out_for_delivery", "failed"].includes(order.delivery.status) && can("custody_exceptions.loss") ? (
-          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=goods_loss`} className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="trip-order-lost">
+          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=goods_loss`} className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card" data-testid="trip-order-lost">
             {t("actions.lost")}
           </Link>
         ) : null}
         {order.delivery.status === "delivered" && order.store_delivery_fee_iqd > 0 && can("custody_exceptions.refund_delivery_fee") ? (
-          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=delivery_fee_refund`} className="inline-flex h-8 items-center rounded-md px-2 text-sm font-semibold text-primary-dark hover:bg-card" data-testid="trip-order-refund">
+          <Link href={`/finance/custody-exceptions/new?order_id=${order.id}&type=delivery_fee_refund`} className="inline-flex h-8 items-center rounded-md px-2 text-label text-primary-dark hover:bg-card" data-testid="trip-order-refund">
             {t("actions.refund")}
           </Link>
         ) : null}
@@ -412,8 +412,8 @@ function AddOrders({ trip, onDone }: { trip: Trip; onDone: (notice: Notice) => v
 
   return (
     <Card className="flex flex-col gap-3" data-testid="trip-add">
-      <h2 className="text-lg font-bold">{t("detail.addTitle")}</h2>
-      <p className="text-sm text-text-muted">{customerDirect ? t("detail.addBodyCustomer") : t("detail.addBody")}</p>
+      <h2 className="text-section">{t("detail.addTitle")}</h2>
+      <p className="text-body text-text-muted">{customerDirect ? t("detail.addBodyCustomer") : t("detail.addBody")}</p>
       <div className="grid gap-4 md:grid-cols-3">
         <Field label={t("detail.searchOrder")} name="q">
           <Input value={q} onChange={(event) => setQ(event.target.value)} dir="ltr" data-testid="trip-add-search" />
@@ -431,11 +431,11 @@ function AddOrders({ trip, onDone }: { trip: Trip; onDone: (notice: Notice) => v
         tripRefusal(posting.state.error) ? <TripRefusal error={posting.state.error} /> : <FormError kind={errorKind(posting.state.error)} code={errorCode(posting.state.error)} />
       ) : null}
       {rows === null ? null : rows.length === 0 ? (
-        <p className="text-sm text-text-muted" data-testid="trip-add-none">
+        <p className="text-body text-text-muted" data-testid="trip-add-none">
           {t("detail.noReady")}
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-border text-sm">
+        <ul className="flex flex-col divide-y divide-border text-body">
           {rows.map((order) => (
             <li key={order.id} className="flex items-center justify-between gap-3 py-2" data-testid="trip-add-row" data-order={order.order_number}>
               <span>
@@ -478,7 +478,7 @@ function StartTrip({ trip, onDone }: { trip: Trip; onDone: (notice: Notice) => v
 
   return (
     <Card className="flex flex-col gap-3" data-testid="trip-start">
-      <p className="text-sm" data-testid="trip-shares" data-left={fixedText(totals.left, 0)}>
+      <p className="text-body" data-testid="trip-shares" data-left={fixedText(totals.left, 0)}>
         {totals.left === 0n ? t("detail.sharesMatch", { fare: money(totals.fare) }) : t("detail.sharesOff", { shares: money(totals.shares), fare: money(totals.fare) })}
       </p>
       {posting.state.phase === "error" ? (
@@ -523,7 +523,7 @@ function CloseTrip({ trip, today, onDone }: { trip: Trip; today: string; onDone:
   const error = posting.state.phase === "error" ? posting.state.error : null;
   return (
     <Card className="flex flex-col gap-3" data-testid="trip-close">
-      <h2 className="text-lg font-bold">{t("detail.closeTitle")}</h2>
+      <h2 className="text-section">{t("detail.closeTitle")}</h2>
       {blocking.length ? (
         <Alert tone="info" data-testid="trip-close-blocked">
           <p>{t("detail.blockedBody")}</p>
@@ -538,7 +538,7 @@ function CloseTrip({ trip, today, onDone }: { trip: Trip; today: string; onDone:
       ) : null}
       {review ? (
         <div className="flex flex-col gap-3" data-testid="trip-close-review">
-          <p className="text-sm" data-testid="trip-close-preview" data-outstanding={fixedText(preview.outstanding, 0)} data-result={preview.result}>
+          <p className="text-body" data-testid="trip-close-preview" data-outstanding={fixedText(preview.outstanding, 0)} data-result={preview.result}>
             {preview.outstanding === 0n
               ? t("detail.previewSettled", { expected: money(preview.expected) })
               : preview.outstanding > 0n

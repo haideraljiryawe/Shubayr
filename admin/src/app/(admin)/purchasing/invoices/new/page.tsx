@@ -58,7 +58,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {restock ? t("restock.backToProduct") : t("back")}
       </Link>

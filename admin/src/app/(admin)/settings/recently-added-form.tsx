@@ -95,9 +95,9 @@ export function RecentlyAddedForm({ settings }: { settings: AdminSettings }) {
       }}
     >
       <Card className="flex flex-col gap-4 p-5">
-        <h2 className="text-lg font-bold">{t("title")}</h2>
-        <p className="text-sm text-text-muted">{t("intro")}</p>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <h2 className="text-section">{t("title")}</h2>
+        <p className="text-body text-text-muted">{t("intro")}</p>
+        <label className="flex items-center gap-2 text-label">
           <input type="checkbox" checked={form.enabled} disabled={pending} onChange={(e) => set({ enabled: e.target.checked })} data-testid="recently-added-enabled" />
           {t("enabled")}
         </label>
@@ -109,7 +109,7 @@ export function RecentlyAddedForm({ settings }: { settings: AdminSettings }) {
             <Input inputMode="numeric" dir="ltr" value={form.windowDays} disabled={pending} onChange={(e) => set({ windowDays: e.target.value })} data-testid="recently-added-window-days" />
           </Field>
         </div>
-        <p className="text-xs text-text-muted">{form.enabled ? t("rules") : t("off")}</p>
+        <p className="text-caption text-text-muted">{form.enabled ? t("rules") : t("off")}</p>
         {unchanged ? (
           <Alert tone="info" data-testid="recently-added-unchanged">
             {t("unchanged")}

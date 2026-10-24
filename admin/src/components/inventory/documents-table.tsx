@@ -48,7 +48,7 @@ export function DocumentsTable({
     {
       key: "date",
       header: type === "count" ? t("columns.snapshot") : t("columns.documentDate"),
-      cell: (document) => <span className="text-sm">{day(dateOf(document))}</span>,
+      cell: (document) => <span className="text-body">{day(dateOf(document))}</span>,
     },
     {
       key: "status",
@@ -66,7 +66,7 @@ export function DocumentsTable({
         const lines = document.lines as Array<{ quantity?: number; difference?: number }>;
         const quantity = lines.reduce((sum, line) => sum + toMilli(line.quantity ?? line.difference ?? 0), 0);
         return (
-          <span className="text-sm" data-testid="document-lines">
+          <span className="text-body" data-testid="document-lines">
             {t("lineCount", { count: lines.length })}
             {type === "count" ? null : (
               <span className="text-text-muted" dir="ltr">
@@ -81,7 +81,7 @@ export function DocumentsTable({
     {
       key: "reason",
       header: t("columns.reason"),
-      cell: (document) => <span className="line-clamp-2 text-sm">{"reason" in document ? document.reason : "—"}</span>,
+      cell: (document) => <span className="line-clamp-2 text-body">{"reason" in document ? document.reason : "—"}</span>,
     },
     {
       key: "entry",
@@ -90,11 +90,11 @@ export function DocumentsTable({
         const entry = "journal_entry" in document ? document.journal_entry : null;
         if (!entry) return <span className="text-text-muted">—</span>;
         return canViewLedger ? (
-          <Link href={entryHref(entry.id)} className="text-sm font-semibold text-primary-dark hover:underline" dir="ltr">
+          <Link href={entryHref(entry.id)} className="text-label text-primary-dark hover:underline" dir="ltr">
             {entry.document_number}
           </Link>
         ) : (
-          <span className="text-sm" dir="ltr">{entry.document_number}</span>
+          <span className="text-body" dir="ltr">{entry.document_number}</span>
         );
       },
     },

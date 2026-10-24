@@ -29,7 +29,7 @@ export function ReindexButton() {
       {result ? (
         <p
           role="status"
-          className={result.synchronized ? "text-xs font-semibold text-success-dark" : "text-xs font-semibold text-warning-dark"}
+          className={result.synchronized ? "text-caption font-semibold text-success-dark" : "text-caption font-semibold text-warning-dark"}
           data-testid="reindex-result"
           data-synchronized={result.synchronized}
         >

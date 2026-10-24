@@ -170,7 +170,7 @@ export function SettingsForm({
                       onChange={(event) => update((draft) => void (draft.hours[index][key] = event.target.value))}
                     />
                     {error(`hours.${index}.${key}`) ? (
-                      <span role="alert" className="text-xs font-semibold text-error-dark">
+                      <span role="alert" className="text-caption font-semibold text-error-dark">
                         {error(`hours.${index}.${key}`)}
                       </span>
                     ) : null}
@@ -183,7 +183,7 @@ export function SettingsForm({
 
         <div className="mt-4 flex flex-col gap-2" data-testid="closed-days">
           <h3 className="font-semibold">{t("closedDays.title")}</h3>
-          {form.closedDays.length === 0 ? <p className="text-sm text-text-muted">{t("closedDays.none")}</p> : null}
+          {form.closedDays.length === 0 ? <p className="text-body text-text-muted">{t("closedDays.none")}</p> : null}
           {form.closedDays.map((day, index) => (
             <div key={index} className="flex flex-wrap items-start gap-2">
               <div className="flex flex-col">
@@ -195,7 +195,7 @@ export function SettingsForm({
                   onChange={(event) => update((draft) => void (draft.closedDays[index].date = event.target.value))}
                 />
                 {error(`closedDays.${index}.date`) ? (
-                  <span role="alert" className="text-xs font-semibold text-error-dark">
+                  <span role="alert" className="text-caption font-semibold text-error-dark">
                     {error(`closedDays.${index}.date`)}
                   </span>
                 ) : null}
@@ -234,7 +234,7 @@ export function SettingsForm({
       <Section title={t("sections.orders")}>
         <div className="grid gap-4 md:grid-cols-3">
           {numberField("acceptance_alert_timeout_minutes")}
-          <label className="flex items-center gap-2 self-center text-sm font-semibold">
+          <label className="flex items-center gap-2 self-center text-label">
             <input
               type="checkbox"
               className="size-4"
@@ -251,7 +251,7 @@ export function SettingsForm({
               {numberField("auto_cancel_warning_minutes")}
             </>
           ) : (
-            <p className="text-sm text-text-muted md:col-span-2">{t("autoCancelOff")}</p>
+            <p className="text-body text-text-muted md:col-span-2">{t("autoCancelOff")}</p>
           )}
         </div>
       </Section>
@@ -283,7 +283,7 @@ export function SettingsForm({
           {numberField("sale_rounding_multiple")}
         </div>
         <h3 className="mt-4 font-semibold">{t("thresholds.title")}</h3>
-        <p className="text-sm text-text-muted">{t("thresholds.body")}</p>
+        <p className="text-body text-text-muted">{t("thresholds.body")}</p>
         <div className="mt-2 grid gap-4 md:grid-cols-4">
           {THRESHOLD_KEYS.map((key) => (
             <Field key={`${key}-${generation}`} label={t(`thresholds.${key}`)} error={error(`thresholds.${key}`)} hint={t("units.percent")} name={`threshold_${key}`}>
@@ -313,22 +313,22 @@ export function SettingsForm({
 
       <Section title={t("history.title")}>
         {history === null ? (
-          <p className="text-sm text-text-muted" data-testid="settings-history-hidden">
+          <p className="text-body text-text-muted" data-testid="settings-history-hidden">
             {t("history.needsAudit")}
           </p>
         ) : history.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("history.empty")}</p>
+          <p className="text-body text-text-muted">{t("history.empty")}</p>
         ) : (
           <ol className="flex flex-col gap-3" data-testid="settings-history">
             {history.map((entry) => (
               <li key={entry.id} className="border-s-2 border-primary/40 ps-3">
-                <p className="text-sm font-semibold">
+                <p className="text-label">
                   {entry.actor ?? t("history.unknownActor")} ·{" "}
                   <span className="font-normal text-text-muted">
                     {format.dateTime(new Date(entry.at), { dateStyle: "medium", timeStyle: "short", numberingSystem: "latn" })}
                   </span>
                 </p>
-                <ul className="mt-1 text-sm">
+                <ul className="mt-1 text-body">
                   {settingChanges(entry.before, entry.after).map((change) => (
                     <li key={change.field} data-testid="settings-change" data-field={change.field}>
                       <span className="text-text-muted">{fieldLabel(t, change.field)}:</span>{" "}
@@ -348,7 +348,7 @@ export function SettingsForm({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card className="p-5">
-      <h2 className="mb-4 text-lg font-bold">{title}</h2>
+      <h2 className="mb-4 text-section">{title}</h2>
       {children}
     </Card>
   );

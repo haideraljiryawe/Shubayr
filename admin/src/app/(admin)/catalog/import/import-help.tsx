@@ -17,12 +17,12 @@ export function ImportHelp({ open = false }: { open?: boolean }) {
       {columns.map((column) => (
         <div key={column.key} className="rounded-md border border-border bg-surface p-3">
           <dt className="flex flex-wrap items-center gap-2">
-            <code dir="ltr" className="rounded bg-card px-1.5 py-0.5 text-xs font-semibold">
+            <code dir="ltr" className="rounded bg-card px-1.5 py-0.5 text-caption font-semibold">
               {column.header}
             </code>
             <Badge tone={column.required ? "warning" : "neutral"}>{column.required ? t("required") : t("optional")}</Badge>
           </dt>
-          <dd className="mt-1.5 text-sm leading-relaxed text-text-muted">{t(`${prefix}.${column.key}`)}</dd>
+          <dd className="mt-1.5 text-body leading-relaxed text-text-muted">{t(`${prefix}.${column.key}`)}</dd>
         </div>
       ))}
     </dl>
@@ -34,7 +34,7 @@ export function ImportHelp({ open = false }: { open?: boolean }) {
         <CircleHelp className="size-5 text-primary" aria-hidden />
         {t("title")}
       </summary>
-      <div className="mt-4 flex flex-col gap-5 text-sm leading-relaxed">
+      <div className="mt-4 flex flex-col gap-5 text-body leading-relaxed">
         <p>{t("intro")}</p>
         <p>{t("sheets")}</p>
         <section className="flex flex-col gap-2">
@@ -53,7 +53,7 @@ export function ImportHelp({ open = false }: { open?: boolean }) {
               <li key={code} className="rounded-md border border-border bg-surface p-3">
                 <p className="font-semibold">{issues(`${code}.what`)}</p>
                 <p className="mt-1 text-text-muted">{issues(`${code}.fix`)}</p>
-                <code dir="ltr" className="mt-1 block text-xs text-text-muted">
+                <code dir="ltr" className="mt-1 block text-caption text-text-muted">
                   {code}
                 </code>
               </li>

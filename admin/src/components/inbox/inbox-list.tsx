@@ -156,7 +156,7 @@ export function InboxList({
         <div className="h-24 animate-pulse rounded-md bg-card" aria-busy />
       ) : data.data.length === 0 ? (
         <p
-          className="py-6 text-center text-sm text-text-muted"
+          className="py-6 text-center text-body text-text-muted"
           data-testid="inbox-empty"
         >
           {unreadOnly ? t("emptyUnread") : t("empty")}
@@ -192,13 +192,13 @@ export function InboxList({
                   onClick={() => open(item)}
                   data-testid="inbox-open"
                 >
-                  <span className={cn("text-sm", isUnread && "font-bold")}>
+                  <span className={cn("text-body", isUnread && "font-bold")}>
                     {locale === "ar" ? item.title_ar : item.title_en}
                   </span>
-                  <span className="text-xs text-text-muted">
+                  <span className="text-caption text-text-muted">
                     {locale === "ar" ? item.body_ar : item.body_en}
                   </span>
-                  <span className="text-xs text-text-muted">
+                  <span className="text-caption text-text-muted">
                     {dateTime(item.created_at)}
                   </span>
                 </button>

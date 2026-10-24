@@ -74,7 +74,7 @@ export default async function LotPage({
 
   return (
     <>
-      <Link href={stockHref({ batch_id: id })} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={stockHref({ batch_id: id })} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("lot.backToStock")}
       </Link>
@@ -88,7 +88,7 @@ export default async function LotPage({
       />
       <div className="flex flex-col gap-6" data-testid="lot-detail" data-lot-id={id}>
         <Card>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-text-muted">{t("columns.sku")}</dt>
               <dd className="font-semibold" dir="ltr">

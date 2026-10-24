@@ -105,7 +105,7 @@ export function SupplierDialog({
         )}
       </div>
       {quick ? (
-        <p className="text-xs text-text-muted" data-testid="supplier-quick-hint">
+        <p className="text-caption text-text-muted" data-testid="supplier-quick-hint">
           {t("quickHint")}
         </p>
       ) : (

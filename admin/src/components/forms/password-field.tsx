@@ -74,7 +74,7 @@ export function TemporaryPasswordField({
           {visible ? t("hide") : t("show")}
         </Button>
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-caption">
         {PASSWORD_RULES.map((rule) => (
           <li
             key={rule}

@@ -112,7 +112,7 @@ export default async function InventoryDocumentPage({ params }: { params: Promis
 
   return (
     <>
-      <Link href={DOCUMENT_LIST[type]} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={DOCUMENT_LIST[type]} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t(`documents.${type}`)}
       </Link>
@@ -122,7 +122,7 @@ export default async function InventoryDocumentPage({ params }: { params: Promis
       />
       <div className="flex flex-col gap-6" data-testid="inventory-document" data-type={type}>
         <Card>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <dt className="text-text-muted">{t("columns.status")}</dt>
               <dd>

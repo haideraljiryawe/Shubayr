@@ -230,10 +230,10 @@ function RegisterForm({
         }}
       >
         <div>
-          <h2 className="text-lg font-bold">
+          <h2 className="text-section">
             {initial ? t("changeTitle") : t("registerTitle")}
           </h2>
-          <p className="text-sm text-text-muted">{t("registerHint")}</p>
+          <p className="text-body text-text-muted">{t("registerHint")}</p>
         </div>
         {form.formError === "customerPhone" ? (
           <FormError kind="customerPhone" />

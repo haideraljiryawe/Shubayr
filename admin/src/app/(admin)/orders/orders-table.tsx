@@ -84,7 +84,7 @@ export function OrdersTable({
       cell: (order) => (
         <div className="flex flex-col">
           <span>{order.customer?.name || t("noName")}</span>
-          <span className="text-xs text-text-muted" dir="ltr">
+          <span className="text-caption text-text-muted" dir="ltr">
             {order.customer?.phone}
           </span>
         </div>
@@ -186,7 +186,7 @@ export function OrdersTable({
                     </Button>
                   ) : null}
                 </div>
-                <p id="pick-hint" className="max-w-sm text-xs text-text-muted" data-testid="pick-hint">
+                <p id="pick-hint" className="max-w-sm text-caption text-text-muted" data-testid="pick-hint">
                   {selected.length
                     ? t("pickList.selectedHint", { count: selected.length })
                     : t("pickList.selectGuide", { statuses: pickableStatusList })}
@@ -204,7 +204,7 @@ export function OrdersTable({
 function DateFilter({ name, label }: { name: string; label: string }) {
   const { update, searchParams } = useTableUrl();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input
         type="date"

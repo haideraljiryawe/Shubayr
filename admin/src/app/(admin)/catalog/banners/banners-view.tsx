@@ -123,7 +123,7 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="flex flex-col gap-1 text-sm font-semibold">
+        <label className="flex flex-col gap-1 text-label">
           {t("filter.label")}
           <Select value={filter} onValueChange={(value) => setFilter(value as BannerStatus | "")} data-testid="banner-filter">
             <option value="">{t("filter.all", { count: banners.length })}</option>
@@ -139,15 +139,15 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
           {t("new")}
         </Button>
       </div>
-      <p className="text-xs text-text-muted">{t("timeZoneNote")}</p>
-      <Card className="flex flex-col gap-1 p-3 text-sm" data-testid="banner-defaults-summary" data-usable={feedDefaults.length}>
+      <p className="text-caption text-text-muted">{t("timeZoneNote")}</p>
+      <Card className="flex flex-col gap-1 p-3 text-body" data-testid="banner-defaults-summary" data-usable={feedDefaults.length}>
         <span className="flex items-center gap-2 font-semibold">
           <Star className="size-4" aria-hidden />
           {t("defaults.summary", { usable: feedDefaults.length, total: defaultCount })}
         </span>
-        <span className="text-xs text-text-muted">{t("defaults.rule", { count: DEFAULTS_SHOWN })}</span>
+        <span className="text-caption text-text-muted">{t("defaults.rule", { count: DEFAULTS_SHOWN })}</span>
         {feedDefaults.length > 0 ? (
-          <span className="text-xs text-text-muted" data-testid="banner-defaults-feed">
+          <span className="text-caption text-text-muted" data-testid="banner-defaults-feed">
             {t("defaults.feed", { names: feedDefaults.slice(0, DEFAULTS_SHOWN).map(bannerName).join(" · ") })}
           </span>
         ) : null}
@@ -159,7 +159,7 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
       </Card>
 
       {shown.length === 0 ? (
-        <Card className="text-sm text-text-muted" data-testid="banners-empty">
+        <Card className="text-body text-text-muted" data-testid="banners-empty">
           {banners.length === 0 ? t("empty") : t("emptyFilter")}
         </Card>
       ) : (
@@ -194,29 +194,29 @@ export function BannersView({ banners, categories }: { banners: Banner[]; catego
                       {banner.show_text ? null : <Badge data-testid="banner-image-only-badge">{t("imageOnly")}</Badge>}
                     </span>
                     {banner.show_text ? (
-                      <span className="line-clamp-1 text-sm text-text-muted" dir="auto">
+                      <span className="line-clamp-1 text-body text-text-muted" dir="auto">
                         {displayTitle(banner, locale)}
                         {subtitleOf(banner) ? ` — ${subtitleOf(banner)}` : ""}
                       </span>
                     ) : null}
-                    <span className="text-xs text-text-muted" data-testid="banner-position">
+                    <span className="text-caption text-text-muted" data-testid="banner-position">
                       {t("position", { number: index + 1, total: banners.length, order: banner.sort_order })}
                     </span>
-                    <span className="text-xs text-text-muted" data-testid="banner-schedule-text">
+                    <span className="text-caption text-text-muted" data-testid="banner-schedule-text">
                       {scheduleText(banner)}
                     </span>
-                    <span className="text-xs text-text-muted" data-testid="banner-link-text" data-action={banner.action_type}>
+                    <span className="text-caption text-text-muted" data-testid="banner-link-text" data-action={banner.action_type}>
                       {actionText(banner)}
                       {banner.show_text && banner.action_type !== "none" && ctaOf(banner) ? ` · ${t("buttonLabel", { label: ctaOf(banner) })}` : ""}
                     </span>
                     {targetGone ? (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-warning-dark" data-testid="banner-target-unavailable">
+                      <span className="flex items-center gap-1 text-caption font-semibold text-warning-dark" data-testid="banner-target-unavailable">
                         <AlertTriangle className="size-3.5" aria-hidden />
                         {t(`target.unavailableHint.${banner.action_type as "product" | "category"}`)}
                       </span>
                     ) : null}
                     {blocked ? (
-                      <span className="flex items-center gap-1 text-xs font-semibold text-warning-dark" data-testid="banner-removal-blocked">
+                      <span className="flex items-center gap-1 text-caption font-semibold text-warning-dark" data-testid="banner-removal-blocked">
                         <ShieldAlert className="size-3.5" aria-hidden />
                         {t("defaults.lastTwo")}
                       </span>

@@ -119,7 +119,7 @@ export function TransferForm({
   if (review) {
     return (
       <Card className="flex flex-col gap-4" data-testid="transfer-preview">
-        <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
+        <h2 className="text-section">{t("reviewTitle")}</h2>
         <Table>
           <THead>
             <Tr>
@@ -142,7 +142,7 @@ export function TransferForm({
             ))}
           </TBody>
         </Table>
-        <p className="text-sm text-text-muted">
+        <p className="text-body text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
         <InventoryPostingStatus state={posting.state} type="transfer" onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
@@ -184,7 +184,7 @@ export function TransferForm({
     >
       <Card className="flex flex-col gap-3">
         <h2 className="font-bold">{t("transfer.pickTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("transfer.pickHint")}</p>
+        <p className="text-body text-text-muted">{t("transfer.pickHint")}</p>
         <BalancePicker
           warehouses={warehouses}
           locations={locations}
@@ -201,7 +201,7 @@ export function TransferForm({
         return (
           <Card key={key} className="flex flex-col gap-3" data-testid="transfer-line" data-sku={line.row.sku}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm">
+              <p className="text-body">
                 <span className="font-semibold" dir="ltr">{line.row.sku}</span>
                 <span className="text-text-muted"> · {t("lotLabel", { lot: line.row.lot_number ?? t("noLotNumber") })}</span>
                 <span className="text-text-muted" dir="ltr"> · {locationLabel(locations[line.row.location_id], line.row.location_code)}</span>

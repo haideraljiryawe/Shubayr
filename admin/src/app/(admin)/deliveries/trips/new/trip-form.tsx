@@ -79,7 +79,7 @@ export function TripForm({
     <Card className="flex flex-col gap-4" data-testid="trip-form">
       <div className="grid gap-4 md:grid-cols-3">
         <PartySearch value={driver} onChange={setDriver} kind="external_driver" activeOnly label={t("driver")} testId="trip-driver" disabled={busy} />
-        <fieldset className="flex flex-col gap-2 text-sm" disabled={busy}>
+        <fieldset className="flex flex-col gap-2 text-body" disabled={busy}>
           <legend className="mb-1 font-semibold">{t("bearer")}</legend>
           {(["store", "customer_direct"] as const).map((value) => (
             <label key={value} className="flex items-start gap-2">
@@ -96,7 +96,7 @@ export function TripForm({
               />
               <span className="flex flex-col">
                 <span>{tt(`bearers.${value}`)}</span>
-                <span className="text-xs text-text-muted">{t(`bearerHints.${value}`)}</span>
+                <span className="text-caption text-text-muted">{t(`bearerHints.${value}`)}</span>
               </span>
             </label>
           ))}
@@ -131,7 +131,7 @@ export function TripForm({
         </Field>
       </div>
       {attempted && problems.length ? (
-        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-sm font-semibold text-error-dark" role="alert" data-testid="trip-problems">
+        <ul className="list-inside list-disc rounded-md bg-error/5 p-3 text-label text-error-dark" role="alert" data-testid="trip-problems">
           {problems.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}

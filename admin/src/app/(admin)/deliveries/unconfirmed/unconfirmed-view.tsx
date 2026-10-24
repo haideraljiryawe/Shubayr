@@ -135,7 +135,7 @@ export function UnconfirmedView({
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("filters.note")}</p>
+      <p className="text-caption text-text-muted">{t("filters.note")}</p>
       <ConfirmDialog
         open={confirming !== null}
         requireReason={false}
