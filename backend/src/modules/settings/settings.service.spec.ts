@@ -18,6 +18,7 @@ describe('SettingsService public settings', () => {
       store_name: 'Shubayr',
       default_low_stock_threshold: '5',
       sale_rounding_multiple: '250',
+      timezone: 'Asia/Baghdad',
       store_legal_name_ar: null,
       store_legal_name_en: null,
       store_address_ar: null,
@@ -41,6 +42,7 @@ describe('SettingsService public settings', () => {
           in: expect.arrayContaining([
             'default_low_stock_threshold',
             'sale_rounding_multiple',
+            'timezone',
             'store_legal_name_ar',
             'support_phone',
             'refund_days',

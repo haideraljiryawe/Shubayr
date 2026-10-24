@@ -150,13 +150,18 @@ export class MediaService {
     }
     let optimized: Buffer;
     try {
-      optimized = await sharp(buffer, { failOn: 'error' })
-        .rotate()
+      const source = sharp(buffer, { failOn: 'error' }).rotate();
+      const metadata = await source.metadata();
+      if (!metadata.width || !metadata.height) {
+        throw new Error('Image dimensions are unavailable');
+      }
+      const squareSide = Math.min(metadata.width, metadata.height, 1600);
+      optimized = await source
         .resize({
-          width: 1600,
-          height: 1600,
-          fit: 'inside',
-          withoutEnlargement: true,
+          width: squareSide,
+          height: squareSide,
+          fit: 'cover',
+          position: 'centre',
         })
         .webp({ quality: 82, effort: 4 })
         .toBuffer();

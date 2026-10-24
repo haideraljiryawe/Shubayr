@@ -1,5 +1,30 @@
 # Changelog
 
+## 17.10.0 - 2026-10-23
+
+### Added
+
+- Public build metadata reports the immutable release tag and commit embedded
+  by the tagged release workflow.
+- Staff profiles store an Arabic/English Web Admin language preference, and
+  permission metadata now supplies searchable Arabic and English names and
+  descriptions from one backend catalog.
+- Catalog administration can hard-delete products with no durable references
+  or archive referenced products with structured reasons.
+
+### Changed
+
+- Public settings expose the authoritative `Asia/Baghdad` store timezone.
+- Bulk catalog ZIP images are stored as center-cropped 1:1 WebP files; invalid
+  images are reported per file and are never attached through an original-file
+  fallback.
+- Admin catalog search normalizes Arabic whitespace, diacritics and agreed
+  letter forms while continuing to match English names, SKUs and barcodes.
+- Archived products are excluded from the Admin list unless explicitly
+  requested. The production Admin module fallback now includes reports.
+- The API contract is version 17.10.0. Changes are additive and backward
+  compatible.
+
 ## Release 1 candidate - 2026-10-22
 
 ### Acceptance and operations

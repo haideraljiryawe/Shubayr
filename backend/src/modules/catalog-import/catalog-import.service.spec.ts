@@ -504,10 +504,56 @@ describe('CatalogImportService', () => {
       'SKU-1.jpg',
     ]);
     expect(result.unmatched).toEqual(['UNKNOWN.jpg']);
+    expect(result.failed).toEqual([]);
     expect(result.matched[0]).toMatchObject({
       product_name_ar: 'منتج',
       product_name_en: 'Product',
     });
     expect(tx.productImage.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a corrupt matched ZIP image without attaching the original', async () => {
+    const zip = new JSZip();
+    zip.file('SKU-1.jpg', Buffer.from('not-an-image'));
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const tx = {
+      productVariant: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            sku: 'SKU-1',
+            product_id: 'product-1',
+            product: { name_ar: 'Product AR', name_en: 'Product' },
+          },
+        ]),
+      },
+      productImage: {
+        aggregate: jest.fn(),
+        create: jest.fn(),
+      },
+    };
+    const deps = dependencies({});
+    deps.operations.execute.mockImplementation(
+      (input: { work(client: typeof tx): Promise<unknown> }) => input.work(tx),
+    );
+    deps.media.uploadCatalogImage.mockRejectedValue(
+      new Error('decoder details stay internal'),
+    );
+
+    const result = await service(deps).bulkImages(
+      { buffer, size: buffer.length, originalname: 'images.zip' },
+      'operation-images-failed',
+      actor,
+    );
+
+    expect(result.matched).toEqual([]);
+    expect(result.failed).toEqual([
+      {
+        file: 'SKU-1.jpg',
+        code: 'CATALOG_IMAGE_PROCESSING_FAILED',
+        message:
+          'The image could not be decoded and stored as a square catalog image',
+      },
+    ]);
+    expect(tx.productImage.create).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,45 @@
  */
 
 export interface paths {
+    "/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the release tag and source commit running on this server
+         * @description Values come from immutable image build metadata set by the release workflow.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Running release metadata */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReleaseVersion"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/request-otp": {
         parameters: {
             query?: never;
@@ -325,7 +364,7 @@ export interface paths {
         head?: never;
         /**
          * Update the current user's profile
-         * @description Updates only the authenticated user's name and, when supplied, email. Phone numbers cannot be changed here because a phone change requires re-verification through the OTP flow.
+         * @description Updates only the authenticated user's name, email, and preferred Admin UI language. The language preference is returned on every /me read. Phone numbers cannot be changed here because a phone change requires re-verification through the OTP flow.
          */
         patch: {
             parameters: {
@@ -8558,7 +8597,7 @@ export interface paths {
         put?: never;
         /**
          * Upload and attach a ZIP of SKU-named product images
-         * @description Accepts SKU.jpg, SKU-2.jpg and later numbered images. Images are resized and compressed to WebP; unmatched files are returned in the report.
+         * @description Accepts SKU.jpg, SKU-2.jpg and later numbered images. Every successfully stored image is center-cropped to a true square without stretching and compressed to WebP; square source framing is preserved. Files that cannot be processed are reported individually and the original non-square or invalid file is never attached as a fallback.
          */
         post: {
             parameters: {
@@ -8608,8 +8647,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all products, including hidden and archived products
-         * @description Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory.
+         * List active and hidden products, with optional archived products
+         * @description Uses database-level filtering, stable sorting and pagination without loading the whole catalog into application memory. When status is omitted, archived products are excluded. Search matches normalized Arabic and English names, SKUs and barcodes without modifying stored catalog text.
          */
         get: {
             parameters: {
@@ -8821,6 +8860,49 @@ export interface paths {
                 422: components["responses"]["PricingRateValidation"];
             };
         };
+        trace?: never;
+    };
+    "/admin/products/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete an unreferenced product or archive a referenced product
+         * @description Hard-deletes only a product with no durable order, stock, purchase, review, price-approval, or banner-action references. Transient cart and wishlist rows are removed safely. Otherwise the product is archived and the response identifies every blocking reference kind.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Product deletion outcome */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductDeleteResult"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/products/reindex": {
@@ -9815,7 +9897,10 @@ export interface paths {
         /** List the code-defined permission registry */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Case-insensitive search across the stable key and Arabic/English presentation metadata. */
+                    q?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -9828,7 +9913,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Permission"][];
+                        "application/json": components["schemas"]["PermissionMetadata"][];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -13870,6 +13955,12 @@ export interface components {
             refresh_token: string;
             user: components["schemas"]["User"];
         };
+        ReleaseVersion: {
+            /** @description Release tag embedded in the production image; `development` outside a tagged build. */
+            release: string;
+            /** @description Full source commit embedded in the production image; `unknown` outside a tagged build. */
+            commit: string;
+        };
         RefreshTokenRequest: {
             refresh_token: string;
         };
@@ -13896,6 +13987,11 @@ export interface components {
             client: "mobile" | "web_store" | null;
             must_change_password: boolean;
             permission_version: number;
+            /**
+             * @description Staff member's preferred Web Admin language; defaults to Arabic.
+             * @enum {string}
+             */
+            preferred_ui_language: "ar" | "en";
             /** Format: date-time */
             created_at: string;
         };
@@ -13904,6 +14000,8 @@ export interface components {
             name?: string;
             /** Format: email */
             email?: string | null;
+            /** @enum {string} */
+            preferred_ui_language?: "ar" | "en";
         };
         GovernorateRecord: {
             /** Format: uuid */
@@ -14595,6 +14693,12 @@ export interface components {
                 url: string;
             }[];
             unmatched: string[];
+            failed: {
+                file: string;
+                /** @enum {string} */
+                code: "CATALOG_IMAGE_PROCESSING_FAILED";
+                message: string;
+            }[];
         };
         ProductBulkInput: {
             operation_id: string;
@@ -14626,6 +14730,11 @@ export interface components {
                 code?: string;
                 message?: string;
             }[];
+        };
+        ProductDeleteResult: {
+            /** @enum {string} */
+            outcome: "deleted" | "archived";
+            reasons: ("order_history" | "inventory_history" | "purchase_history" | "product_reviews" | "price_approval_history" | "banner_action")[];
         };
         ProductImage: {
             /** Format: uuid */
@@ -17570,6 +17679,17 @@ export interface components {
             group?: string;
             description?: string | null;
         };
+        PermissionMetadata: {
+            /** @example orders.confirm */
+            key: string;
+            /** @example orders */
+            group: string;
+            description: string | null;
+            name_ar: string;
+            name_en: string;
+            description_ar: string;
+            description_en: string;
+        };
         Role: {
             /** Format: uuid */
             id?: string;
@@ -18279,6 +18399,11 @@ export interface components {
             primary_color?: string;
             /** @example IQD */
             currency?: string;
+            /**
+             * @description Authoritative IANA store timezone used for business-date labels and client display.
+             * @example Asia/Baghdad
+             */
+            timezone?: string;
             default_low_stock_threshold?: string;
             /** @description Zero uses base-currency precision; otherwise linked prices round upward to this multiple. */
             sale_rounding_multiple?: string;

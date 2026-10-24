@@ -11,6 +11,8 @@ const schema = Joi.object({
   API_PORT: Joi.number().port().default(8000),
   PROCESS_ROLE: Joi.string().valid('api', 'worker', 'all').default('all'),
   WORKER_HEALTH_FILE: Joi.string().default('/tmp/shubayr-worker-ready'),
+  RELEASE_VERSION: Joi.string().max(120).default('development'),
+  RELEASE_COMMIT: Joi.string().max(64).default('unknown'),
   TRUSTED_PROXIES: Joi.string().allow('').default(''),
   RATE_LIMIT_CATALOG_PER_MINUTE: Joi.number().integer().min(1).default(600),
   RATE_LIMIT_NORMAL_PER_MINUTE: Joi.number().integer().min(1).default(120),

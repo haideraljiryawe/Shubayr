@@ -212,15 +212,12 @@ services:
       context: .
       dockerfile: admin/Dockerfile
       target: production
-      # A local build shows the tag it was built for (VIS-025).
-      args:
-        RELEASE_VERSION: ${SHUBAYR_TAG:-dev}
     restart: unless-stopped
     environment:
       API_URL: http://api:8000/api/v1
       ADMIN_ORIGIN: https://admin.${SHUBAYR_DOMAIN}
       ADMIN_COOKIE_SECURE: "true"
-      ADMIN_MODULES: ${ADMIN_MODULES:-catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,audit}
+      ADMIN_MODULES: ${ADMIN_MODULES:-catalog,stock,orders,settings,users,purchasing,finance,deliveryParties,cashReceipts,returns,expenses,reports,audit}
       TRUSTED_FRONT_PROXIES: ${TRUSTED_FRONT_PROXIES:-${EDGE_SUBNET:-172.30.10.0/24}}
       TZ: Asia/Baghdad
     depends_on:
