@@ -1,5 +1,21 @@
 # Changelog
 
+## 17.11.0 - 2026-10-24
+
+### Added
+
+- Every report can be exported as a background-generated PDF in portrait or
+  landscape layout, using one bilingual report template with the store
+  identity, readable applied filters, generation metadata, full filtered data,
+  totals, open-period caveats, repeated headings and localized page numbers.
+- The PDF renderer embeds Cairo and applies native Arabic shaping, mixed-text
+  bidirectional layout and RTL table ordering.
+
+### Changed
+
+- The API contract is 17.11.0. The new `pdf` format and optional
+  `orientation` export input are additive and backward compatible.
+
 ## 17.10.0 - 2026-10-23
 
 ### Added

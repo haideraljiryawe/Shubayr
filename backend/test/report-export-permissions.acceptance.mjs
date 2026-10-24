@@ -188,51 +188,69 @@ const deniedToken = await login('c20a_no_reports');
 for (const item of cases) {
   const { permission, ...input } = item;
   const token = tokens.get(permission);
-  const queued = await request('/admin/reports/exports', {
-    token,
-    method: 'POST',
-    expected: 202,
-    body: { ...input, format: 'csv', language: 'en' },
-  });
-
-  await request('/admin/reports/exports', {
-    token: deniedToken,
-    method: 'POST',
-    expected: 403,
-    body: { ...input, format: 'csv', language: 'en' },
-  });
-
-  let progress = queued;
-  for (
-    let attempt = 0;
-    attempt < 200 && !['completed', 'failed'].includes(progress.status);
-    attempt += 1
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    progress = await request(`/admin/reports/exports/${queued.id}/progress`, {
+  for (const format of ['csv', 'pdf']) {
+    const queued = await request('/admin/reports/exports', {
       token,
+      method: 'POST',
+      expected: 202,
+      body: {
+        ...input,
+        format,
+        language: format === 'pdf' ? 'ar' : 'en',
+        ...(format === 'pdf' ? { orientation: 'landscape' } : {}),
+      },
     });
-  }
-  check(
-    progress.status,
-    'completed',
-    `${item.report_type} export completed: ${progress.last_error ?? ''}`,
-  );
 
-  await request(`/admin/reports/exports/${queued.id}/download`, {
-    token: deniedToken,
-    expected: 403,
-  });
-  const download = await request(
-    `/admin/reports/exports/${queued.id}/download`,
-    {
-      token,
-    },
-  );
-  ok(
-    Buffer.isBuffer(download) && download.length > 0,
-    `${item.report_type} export downloads`,
-  );
+    await request('/admin/reports/exports', {
+      token: deniedToken,
+      method: 'POST',
+      expected: 403,
+      body: {
+        ...input,
+        format,
+        language: format === 'pdf' ? 'ar' : 'en',
+      },
+    });
+
+    let progress = queued;
+    for (
+      let attempt = 0;
+      attempt < 300 && !['completed', 'failed'].includes(progress.status);
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      progress = await request(`/admin/reports/exports/${queued.id}/progress`, {
+        token,
+      });
+    }
+    check(
+      progress.status,
+      'completed',
+      `${item.report_type} ${format} export completed: ${progress.last_error ?? ''}`,
+    );
+
+    await request(`/admin/reports/exports/${queued.id}/download`, {
+      token: deniedToken,
+      expected: 403,
+    });
+    const download = await request(
+      `/admin/reports/exports/${queued.id}/download`,
+      {
+        token,
+      },
+    );
+    ok(
+      Buffer.isBuffer(download) && download.length > 0,
+      `${item.report_type} ${format} export downloads`,
+    );
+    if (format === 'pdf') {
+      check(
+        download.subarray(0, 5).toString('ascii'),
+        '%PDF-',
+        `${item.report_type} download is a PDF`,
+      );
+    }
+  }
 }
 
 await db.end();
