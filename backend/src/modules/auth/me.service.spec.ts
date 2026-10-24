@@ -11,6 +11,7 @@ const storedUser = {
   phone: '+9647700000000',
   email: 'updated@example.com',
   is_active: true,
+  preferred_ui_language: 'ar',
   created_at: new Date('2026-01-01T00:00:00Z'),
   role: {
     name: 'customer',
@@ -50,6 +51,7 @@ describe('MeService', () => {
     const result = await service.updateCurrentUser('current-user', {
       name: '  Updated Customer  ',
       email: '  updated@example.com  ',
+      preferred_ui_language: 'en',
     });
 
     expect(update).toHaveBeenCalledWith(
@@ -58,6 +60,7 @@ describe('MeService', () => {
         data: {
           name: 'Updated Customer',
           email: 'updated@example.com',
+          preferred_ui_language: 'en',
         },
       }),
     );
@@ -67,6 +70,7 @@ describe('MeService', () => {
         phone: '+9647700000000',
         role: 'customer',
         permissions: ['orders.create', 'returns.create'],
+        preferred_ui_language: 'ar',
       }),
     );
   });

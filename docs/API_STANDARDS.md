@@ -35,3 +35,24 @@ discount. Editing a name, description, or media therefore cannot rewrite it.
   recomputed after checkout.
 
 Example: a 50% discount on `20.15` is `10.075`, which becomes `10.08`.
+
+## Store timezone and business dates
+
+`GET /settings` exposes the authoritative `timezone` setting. Shubayr's
+launch timezone is `Asia/Baghdad`; clients must use that value for labels and
+must not substitute the browser, phone, container, or database-session
+timezone.
+
+API date-only filters are inclusive store-calendar dates. Timestamp-backed
+lists (including orders and deliveries) convert their bounds to the start and
+end of the corresponding Baghdad day. Financial documents and reports filter
+their posted `accounting_date` values, so UTC midnight never changes which
+business day or month owns a posting. Timestamp fields remain RFC 3339
+instants; clients format them in the public store timezone. Export timestamps
+and release metadata are instants rather than accounting dates.
+
+Backend code must use the shared business-date helpers for day boundaries,
+current business dates, backdating checks, and document numbers. Raw UTC date
+truncation is not a valid substitute. The boundary tests in
+`business-date.spec.ts`, the orders list tests, and the reports acceptance
+packs cover the Baghdad midnight and month transitions.

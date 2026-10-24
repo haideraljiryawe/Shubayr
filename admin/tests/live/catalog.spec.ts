@@ -336,19 +336,8 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
   const settings = await api(request, "GET", "/admin/settings");
   const originalRounding = (settings.body.settings.sale_rounding_multiple as string | null) ?? "0";
   expect((await api(request, "PUT", "/admin/settings", { settings: { sale_rounding_multiple: "250" } })).status).toBe(200);
-  // Rates are dated in the past on purpose: the rate list orders by effective
-  // time, and a later spec (finance) records "the latest" rate at the current
-  // minute. This one's rates stay strictly before that.
-  const setup = await api(request, "POST", "/admin/exchange-rates", {
-    currency_code: "USD",
-    rate: "1500",
-    basis: 1,
-    effective_at: new Date(Date.now() - 5 * 60_000).toISOString(),
-    reason: `Live linked-price test ${run}`,
-  });
-  expect(setup.status).toBe(201);
-  /** The rate form's effective time, one minute back, in store time. */
-  const oneMinuteAgo = () =>
+  /** The current minute in store time, suitable for the datetime-local field. */
+  const currentStoreMinute = () =>
     new Intl.DateTimeFormat("sv-SE", {
       timeZone: "Asia/Baghdad",
       year: "numeric",
@@ -357,8 +346,22 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
       hour: "2-digit",
       minute: "2-digit",
     })
-      .format(new Date(Date.now() - 60_000))
+      .format(new Date())
       .replace(" ", "T");
+  const setupMinute = currentStoreMinute();
+  // Put the setup rate one millisecond before the minute boundary. It is newer
+  // than bootstrap data, while the rate entered below at that boundary is
+  // deterministically newer than this setup rate and already effective.
+  const setup = await api(request, "POST", "/admin/exchange-rates", {
+    currency_code: "USD",
+    rate: "1500",
+    basis: 1,
+    effective_at: new Date(
+      new Date(`${setupMinute}:00+03:00`).getTime() - 1,
+    ).toISOString(),
+    reason: `Live linked-price test ${run}`,
+  });
+  expect(setup.status).toBe(201);
 
   try {
     const shelf = await category(request, "Phones");
@@ -391,7 +394,7 @@ test("linked price: 12 USD at 1,550 → 18,750 (round up to 250); rate only vs p
       await page.goto("/finance/currencies");
       await choose(page.getByTestId("rate-currency"), "USD");
       await page.getByTestId("rate-value").fill(value);
-      await page.getByTestId("rate-effective").fill(oneMinuteAgo());
+      await page.getByTestId("rate-effective").fill(currentStoreMinute());
       await page.getByTestId("rate-reason").fill(`Linked price check ${run}`);
       await page.getByTestId("rate-submit").click();
       await expect(page.getByTestId("linked-preview")).toBeVisible();

@@ -48,6 +48,7 @@ type AccessUser = {
   locked_until?: Date | null;
   session_version: number;
   permission_version: number;
+  preferred_ui_language: string;
   role: { name: string } | null;
   work_profile: { app_role: string; is_active: boolean } | null;
 };
@@ -575,6 +576,8 @@ export class AuthService {
       permissions,
       permission_version: user.permission_version,
       must_change_password: user.must_change_password,
+      preferred_ui_language:
+        user.preferred_ui_language === 'en' ? 'en' : ('ar' as const),
       surface,
       client,
       created_at: user.created_at,
