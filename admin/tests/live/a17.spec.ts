@@ -110,7 +110,7 @@ test("the account menu names the role under the person, in the interface languag
   const en = presets.map((preset) => preset.name_en);
 
   await uiLogin(page, staff.username, KNOWN_PASSWORD);
-  await page.goto("/");
+  await expect(page.getByTestId("dashboard")).toBeVisible();
   await hydrated(page, "account-menu");
   const role = page.getByTestId("current-user-role");
   await expect(role).toHaveText(ar.join("، "));
