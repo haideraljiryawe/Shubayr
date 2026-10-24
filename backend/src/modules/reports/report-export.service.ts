@@ -789,7 +789,7 @@ export class ReportExportService {
                                   page,
                                   per_page,
                                 });
-    return report as unknown as Record<string, unknown>;
+    return report;
   }
 
   private async pdfFilters(
