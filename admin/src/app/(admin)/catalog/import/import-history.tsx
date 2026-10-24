@@ -110,7 +110,7 @@ export function ImportHistory({
                         </a>
                       ) : null}
                       {item.id === openedId ? (
-                        <span className="px-2 text-xs text-text-muted">{t("history.opened")}</span>
+                        <span className="px-2 text-caption text-text-muted">{t("history.opened")}</span>
                       ) : (
                         <Link
                           href={`/catalog/import?id=${item.id}`}

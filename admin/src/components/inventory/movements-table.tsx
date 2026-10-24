@@ -68,7 +68,7 @@ export function MovementsTable({
   const where = (id: string | null | undefined) => (id ? locationLabel(locations[id], shortId(id)) : "—");
 
   const columns: Column<Movement>[] = [
-    { key: "at", header: t("columns.date"), cell: (row) => <span className="whitespace-nowrap text-xs">{when(row.created_at)}</span> },
+    { key: "at", header: t("columns.date"), cell: (row) => <span className="whitespace-nowrap text-caption">{when(row.created_at)}</span> },
     {
       key: "type",
       header: t("columns.type"),
@@ -98,7 +98,7 @@ export function MovementsTable({
       key: "route",
       header: t("columns.fromTo"),
       cell: (row) => (
-        <span className="whitespace-nowrap text-xs" dir="ltr" data-testid="movement-route">
+        <span className="whitespace-nowrap text-caption" dir="ltr" data-testid="movement-route">
           {where(row.from_location)} → {where(row.to_location)}
         </span>
       ),
@@ -110,7 +110,7 @@ export function MovementsTable({
         row.custody_party_id ? (
           <button
             type="button"
-            className="cursor-pointer text-xs text-primary-dark hover:underline"
+            className="cursor-pointer text-caption text-primary-dark hover:underline"
             dir="ltr"
             title={row.custody_party_id}
             onClick={() => update({ custody_party_id: row.custody_party_id ?? null })}
@@ -136,7 +136,7 @@ export function MovementsTable({
             key: "cost",
             header: t("columns.unitCost"),
             cell: (row: Movement) => (
-              <span dir="ltr" className="text-xs" data-testid="movement-cost">
+              <span dir="ltr" className="text-caption" data-testid="movement-cost">
                 {formatCost(row.unit_cost_iqd, locale)}
               </span>
             ),
@@ -150,9 +150,9 @@ export function MovementsTable({
         const link = sourceLink({ source_type: row.source_type ?? "", source_id: row.source_id, reference: row.reference });
         const label = row.reference ?? (t.has(`source.${row.source_type}`) ? t(`source.${row.source_type}`) : row.source_type);
         return link.kind === "none" ? (
-          <span className="text-xs" dir="ltr">{label ?? "—"}</span>
+          <span className="text-caption" dir="ltr">{label ?? "—"}</span>
         ) : (
-          <Link href={link.href} className="text-xs font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="movement-source">
+          <Link href={link.href} className="text-caption font-semibold text-primary-dark hover:underline" dir="ltr" data-testid="movement-source">
             {label}
           </Link>
         );
@@ -162,7 +162,7 @@ export function MovementsTable({
       key: "actor",
       header: t("columns.actor"),
       cell: (row) => (
-        <span className="text-xs text-text-muted" dir="ltr" title={row.user_id ?? undefined}>
+        <span className="text-caption text-text-muted" dir="ltr" title={row.user_id ?? undefined}>
           {shortId(row.user_id)}
         </span>
       ),
@@ -204,7 +204,7 @@ export function MovementsTable({
             <button
               key={chip.key}
               type="button"
-              className="inline-flex h-11 cursor-pointer items-center gap-1 self-end rounded-full bg-info/10 px-3 text-sm font-semibold text-info-dark"
+              className="inline-flex h-11 cursor-pointer items-center gap-1 self-end rounded-full bg-info/10 px-3 text-label text-info-dark"
               onClick={() => update({ [chip.key]: null })}
               data-testid={`chip-${chip.key}`}
             >

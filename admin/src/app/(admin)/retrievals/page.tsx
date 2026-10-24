@@ -56,7 +56,7 @@ export default async function RetrievalsPage({ searchParams }: { searchParams: P
       <PageHeader title={t("title")} description={t("description")} />
       {permissions.includes("orders.view") ? <OrdersTabs active="retrievals" counts={counts} canViewRetrievals canViewCollections={permissions.includes("deliveries.manage")} /> : null}
       {orderId ? (
-        <p className="mb-3 text-sm" data-testid="retrievals-order-filter">
+        <p className="mb-3 text-body" data-testid="retrievals-order-filter">
           {t("forOrder", { number: orderNumber ?? "…" })}{" "}
           <Link href="/retrievals" className="font-semibold text-primary-dark hover:underline">
             {t("allOrders")}

@@ -12,6 +12,7 @@ import {
   uiLoginAsAdmin,
 } from "./helpers";
 import { choose } from "./controls";
+import { navLink } from "./shell";
 
 /**
  * The audit-log screen and the staff / presets / work-phones tables, all
@@ -50,7 +51,7 @@ test("the audit log filters by actor, action, entity and date, on the server", a
   const created = await createStaff(request, { permissionKeys: ["orders.view"], prefix: "audited" });
 
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-audit").click();
+  await (await navLink(page, "audit")).click();
   await expect(page.getByTestId("audit-table")).toBeVisible();
 
   // Action + entity + entity id together: exactly that record.

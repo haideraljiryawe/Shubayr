@@ -57,7 +57,7 @@ export function SupplierDetail({
   return (
     <div className="flex flex-col gap-6" data-testid="supplier-detail">
       <Card className="flex flex-wrap items-start justify-between gap-4">
-        <dl className="grid flex-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid flex-1 gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
           <Item label={t("currency")} value={<span dir="ltr">{supplier.default_currency}</span>} />
           <Item label={t("terms")} value={t("termsDays", { days: supplier.payment_terms_days })} />
           <Item label={t("phone")} value={<span dir="ltr">{supplier.phone ?? "—"}</span>} />
@@ -76,12 +76,12 @@ export function SupplierDetail({
             </Button>
           ) : null}
           {can("purchases.create") && supplier.is_active ? (
-            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-sm font-semibold text-on-primary" data-testid="supplier-new-invoice">
+            <Link href={`/purchasing/invoices/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md bg-primary-dark px-5 text-label text-on-primary" data-testid="supplier-new-invoice">
               {t("newInvoice")}
             </Link>
           ) : null}
           {can("supplier_payments.record") ? (
-            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary-dark" data-testid="supplier-pay">
+            <Link href={`/purchasing/payments/new?supplier_id=${supplier.id}`} className="inline-flex h-11 items-center rounded-md border border-primary px-5 text-label text-primary-dark" data-testid="supplier-pay">
               {t("pay")}
             </Link>
           ) : null}
@@ -146,7 +146,7 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
   return (
     <Card className="flex flex-col gap-4 overflow-x-auto" data-testid="supplier-statement">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-bold">{t("statement")}</h2>
+        <h2 className="text-section">{t("statement")}</h2>
         <div className="flex flex-wrap items-end gap-3">
           <TableFilter
             name="currency"
@@ -157,7 +157,7 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
               { value: "USD", label: "USD" },
             ]}
           />
-          <label className="flex flex-col gap-1 text-sm font-semibold">
+          <label className="flex flex-col gap-1 text-label">
             <span>{t("asOf")}</span>
             <Input
               type="date"
@@ -175,9 +175,9 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
         </div>
       </div>
       {statement === null ? (
-        <p className="text-sm text-text-muted">{t("statementUnavailable")}</p>
+        <p className="text-body text-text-muted">{t("statementUnavailable")}</p>
       ) : statement.length === 0 ? (
-        <p className="text-sm text-text-muted">{t("statementEmpty")}</p>
+        <p className="text-body text-text-muted">{t("statementEmpty")}</p>
       ) : (
         <Table minWidth="48rem">
           <THead>
@@ -204,7 +204,7 @@ function StatementCard({ statement, filters, supplier }: { statement: StatementL
                     ) : (
                       <span dir="ltr">{line.document_number}</span>
                     )}
-                    <span className="block text-xs text-text-muted">{t.has(`source.${line.source_type}`) ? t(`source.${line.source_type}`) : line.source_type}</span>
+                    <span className="block text-caption text-text-muted">{t.has(`source.${line.source_type}`) ? t(`source.${line.source_type}`) : line.source_type}</span>
                   </Td>
                   <Td dir="ltr">{line.debit_currency ? money(line.debit_currency, line.currency_code) : "—"}</Td>
                   <Td dir="ltr">{line.credit_currency ? money(line.credit_currency, line.currency_code) : "—"}</Td>
@@ -231,9 +231,9 @@ function InvoicesCard({ invoices }: { invoices: PurchaseInvoice[] }) {
   const locale = useLocale();
   return (
     <Card className="flex flex-col gap-3 overflow-x-auto">
-      <h2 className="text-lg font-bold">{t("invoices")}</h2>
+      <h2 className="text-section">{t("invoices")}</h2>
       {invoices.length === 0 ? (
-        <p className="text-sm text-text-muted">{t("noInvoices")}</p>
+        <p className="text-body text-text-muted">{t("noInvoices")}</p>
       ) : (
         <Table minWidth="36rem">
           <TBody>
@@ -243,7 +243,7 @@ function InvoicesCard({ invoices }: { invoices: PurchaseInvoice[] }) {
                   <Link href={`/purchasing/invoices/${invoice.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                     {invoice.document_number}
                   </Link>
-                  {invoice.invoice_number ? <span className="ms-2 text-xs text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
+                  {invoice.invoice_number ? <span className="ms-2 text-caption text-text-muted" dir="ltr">{invoice.invoice_number}</span> : null}
                 </Td>
                 <Td>
                   <Badge tone={invoice.settlement_status === "paid" ? "success" : invoice.settlement_status === "partial" ? "warning" : "info"}>
@@ -284,13 +284,13 @@ function CreditsCard({
 
   return (
     <Card className="flex flex-col gap-3" data-testid="supplier-credits">
-      <h2 className="text-lg font-bold">{t("credits")}</h2>
+      <h2 className="text-section">{t("credits")}</h2>
       {open.length === 0 ? (
-        <p className="text-sm text-text-muted">{t("noCredits")}</p>
+        <p className="text-body text-text-muted">{t("noCredits")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {open.map((credit) => (
-            <li key={credit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-3 py-2 text-sm" data-testid="supplier-credit">
+            <li key={credit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-card px-3 py-2 text-body" data-testid="supplier-credit">
               <span>
                 {t(`creditSource.${credit.source_type === "return" ? "return" : "payment"}`)} ·{" "}
                 <span className="font-semibold" dir="ltr" data-testid="supplier-credit-remaining">
@@ -458,12 +458,12 @@ function OpeningBalanceCard({
   return (
     <Card className="flex flex-col gap-4" data-testid="supplier-opening">
       <div>
-        <h2 className="text-lg font-bold">{t("opening")}</h2>
-        <p className="text-sm text-text-muted">{t("openingBody")}</p>
+        <h2 className="text-section">{t("opening")}</h2>
+        <p className="text-body text-text-muted">{t("openingBody")}</p>
       </div>
       {review ? (
         <>
-          <p className="text-sm" data-testid="opening-preview">
+          <p className="text-body" data-testid="opening-preview">
             {t("openingPreview", {
               amount: moneyText(toFixed(amount ?? "0"), currency, precisionOf(currency), locale),
               iqd: moneyText(fx.mul(toFixed(amount ?? "0"), toFixed(review.rate)), "IQD", 0, locale),

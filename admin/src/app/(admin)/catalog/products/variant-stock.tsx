@@ -33,7 +33,7 @@ export async function VariantStock({
   return (
     <Card className="mb-6 overflow-x-auto" data-testid="variant-stock">
       <h2 className="font-bold">{t("productStock.title")}</h2>
-      <p className="mb-3 text-sm text-text-muted">{t("productStock.body")}</p>
+      <p className="mb-3 text-body text-text-muted">{t("productStock.body")}</p>
       <Table minWidth="36rem">
         <THead>
           <Tr>

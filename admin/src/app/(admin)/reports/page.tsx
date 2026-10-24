@@ -28,12 +28,12 @@ export default async function ReportsHubPage() {
             <Link key={id} href={`/reports/${id}`} className="group">
               <Card className="flex h-full gap-3 transition-shadow group-hover:shadow-md">
                 <BarChart3 className="mt-0.5 size-5 shrink-0 text-primary-dark" aria-hidden />
-                <span><strong className="block">{t(`names.${id}`)}</strong><span className="mt-1 block text-sm text-text-muted">{t(`descriptions.${id}`)}</span></span>
+                <span><strong className="block">{t(`names.${id}`)}</strong><span className="mt-1 block text-body text-text-muted">{t(`descriptions.${id}`)}</span></span>
               </Card>
             </Link>
           ))}
         </div>
-      ) : <p className="text-sm text-text-muted" data-testid="reports-empty-permissions">{t("noPermission")}</p>}
+      ) : <p className="text-body text-text-muted" data-testid="reports-empty-permissions">{t("noPermission")}</p>}
     </div>
   );
 }

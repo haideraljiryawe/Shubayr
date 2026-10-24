@@ -55,7 +55,7 @@ export function DefaultSwapDialog({
       onClose={onClose}
       testId="banner-swap"
     >
-      <p className="text-sm text-text-muted">{t("intro")}</p>
+      <p className="text-body text-text-muted">{t("intro")}</p>
       {candidates.length === 0 ? (
         <Alert tone="info" data-testid="banner-swap-none">
           {t("none")}

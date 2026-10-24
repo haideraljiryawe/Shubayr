@@ -3,25 +3,22 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import ar from "@/messages/ar.json";
 import en from "@/messages/en.json";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_GROUPS, NAV_ITEMS } from "@/lib/nav";
 import type { Blocker, FareBearer, FareMethod, Trip, TripOrder, TripStatus } from "@/lib/trips";
 import type { Notice } from "@/app/(admin)/deliveries/trips/[id]/trip-view";
 import type { components } from "@/types/api";
 
 /**
- * Every sidebar entry has its label, and its card on the dashboard has its
- * description, in both languages: a missing one only shows up as a server
- * log line (MISSING_MESSAGE), so it is checked here.
+ * Every sidebar entry and every sidebar group has its label in both
+ * languages: a missing one only shows up as a server log line
+ * (MISSING_MESSAGE), so it is checked here.
  */
 describe("nav messages", () => {
   for (const [locale, messages] of [["en", en], ["ar", ar]] as const) {
-    it(`${locale}: every nav item has a label and a dashboard description`, () => {
-      const nav = messages.nav as Record<string, string>;
-      const sections = messages.dashboard.section as Record<string, string>;
-      for (const item of NAV_ITEMS) {
-        expect(nav[item.key], `nav.${item.key}`).toBeTruthy();
-        if (item.key !== "dashboard") expect(sections[item.key], `dashboard.section.${item.key}`).toBeTruthy();
-      }
+    it(`${locale}: every nav item and group has a label`, () => {
+      const nav = messages.nav as unknown as Record<string, string> & { groups: Record<string, string> };
+      for (const item of NAV_ITEMS) expect(nav[item.key], `nav.${item.key}`).toBeTruthy();
+      for (const group of NAV_GROUPS) expect(nav.groups[group.key], `nav.groups.${group.key}`).toBeTruthy();
     });
   }
 });

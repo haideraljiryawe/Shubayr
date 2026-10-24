@@ -12,6 +12,7 @@ import {
   uiLoginAsAdmin,
 } from "./helpers";
 import { choose } from "./controls";
+import { navLink } from "./shell";
 
 /**
  * Orders operations in a real browser, through the BFF, against a real API.
@@ -41,7 +42,7 @@ const status = (page: Page) => page.getByTestId("order-detail");
 test("the list filters and pages on the server", async ({ page, request }) => {
   const order = await placeOrder(request);
   await uiLoginAsAdmin(page);
-  await page.getByTestId("nav-orders").click();
+  await (await navLink(page, "orders")).click();
   await expect(page.getByTestId("orders-table")).toBeVisible();
 
   // Search alone: the order number.
@@ -196,7 +197,7 @@ test("a permission-limited user sees only allowed actions; a refusal is handled"
 
   await uiLogin(page, staff.username, staff.password);
   await expect(page.getByTestId("dashboard")).toBeVisible();
-  await expect(page.getByTestId("nav-orders")).toBeVisible();
+  await navLink(page, "orders");
 
   // Pending: accept and reject — no cancel (no orders.cancel).
   await page.goto(`/orders/${pending.id}`);

@@ -75,7 +75,7 @@ export function NotificationBell() {
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="mt-2 block text-center text-sm font-semibold text-primary-dark hover:underline"
+            className="mt-2 block text-center text-label text-primary-dark hover:underline"
             data-testid="inbox-view-all"
           >
             {t("viewAll")}

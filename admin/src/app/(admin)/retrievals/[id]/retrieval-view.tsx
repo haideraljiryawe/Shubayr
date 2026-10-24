@@ -110,7 +110,7 @@ export function RetrievalView({
   return (
     <div className="flex flex-col gap-6" data-testid="retrieval-detail" data-status={retrieval.status}>
       <Card>
-        <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-3 text-body sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-text-muted">{t("status")}</dt>
             <dd>
@@ -152,7 +152,7 @@ export function RetrievalView({
 
       <Card className="overflow-x-auto">
         <h2 className="mb-1 font-bold">{t("lines")}</h2>
-        <p className="mb-3 text-sm text-text-muted">{t("linesBody")}</p>
+        <p className="mb-3 text-body text-text-muted">{t("linesBody")}</p>
         <Table minWidth="44rem" data-testid="retrieval-lines">
           <THead>
             <Tr>
@@ -192,7 +192,7 @@ export function RetrievalView({
                             onValueChange={(_, text) => setQuantities((current) => ({ ...current, [line.id!]: text.trim() }))}
                             data-testid="retrieval-quantity"
                           />
-                          <span className="text-xs text-text-muted" dir="ltr">{t("left", { value: qty(fromMilli(left)) })}</span>
+                          <span className="text-caption text-text-muted" dir="ltr">{t("left", { value: qty(fromMilli(left)) })}</span>
                         </Td>
                         <Td>
                           <Select
@@ -228,7 +228,7 @@ export function RetrievalView({
           {problem ? <Alert data-testid="retrieval-problem">{problem}</Alert> : null}
           {review ? (
             <>
-              {posted ? null : <p className="text-sm">{t("reviewBody", { count: chosen.length })}</p>}
+              {posted ? null : <p className="text-body">{t("reviewBody", { count: chosen.length })}</p>}
               <PurchasingPostingStatus state={posting.state} href={(document) => `/retrievals/${document.id}`} onRetry={() => void confirm()} onCheck={() => void posting.check(review.operationId)} />
               <div className="flex justify-end gap-2">
                 {posted ? (

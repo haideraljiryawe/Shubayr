@@ -115,7 +115,7 @@ export function PartyView({
 
   return (
     <div className="flex flex-col gap-6" data-testid="party-view" data-party={party.id}>
-      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 text-body">
         <Badge tone={PARTY_TONE[party.kind]} data-testid="party-kind" data-kind={party.kind}>
           {t(`kinds.${party.kind}`)}
         </Badge>
@@ -135,7 +135,7 @@ export function PartyView({
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="flex flex-col gap-2" data-testid="custody-goods">
           <h2 className="font-bold">{t("custody.goods")}</h2>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
+          <dl className="grid grid-cols-2 gap-2 text-body">
             <dt className="text-text-muted">{t("custody.quantity")}</dt>
             <dd dir="ltr" className="text-end font-semibold" data-testid="custody-goods-quantity">
               {qty(goods.quantity)}
@@ -156,7 +156,7 @@ export function PartyView({
         </Card>
         <Card className="flex flex-col gap-2" data-testid="custody-cash">
           <h2 className="font-bold">{t("custody.cash")}</h2>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
+          <dl className="grid grid-cols-2 gap-2 text-body">
             <dt className="text-text-muted">{t("custody.amount")}</dt>
             <dd dir="ltr" className="text-end font-semibold" data-testid="custody-cash-amount">
               {formatMoney(cash.amount, cash.currency, locale)}
@@ -172,7 +172,7 @@ export function PartyView({
       <Card className="overflow-x-auto">
         <h2 className="mb-3 font-bold">{t("custody.lines")}</h2>
         {goods.lines.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="custody-empty">
+          <p className="text-body text-text-muted" data-testid="custody-empty">
             {t("custody.none")}
           </p>
         ) : (
@@ -238,7 +238,7 @@ export function PartyView({
       <Card className="overflow-x-auto">
         <h2 className="mb-3 font-bold">{t("held.title")}</h2>
         {held.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("held.none")}</p>
+          <p className="text-body text-text-muted">{t("held.none")}</p>
         ) : (
           <Table data-testid="held-orders">
             <THead>
@@ -274,10 +274,10 @@ export function PartyView({
       </Card>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">{t("statement.title")}</h2>
-        <p className="text-sm text-text-muted">{t("statement.hint")}</p>
+        <h2 className="text-section">{t("statement.title")}</h2>
+        <p className="text-body text-text-muted">{t("statement.hint")}</p>
         {orderFilter ? (
-          <p className="text-sm" data-testid="statement-order-filter">
+          <p className="text-body" data-testid="statement-order-filter">
             {t("statement.forOrder", { number: filteredOrder ?? "…" })}{" "}
             <Link href={`/delivery-parties/${party.id}`} className="font-semibold text-primary-dark hover:underline">
               {t("statement.allOrders")}
@@ -302,10 +302,10 @@ export function PartyView({
       </section>
 
       <section className="flex flex-col gap-3" data-testid="party-cash-activity">
-        <h2 className="text-lg font-bold">{t("cash.title")}</h2>
-        <p className="text-sm text-text-muted">{t("cash.hint")}</p>
+        <h2 className="text-section">{t("cash.title")}</h2>
+        <p className="text-body text-text-muted">{t("cash.hint")}</p>
         {cashActivity.data.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="cash-activity-empty">
+          <p className="text-body text-text-muted" data-testid="cash-activity-empty">
             {t("cash.empty")}
           </p>
         ) : (
@@ -339,7 +339,7 @@ export function PartyView({
                         "—"
                       )}
                       {entry.allocation_orders.length && entry.voucher_id ? (
-                        <span className="block text-xs text-text-muted" dir="ltr">
+                        <span className="block text-caption text-text-muted" dir="ltr">
                           {entry.allocation_orders.map((allocation) => allocation.order_number).join(", ")}
                         </span>
                       ) : null}
@@ -358,7 +358,7 @@ export function PartyView({
               </TBody>
             </Table>
             {cashActivity.total > cashActivity.data.length ? (
-              <p className="mt-2 text-xs text-text-muted">{t("cash.paged", { shown: cashActivity.data.length, total: cashActivity.total })}</p>
+              <p className="mt-2 text-caption text-text-muted">{t("cash.paged", { shown: cashActivity.data.length, total: cashActivity.total })}</p>
             ) : null}
           </Card>
         )}
@@ -366,7 +366,7 @@ export function PartyView({
 
       {trips.length ? (
         <section className="flex flex-col gap-3" data-testid="party-trips">
-          <h2 className="text-lg font-bold">{t("trips.title")}</h2>
+          <h2 className="text-section">{t("trips.title")}</h2>
           <Card className="overflow-x-auto">
             <Table minWidth="40rem">
               <THead>

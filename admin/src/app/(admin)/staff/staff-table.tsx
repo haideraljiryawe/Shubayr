@@ -41,7 +41,7 @@ export function StaffTable({
       cell: (user) => (
         <div className="flex flex-col">
           <span className="font-semibold">{user.name || "—"}</span>
-          <span className="text-xs text-text-muted" dir="ltr">
+          <span className="text-caption text-text-muted" dir="ltr">
             {user.email ?? ""}
           </span>
         </div>

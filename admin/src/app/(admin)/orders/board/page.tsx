@@ -48,28 +48,28 @@ export default async function OrdersBoardPage() {
           const page = column.ok ? column.data : null;
           return (
             <section key={status} className="flex min-w-56 flex-col gap-2" data-testid="board-column" data-status={status}>
-              <h2 className="flex items-center justify-between text-sm font-bold">
+              <h2 className="flex items-center justify-between text-body font-bold">
                 <span>{t(`status.${status}`)}</span>
-                <span className="rounded-full bg-card px-2 py-0.5 text-xs" data-testid="board-count">{page?.total ?? 0}</span>
+                <span className="rounded-full bg-card px-2 py-0.5 text-caption" data-testid="board-count">{page?.total ?? 0}</span>
               </h2>
               {(page?.data ?? []).map((order) => (
                 <Card key={order.id} className="flex flex-col gap-1 p-3" data-testid="board-card" data-order-number={order.order_number}>
                   <Link href={`/orders/${order.id}`} className="font-semibold text-primary-dark hover:underline" dir="ltr">
                     {order.order_number}
                   </Link>
-                  <span className="text-xs text-text-muted">{order.customer?.name || order.customer?.phone}</span>
-                  <span className="text-xs" dir="ltr">{formatMoney(order.total, order.currency ?? storeCurrency, locale)}</span>
+                  <span className="text-caption text-text-muted">{order.customer?.name || order.customer?.phone}</span>
+                  <span className="text-caption" dir="ltr">{formatMoney(order.total, order.currency ?? storeCurrency, locale)}</span>
                   <div className="flex flex-wrap gap-1">
                     <OrderFlags order={order} />
                   </div>
                 </Card>
               ))}
               {page && page.total > PER_COLUMN ? (
-                <Link href={`/orders?status=${status}`} className="text-xs font-semibold text-primary-dark hover:underline">
+                <Link href={`/orders?status=${status}`} className="text-caption font-semibold text-primary-dark hover:underline">
                   {t("board.more", { count: page.total - PER_COLUMN })}
                 </Link>
               ) : null}
-              {page && page.total === 0 ? <p className="text-xs text-text-muted">{t("board.empty")}</p> : null}
+              {page && page.total === 0 ? <p className="text-caption text-text-muted">{t("board.empty")}</p> : null}
             </section>
           );
         })}

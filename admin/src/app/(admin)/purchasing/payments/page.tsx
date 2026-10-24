@@ -64,7 +64,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       </div>
       <Card className="overflow-x-auto">
         {rows.length === 0 ? (
-          <p className="text-sm text-text-muted">{t("empty")}</p>
+          <p className="text-body text-text-muted">{t("empty")}</p>
         ) : (
           <Table minWidth="48rem" data-testid="payments-table">
             <THead>
@@ -104,7 +104,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           </Table>
         )}
       </Card>
-      <nav className="mt-3 flex items-center justify-end gap-2 text-sm" aria-label={t("pagination")}>
+      <nav className="mt-3 flex items-center justify-end gap-2 text-body" aria-label={t("pagination")}>
         {page > 1 ? (
           <Link href={href(page - 1)} className={buttonClasses({ variant: "ghost", size: "sm" })} aria-label={t("previous")}>
             <ChevronRight className="size-4 ltr:rotate-180" aria-hidden />

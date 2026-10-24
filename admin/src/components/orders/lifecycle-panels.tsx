@@ -90,7 +90,7 @@ export function AttentionPanel({
         <AlertTriangle className="size-4" aria-hidden />
         {t("title")}
       </h2>
-      <p className="text-sm text-text-muted">{t("body")}</p>
+      <p className="text-body text-text-muted">{t("body")}</p>
       {shortLines.length ? (
         <Table>
           <THead>
@@ -155,7 +155,7 @@ export function AttentionPanel({
           </Button>
         </div>
       ) : order.inventory_attention_required && !permissions.includes("orders.shortage.resolve") ? (
-        <p className="text-xs text-text-muted">{t("needsPermission")}</p>
+        <p className="text-caption text-text-muted">{t("needsPermission")}</p>
       ) : null}
 
       <ConfirmDialog
@@ -239,7 +239,7 @@ export function CancellationRequestPanel({
         {t("title")}
         <Badge tone={request.status === "pending" ? "warning" : request.status === "approved" ? "success" : "neutral"}>{t(`status.${request.status}`)}</Badge>
       </h2>
-      <dl className="grid gap-1 text-sm">
+      <dl className="grid gap-1 text-body">
         <div>
           <dt className="inline text-text-muted">{t("reason")}: </dt>
           <dd className="inline" data-testid="cancellation-reason">{request.reason ?? "—"}</dd>
@@ -270,7 +270,7 @@ export function CancellationRequestPanel({
         </div>
       ) : null}
       {request.status === "pending" && afterDispatch && !options.includes("approve") && options.length ? (
-        <p className="text-xs text-text-muted">{t("afterDispatchPermission")}</p>
+        <p className="text-caption text-text-muted">{t("afterDispatchPermission")}</p>
       ) : null}
       <ConfirmDialog
         open={decision !== null}
@@ -323,7 +323,7 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
         {t("title")}
       </h2>
       {rows.length ? (
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1 text-body">
           {rows.map((row) => (
             <li key={row.id} className="flex flex-wrap items-center gap-2" data-testid="retrieval-row">
               {permissions.includes("retrieval.view") ? (
@@ -339,10 +339,10 @@ export function RetrievalsPanel({ order, permissions, onRefused }: { order: Admi
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-text-muted">{t("none")}</p>
+        <p className="text-body text-text-muted">{t("none")}</p>
       )}
       {rows.length && permissions.includes("retrieval.view") ? (
-        <Link href={`/retrievals?order_id=${order.id}`} className="text-sm font-semibold text-primary-dark hover:underline" data-testid="order-retrievals-all">
+        <Link href={`/retrievals?order_id=${order.id}`} className="text-label text-primary-dark hover:underline" data-testid="order-retrievals-all">
           {tList("viewAllForOrder")}
         </Link>
       ) : null}
@@ -403,7 +403,7 @@ export function BelowCostPanel({
         <AlertTriangle className="size-4" aria-hidden />
         {t("title")}
       </h2>
-      <p className="text-sm text-text-muted">{t("body")}</p>
+      <p className="text-body text-text-muted">{t("body")}</p>
       <Table>
         <THead>
           <Tr>
@@ -444,7 +444,7 @@ export function BelowCostPanel({
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-text-muted" data-testid="below-cost-needs-approval">{note ?? t("needsApproval")}</p>
+        <p className="text-caption text-text-muted" data-testid="below-cost-needs-approval">{note ?? t("needsApproval")}</p>
       )}
       <ConfirmDialog
         open={open}
@@ -471,7 +471,7 @@ export function DeliveryAttemptsPanel({ order }: { order: AdminOrder }) {
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="delivery-attempts">
       <h2 className="font-bold">{t("title")}</h2>
-      <ol className="flex flex-col gap-2 text-sm">
+      <ol className="flex flex-col gap-2 text-body">
         {attempts.map((attempt, index) => (
           <li key={attempt.id} className="flex flex-col gap-0.5 rounded-md bg-card p-3" data-testid="delivery-attempt" data-status={attempt.status}>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -481,7 +481,7 @@ export function DeliveryAttemptsPanel({ order }: { order: AdminOrder }) {
             <span className="text-text-muted" data-testid="delivery-attempt-party">
               {t("party", { name: attempt.party?.name || t("unnamedParty") })}
             </span>
-            <span className="text-xs text-text-muted">
+            <span className="text-caption text-text-muted">
               {t("started", { at: dateTime(attempt.started_at) })}
               {attempt.completed_at ? ` · ${t("ended", { at: dateTime(attempt.completed_at) })}` : ""}
             </span>

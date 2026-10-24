@@ -13,6 +13,7 @@ import { UUID, type LocationInfo } from "@/lib/inventory";
 import { lastSupplierId, newestLot, restockCost, restockLocation, type LastPurchase, type LotFacts } from "@/lib/restock";
 import type { RawSearchParams } from "@/lib/table-params";
 import { InvoiceForm, type RestockPrefill } from "./invoice-form";
+import { variantAttributes } from "@/lib/invoice-entry";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSearchParams> }): Promise<Metadata> {
   const t = await getTranslations("purchasing.invoice");
@@ -57,7 +58,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline">
+      <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline">
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {restock ? t("restock.backToProduct") : t("back")}
       </Link>
@@ -127,6 +128,7 @@ async function loadRestock(api: Api, productId: string, locations: LocationInfo[
         productId,
         sku: variant.sku ?? "",
         productName: name,
+        variantLabel: variantAttributes(variant.attributes as Record<string, unknown> | null | undefined),
         baseUnit: variant.base_unit ?? "piece",
         wholeUnitsOnly: variant.whole_units_only ?? true,
         tracksExpiry: product.data.tracks_expiry ?? false,

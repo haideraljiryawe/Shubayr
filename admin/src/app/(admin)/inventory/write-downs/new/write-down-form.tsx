@@ -167,7 +167,7 @@ export function WriteDownForm({
   if (review) {
     return (
       <Card className="flex flex-col gap-4" data-testid="write-down-preview">
-        <h2 className="text-lg font-bold">{t("reviewTitle")}</h2>
+        <h2 className="text-section">{t("reviewTitle")}</h2>
         {moving.length ? (
           <Alert tone="info" data-testid="write-down-two-steps">
             {t("writeDown.twoSteps", { count: moving.length })}
@@ -197,17 +197,17 @@ export function WriteDownForm({
             ))}
           </TBody>
         </Table>
-        <p className="text-sm text-text-muted">
+        <p className="text-body text-text-muted">
           {reason} · {t("documentDateIs", { date })}
         </p>
         {moving.length ? (
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold text-text-muted">{t("writeDown.stepMove")}</p>
+            <p className="text-caption font-semibold text-text-muted">{t("writeDown.stepMove")}</p>
             <InventoryPostingStatus state={move.state} type="transfer" onRetry={() => void confirm()} onCheck={() => void move.check(review.moveId)} />
           </div>
         ) : null}
         <div className="flex flex-col gap-1">
-          {moving.length ? <p className="text-xs font-semibold text-text-muted">{t("writeDown.stepWriteDown")}</p> : null}
+          {moving.length ? <p className="text-caption font-semibold text-text-muted">{t("writeDown.stepWriteDown")}</p> : null}
           <InventoryPostingStatus
             state={writeDown.state}
             type="write_down"
@@ -255,7 +255,7 @@ export function WriteDownForm({
     >
       <Card className="flex flex-col gap-3">
         <h2 className="font-bold">{t("writeDown.pickTitle")}</h2>
-        <p className="text-sm text-text-muted">{t("writeDown.pickHint")}</p>
+        <p className="text-body text-text-muted">{t("writeDown.pickHint")}</p>
         <BalancePicker
           warehouses={warehouses}
           locations={locations}
@@ -273,7 +273,7 @@ export function WriteDownForm({
         return (
           <Card key={key} className="flex flex-col gap-3" data-testid="write-down-line" data-sku={line.row.sku}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="flex flex-wrap items-center gap-2 text-sm">
+              <p className="flex flex-wrap items-center gap-2 text-body">
                 <span className="font-semibold" dir="ltr">{line.row.sku}</span>
                 <span className="text-text-muted">{t("lotLabel", { lot: line.row.lot_number ?? t("noLotNumber") })}</span>
                 <span className="text-text-muted" dir="ltr">{locationLabel(locations[line.row.location_id], line.row.location_code)}</span>

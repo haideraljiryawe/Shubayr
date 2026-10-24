@@ -58,7 +58,7 @@ export function CashAccountsView({
     <div className="flex flex-col gap-6">
       <Card className="overflow-x-auto p-5">
         {accounts.length === 0 ? (
-          <p className="text-sm text-text-muted" data-testid="accounts-empty">{t("empty")}</p>
+          <p className="text-body text-text-muted" data-testid="accounts-empty">{t("empty")}</p>
         ) : (
           <Table data-testid="accounts-table">
             <THead>
@@ -169,7 +169,7 @@ function CreateAccount({ currencies, onCreated }: { currencies: CurrencyInfo[]; 
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="account-create" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("createTitle")}</h2>
+        <h2 className="text-section">{t("createTitle")}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("columns.name")} name="name" error={nameError ?? api.fieldErrors.name}>
             <Input value={name} maxLength={160} onChange={(event) => { setName(event.target.value); api.clearField("name"); }} data-testid="account-name" />
@@ -224,12 +224,12 @@ function EditAccount({ account, onDone, onCancel }: { account: CashAccount; onDo
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="account-edit-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("editTitle", { name: account.name })}</h2>
+        <h2 className="text-section">{t("editTitle", { name: account.name })}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t("columns.name")} name="name" error={api.fieldErrors.name}>
             <Input value={name} maxLength={160} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <label className="flex items-center gap-2 self-center text-sm font-semibold">
+          <label className="flex items-center gap-2 self-center text-label">
             <input type="checkbox" className="size-4" checked={active} onChange={(event) => setActive(event.target.checked)} data-testid="account-active" />
             {t("active")}
           </label>
@@ -294,8 +294,8 @@ function OpeningBalance({
   return (
     <Card className="p-5">
       <form className="flex flex-col gap-4" data-testid="opening-form" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <h2 className="text-lg font-bold">{t("openingTitle", { name: account.name })}</h2>
-        <p className="text-sm text-text-muted">{t("openingBody")}</p>
+        <h2 className="text-section">{t("openingTitle", { name: account.name })}</h2>
+        <p className="text-body text-text-muted">{t("openingBody")}</p>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("amountIn", { code: account.currency_code })} name="amount" error={errors.amount ?? server.amount}>
             <DecimalInput value="" parse={{ maxDecimals: precision }} onValueChange={(value) => setAmount(value)} data-testid="opening-amount" disabled={posted} />
@@ -360,8 +360,8 @@ function TransferPanel({
   if (active.length < 2) {
     return (
       <Card className="p-5">
-        <h2 className="text-lg font-bold">{t("transfer.title")}</h2>
-        <p className="mt-2 text-sm text-text-muted">{t("transfer.needTwo")}</p>
+        <h2 className="text-section">{t("transfer.title")}</h2>
+        <p className="mt-2 text-body text-text-muted">{t("transfer.needTwo")}</p>
       </Card>
     );
   }
@@ -412,7 +412,7 @@ function TransferPanel({
   return (
     <Card className="p-5">
       <div className="flex flex-col gap-4" data-testid="transfer-panel">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
+        <h2 className="flex items-center gap-2 text-section">
           <ArrowLeftRight className="size-5" aria-hidden />
           {t("transfer.title")}
         </h2>
@@ -453,7 +453,7 @@ function TransferPanel({
           </form>
         ) : (
           <div className="flex flex-col gap-4" data-testid="transfer-preview">
-            <dl className="grid gap-2 rounded-md bg-card p-4 text-sm md:grid-cols-2">
+            <dl className="grid gap-2 rounded-md bg-card p-4 text-body md:grid-cols-2">
               <dt className="text-text-muted">{t("transfer.from")}</dt>
               <dd className="font-semibold">{from?.name}</dd>
               <dt className="text-text-muted">{t("transfer.to")}</dt>

@@ -61,7 +61,7 @@ export default async function ProductPage({
     <>
       <Link
         href="/catalog/products"
-        className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-dark hover:underline"
+        className="mb-3 inline-flex items-center gap-1 text-label text-primary-dark hover:underline"
       >
         <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
         {t("backToList")}
@@ -104,7 +104,7 @@ export default async function ProductPage({
       {created ? (
         <Card className="mb-6 flex flex-col gap-3 border-success/40" data-testid="product-next-steps">
           <p className="font-bold">{t("nextSteps.title")}</p>
-          <p className="text-sm text-text-muted">
+          <p className="text-body text-text-muted">
             {product.data.status === "active" ? t("nextSteps.published") : t("nextSteps.hidden")}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -130,7 +130,7 @@ export default async function ProductPage({
         </Card>
       ) : null}
       <VariantStock variants={variants} totals={totals} />
-      <p className="mb-6 flex items-center gap-2 text-sm" data-testid="product-limit-summary" data-enabled={String(product.data.purchase_limit_enabled ?? false)}>
+      <p className="mb-6 flex items-center gap-2 text-body" data-testid="product-limit-summary" data-enabled={String(product.data.purchase_limit_enabled ?? false)}>
         <ShoppingCart className="size-4 text-text-muted" aria-hidden />
         {product.data.purchase_limit_enabled && product.data.purchase_limit_max_quantity != null
           ? t("limit.summaryOn", { max: product.data.purchase_limit_max_quantity })

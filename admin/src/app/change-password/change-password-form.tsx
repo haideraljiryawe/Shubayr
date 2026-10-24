@@ -56,8 +56,8 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       }}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="text-page-title">{t("title")}</h1>
+        <p className="text-body text-text-muted">
           {forced ? t("forcedBody") : t("body")}
         </p>
       </div>
@@ -107,7 +107,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
         />
       </Field>
       <ul
-        className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2"
+        className="grid grid-cols-1 gap-1 text-caption sm:grid-cols-2"
         aria-label={t("rules")}
       >
         {PASSWORD_RULES.map((rule) => (
@@ -154,7 +154,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       {forced ? (
         <button
           type="button"
-          className="cursor-pointer text-center text-sm font-semibold text-text-muted hover:underline"
+          className="cursor-pointer text-center text-label text-text-muted hover:underline"
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" }).catch(
               () => undefined,
@@ -167,7 +167,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       ) : (
         <Link
           href="/"
-          className="text-center text-sm font-semibold text-primary-dark hover:underline"
+          className="text-center text-label text-primary-dark hover:underline"
         >
           {tAuth("backToAdmin")}
         </Link>

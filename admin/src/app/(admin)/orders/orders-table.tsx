@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { ClipboardList } from "lucide-react";
-import { Alert, buttonClasses, Input } from "@/components/ui";
+import { ClipboardList, X } from "lucide-react";
+import { Alert, Button, buttonClasses, Input } from "@/components/ui";
 import {
   DataTable,
   TableFilter,
@@ -37,6 +37,9 @@ export function OrdersTable({
   const dateTime = useStoreDateTime();
   const [selected, setSelected] = useState<string[]>([]);
   const pickable = (order: AdminOrder) => canPick && PICKABLE_STATUSES.includes(order.status as OrderStatus);
+  const pickableOnPage = rows.filter(pickable).length;
+  // The statuses that can be picked, in the page's language: "preparing, ready … or failed".
+  const pickableStatusList = new Intl.ListFormat(locale, { type: "disjunction" }).format(PICKABLE_STATUSES.map((status) => t(`status.${status}`)));
   const toggle = (id: string, on: boolean) =>
     setSelected((current) => (on ? [...new Set([...current, id])] : current.filter((value) => value !== id)));
 
@@ -81,7 +84,7 @@ export function OrdersTable({
       cell: (order) => (
         <div className="flex flex-col">
           <span>{order.customer?.name || t("noName")}</span>
-          <span className="text-xs text-text-muted" dir="ltr">
+          <span className="text-caption text-text-muted" dir="ltr">
             {order.customer?.phone}
           </span>
         </div>
@@ -156,24 +159,43 @@ export function OrdersTable({
             />
             <DateFilter name="from" label={t("from")} />
             <DateFilter name="to" label={t("to")} />
-            {canPick ? (
-              selected.length ? (
-                <Link
-                  href={`/orders/pick-lists?ids=${selected.join(",")}`}
-                  className={buttonClasses({ variant: "secondary", className: "self-end" })}
-                  data-testid="pick-batch"
-                >
-                  <ClipboardList className="size-4" aria-hidden />
-                  {t("pickList.printSelected", { count: selected.length })}
-                </Link>
-              ) : (
-                <span className="self-end text-xs text-text-muted">{t("pickList.selectHint")}</span>
-              )
+            {canPick && (pickableOnPage > 0 || selected.length > 0) ? (
+              // The pick-list guidance lives with its own controls (VIS-016A), and
+              // only where there is something that can be picked.
+              <div className="flex flex-col items-start gap-1 self-end" data-testid="pick-controls" data-state={selected.length ? "selected" : "none"}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selected.length ? (
+                    <Link
+                      href={`/orders/pick-lists?ids=${selected.join(",")}`}
+                      className={buttonClasses({ variant: "secondary" })}
+                      data-testid="pick-batch"
+                    >
+                      <ClipboardList className="size-4" aria-hidden />
+                      {t("pickList.printSelected", { count: selected.length })}
+                    </Link>
+                  ) : (
+                    <Button variant="secondary" disabled aria-describedby="pick-hint" data-testid="pick-batch-disabled">
+                      <ClipboardList className="size-4" aria-hidden />
+                      {t("pickList.printNone")}
+                    </Button>
+                  )}
+                  {selected.length ? (
+                    <Button size="sm" variant="ghost" onClick={() => setSelected([])} data-testid="pick-clear">
+                      <X className="size-4" aria-hidden />
+                      {t("pickList.clearSelection")}
+                    </Button>
+                  ) : null}
+                </div>
+                <p id="pick-hint" className="max-w-sm text-caption text-text-muted" data-testid="pick-hint">
+                  {selected.length
+                    ? t("pickList.selectedHint", { count: selected.length })
+                    : t("pickList.selectGuide", { statuses: pickableStatusList })}
+                </p>
+              </div>
             ) : null}
           </>
         }
       />
-      <p className="text-xs text-text-muted">{t("utcNote")}</p>
     </div>
   );
 }
@@ -182,7 +204,7 @@ export function OrdersTable({
 function DateFilter({ name, label }: { name: string; label: string }) {
   const { update, searchParams } = useTableUrl();
   return (
-    <label className="flex w-full flex-col gap-1 text-sm font-semibold sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-label sm:w-auto">
       <span>{label}</span>
       <Input
         type="date"

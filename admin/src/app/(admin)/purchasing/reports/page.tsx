@@ -63,9 +63,9 @@ export default async function PayablesPage({ searchParams }: { searchParams: Pro
       <PageHeader title={t("title")} description={t("description")} />
       <div className="flex flex-col gap-6">
         <Card className="overflow-x-auto" data-testid="supplier-balances">
-          <h2 className="mb-3 text-lg font-bold">{t("balances")}</h2>
+          <h2 className="mb-3 text-section">{t("balances")}</h2>
           {balances.data.length === 0 ? (
-            <p className="text-sm text-text-muted">{t("noBalances")}</p>
+            <p className="text-body text-text-muted">{t("noBalances")}</p>
           ) : (
             <Table minWidth="36rem">
               <THead>
@@ -100,15 +100,15 @@ export default async function PayablesPage({ searchParams }: { searchParams: Pro
         <Card className="overflow-x-auto" data-testid="ap-aging">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold">{t("aging")}</h2>
-              <p className="text-sm text-text-muted">{t("agingBody")}</p>
+              <h2 className="text-section">{t("aging")}</h2>
+              <p className="text-body text-text-muted">{t("agingBody")}</p>
             </div>
             <AsOfFilter value={asOf} />
           </div>
           {!aging.ok ? (
-            <p className="text-sm text-text-muted">{t("agingUnavailable")}</p>
+            <p className="text-body text-text-muted">{t("agingUnavailable")}</p>
           ) : lines.length === 0 ? (
-            <p className="text-sm text-text-muted">{t("noAging")}</p>
+            <p className="text-body text-text-muted">{t("noAging")}</p>
           ) : (
             <Table minWidth="56rem">
               <THead>

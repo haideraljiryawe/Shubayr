@@ -140,7 +140,7 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   const black = lines.and(page.locator(`[data-sku="${product.black.sku}"]`));
   await expect(red).toHaveAttribute("data-blank", "true");
   await expect(black).toHaveAttribute("data-blank", "true");
-  await expect(red.getByTestId("line-cost")).toHaveValue("9,000");
+  await expect(red.getByTestId("line-pack-cost")).toContainText("9,000");
 
   // A new supplier, without leaving the form: name and phone.
   await form.getByTestId("invoice-new-supplier").click();
@@ -151,8 +151,13 @@ test("restock one colour through purchasing: a new supplier made inline, paid no
   await expect(dialog).toBeHidden();
   await expect(form.getByTestId("invoice-supplier-picked")).toContainText(`Basra Textiles ${run}`);
 
-  // Only the red one: 4 pieces. Black stays empty and is left out.
-  await red.getByTestId("line-packs").fill("4");
+  // Only the red one: 4 pieces, through the product editor (VIS-022). Black stays empty and is left out.
+  if ((await red.getAttribute("data-editing")) !== "true") await red.getByTestId("line-edit").click();
+  const editor = form.getByTestId("invoice-editor");
+  await expect(editor).toHaveAttribute("data-mode", "edit");
+  await expect(editor.getByTestId("line-cost")).toHaveValue("9,000");
+  await editor.getByTestId("line-packs").fill("4");
+  await editor.getByTestId("invoice-editor-submit").click();
   await expect(red).toHaveAttribute("data-blank", "false");
   await expect(black.getByTestId("line-blank-badge")).toBeVisible();
 

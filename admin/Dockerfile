@@ -43,6 +43,10 @@ RUN npm run build
 # unprivileged `node` user.
 FROM node:22-bookworm-slim AS production
 WORKDIR /app
+# The release tag (release.yml passes --build-arg RELEASE_VERSION). The shown
+# version is the API's GET /version; this stands in while the API is down.
+ARG RELEASE_VERSION=dev
+ENV RELEASE_VERSION=$RELEASE_VERSION
 ENV NODE_ENV=production \
     PORT=3200 \
     HOSTNAME=0.0.0.0 \

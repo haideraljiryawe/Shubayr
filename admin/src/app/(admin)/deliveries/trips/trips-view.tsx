@@ -48,7 +48,7 @@ export function TripsView({ rows, state, driver, ignoredDates }: { rows: Trip[];
       cell: (row) => (
         <span>
           <span dir="ltr">{money(row.fare.amount_iqd)}</span>
-          <span className="block text-xs text-text-muted">{t(`bearers.${row.fare.bearer}`)}</span>
+          <span className="block text-caption text-text-muted">{t(`bearers.${row.fare.bearer}`)}</span>
         </span>
       ),
     },

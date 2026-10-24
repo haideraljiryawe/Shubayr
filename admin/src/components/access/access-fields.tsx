@@ -42,7 +42,7 @@ export function AccessFields({
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h3 className="font-bold">{t("presetsTitle")}</h3>
-        <p className="text-sm text-text-muted">{t("presetsHint")}</p>
+        <p className="text-body text-text-muted">{t("presetsHint")}</p>
         <PresetPicker
           presets={catalog.presets}
           value={presetIds}
@@ -55,7 +55,7 @@ export function AccessFields({
         />
         {errors.preset_ids ? (
           <p
-            className="text-xs font-semibold text-error-dark"
+            className="text-caption font-semibold text-error-dark"
             data-testid="error-preset_ids"
           >
             {errors.preset_ids}
@@ -64,7 +64,7 @@ export function AccessFields({
       </section>
       <section className="flex flex-col gap-2">
         <h3 className="font-bold">{t("extraTitle")}</h3>
-        <p className="text-sm text-text-muted">{t("extraHint")}</p>
+        <p className="text-body text-text-muted">{t("extraHint")}</p>
         <PermissionPicker
           registry={catalog.permissions}
           value={permissionKeys}
@@ -73,7 +73,7 @@ export function AccessFields({
         />
         {errors.permission_keys ? (
           <p
-            className="text-xs font-semibold text-error-dark"
+            className="text-caption font-semibold text-error-dark"
             data-testid="error-permission_keys"
           >
             {errors.permission_keys}
