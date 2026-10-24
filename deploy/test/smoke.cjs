@@ -109,6 +109,8 @@ const check = (ok, msg) => { if (!ok) throw new Error(`CHECK FAILED: ${msg}`); c
   await page.getByTestId("product-images").getByTestId("product-images-input").setInputFiles([
     { name: "headset.png", mimeType: "image/png", buffer: png(1200, 900, [214, 228, 240]) },
   ]);
+  // Each picture goes through the shared image editor (VIS-021): confirm the centred square.
+  await page.getByTestId("product-images-editor-confirm").click();
   await page.waitForFunction(() => document.querySelector('[data-testid="product-images-tile-0"]')?.getAttribute("data-phase") === "ready", null, { timeout: 60_000 });
   await page.getByTestId("product-status-active").check();
   await page.getByTestId("product-save").click();
