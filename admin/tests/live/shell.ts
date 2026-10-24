@@ -16,7 +16,7 @@ export async function navLink(page: Page, key: string): Promise<Locator> {
   const link = nav.getByTestId(`nav-${key}`);
   await expect(link).toHaveCount(1);
   if (!(await link.isVisible())) {
-    const group = nav.locator("[data-nav-group]").filter({ has: link });
+    const group = nav.locator("[data-nav-group]").filter({ has: page.getByTestId(`nav-${key}`) });
     await group.locator('button[aria-expanded="false"]').click();
   }
   await expect(link).toBeVisible();

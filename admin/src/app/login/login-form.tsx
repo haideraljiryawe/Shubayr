@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Alert, Button, Input } from "@/components/ui";
 import { Field } from "@/components/forms/field";
 import { FormError } from "@/components/forms/form-error";
+import { PasswordInput } from "@/components/forms/password-input";
 import { useApiForm } from "@/components/forms/use-api-form";
 import { postJson } from "@/lib/api/client";
 import type { components } from "@/types/api";
@@ -28,7 +28,6 @@ export function LoginForm({
   const form = useApiForm();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   // Kept as keys, worded at render time, so a language switch re-words them.
   const [missing, setMissing] = useState<{ username?: true; password?: true }>({});
 
@@ -112,32 +111,19 @@ export function LoginForm({
         error={missing.password ? t("passwordRequired") : undefined}
         name="password"
       >
-        <div className="relative">
-          <Input
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            dir="ltr"
-            required
-            value={password}
-            className="pe-12"
-            data-testid="login-password"
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setMissing((current) => ({ ...current, password: undefined }));
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((shown) => !shown)}
-            aria-label={showPassword ? t("hidePassword") : t("showPassword")}
-            aria-pressed={showPassword}
-            data-testid="login-password-toggle"
-            className="absolute inset-y-0 end-0 inline-flex w-11 cursor-pointer items-center justify-center rounded-e-md text-text-muted hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-primary/40"
-          >
-            {showPassword ? <EyeOff className="size-5" aria-hidden /> : <Eye className="size-5" aria-hidden />}
-          </button>
-        </div>
+        <PasswordInput
+          name="password"
+          autoComplete="current-password"
+          dir="ltr"
+          required
+          value={password}
+          data-testid="login-password"
+          toggleTestId="login-password-toggle"
+          onChange={(event) => {
+            setPassword(event.target.value);
+            setMissing((current) => ({ ...current, password: undefined }));
+          }}
+        />
       </Field>
       <Button type="submit" pending={form.pending} data-testid="login-submit">
         {t("signIn")}

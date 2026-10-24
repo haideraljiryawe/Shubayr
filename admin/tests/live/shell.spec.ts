@@ -140,6 +140,8 @@ test("on a phone the menu is a drawer from the reading side", async ({ page }) =
     // Escape closes it.
     await open.click();
     await expect(drawer).toBeVisible();
+    // Measure where it lands, not mid-slide.
+    await drawer.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
     const box = (await drawer.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(280);
     expect(box.width).toBeLessThanOrEqual(Math.min(320, 390 * 0.85));

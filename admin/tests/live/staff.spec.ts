@@ -176,9 +176,9 @@ test("on a phone the shell never scrolls sideways; the table scrolls in its card
   }
   await page.getByRole("button", { name: "فتح القائمة" }).click();
   // The desktop aside is still in the DOM (hidden); the drawer is the visible
-  // menu, its Users group opened to reach Staff.
+  // menu, its Users group already open on a staff page.
   const drawer = page.getByTestId("drawer-nav");
-  await drawer.getByTestId("nav-group-users").click();
+  await expect(drawer.getByTestId("nav-group-users")).toHaveAttribute("aria-expanded", "true");
   await expect(drawer.getByTestId("nav-staff")).toBeVisible();
   await expect(page.locator('[data-testid="nav-staff"]:visible')).toHaveCount(
     1,

@@ -332,6 +332,13 @@ describe("sign-in copy (VIS-001)", () => {
     await signIn("ar", "", "");
     expect(screen.getByTestId("error-username").textContent).toBe("أدخل اسم المستخدم.");
     expect(screen.getByTestId("error-password").textContent).toBe("أدخل كلمة المرور.");
+    // Both messages belong to their inputs, the password behind its toggle too.
+    for (const name of ["username", "password"]) {
+      const input = screen.getByTestId(`login-${name}`);
+      expect(input.getAttribute("aria-invalid")).toBe("true");
+      expect(input.getAttribute("aria-describedby")).toBe(screen.getByTestId(`error-${name}`).id);
+    }
+    expect(screen.getByLabelText("كلمة المرور")).toBe(screen.getByTestId("login-password"));
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
