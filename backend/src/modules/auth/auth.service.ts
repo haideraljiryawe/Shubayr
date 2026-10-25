@@ -2,6 +2,7 @@ import {
   Injectable,
   HttpException,
   HttpStatus,
+  Logger,
   Optional,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -80,6 +81,8 @@ type StoredRefresh = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -102,20 +105,28 @@ export class AuthService {
       now.getTime() + this.config.get<number>('OTP_TTL_SECONDS', 300) * 1000,
     );
     try {
-      await this.sms.sendOtp(phone, code, requesterIp);
-      await this.prisma.$transaction([
-        this.prisma.otpCode.updateMany({
-          where: { phone, consumed_at: null },
-          data: { consumed_at: now },
-        }),
-        this.prisma.otpCode.create({
-          data: {
-            phone,
-            code_hash: this.hashOtp(phone, code),
-            expires_at: expiresAt,
-          },
-        }),
-      ]);
+      const smsId = await this.sms.sendOtp(phone, code, requesterIp);
+      try {
+        await this.prisma.$transaction([
+          this.prisma.otpCode.updateMany({
+            where: { phone, consumed_at: null },
+            data: { consumed_at: now },
+          }),
+          this.prisma.otpCode.create({
+            data: {
+              phone,
+              code_hash: this.hashOtp(phone, code),
+              expires_at: expiresAt,
+            },
+          }),
+        ]);
+      } catch (error) {
+        if (smsId)
+          this.logger.error(
+            `OTP persistence failed after OTPIQ acceptance smsId=${smsId}`,
+          );
+        throw error;
+      }
       if (development) {
         return {
           otp_sent: true,

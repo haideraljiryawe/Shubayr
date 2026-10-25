@@ -20,6 +20,7 @@ jest.mock('@nestjs/jwt', () => ({
 
 import {
   HttpException,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -714,6 +715,33 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
       expect(trackingQueue.add).not.toHaveBeenCalled();
     },
   );
+
+  it('ties an accepted smsId to a database persistence failure without logging secrets', async () => {
+    const { prisma, service } = fixture();
+    const dbError = new Error('private database failure');
+    prisma.$transaction.mockRejectedValueOnce(dbError);
+    const errorLog = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    let submittedCode = '';
+    jest.spyOn(global, 'fetch').mockImplementationOnce((_url, init) => {
+      submittedCode = (
+        JSON.parse(init?.body as string) as { verificationCode: string }
+      ).verificationCode;
+      return Promise.resolve(
+        new Response(JSON.stringify({ smsId, canCover: true })),
+      );
+    });
+
+    await expect(service.requestOtp({ phone })).rejects.toBe(dbError);
+
+    expect(errorLog).toHaveBeenCalledWith(
+      `OTP persistence failed after OTPIQ acceptance smsId=${smsId}`,
+    );
+    const logged = errorLog.mock.calls.flat().join(' ');
+    expect(logged).not.toContain(phone);
+    expect(logged).not.toContain(submittedCode);
+    expect(logged).not.toContain('test-project-key');
+    expect(logged).not.toContain(dbError.message);
+  });
 
   it('rejects an expired or already consumed OTP without issuing a session', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);

@@ -87,15 +87,16 @@ export class SmsGatewayService {
     phone: string,
     code: string,
     requesterIp?: string,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     if (
       this.config.get<string>('APP_ENV') !== 'development' &&
       this.config.get<string>('SMS_PROVIDER', 'gateway') === 'otpiq'
     ) {
-      await this.sendViaOtpiq(phone, code, requesterIp, false);
-      return;
+      const accepted = await this.sendViaOtpiq(phone, code, requesterIp, false);
+      return accepted.smsId;
     }
     await this.sendOtpWithResult(phone, code, requesterIp);
+    return undefined;
   }
 
   async sendOtpWithResult(

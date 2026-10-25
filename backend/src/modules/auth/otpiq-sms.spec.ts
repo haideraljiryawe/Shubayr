@@ -86,9 +86,7 @@ describe('OTPIQ SMS delivery', () => {
       json({ ...submitted, cost: 1, remainingCredit: 99 }),
     );
 
-    await expect(
-      service({}, queue).sendOtp(phone, code),
-    ).resolves.toBeUndefined();
+    await expect(service({}, queue).sendOtp(phone, code)).resolves.toBe(smsId);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(queue.add).toHaveBeenCalledWith(
@@ -110,9 +108,7 @@ describe('OTPIQ SMS delivery', () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     fetchMock.mockResolvedValueOnce(json(submitted));
 
-    await expect(
-      service({}, queue).sendOtp(phone, code),
-    ).resolves.toBeUndefined();
+    await expect(service({}, queue).sendOtp(phone, code)).resolves.toBe(smsId);
 
     expect(warn).toHaveBeenCalledWith(
       `OTPIQ tracking enqueue failed smsId=${smsId} phone=***4567`,
@@ -127,9 +123,7 @@ describe('OTPIQ SMS delivery', () => {
     const queue = { add: jest.fn(() => new Promise<unknown>(() => undefined)) };
     fetchMock.mockResolvedValueOnce(json(submitted));
 
-    await expect(
-      service({}, queue).sendOtp(phone, code),
-    ).resolves.toBeUndefined();
+    await expect(service({}, queue).sendOtp(phone, code)).resolves.toBe(smsId);
 
     expect(queue.add).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
