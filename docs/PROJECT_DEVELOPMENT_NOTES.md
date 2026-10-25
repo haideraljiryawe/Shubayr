@@ -860,7 +860,7 @@ No images were copied, resized, generated, or installed as part of this document
 
 ### Implemented adapter and delivery semantics
 
-`SmsGatewayService` selects OTPIQ only with `SMS_PROVIDER=otpiq`; the existing generic gateway remains the default. It uses the documented [send endpoint](https://docs.otpiq.com/api-reference/messaging/post), a backend-only bearer key, `smsType=verification`, `provider=sms`, and the existing backend-generated code. No OTPIQ secret or response data enters Flutter, application logs, or public API responses.
+`SmsGatewayService` selects OTPIQ only with `SMS_PROVIDER=otpiq`; the existing generic gateway remains the default. It uses the documented [send endpoint](https://docs.otpiq.com/api-reference/messaging/post), a backend-only bearer key, `smsType=verification`, `provider=sms`, and the existing backend-generated code. No OTPIQ secret, code or raw provider body enters Flutter, application logs, or public API responses. Logs contain only the validated `smsId`, safe status and masked phone suffix needed for support.
 
 A successful funded POST with a valid `smsId` is sufficient for the existing
 `otp_sent: true`: the code is persisted immediately and the customer request
@@ -909,7 +909,7 @@ The adapter review tightened the SMS id to OTPIQ's documented 24-hex form,
 passes a validated IPv4/IPv6 `req.ip` through one isolated camelCase
 `antiFraud.requesterIp` helper, and retains the submission deadline, redirect
 refusal and no-retry POST rules. Provider status/category logging is
-sanitized: it contains no API key, OTP, provider body or phone number. Provider
+sanitized: it contains no API key, OTP, provider body or full phone number. Provider
 429 remains an internal delivery failure and maps to
 `OTP_DELIVERY_UNAVAILABLE`; Shubayr's own rate decisions use the new stable 429
 codes and retry fields.
