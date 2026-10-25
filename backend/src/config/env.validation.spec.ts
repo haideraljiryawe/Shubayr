@@ -66,6 +66,7 @@ describe('validateEnvironment OTPIQ', () => {
     });
     expect(result.SMS_PROVIDER).toBe('otpiq');
     expect(result.OTPIQ_TIMEOUT_MS).toBe(10_000);
+    expect(result.OTPIQ_TRACKING_TIMEOUT_MS).toBe(120_000);
   });
 
   it.each([undefined, '', 'short', '        '])(
@@ -93,7 +94,7 @@ describe('validateEnvironment OTPIQ', () => {
   });
 
   it.each([999, 15001, 1000.5])(
-    'rejects an unsafe total timeout %s',
+    'rejects an unsafe submission timeout %s',
     (timeout) => {
       expect(() =>
         validateEnvironment({
@@ -103,6 +104,20 @@ describe('validateEnvironment OTPIQ', () => {
           OTPIQ_TIMEOUT_MS: timeout,
         }),
       ).toThrow(/OTPIQ_TIMEOUT_MS/);
+    },
+  );
+
+  it.each([999, 600001, 1000.5])(
+    'rejects an unsafe asynchronous tracking timeout %s',
+    (timeout) => {
+      expect(() =>
+        validateEnvironment({
+          ...production,
+          SMS_PROVIDER: 'otpiq',
+          OTPIQ_API_KEY: 'test-project-key',
+          OTPIQ_TRACKING_TIMEOUT_MS: timeout,
+        }),
+      ).toThrow(/OTPIQ_TRACKING_TIMEOUT_MS/);
     },
   );
 

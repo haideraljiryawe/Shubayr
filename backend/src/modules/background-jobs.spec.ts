@@ -26,6 +26,10 @@ import { ExpenseScheduleScheduler } from './expenses/expense-schedule.scheduler'
 import { reportWorkerProviders } from './reports/reports.module';
 import { ReportExportProcessor } from './reports/report-export.processor';
 import { ReportExportScheduler } from './reports/report-export.scheduler';
+import {
+  OtpTrackingProcessor,
+  otpTrackingWorkerProviders,
+} from './auth/otp-tracking.processor';
 
 describe('background job roles and scheduling', () => {
   const originalRole = process.env.PROCESS_ROLE;
@@ -43,6 +47,7 @@ describe('background job roles and scheduling', () => {
     expect(orderWorkerProviders()).toEqual([]);
     expect(reportWorkerProviders()).toEqual([]);
     expect(expenseWorkerProviders()).toEqual([]);
+    expect(otpTrackingWorkerProviders()).toEqual([]);
   });
 
   it('registers every processor and scheduler in worker mode', () => {
@@ -53,6 +58,7 @@ describe('background job roles and scheduling', () => {
     expect(orderWorkerProviders()).toHaveLength(2);
     expect(reportWorkerProviders()).toHaveLength(2);
     expect(expenseWorkerProviders()).toHaveLength(2);
+    expect(otpTrackingWorkerProviders()).toHaveLength(1);
   });
 
   it('upserts stable scheduler ids when two workers start', async () => {
@@ -123,6 +129,20 @@ describe('background job roles and scheduling', () => {
     const expenseProcessor = new ExpenseScheduleProcessor(expenses as never);
     await expenseProcessor.process({ name: 'catch-up', data: {} } as never);
     expect(expenses.processDueSchedules).toHaveBeenCalledTimes(1);
+
+    const sms = { trackAcceptedOtpiq: jest.fn().mockResolvedValue(undefined) };
+    const otpTrackingProcessor = new OtpTrackingProcessor(sms as never);
+    await otpTrackingProcessor.process({
+      name: 'track',
+      data: {
+        smsId: 'sms-0123456789abcdef01234567',
+        phone: '+9647701234567',
+      },
+    } as never);
+    expect(sms.trackAcceptedOtpiq).toHaveBeenCalledWith(
+      'sms-0123456789abcdef01234567',
+      '+9647701234567',
+    );
   });
 
   it('propagates an interrupted job so BullMQ can retry it', async () => {

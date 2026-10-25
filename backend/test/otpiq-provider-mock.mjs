@@ -45,6 +45,18 @@ globalThis.fetch = async (input, init) => {
   }
   const smsId = decodeURIComponent(url.split('/').at(-1));
   const phoneNumber = submissions.get(smsId);
+  if (String(phoneNumber).endsWith('1234506')) {
+    return new Response(
+      JSON.stringify({
+        smsId,
+        phoneNumber,
+        status: 'pending',
+        isFinalStatus: false,
+        lastChannel: null,
+        channelFlow: [],
+      }),
+    );
+  }
   return new Response(
     JSON.stringify({
       smsId,

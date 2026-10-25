@@ -480,7 +480,7 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('allows exactly one of two concurrent sends for the same phone', async () => {
+  it('prevents a slower earlier send from being replaced by a concurrent newer code', async () => {
     const release = jest.fn().mockResolvedValue(undefined);
     const reserve = jest
       .fn()
@@ -495,7 +495,15 @@ describe('AuthService', () => {
           429,
         ),
       );
-    const sms = { sendOtp: jest.fn().mockResolvedValue(undefined) };
+    let finishSubmission: (() => void) | undefined;
+    const sms = {
+      sendOtp: jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finishSubmission = resolve;
+          }),
+      ),
+    };
     const prisma = {
       otpCode: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -512,10 +520,17 @@ describe('AuthService', () => {
       sms as never,
       { reserve } as never,
     );
-    const results = await Promise.allSettled([
-      service.requestOtp({ phone: '+9647700000000' }, '203.0.113.8'),
-      service.requestOtp({ phone: '+9647700000000' }, '203.0.113.8'),
-    ]);
+    const earlier = service.requestOtp(
+      { phone: '+9647700000000' },
+      '203.0.113.8',
+    );
+    await Promise.resolve();
+    const newer = service.requestOtp(
+      { phone: '+9647700000000' },
+      '203.0.113.8',
+    );
+    finishSubmission?.();
+    const results = await Promise.allSettled([earlier, newer]);
     expect(results.map((result) => result.status).sort()).toEqual([
       'fulfilled',
       'rejected',
@@ -607,6 +622,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
   function fixture() {
     const create = jest.fn().mockResolvedValue({});
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const trackingQueue = { add: jest.fn().mockResolvedValue(undefined) };
     const prisma = {
       otpCode: { create, updateMany },
       $transaction: jest.fn((operations: Promise<unknown>[]) =>
@@ -615,18 +631,22 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
     };
     return {
       prisma,
+      trackingQueue,
       service: new AuthService(
         prisma as never,
         new JwtService(),
         productionConfig as never,
-        new SmsGatewayService(productionConfig as never),
+        new SmsGatewayService(
+          productionConfig as never,
+          trackingQueue as never,
+        ),
         otpProtection as never,
       ),
     };
   }
 
-  it('stores only the generated code digest after confirmed dispatch and preserves TTL and E.164 identity', async () => {
-    const { prisma, service } = fixture();
+  it('stores only the generated code digest after accepted submission and preserves TTL and E.164 identity', async () => {
+    const { prisma, service, trackingQueue } = fixture();
     let deliveredCode = '';
     const before = Date.now();
     jest.spyOn(global, 'fetch').mockImplementation((_url, init) => {
@@ -665,28 +685,25 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
       where: { phone, consumed_at: null },
       data: { consumed_at: expect.any(Date) as Date },
     });
+    expect(trackingQueue.add).toHaveBeenCalledWith(
+      'track',
+      { smsId, phone },
+      expect.objectContaining({ jobId: smsId }),
+    );
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['failed', 'pending'])(
-    'does not invalidate the previous OTP or issue a usable replacement for %s dispatch',
-    async (status) => {
-      const { prisma, service } = fixture();
+  it.each([
+    [429, { message: 'limited' }],
+    [200, { smsId, canCover: false }],
+    [200, { canCover: true }],
+  ])(
+    'stores nothing when submission fails with HTTP %s and body %#',
+    async (status, body) => {
+      const { prisma, service, trackingQueue } = fixture();
       jest
         .spyOn(global, 'fetch')
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ smsId, canCover: true })),
-        )
-        .mockImplementation(() =>
-          Promise.resolve(
-            new Response(
-              JSON.stringify({
-                ...tracking,
-                status,
-                isFinalStatus: status !== 'pending',
-              }),
-            ),
-          ),
-        );
+        .mockResolvedValueOnce(new Response(JSON.stringify(body), { status }));
       await expect(service.requestOtp({ phone })).rejects.toMatchObject({
         status: 503,
         response: { code: 'OTP_DELIVERY_UNAVAILABLE' },
@@ -694,6 +711,7 @@ describe('AuthService with OTPIQ (mocked HTTP and database)', () => {
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(prisma.otpCode.create).not.toHaveBeenCalled();
       expect(prisma.otpCode.updateMany).not.toHaveBeenCalled();
+      expect(trackingQueue.add).not.toHaveBeenCalled();
     },
   );
 

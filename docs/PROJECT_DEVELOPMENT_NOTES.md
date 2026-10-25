@@ -853,7 +853,7 @@ No images were copied, resized, generated, or installed as part of this document
 
 ### Existing flow and preserved behavior
 
-- `AuthService.requestOtp` generates six digits with `crypto.randomInt` outside development, stores an HMAC digest keyed by the existing JWT secret, and expires the code using `OTP_TTL_SECONDS` (default 300 seconds). Only after delivery succeeds does its transaction consume previous codes and create the replacement. Development retains the existing fixed `DEV_OTP` and response behavior, with no outbound SMS.
+- `AuthService.requestOtp` generates six digits with `crypto.randomInt` outside development, stores an HMAC digest keyed by the existing JWT secret, and expires the code using `OTP_TTL_SECONDS` (default 300 seconds). For OTPIQ, its transaction consumes previous codes and creates the replacement after the provider accepts a funded submission with a valid `smsId`; final tracking is asynchronous. Development retains the existing fixed `DEV_OTP` and response behavior, with no outbound SMS.
 - `verifyOtp` looks up an unconsumed, unexpired code, compares its digest with timing-safe equality, and atomically consumes it before customer lookup/creation and token issuance. Session versions, role checks, refresh rotation, and logout are unchanged.
 - Flutter's international phone field converts Iraqi national input such as `07701234567` to `+9647701234567`; digit folding, RTL/LTR presentation, and country selection are unchanged. Request, verification, and resend keep that canonical identity. The adapter alone converts it to `9647701234567`. It rejects ambiguous/noncanonical input without guessing a country or changing account identities. OTPIQ requires 10–15 digits; shorter numbers allowed by the broader E.164 API syntax cannot be submitted through this provider and receive the existing delivery-unavailable error.
 - Flutter's flow remains screen → session controller → remote repository → ApiClient. Duplicate in-flight operations, session ownership, secure credential storage, login navigation, and localized failure handling remain intact. No Flutter source changes were needed. The latest mobile migration note (17.9.0 → 17.10.0) adds optional-to-client language information; it does not alter OTP behavior.
@@ -862,17 +862,29 @@ No images were copied, resized, generated, or installed as part of this document
 
 `SmsGatewayService` selects OTPIQ only with `SMS_PROVIDER=otpiq`; the existing generic gateway remains the default. It uses the documented [send endpoint](https://docs.otpiq.com/api-reference/messaging/post), a backend-only bearer key, `smsType=verification`, `provider=sms`, and the existing backend-generated code. No OTPIQ secret or response data enters Flutter, application logs, or public API responses.
 
-A successful POST creates a task, which is insufficient for `otp_sent: true`. The adapter checks the documented [tracking endpoint](https://docs.otpiq.com/api-reference/messaging/track) for the same SMS ID and phone. Success requires `sent` or `delivered` plus a successful SMS channel attempt. `otp_sent` means provider-confirmed dispatch; it is **not a claim of handset delivery** when tracking only reports `sent`.
+A successful funded POST with a valid `smsId` is sufficient for the existing
+`otp_sent: true`: the code is persisted immediately and the customer request
+does not wait for the documented
+[tracking endpoint](https://docs.otpiq.com/api-reference/messaging/track).
+This means provider acceptance, not handset delivery. HTTP failures (including
+authentication, invalid input and 429), `canCover: false`, malformed responses,
+transport errors and the submission deadline return the existing sanitized
+`503 OTP_DELIVERY_UNAVAILABLE` and store no replacement code.
 
-Pending jobs are checked every 500 ms within one shared submit/tracking deadline, default 10 seconds and configurable from 1–15 seconds (below Flutter's 20-second receive timeout). Redirects are rejected. POST is never retried automatically because a timeout can still represent a billable submission. HTTP failures (including insufficient balance and 429), `canCover: false`, malformed responses, failed dispatches, mismatched tracking identities, and deadline expiry return the existing sanitized `503 OTP_DELIVERY_UNAVAILABLE`. Missing configuration uses `SMS_NOT_CONFIGURED`. Neither case creates a replacement OTP or invalidates the previous one. Provider rate limits are upstream failures, not a new client-facing rate-limit contract.
-
-If a task is sent after the deadline, its code will not have been persisted and will not verify. The old OTP remains usable until its original expiration/consumption. A later approved asynchronous delivery design would need durable message correlation, authenticated/replay-safe callbacks or a worker, cleanup and expiry rules, and a documented pending/error UX; none of those components currently exist for SMS. They are not required for this bounded synchronous adapter, but are required before claiming eventual delivery reconciliation.
+The POST has its own 1–15 second deadline (default 10 seconds), rejects
+redirects and is never retried because a timeout can still represent a billable
+submission. After acceptance, a BullMQ job on the existing worker polls tracking
+best-effort for up to `OTPIQ_TRACKING_TIMEOUT_MS` (default two minutes). It logs
+the final status, `smsId` and only the last four phone digits. Failed,
+undelivered or timed-out tracking is a warning and never blocks the response or
+deletes the stored code. The operator live-check deliberately retains its
+synchronous final-tracking behavior.
 
 ### Configuration and activation work
 
-- Set **backend only** `SMS_PROVIDER=otpiq`, `OTPIQ_API_KEY=<shubayr project API key from the secret store>`, and optionally `OTPIQ_TIMEOUT_MS=10000`. Keep `SMS_GATEWAY_URL=disabled` and `SMS_GATEWAY_TOKEN=` when using the production Compose template; the OTPIQ branch ignores these legacy settings. Empty keys fail startup validation when OTPIQ is selected.
+- Set **backend only** `SMS_PROVIDER=otpiq`, `OTPIQ_API_KEY=<shubayr project API key from the secret store>`, and optionally `OTPIQ_TIMEOUT_MS=10000` plus `OTPIQ_TRACKING_TIMEOUT_MS=120000`. Keep `SMS_GATEWAY_URL=disabled` and `SMS_GATEWAY_TOKEN=` when using the production Compose template; the OTPIQ branch ignores these legacy settings. Empty keys fail startup validation when OTPIQ is selected.
 - `APP_ENV=development` always bypasses SMS, including with OTPIQ selected. Do not change that setting merely to test with real phone numbers. Automated tests mock all outbound calls and database operations.
-- Placeholder configuration is documented in `backend/.env.example` and `.env.production.example`. `docker-compose.prod.yml` forwards the three new settings to the backend environment; no Compose service was started or changed.
+- Placeholder configuration is documented in `backend/.env.example` and `.env.production.example`. `docker-compose.prod.yml` forwards the provider, key, submission deadline and tracking deadline settings to the backend environment.
 - Before real activation, the owner must authorize installing the project secret and a separately approved controlled end-to-end SMS test. Verify project credit, SMS channel availability, tracking fields, latency, and successful phone verification/session issuance. These live checks were explicitly excluded from this task.
 
 ### Missing controls: exact follow-up work
@@ -895,8 +907,8 @@ request, but it passes through the same Redis policy.
 
 The adapter review tightened the SMS id to OTPIQ's documented 24-hex form,
 passes a validated IPv4/IPv6 `req.ip` through one isolated camelCase
-`antiFraud.requesterIp` helper, and retains the shared submit/tracking deadline,
-redirect refusal and no-retry POST rule. Provider status/category logging is
+`antiFraud.requesterIp` helper, and retains the submission deadline, redirect
+refusal and no-retry POST rules. Provider status/category logging is
 sanitized: it contains no API key, OTP, provider body or phone number. Provider
 429 remains an internal delivery failure and maps to
 `OTP_DELIVERY_UNAVAILABLE`; Shubayr's own rate decisions use the new stable 429
@@ -949,3 +961,4 @@ States below describe each historical step; the executive summary records the cu
 | 2026-10-19 | Delivered the additive 17.7.0 Backend/API contract for NOTE-001 structured/default banners, NOTE-004 Recently Added, and NOTE-011 per-order limits; documented compatibility and deferred rolling quotas/client adoption. | Backend complete for C16; client UI work remains. |
 | 2026-10-24 | Added NOTE-013: opt-in backend OTPIQ SMS adapter, mocked verification, configuration, preserved Flutter/API behavior, and exact missing attempt/cooldown/concurrency work. | Local implementation only; no commit, push, deployment, live SMS or database changes. |
 | 2026-10-24 | C23 reviewed NOTE-013 and added the agreed shared OTP controls, localized additive contract and one-message operator check. | Backend/API implementation; live provider activation and Flutter adoption remain separate. |
+| 2026-10-25 | C24 changed customer OTP persistence to funded OTPIQ submission acceptance and moved final tracking to the existing BullMQ worker, while keeping the live-check synchronous. | Backend behavior fix; contract remains 17.13.0. |

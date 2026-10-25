@@ -163,9 +163,13 @@ edit it and fill in:
   mode makes no outbound request and returns `SMS_NOT_CONFIGURED` (503);
 - read every comment once: `.env.production.example` documents each variable.
 
-An OTP is persisted only after the gateway confirms delivery. A disabled,
-timed-out, unreachable, or non-2xx gateway creates no OTP record or usable new
-code and leaves any previously delivered unexpired code unchanged. Its Redis
+For OTPIQ, an OTP is persisted as soon as the provider accepts a funded
+submission and returns a valid `smsId`; the customer request does not wait for
+final tracking. The worker tracks the message for up to
+`OTPIQ_TRACKING_TIMEOUT_MS` (default 120000) and logs its final state, but a
+late failure never removes the usable code. A disabled, timed-out, unreachable,
+non-2xx, unfunded, or invalid submission creates no OTP record or usable new
+code and leaves any previously issued unexpired code unchanged. Its Redis
 cooldown/quota reservation is deliberately retained, preventing rapid paid
 retries after an unknown provider outcome. Verification allows five wrong
 attempts by default and atomically invalidates an exhausted code. Phone quotas

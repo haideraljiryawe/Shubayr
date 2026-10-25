@@ -15,6 +15,14 @@ The operator command has two modes:
 Neither mode opens the database. Never paste a key into chat, a ticket, source
 control, or a saved script.
 
+This command intentionally remains synchronous: send mode waits for final
+tracking because it is an operator diagnostic. Customer sign-in does not wait.
+It stores the OTP after OTPIQ accepts a funded submission with a valid `smsId`,
+then the `otp-tracking` BullMQ worker polls best-effort for up to
+`OTPIQ_TRACKING_TIMEOUT_MS` (default two minutes). A later tracking failure or
+timeout is logged with the `smsId` and masked phone and never invalidates the
+stored code.
+
 ### Secure PowerShell entry
 
 Use a secure prompt so the key does not enter PSReadLine history. From the
@@ -71,6 +79,14 @@ activation and verify the provider's current field spelling before changing
 the isolated `otpiqAntiFraud` helper. Do not duplicate the payload elsewhere.
 
 ## العربية
+
+يبقى هذا الأمر التشغيلي متزامناً عمداً: ينتظر وضع الإرسال نتيجة التتبع
+النهائية لأنه أداة تشخيص. أما تسجيل دخول العميل فلا ينتظر التتبع؛ يُحفظ رمز
+التحقق عندما يقبل OTPIQ طلباً ممولاً ويرجع `smsId` صالحاً، ثم تتولى مهمة
+`otp-tracking` في BullMQ التتبع بأفضل جهد لمدة
+`OTPIQ_TRACKING_TIMEOUT_MS` (دقيقتان افتراضياً). لا يؤدي فشل التتبع اللاحق أو
+انتهاء مهلته إلى إبطال الرمز المحفوظ، وتحتوي السجلات على `smsId` وآخر أربعة
+أرقام من الهاتف فقط.
 
 للأمر التشغيلي وضعان:
 
