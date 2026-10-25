@@ -21,6 +21,10 @@
   while retaining strict message-id verification. Safe stage/rule diagnostics
   and tracking-only inspection make operator failures actionable without
   exposing credentials, verification codes, phone numbers or provider bodies.
+- Customer OTP requests now persist the challenge as soon as OTPIQ accepts a
+  funded submission with a valid message id. Final delivery tracking runs
+  best-effort on the worker and cannot invalidate or delay the accepted code;
+  the operator live-check remains synchronous.
 
 ## 17.12.0 - 2026-10-24
 

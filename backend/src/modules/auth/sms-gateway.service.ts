@@ -1,9 +1,12 @@
 import {
+  Inject,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Queue } from 'bullmq';
 import { isIP } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -34,6 +37,11 @@ export type OtpiqTrackingSnapshot = {
     success: boolean | null;
   }>;
   phoneNumberMatched: boolean;
+};
+
+export type OtpiqTrackingJob = {
+  smsId: string;
+  phone: string;
 };
 
 export class SmsDeliveryUnavailableException extends ServiceUnavailableException {
@@ -68,14 +76,27 @@ function safeProviderToken(value: unknown, fallback = 'unknown'): string {
 export class SmsGatewayService {
   private readonly logger = new Logger(SmsGatewayService.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    @Optional()
+    @Inject('BullQueue_otp-tracking')
+    private readonly trackingQueue?: Queue<OtpiqTrackingJob>,
+  ) {}
 
   async sendOtp(
     phone: string,
     code: string,
     requesterIp?: string,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
+    if (
+      this.config.get<string>('APP_ENV') !== 'development' &&
+      this.config.get<string>('SMS_PROVIDER', 'gateway') === 'otpiq'
+    ) {
+      const accepted = await this.sendViaOtpiq(phone, code, requesterIp, false);
+      return accepted.smsId;
+    }
     await this.sendOtpWithResult(phone, code, requesterIp);
+    return undefined;
   }
 
   async sendOtpWithResult(
@@ -88,7 +109,7 @@ export class SmsGatewayService {
     }
 
     if (this.config.get<string>('SMS_PROVIDER', 'gateway') === 'otpiq') {
-      return this.sendViaOtpiq(phone, code, requesterIp);
+      return this.sendViaOtpiq(phone, code, requesterIp, true);
     }
 
     const url = this.config.getOrThrow<string>('SMS_GATEWAY_URL');
@@ -209,10 +230,74 @@ export class SmsGatewayService {
     };
   }
 
+  async trackAcceptedOtpiq(smsId: string, phone: string): Promise<void> {
+    const deadlineMs = this.config.get<number>(
+      'OTPIQ_TRACKING_TIMEOUT_MS',
+      120_000,
+    );
+    const deadline = Date.now() + deadlineMs;
+    const developmentKey = this.config
+      .get<string>('OTPIQ_API_KEY', '')
+      .trim()
+      .startsWith('sk_dev_');
+    const maskedPhone = this.maskPhone(phone);
+
+    while (Date.now() < deadline) {
+      let tracked: OtpiqTrackingSnapshot;
+      try {
+        tracked = await this.inspectOtpiqTracking(smsId, phone);
+      } catch {
+        this.logger.warn(
+          `OTPIQ async tracking poll failed smsId=${smsId} phone=${maskedPhone}`,
+        );
+        await this.waitForNextTrackingPoll(deadline);
+        continue;
+      }
+
+      if (!developmentKey && !tracked.phoneNumberMatched) {
+        this.logger.warn(
+          `OTPIQ async tracking phone mismatch smsId=${smsId} phone=${maskedPhone}`,
+        );
+        return;
+      }
+
+      if (tracked.isFinalStatus === true) {
+        const smsSucceeded =
+          (tracked.status === 'sent' || tracked.status === 'delivered') &&
+          tracked.lastChannel === 'sms' &&
+          tracked.channelFlow.some(
+            (channel) =>
+              channel.channel === 'sms' &&
+              channel.tried === true &&
+              channel.success === true,
+          );
+        const message =
+          `OTPIQ async tracking final smsId=${smsId} phone=${maskedPhone} ` +
+          `status=${safeProviderToken(tracked.status)} channel=${safeProviderToken(tracked.lastChannel)}`;
+        if (smsSucceeded) this.logger.log(message);
+        else this.logger.warn(message);
+        return;
+      }
+
+      if (tracked.isFinalStatus === null) {
+        this.logger.warn(
+          `OTPIQ async tracking invalid finality smsId=${smsId} phone=${maskedPhone} status=${safeProviderToken(tracked.status)}`,
+        );
+        return;
+      }
+      await this.waitForNextTrackingPoll(deadline);
+    }
+
+    this.logger.warn(
+      `OTPIQ async tracking deadline expired smsId=${smsId} phone=${maskedPhone}`,
+    );
+  }
+
   private async sendViaOtpiq(
     phone: string,
     code: string,
     requesterIp?: string,
+    waitForFinalTracking = true,
   ): Promise<SmsDeliveryResult> {
     const key = this.config.get<string>('OTPIQ_API_KEY')?.trim();
     if (!key) {
@@ -326,8 +411,28 @@ export class SmsGatewayService {
           ...(submittedSmsId ? { smsId: submittedSmsId } : {}),
         });
 
-      // A created task is only queued. Confirm SMS dispatch through tracking
-      // before AuthService persists the OTP and returns its existing otp_sent.
+      this.logger.log(
+        `OTPIQ submission accepted smsId=${submittedSmsId} phone=${this.maskPhone(phone)}`,
+      );
+      if (!waitForFinalTracking) {
+        // Redis may be slow or unavailable. Enqueue best-effort without
+        // delaying persistence of an already accepted, billable message.
+        void this.enqueueOtpiqTracking(submittedSmsId, phone);
+        return {
+          provider: 'otpiq',
+          smsId: submittedSmsId,
+          finalStatus: 'accepted',
+          ...(typeof submitted.cost === 'number'
+            ? { cost: submitted.cost }
+            : {}),
+          ...(typeof submitted.remainingCredit === 'number'
+            ? { remainingCredit: submitted.remainingCredit }
+            : {}),
+        };
+      }
+
+      // The operator live-check deliberately keeps synchronous tracking. The
+      // customer path returns after submission and uses the background worker.
       while (!controller.signal.aborted) {
         const tracking = await request(
           `${OTPIQ_SMS_URL}/track/${encodeURIComponent(submittedSmsId)}`,
@@ -360,7 +465,10 @@ export class SmsGatewayService {
               result.success === true
             );
           });
-        if (finalSent && smsSucceeded)
+        if (finalSent && smsSucceeded) {
+          this.logger.log(
+            `OTPIQ tracking final smsId=${submittedSmsId} phone=${this.maskPhone(phone)} status=${safeProviderToken(tracked.status)}`,
+          );
           return {
             provider: 'otpiq',
             smsId: submittedSmsId,
@@ -372,6 +480,7 @@ export class SmsGatewayService {
               ? { remainingCredit: submitted.remainingCredit }
               : {}),
           };
+        }
         if (finalSent)
           this.unavailable('OTPIQ tracking unexpected channel', {
             httpStatus: tracking.httpStatus,
@@ -403,6 +512,42 @@ export class SmsGatewayService {
     }
   }
 
+  private async enqueueOtpiqTracking(
+    smsId: string,
+    phone: string,
+  ): Promise<void> {
+    if (!this.trackingQueue) {
+      this.logger.warn(
+        `OTPIQ tracking queue unavailable smsId=${smsId} phone=${this.maskPhone(phone)}`,
+      );
+      return;
+    }
+    try {
+      await this.trackingQueue.add(
+        'track',
+        { smsId, phone },
+        {
+          jobId: smsId,
+          removeOnComplete: { age: 86_400, count: 10_000 },
+          removeOnFail: { age: 604_800, count: 10_000 },
+        },
+      );
+    } catch {
+      this.logger.warn(
+        `OTPIQ tracking enqueue failed smsId=${smsId} phone=${this.maskPhone(phone)}`,
+      );
+    }
+  }
+
+  private async waitForNextTrackingPoll(deadline: number): Promise<void> {
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await delay(Math.min(3_000, remaining));
+  }
+
+  private maskPhone(phone: string): string {
+    return `***${phone.slice(-4)}`;
+  }
+
   private channelFlowSummary(
     value: unknown,
   ): OtpiqTrackingSnapshot['channelFlow'] {
@@ -426,7 +571,9 @@ export class SmsGatewayService {
     reason: string,
     metadata: Omit<SmsDeliveryFailureDiagnostic, 'reason'> = {},
   ): never {
-    this.logger.warn(reason);
+    this.logger.warn(
+      `${reason}${metadata.smsId ? ` smsId=${metadata.smsId}` : ''}`,
+    );
     throw new SmsDeliveryUnavailableException({ reason, ...metadata });
   }
 }

@@ -89,12 +89,17 @@ const schema = Joi.object({
     }),
     otherwise: Joi.optional().allow(''),
   }),
-  // Total submit + tracking budget, below Flutter's 20-second receive timeout.
+  // Submission budget, below Flutter's 20-second receive timeout.
   OTPIQ_TIMEOUT_MS: Joi.number()
     .integer()
     .min(1000)
     .max(15_000)
     .default(10_000),
+  OTPIQ_TRACKING_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(600_000)
+    .default(120_000),
   SMS_GATEWAY_URL: Joi.alternatives()
     .try(Joi.string().uri(), Joi.string().valid('disabled'))
     .when('SMS_PROVIDER', {

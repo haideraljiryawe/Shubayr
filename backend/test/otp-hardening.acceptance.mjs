@@ -80,6 +80,44 @@ try {
     'provider failure retains cooldown',
   );
 
+  const delayedTrackingPhone = '+9647701234506';
+  const acceptedWhilePending = await request('/auth/request-otp', {
+    body: { phone: delayedTrackingPhone },
+  });
+  check(
+    acceptedWhilePending.otp_sent,
+    true,
+    'funded provider submission is accepted before tracking is final',
+  );
+  const storedPending = await db.query(
+    `SELECT id FROM otp_codes
+     WHERE phone = $1 AND consumed_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [delayedTrackingPhone],
+  );
+  check(
+    storedPending.rowCount,
+    1,
+    'accepted submission stores exactly one usable challenge',
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  const delayedCode = '123456';
+  const delayedHash = createHmac('sha256', process.env.JWT_SECRET)
+    .update(`${delayedTrackingPhone}:${delayedCode}`)
+    .digest('hex');
+  await db.query(`UPDATE otp_codes SET code_hash = $1 WHERE id = $2`, [
+    delayedHash,
+    storedPending.rows[0].id,
+  ]);
+  const delayedVerification = await request('/auth/verify-otp', {
+    body: { phone: delayedTrackingPhone, code: delayedCode },
+  });
+  check(
+    typeof delayedVerification.access_token,
+    'string',
+    'tracking timeout does not invalidate the accepted challenge',
+  );
+
   const phoneQuota = '+9647701234502';
   const now = Date.now();
   const phoneQuotaKeys = phoneKeys(phoneQuota);

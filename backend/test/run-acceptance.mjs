@@ -335,6 +335,7 @@ try {
     APP_ENV: 'production',
     SMS_PROVIDER: 'otpiq',
     OTPIQ_API_KEY: 'test-project-key-not-a-secret',
+    OTPIQ_TRACKING_TIMEOUT_MS: '1000',
     SMS_GATEWAY_URL: 'disabled',
     OTPIQ_MOCK_CALLS_PATH: otpiqMockCallsPath,
     OTP_RESEND_COOLDOWN_SECONDS: '60',
