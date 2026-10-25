@@ -17,6 +17,10 @@
 - The API contract is 17.13.0. All response fields and errors are additive and
   backward compatible. Provider failures remain the sanitized
   `OTP_DELIVERY_UNAVAILABLE` response.
+- OTPIQ development keys now accept the dashboard's redirected tracking phone
+  while retaining strict message-id verification. Safe stage/rule diagnostics
+  and tracking-only inspection make operator failures actionable without
+  exposing credentials, verification codes, phone numbers or provider bodies.
 
 ## 17.12.0 - 2026-10-24
 
