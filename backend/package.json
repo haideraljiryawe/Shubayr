@@ -13,7 +13,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\"",
+    "lint": "eslint \"{src,test}/**/*.ts\" \"prisma/seed.ts\" \"scripts/otpiq-live-check.ts\"",
     "typecheck": "tsc --noEmit",
     "contract:error-codes": "node scripts/check-error-codes.mjs",
     "test": "jest --runInBand && node --test test/openapi-response-validator.spec.mjs",
@@ -30,6 +30,7 @@
     "catalog:depth-report": "node scripts/category-depth-report.mjs",
     "push:diagnose": "ts-node --transpile-only src/cli/push-diagnostic.ts",
     "push:test": "ts-node --transpile-only src/cli/push-test.ts",
+    "otp:live-check": "ts-node --transpile-only scripts/otpiq-live-check.ts",
     "bootstrap:reference": "node dist/src/cli/bootstrap-reference.js",
     "bootstrap:owner": "node dist/src/cli/create-owner.js"
   },

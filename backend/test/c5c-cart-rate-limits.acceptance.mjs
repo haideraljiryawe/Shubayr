@@ -76,13 +76,13 @@ for (let attempt = 0; attempt < 30; attempt += 1) {
   await request('/auth/request-otp', {
     method: 'POST',
     forwardedFor: otpShopper,
-    body: { phone: '+9647700085070' },
+    body: { phone: `+9647700085${String(attempt).padStart(2, '0')}` },
   });
 }
 await request('/auth/request-otp', {
   method: 'POST',
   forwardedFor: otpShopper,
-  body: { phone: '+9647700085070' },
+  body: { phone: '+964770008599' },
   expected: 429,
 });
 

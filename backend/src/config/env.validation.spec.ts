@@ -81,6 +81,17 @@ describe('validateEnvironment OTPIQ', () => {
     },
   );
 
+  it('allows OTPIQ without a key in development because SMS is bypassed', () => {
+    expect(
+      validateEnvironment({
+        ...production,
+        APP_ENV: 'development',
+        SMS_PROVIDER: 'otpiq',
+        OTPIQ_API_KEY: '',
+      }),
+    ).toMatchObject({ APP_ENV: 'development', SMS_PROVIDER: 'otpiq' });
+  });
+
   it.each([999, 15001, 1000.5])(
     'rejects an unsafe total timeout %s',
     (timeout) => {
@@ -103,5 +114,38 @@ describe('validateEnvironment OTPIQ', () => {
         SMS_GATEWAY_URL: 'disabled',
       }),
     ).toThrow(/SMS_PROVIDER/);
+  });
+
+  it('applies the agreed OTP hardening defaults', () => {
+    const result = validateEnvironment({
+      ...production,
+      SMS_GATEWAY_URL: 'disabled',
+    });
+    expect(result).toMatchObject({
+      OTP_TTL_SECONDS: 300,
+      OTP_MAX_VERIFY_ATTEMPTS: 5,
+      OTP_RESEND_COOLDOWN_SECONDS: 60,
+      OTP_PHONE_WINDOW_MAX: 3,
+      OTP_PHONE_WINDOW_SECONDS: 600,
+      OTP_PHONE_DAILY_MAX: 10,
+      OTP_IP_HOURLY_MAX: 60,
+    });
+  });
+
+  it.each([
+    ['OTP_MAX_VERIFY_ATTEMPTS', 0],
+    ['OTP_RESEND_COOLDOWN_SECONDS', 0],
+    ['OTP_PHONE_WINDOW_MAX', 0],
+    ['OTP_PHONE_WINDOW_SECONDS', 59],
+    ['OTP_PHONE_DAILY_MAX', 0],
+    ['OTP_IP_HOURLY_MAX', 0],
+  ])('rejects unsafe %s=%s', (name, value) => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        SMS_GATEWAY_URL: 'disabled',
+        [name]: value,
+      }),
+    ).toThrow(String(name));
   });
 });

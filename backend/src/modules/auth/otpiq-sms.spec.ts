@@ -1,6 +1,7 @@
 jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
 import { SmsGatewayService } from './sms-gateway.service';
+import { Logger } from '@nestjs/common';
 
 const phone = '+9647701234567';
 const phoneNumber = '9647701234567';
@@ -101,6 +102,17 @@ describe('OTPIQ SMS delivery', () => {
     expect(
       fetchMock.mock.calls.map((call: [string, RequestInit]) => call[1].method),
     ).toEqual(['POST', 'GET', 'GET']);
+  });
+
+  it('waits for a final status when sent is still non-final', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(
+        json({ ...sent, status: 'sent', isFinalStatus: false }),
+      )
+      .mockResolvedValueOnce(json({ ...sent, status: 'delivered' }));
+    await expect(service().sendOtp(phone, code)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('fails a queued task at the deadline instead of reporting success', async () => {
@@ -256,6 +268,52 @@ describe('OTPIQ SMS delivery', () => {
       phoneNumber: string;
     };
     expect(payload.phoneNumber).toBe('447911123456');
+  });
+
+  it.each(['203.0.113.44', '2001:db8::44'])(
+    'passes a validated requester IP in the isolated camelCase shape: %s',
+    async (requesterIp) => {
+      fetchMock
+        .mockResolvedValueOnce(json(submitted))
+        .mockResolvedValueOnce(json(sent));
+      await service().sendOtp(phone, code, requesterIp);
+      const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+      const payload = JSON.parse(options.body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(payload.antiFraud).toEqual({ requesterIp });
+      expect(payload).not.toHaveProperty('anti_fraud');
+    },
+  );
+
+  it('omits anti-fraud rather than sending an unknown IP', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(json(sent));
+    await service().sendOtp(phone, code, 'unknown');
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(options.body as string) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty('antiFraud');
+  });
+
+  it('logs only a sanitized provider reason, never the key, code or phone', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    fetchMock.mockResolvedValue(
+      json({ message: `${apiKey} ${phone} ${code}` }, 429),
+    );
+    await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
+      unavailable,
+    );
+    const logged = warn.mock.calls.flat().join(' ');
+    expect(logged).toContain('HTTP 429');
+    expect(logged).not.toContain(apiKey);
+    expect(logged).not.toContain(code);
+    expect(logged).not.toContain(phone);
+    expect(logged).not.toContain(phoneNumber);
   });
 
   it('never sends real SMS in development, including with otpiq selected', async () => {

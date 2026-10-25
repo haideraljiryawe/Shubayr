@@ -88,6 +88,9 @@ async function waitFor(sql, args, predicate, description) {
 try {
   const phone = '+9647700099101';
   const firstSession = await login(phone);
+  // The combined runner uses a one-second OTP cooldown while preserving the
+  // production rules. These are intentionally two sessions for one customer.
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   const secondSession = await login(phone);
   const firstToken = `P1-IOS-${randomUUID()}`;
   const secondToken = `P1-ANDROID-${randomUUID()}`;

@@ -5,7 +5,9 @@ import {
   OTP,
   awaitQuota,
   bearer,
+  requestOtpRespectingCooldown,
   requireLiveApi,
+  sendOtpFromPageRespectingCooldown,
   staffToken,
   stockedProduct,
   tokenFor,
@@ -36,7 +38,7 @@ test.beforeEach(async ({ request }) => {
 /** Sign in with the API directly (not cached: the token dies with the account). */
 async function apiSignIn(request: APIRequestContext, e164: string): Promise<{ token: string; id: string }> {
   await awaitQuota(request);
-  await request.post(`${API}/auth/request-otp`, { data: { phone: e164 } });
+  await requestOtpRespectingCooldown(request, e164);
   const verified = await request.post(`${API}/auth/verify-otp`, { data: { phone: e164, code: OTP, client: "web_store" } });
   expect(verified.ok(), await verified.text()).toBe(true);
   const body = await verified.json();
@@ -115,7 +117,7 @@ async function signInOnPage(page: Page, local: string, path = "/account/delete")
   await page.goto(path);
   await expect(page.getByTestId("delete-signed-out")).toBeVisible();
   await page.getByTestId("auth-phone").fill(local);
-  await page.getByTestId("auth-send-otp").click();
+  await sendOtpFromPageRespectingCooldown(page);
   await page.getByTestId("auth-code").fill(OTP);
   await page.getByTestId("auth-verify").click();
   await expect(page.getByTestId("delete-confirm")).toBeVisible();

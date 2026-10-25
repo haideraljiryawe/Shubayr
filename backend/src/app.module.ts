@@ -42,7 +42,13 @@ import { ReportsModule } from './modules/reports/reports.module';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.body.phone',
+          'req.body.code',
+          'req.body.verificationCode',
+        ],
       },
     }),
     ThrottlerModule.forRoot({

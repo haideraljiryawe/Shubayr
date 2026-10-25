@@ -8,6 +8,7 @@ import { MeController } from './me.controller';
 import { MeService } from './me.service';
 import { SmsGatewayService } from './sms-gateway.service';
 import { RbacModule } from '../rbac/rbac.module';
+import { OtpProtectionService } from './otp-protection.service';
 
 @Module({
   imports: [
@@ -16,7 +17,13 @@ import { RbacModule } from '../rbac/rbac.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
   controllers: [AuthController, AdminAuthController, MeController],
-  providers: [AuthService, JwtStrategy, MeService, SmsGatewayService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    MeService,
+    SmsGatewayService,
+    OtpProtectionService,
+  ],
   exports: [PassportModule],
 })
 export class AuthModule {}
