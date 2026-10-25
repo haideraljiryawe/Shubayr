@@ -469,6 +469,13 @@ jobs:
           TRUSTED_PROXIES: loopback
           JWT_REFRESH_SECRET: web_ci_refresh_secret_at_least_32_chars
           DEV_OTP: "000000"
+          # This synthetic browser suite deliberately reuses one phone per
+          # Playwright worker across many independent tests. Production OTP
+          # limits are exercised by the dedicated backend acceptance pack.
+          OTP_RESEND_COOLDOWN_SECONDS: "1"
+          OTP_PHONE_WINDOW_MAX: "100"
+          OTP_PHONE_DAILY_MAX: "1000"
+          OTP_IP_HOURLY_MAX: "10000"
           PUBLIC_API_URL: http://localhost:8000/api/v1
           CORS_ORIGINS: http://localhost:3100
           S3_ENDPOINT: http://localhost:9000
