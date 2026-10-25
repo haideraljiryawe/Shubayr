@@ -1,6 +1,9 @@
 jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
-import { SmsGatewayService } from './sms-gateway.service';
+import {
+  SmsDeliveryUnavailableException,
+  SmsGatewayService,
+} from './sms-gateway.service';
 import { Logger } from '@nestjs/common';
 
 const phone = '+9647701234567';
@@ -47,6 +50,18 @@ function service(overrides: Record<string, unknown> = {}) {
 }
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
+}
+
+async function failure(
+  promise: Promise<unknown>,
+): Promise<SmsDeliveryUnavailableException> {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(SmsDeliveryUnavailableException);
+    return error as SmsDeliveryUnavailableException;
+  }
+  throw new Error('Expected OTPIQ delivery to fail');
 }
 
 describe('OTPIQ SMS delivery', () => {
@@ -119,9 +134,13 @@ describe('OTPIQ SMS delivery', () => {
     fetchMock
       .mockResolvedValueOnce(json(submitted))
       .mockImplementation(() => Promise.resolve(json(pending)));
-    await expect(
+    const error = await failure(
       service({ OTPIQ_TIMEOUT_MS: 25 }).sendOtp(phone, code),
-    ).rejects.toMatchObject(unavailable);
+    );
+    expect(error.diagnostic).toMatchObject({
+      reason: 'OTPIQ tracking deadline expired',
+      smsId,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -131,9 +150,11 @@ describe('OTPIQ SMS delivery', () => {
       fetchMock.mockResolvedValue(
         json({ message: `${apiKey} ${phone} ${code}` }, status),
       );
-      await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-        unavailable,
-      );
+      const error = await failure(service().sendOtp(phone, code));
+      expect(error.diagnostic).toEqual({
+        reason: `OTPIQ submission rejected with HTTP ${status}`,
+        httpStatus: status,
+      });
       expect(fetchMock).toHaveBeenCalledTimes(1);
     },
   );
@@ -144,9 +165,12 @@ describe('OTPIQ SMS delivery', () => {
       fetchMock
         .mockResolvedValueOnce(json(submitted))
         .mockResolvedValueOnce(json({ message: apiKey }, status));
-      await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-        unavailable,
-      );
+      const error = await failure(service().sendOtp(phone, code));
+      expect(error.diagnostic).toEqual({
+        reason: `OTPIQ tracking rejected with HTTP ${status}`,
+        httpStatus: status,
+        smsId,
+      });
       expect(fetchMock).toHaveBeenCalledTimes(2);
     },
   );
@@ -161,31 +185,54 @@ describe('OTPIQ SMS delivery', () => {
     { ...submitted, smsId: 42 },
   ])('rejects malformed or unfunded submission %#', async (body) => {
     fetchMock.mockResolvedValue(json(body));
-    await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-      unavailable,
+    const error = await failure(service().sendOtp(phone, code));
+    expect(error.diagnostic.reason).toBe(
+      body === null || Array.isArray(body)
+        ? 'OTPIQ submission response not an object'
+        : 'OTPIQ submission response was invalid or unfunded',
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([
-    null,
-    {},
-    { ...sent, status: 'failed' },
-    { ...pending, isFinalStatus: true },
-    { ...sent, smsId: 'sms-other' },
-    { ...sent, phoneNumber: '9647709999999' },
-    { ...sent, lastChannel: 'whatsapp' },
-    { ...sent, channelFlow: [] },
-    { ...sent, channelFlow: [{ channel: 'sms', tried: true, success: false }] },
-    { ...sent, status: 'unknown' },
-    { ...sent, isFinalStatus: undefined },
-  ])('rejects failed or unconfirmed tracking %#', async (body) => {
+    [null, 'OTPIQ tracking response not an object'],
+    [{}, 'OTPIQ tracking smsId mismatch'],
+    [
+      { ...sent, status: 'failed' },
+      'OTPIQ tracking unexpected status failed/true',
+    ],
+    [
+      { ...pending, isFinalStatus: true },
+      'OTPIQ tracking unexpected status pending/true',
+    ],
+    [{ ...sent, smsId: 'sms-other' }, 'OTPIQ tracking smsId mismatch'],
+    [
+      { ...sent, phoneNumber: '9647709999999' },
+      'OTPIQ tracking phone mismatch',
+    ],
+    [{ ...sent, lastChannel: 'whatsapp' }, 'OTPIQ tracking unexpected channel'],
+    [{ ...sent, channelFlow: [] }, 'OTPIQ tracking unexpected channel'],
+    [
+      {
+        ...sent,
+        channelFlow: [{ channel: 'sms', tried: true, success: false }],
+      },
+      'OTPIQ tracking unexpected channel',
+    ],
+    [
+      { ...sent, status: 'unknown' },
+      'OTPIQ tracking unexpected status unknown/true',
+    ],
+    [
+      { ...sent, isFinalStatus: undefined },
+      'OTPIQ tracking unexpected status sent/invalid',
+    ],
+  ])('rejects failed or unconfirmed tracking %#', async (body, reason) => {
     fetchMock
       .mockResolvedValueOnce(json(submitted))
       .mockResolvedValueOnce(json(body));
-    await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-      unavailable,
-    );
+    const error = await failure(service().sendOtp(phone, code));
+    expect(error.diagnostic).toMatchObject({ reason, smsId });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -197,9 +244,11 @@ describe('OTPIQ SMS delivery', () => {
       fetchMock.mockRejectedValueOnce(
         new TypeError(`${apiKey} ${phone} ${code}`),
       );
-      await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-        unavailable,
-      );
+      const error = await failure(service().sendOtp(phone, code));
+      expect(error.diagnostic).toMatchObject({
+        reason: `OTPIQ ${stage} transport failure`,
+        ...(stage === 'tracking' ? { smsId } : {}),
+      });
     },
   );
 
@@ -218,9 +267,13 @@ describe('OTPIQ SMS delivery', () => {
             );
           }),
       );
-      await expect(
+      const error = await failure(
         service({ OTPIQ_TIMEOUT_MS: 25 }).sendOtp(phone, code),
-      ).rejects.toMatchObject(unavailable);
+      );
+      expect(error.diagnostic).toMatchObject({
+        reason: `OTPIQ ${stage} deadline expired`,
+        ...(stage === 'tracking' ? { smsId } : {}),
+      });
       const [, options] = fetchMock.mock.calls.at(-1)! as [
         unknown,
         RequestInit,
@@ -229,11 +282,93 @@ describe('OTPIQ SMS delivery', () => {
     },
   );
 
-  it('sanitizes invalid JSON', async () => {
-    fetchMock.mockResolvedValue(new Response('<html>upstream error</html>'));
-    await expect(service().sendOtp(phone, code)).rejects.toMatchObject(
-      unavailable,
+  it.each(['submission', 'tracking'])(
+    'reports invalid JSON at the %s stage',
+    async (stage) => {
+      if (stage === 'tracking')
+        fetchMock.mockResolvedValueOnce(json(submitted));
+      fetchMock.mockResolvedValueOnce(
+        new Response('<html>upstream error</html>'),
+      );
+      const error = await failure(service().sendOtp(phone, code));
+      expect(error.diagnostic).toMatchObject({
+        reason: `OTPIQ ${stage} response JSON invalid`,
+        httpStatus: 200,
+        ...(stage === 'tracking' ? { smsId } : {}),
+      });
+    },
+  );
+
+  it('lets a dev key track the dashboard phone but still checks smsId', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(json({ ...sent, phoneNumber: '9647700000000' }));
+    await expect(
+      service({ OTPIQ_API_KEY: 'sk_dev_test-secret' }).sendOtp(phone, code),
+    ).resolves.toBeUndefined();
+
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(
+        json({ ...sent, smsId: 'sms-fedcba987654321001234567' }),
+      );
+    const error = await failure(
+      service({ OTPIQ_API_KEY: 'sk_dev_test-secret' }).sendOtp(phone, code),
     );
+    expect(error.diagnostic.reason).toBe('OTPIQ tracking smsId mismatch');
+  });
+
+  it('keeps the strict tracking phone check for live keys', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(submitted))
+      .mockResolvedValueOnce(json({ ...sent, phoneNumber: '9647700000000' }));
+    const error = await failure(
+      service({ OTPIQ_API_KEY: 'sk_live_test-secret' }).sendOtp(phone, code),
+    );
+    expect(error.diagnostic.reason).toBe('OTPIQ tracking phone mismatch');
+  });
+
+  it('validates tracking-only inputs with fixed reasons', async () => {
+    const badId = await failure(service().inspectOtpiqTracking('bad', phone));
+    expect(badId.diagnostic.reason).toBe('OTPIQ tracking smsId invalid');
+    const badPhone = await failure(
+      service().inspectOtpiqTracking(smsId, '07701234567'),
+    );
+    expect(badPhone.diagnostic).toEqual({
+      reason: 'OTPIQ phone not E.164',
+      smsId,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns only a safe tracking snapshot', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json({
+        ...sent,
+        phoneNumber: '9647700000000',
+        lastChannel: 'sms',
+        channelFlow: [
+          { channel: 'sms', tried: true, success: true, raw: phone },
+          { channel: '<unsafe>', tried: 'yes', success: null },
+        ],
+      }),
+    );
+    await expect(service().inspectOtpiqTracking(smsId, phone)).resolves.toEqual(
+      {
+        smsId,
+        status: 'sent',
+        isFinalStatus: true,
+        lastChannel: 'sms',
+        channelFlow: [
+          { channel: 'sms', tried: true, success: true },
+          { channel: 'unknown', tried: null, success: null },
+        ],
+        phoneNumberMatched: false,
+      },
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(options).toMatchObject({ method: 'GET' });
   });
 
   it('rejects missing credentials without sending', async () => {

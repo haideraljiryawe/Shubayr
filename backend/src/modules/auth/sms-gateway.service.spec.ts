@@ -1,7 +1,10 @@
 jest.mock('@nestjs/config', () => ({ ConfigService: class {} }));
 
 import { ServiceUnavailableException } from '@nestjs/common';
-import { SmsGatewayService } from './sms-gateway.service';
+import {
+  SmsDeliveryUnavailableException,
+  SmsGatewayService,
+} from './sms-gateway.service';
 
 const phone = '+9647700000000';
 const code = '123456';
@@ -18,14 +21,20 @@ function config(values: Record<string, unknown>) {
 
 describe('SmsGatewayService', () => {
   const originalFetch = global.fetch;
-  const failures: Array<[string, () => Promise<Response>]> = [
+  const failures: Array<[string, string, () => Promise<Response>]> = [
     [
       'non-2xx response',
+      'Gateway rejected with HTTP 500',
       () => Promise.resolve(new Response('', { status: 500 })),
     ],
-    ['network error', () => Promise.reject(new TypeError('network'))],
+    [
+      'network error',
+      'Gateway transport failure',
+      () => Promise.reject(new TypeError('network')),
+    ],
     [
       'timeout',
+      'Gateway transport failure',
       () => Promise.reject(new DOMException('timed out', 'TimeoutError')),
     ],
   ];
@@ -51,7 +60,7 @@ describe('SmsGatewayService', () => {
 
   it.each(failures)(
     'maps a %s to OTP_DELIVERY_UNAVAILABLE',
-    async (_name, result) => {
+    async (_name, reason, result) => {
       const fetchMock = jest.fn(result);
       global.fetch = fetchMock;
       const service = new SmsGatewayService(
@@ -63,10 +72,18 @@ describe('SmsGatewayService', () => {
         }) as never,
       );
 
-      await expect(service.sendOtp(phone, code)).rejects.toMatchObject({
+      let error: unknown;
+      try {
+        await service.sendOtp(phone, code);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toMatchObject({
         response: { code: 'OTP_DELIVERY_UNAVAILABLE' },
         status: 503,
       });
+      expect(error).toBeInstanceOf(SmsDeliveryUnavailableException);
+      expect(error).toMatchObject({ diagnostic: { reason } });
     },
   );
 
