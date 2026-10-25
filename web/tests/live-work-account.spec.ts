@@ -5,6 +5,7 @@ import {
   API,
   MONITOR_LOCAL,
   bearer,
+  requestOtpRespectingCooldown,
   requireLiveApi,
   signIn,
   tokenFor,
@@ -77,9 +78,7 @@ test.describe("work accounts on the live store", () => {
     // answers 403 WORK_ACCOUNT_SHOPPING_FORBIDDEN, and the client re-reads
     // GET /me instead of showing a broken cart.
     const verified = await (async () => {
-      await request.post(`${API}/auth/request-otp`, {
-        data: { phone: AGENT_E164 },
-      });
+      await requestOtpRespectingCooldown(request, AGENT_E164);
       const response = await request.post(`${API}/auth/verify-otp`, {
         data: {
           phone: AGENT_E164,

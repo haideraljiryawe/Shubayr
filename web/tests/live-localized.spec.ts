@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import ar from "../src/messages/ar.json";
 import en from "../src/messages/en.json";
-import { API, CUSTOMER_LOCAL, OTP, ensureIdentity, requireLiveApi } from "./live-api";
+import {
+  API,
+  CUSTOMER_LOCAL,
+  OTP,
+  ensureIdentity,
+  requireLiveApi,
+  sendOtpFromPageRespectingCooldown,
+} from "./live-api";
 
 /**
  * NOTE-012 against the real API: sign-in feedback in the shopper's language
@@ -44,7 +51,7 @@ test("switching to English mid-sign-in keeps the code step and the return destin
   await ensureIdentity(page.request, `+964${CUSTOMER_LOCAL.slice(1)}`);
   await page.goto("/login?next=%2Faccount%2Forders");
   await visible(page, "auth-phone").fill(CUSTOMER_LOCAL);
-  await visible(page, "auth-send-otp").click();
+  await sendOtpFromPageRespectingCooldown(page);
   await expect(visible(page, "auth-code")).toBeVisible();
 
   await page.getByRole("button", { name: ar.header.changeLanguage }).first().click();
