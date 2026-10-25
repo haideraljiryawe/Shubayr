@@ -8,9 +8,8 @@ import { API, CUSTOMER_LOCAL, OTP, ensureIdentity, requireLiveApi } from "./live
  * — never the API's English text — and a language switch half-way through
  * signing in keeps the step, the number and the return destination.
  *
- * This spec exhausts the OTP rate limit on purpose, so it speaks from its own
- * documentation-range address (its own budget when the API trusts this
- * runner as a proxy, as in CI) and waits the window out afterwards either way.
+ * This spec deliberately triggers the resend cooldown, so it speaks from its
+ * own documentation-range address when the API trusts this runner as a proxy.
  */
 
 const ADDRESS = "198.51.100.200";
@@ -18,16 +17,28 @@ test.use({ extraHTTPHeaders: { "X-Forwarded-For": ADDRESS } });
 test.describe.configure({ mode: "serial" });
 
 const visible = (page: Page, id: string) => page.locator(`[data-testid="${id}"]:visible`);
-let retryAfterSeconds = 0;
 
 test.beforeEach(async ({ request }) => {
   await requireLiveApi(request, "the live localized-feedback tests");
 });
 
-test.afterAll(async () => {
-  // Leave the OTP budget as we found it for whatever runs next.
-  if (retryAfterSeconds > 0) await new Promise((resolve) => setTimeout(resolve, (retryAfterSeconds + 1) * 1000));
-});
+async function primeResendCooldown(page: Page, phone: string): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await page.request.post(`${API}/auth/request-otp`, {
+      data: { phone },
+    });
+    if (response.ok()) return;
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      retry_after_seconds?: number;
+    };
+    expect(body.code).toBe("OTP_RESEND_TOO_SOON");
+    await page.waitForTimeout(
+      Math.max(1, Number(body.retry_after_seconds ?? 1)) * 1000 + 100,
+    );
+  }
+  throw new Error("OTP resend cooldown did not clear");
+}
 
 test("switching to English mid-sign-in keeps the code step and the return destination", async ({ page }) => {
   await ensureIdentity(page.request, `+964${CUSTOMER_LOCAL.slice(1)}`);
@@ -53,24 +64,16 @@ test("switching to English mid-sign-in keeps the code step and the return destin
 
 test("the OTP rate limit is worded in Arabic, then in English after a switch", async ({ page }) => {
   const phone = "07709990017";
-  // Spend this address's OTP budget directly, as a hurried shopper would.
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const response = await page.request.post(`${API}/auth/request-otp`, { data: { phone: `+964${phone.slice(1)}` } });
-    if (response.status() === 429) {
-      retryAfterSeconds = Math.min(Number(response.headers()["retry-after"] ?? "60") || 60, 120);
-      break;
-    }
-  }
-  expect(retryAfterSeconds, "the OTP rate limit was never reached").toBeGreaterThan(0);
-
   await page.goto("/login");
   await visible(page, "auth-phone").fill(phone);
+  await primeResendCooldown(page, `+964${phone.slice(1)}`);
   await visible(page, "auth-send-otp").click();
   await expect(page.getByText(ar.auth.errTooMany)).toBeVisible();
 
   await page.getByRole("button", { name: ar.header.changeLanguage }).first().click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(visible(page, "auth-phone")).toHaveValue(phone);
+  await primeResendCooldown(page, `+964${phone.slice(1)}`);
   await visible(page, "auth-send-otp").click();
   await expect(page.getByText(en.auth.errTooMany)).toBeVisible();
   await expect(page.getByText("ThrottlerException")).toHaveCount(0);

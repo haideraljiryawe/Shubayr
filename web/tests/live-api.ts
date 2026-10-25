@@ -145,6 +145,33 @@ export async function awaitQuota(request: APIRequestContext): Promise<void> {
  */
 const tokens = new Map<string, string>();
 
+async function requestOtpRespectingCooldown(
+  request: APIRequestContext,
+  phone: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await request.post(`${API}/auth/request-otp`, {
+      data: { phone },
+    });
+    if (response.ok()) return;
+
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      retry_after_seconds?: number;
+    };
+    if (response.status() !== 429 || body.code !== "OTP_RESEND_TOO_SOON") {
+      expect(response.ok(), JSON.stringify(body)).toBe(true);
+    }
+    const retryAfter = Number(
+      body.retry_after_seconds ?? response.headers()["retry-after"] ?? 1,
+    );
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(1, retryAfter) * 1000 + 100),
+    );
+  }
+  throw new Error("OTP resend cooldown did not clear");
+}
+
 export async function tokenFor(
   request: APIRequestContext,
   phone: string,
@@ -154,7 +181,7 @@ export async function tokenFor(
 
   await ensureIdentity(request, phone);
   await awaitQuota(request);
-  await request.post(`${API}/auth/request-otp`, { data: { phone } });
+  await requestOtpRespectingCooldown(request, phone);
   const verified = await request.post(`${API}/auth/verify-otp`, {
     data: { phone, code: OTP, client: "web_store" },
   });
@@ -300,7 +327,30 @@ export async function signIn(
   const phone = page.locator('[data-testid="auth-phone"]:visible');
   await expect(phone).toBeVisible();
   await phone.fill(phoneLocal);
-  await page.locator('[data-testid="auth-send-otp"]:visible').click();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (candidate) =>
+          candidate.request().method() === "POST" &&
+          candidate.url().endsWith("/auth/request-otp"),
+      ),
+      page.locator('[data-testid="auth-send-otp"]:visible').click(),
+    ]);
+    if (response.ok()) break;
+
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      retry_after_seconds?: number;
+    };
+    if (response.status() !== 429 || body.code !== "OTP_RESEND_TOO_SOON") {
+      expect(response.ok(), JSON.stringify(body)).toBe(true);
+    }
+    const retryAfter = Number(
+      body.retry_after_seconds ?? response.headers()["retry-after"] ?? 1,
+    );
+    await page.waitForTimeout(Math.max(1, retryAfter) * 1000 + 100);
+    if (attempt === 2) throw new Error("OTP resend cooldown did not clear");
+  }
   await page.locator('[data-testid="auth-code"]:visible').fill(OTP);
   await page.locator('[data-testid="auth-verify"]:visible').click();
   // The redirect is what tells us the session is actually established.
