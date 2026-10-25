@@ -245,7 +245,7 @@ export class SmsGatewayService {
       let tracked: OtpiqTrackingSnapshot;
       try {
         tracked = await this.inspectOtpiqTracking(smsId, phone);
-      } catch (error) {
+      } catch {
         this.logger.warn(
           `OTPIQ async tracking poll failed smsId=${smsId} phone=${maskedPhone}`,
         );
