@@ -123,6 +123,18 @@ describe('OTPIQ SMS delivery', () => {
     expect(logged).not.toContain(code);
   });
 
+  it('does not wait for Redis to enqueue after OTPIQ accepts a submission', async () => {
+    const queue = { add: jest.fn(() => new Promise<unknown>(() => undefined)) };
+    fetchMock.mockResolvedValueOnce(json(submitted));
+
+    await expect(
+      service({}, queue).sendOtp(phone, code),
+    ).resolves.toBeUndefined();
+
+    expect(queue.add).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps hard submission failures synchronous and does not enqueue tracking', async () => {
     const queue = { add: jest.fn() };
     fetchMock.mockResolvedValueOnce(json({ message: 'limited' }, 429));

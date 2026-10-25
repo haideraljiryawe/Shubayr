@@ -414,7 +414,9 @@ export class SmsGatewayService {
         `OTPIQ submission accepted smsId=${submittedSmsId} phone=${this.maskPhone(phone)}`,
       );
       if (!waitForFinalTracking) {
-        await this.enqueueOtpiqTracking(submittedSmsId, phone);
+        // Redis may be slow or unavailable. Enqueue best-effort without
+        // delaying persistence of an already accepted, billable message.
+        void this.enqueueOtpiqTracking(submittedSmsId, phone);
         return {
           provider: 'otpiq',
           smsId: submittedSmsId,
