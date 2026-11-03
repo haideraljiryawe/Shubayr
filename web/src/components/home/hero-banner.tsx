@@ -11,8 +11,11 @@ import { cn } from "@/lib/cn";
  *
  * With text (`show_text`): the rounded dark-green card from the mockup — the
  * headline, an optional subtitle, an off-white pill button and the artwork.
- * Image-only (`show_text` off): the artwork fills the card at 2:1, with no
- * text drawn over it; its title stays as the slide's accessible name.
+ * Image-only (`show_text` off): the artwork alone, at exactly 2:1 — whole,
+ * never cropped or stretched — up to 44rem wide (22rem tall) and centred, so a
+ * picture slide stays in proportion with the text cards beside it; its title
+ * stays as the slide's accessible name. Text cards fill the slide's height so
+ * every slide of a mixed feed lines up.
  *
  * What it does when pressed follows the banner's action, never a default:
  * - an action and a button label → the pill button opens it;
@@ -51,7 +54,7 @@ export function HeroBanner({
   if (!showText && imageUrl) {
     return (
       <div
-        className={cn("relative isolate aspect-[2/1] overflow-hidden rounded-lg bg-card", className)}
+        className={cn("relative isolate aspect-[2/1] w-full max-w-[44rem] overflow-hidden rounded-lg bg-card", className)}
         data-testid="hero-banner"
         data-action={action}
         data-show-text="false"
@@ -61,7 +64,7 @@ export function HeroBanner({
           src={imageUrl}
           alt={clickable ? "" : title}
           fill
-          sizes="(min-width: 1280px) 80rem, 100vw"
+          sizes="(min-width: 768px) 44rem, 100vw"
           priority={priority}
           className="object-cover"
           onError={onImageError}
@@ -79,7 +82,7 @@ export function HeroBanner({
       className={cn(
         "relative isolate overflow-hidden rounded-lg",
         "bg-gradient-to-bl from-primary to-primary-dark",
-        "min-h-52 sm:min-h-60 lg:min-h-72",
+        "h-full w-full min-h-52 sm:min-h-60 lg:min-h-72",
         className,
       )}
       data-testid="hero-banner"

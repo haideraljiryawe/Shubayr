@@ -114,7 +114,7 @@ export function HeroCarousel({ banners: feed }: { banners: Banner[] }) {
             aria-hidden={index !== active}
             // Off-screen slides keep their links out of the tab order too.
             inert={index !== active}
-            className="w-full shrink-0 snap-start"
+            className="flex w-full shrink-0 snap-start items-center justify-center"
           >
             <HeroBanner
               title={locale === "ar" ? banner.title_ar : banner.title_en}
