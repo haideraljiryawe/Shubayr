@@ -28,12 +28,16 @@ export function CartRow({
   line,
   onQuantityChange,
   onRemove,
+  limitRoom = Number.POSITIVE_INFINITY,
 }: {
   line: CartViewLine;
   onQuantityChange: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
+  /** What the product's per-order maximum leaves for this line after its other lines (NOTE-011). */
+  limitRoom?: number;
 }) {
   const t = useTranslations("cart");
+  const tl = useTranslations("purchaseLimit");
   const locale = useLocale() as Locale;
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -42,8 +46,10 @@ export function CartRow({
     base_unit: line.base_unit,
     whole_units_only: line.whole_units_only,
   });
-  const max = Math.max(minQuantity(rule), line.available_qty);
-  const atCap = line.quantity + 1 > line.available_qty;
+  const max = Math.max(minQuantity(rule), Math.min(line.available_qty, limitRoom));
+  // The per-order maximum stops «+» before stock does: say which one it is.
+  const atLimit = Number.isFinite(limitRoom) && limitRoom < line.available_qty && line.quantity + 1 > limitRoom;
+  const atCap = !atLimit && line.quantity + 1 > line.available_qty;
   const unavailable = !line.available;
 
   return (
@@ -128,6 +134,11 @@ export function CartRow({
               max={max}
               onValueChange={(next) => onQuantityChange(line.id, next)}
             />
+            {atLimit && !unavailable && line.purchase_limit ? (
+              <span className="text-xs font-medium text-text-muted" data-testid="cart-limit-note">
+                {tl("max", { max: line.purchase_limit })}
+              </span>
+            ) : null}
             {atCap && !unavailable ? (
               // Explains why «+» stopped responding rather than leaving the
               // shopper to guess — without saying how much stock is left.

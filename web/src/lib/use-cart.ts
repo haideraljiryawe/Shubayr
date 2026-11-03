@@ -120,6 +120,7 @@ export function useCart(): CartView {
       available_qty: item.available_qty ?? 0,
       base_unit: known?.base_unit,
       whole_units_only: known?.whole_units_only,
+      purchase_limit: known?.purchase_limit,
       quantity: item.quantity ?? 0,
       available: item.available ?? true,
       unresolved: known === undefined,

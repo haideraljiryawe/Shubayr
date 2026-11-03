@@ -65,6 +65,16 @@ import {
 } from "./mock-data";
 import { twoLevelTree } from "./category-tree";
 import { bannerFromApi } from "./banners";
+import { SITE_URL } from "./site";
+
+/** The store's own origin, so a banner URL pointing back at the store stays inside it. */
+function storeOrigin(): string | undefined {
+  try {
+    return SITE_URL ? new URL(SITE_URL).origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /* ---------------------------------------------------------------------------
  * Types come straight from api/openapi.yaml via `npm run gen:api`. Never hand-
@@ -202,10 +212,65 @@ export class ApiError extends Error {
      * Unknown shape here: each caller reads it through its own guard.
      */
     readonly details?: unknown,
+    /**
+     * Sign-in facts next to the envelope (contract 17.13.0): how long until a
+     * code may be requested again (429), and how many tries a code has left
+     * after a wrong one (401). Absent on older servers and other errors.
+     */
+    readonly otp: { retryAfterSeconds?: number; attemptsRemaining?: number } = {},
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+const positiveNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+
+/* --------------------------------------------- mock sign-in (hermetic tests)
+ * The mock follows contract 17.13.0 so the sign-in states can be tested
+ * without a backend: a 60-second resend wait, five tries per code, and fixed
+ * test numbers that answer each refusal. Real numbers never reach this.
+ *   …0429 → 429 OTP_RESEND_TOO_SOON (45 s)    …0430 → 429 OTP_PHONE_QUOTA_EXCEEDED (1 h)
+ *   …0431 → 429 OTP_IP_QUOTA_EXCEEDED (15 min) …0503 → 503 OTP_DELIVERY_UNAVAILABLE
+ *   …0504 → 503 SMS_NOT_CONFIGURED
+ * ------------------------------------------------------------------------- */
+export const MOCK_OTP_ATTEMPTS = 5;
+export const MOCK_RESEND_AFTER_SECONDS = 60;
+const mockOtpAttempts = new Map<string, number>();
+
+function mockRequestOtp(phone: string): { otp_sent: true; resend_after_seconds: number } {
+  const refusals: Record<string, [number, string, number | undefined]> = {
+    "0429": [429, "OTP_RESEND_TOO_SOON", 45],
+    "0430": [429, "OTP_PHONE_QUOTA_EXCEEDED", 3600],
+    "0431": [429, "OTP_IP_QUOTA_EXCEEDED", 900],
+    "0503": [503, "OTP_DELIVERY_UNAVAILABLE", undefined],
+    "0504": [503, "SMS_NOT_CONFIGURED", undefined],
+  };
+  const refusal = refusals[phone.slice(-4)];
+  if (refusal) {
+    const [status, code, retryAfterSeconds] = refusal;
+    throw new ApiError(status, code, code, [], undefined, { retryAfterSeconds });
+  }
+  mockOtpAttempts.set(phone, 0);
+  return { otp_sent: true, resend_after_seconds: MOCK_RESEND_AFTER_SECONDS };
+}
+
+function mockVerifyOtp(phone: string, code: string): void {
+  const used = mockOtpAttempts.get(phone);
+  if (used !== undefined && used >= MOCK_OTP_ATTEMPTS) {
+    throw new ApiError(401, "Too many incorrect codes", "OTP_ATTEMPTS_EXCEEDED", [], undefined, { attemptsRemaining: 0 });
+  }
+  if (code === MOCK_OTP) {
+    mockOtpAttempts.delete(phone);
+    return;
+  }
+  const next = (used ?? 0) + 1;
+  mockOtpAttempts.set(phone, next);
+  if (next >= MOCK_OTP_ATTEMPTS) {
+    throw new ApiError(401, "Too many incorrect codes", "OTP_ATTEMPTS_EXCEEDED", [], undefined, { attemptsRemaining: 0 });
+  }
+  throw new ApiError(401, "Invalid or expired verification code", "UNAUTHORIZED", [], undefined, { attemptsRemaining: MOCK_OTP_ATTEMPTS - next });
 }
 
 /** API 6.0: purchase functions answer this 403 to a work account. */
@@ -250,6 +315,10 @@ async function toApiError(
     typeof body?.code === "string" ? body.code : undefined,
     Array.isArray(body?.errors) ? body.errors : [],
     (body as { details?: unknown } | null)?.details,
+    {
+      retryAfterSeconds: positiveNumber((body as { retry_after_seconds?: unknown } | null)?.retry_after_seconds),
+      attemptsRemaining: positiveNumber((body as { attempts_remaining?: unknown } | null)?.attempts_remaining),
+    },
   );
   if (isWorkAccountForbidden(error)) tokenProvider?.onWorkAccountForbidden?.();
   return error;
@@ -683,10 +752,30 @@ export const api = {
   async getBanners(init?: RequestInit): Promise<Banner[]> {
     if (!isLive("banners")) return mockBanners;
     const banners = await request<Schemas["Banner"][]>("/banners", init);
-    return banners.map(bannerFromApi);
+    return banners.map((banner, index) => bannerFromApi(banner, index, storeOrigin()));
   },
 
   /** Discounted products use the same typed endpoint as catalog filters. */
+  /**
+   * Recently Added (NOTE-004, contract 17.7.0): the server applies the owner's
+   * window, stock and visibility rules and the newest-first order, and answers
+   * an empty page when the section is switched off.
+   */
+  async listRecentlyAdded(perPage: number, init?: RequestInit): Promise<Product[]> {
+    if (!isLive("catalog")) {
+      if (!mockSettings.recently_added_enabled) return [];
+      return [...mockProducts]
+        .filter((product) => (product.available_qty ?? 0) > 0)
+        .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+        .slice(0, perPage);
+    }
+    const page = await request<ProductPage>("/products/recently-added", {
+      ...init,
+      query: { page: 1, per_page: perPage },
+    });
+    return page.data;
+  },
+
   async listDeals(limit = 6, init?: RequestInit): Promise<Product[]> {
     return (await api.listProducts({ on_sale: true, per_page: limit }, init))
       .data;
@@ -738,12 +827,12 @@ export const api = {
   /* ------------------------------------------------------------- auth */
 
   /** Ask for an OTP. Public endpoint; the contract rate-limits it with 429. */
-  async requestOtp(phone: string): Promise<{ otp_sent: boolean }> {
+  async requestOtp(phone: string): Promise<{ otp_sent: boolean; resend_after_seconds?: number }> {
     if (!isLive("auth")) {
       await mockLatency();
-      return { otp_sent: true };
+      return mockRequestOtp(toE164(phone));
     }
-    return request<{ otp_sent: boolean }>("/auth/request-otp", {
+    return request<{ otp_sent: boolean; resend_after_seconds?: number }>("/auth/request-otp", {
       method: "POST",
       body: JSON.stringify({ phone: toE164(phone) }),
     });
@@ -753,9 +842,7 @@ export const api = {
   async verifyOtp(phone: string, code: string): Promise<AuthTokens> {
     if (!isLive("auth")) {
       await mockLatency();
-      if (code.trim() !== MOCK_OTP) {
-        throw new ApiError(401, "Invalid or expired verification code");
-      }
+      mockVerifyOtp(toE164(phone), code.trim());
       const user = signInMockPhone(toE164(phone), phone);
       return {
         access_token: mockAccessToken(user.id ?? "u-1"),

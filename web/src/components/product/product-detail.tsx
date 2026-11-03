@@ -14,6 +14,9 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { Product, ProductAvailability } from "@/lib/api";
 import { cartStore } from "@/lib/cart-store";
+import { apiErrorText } from "@/lib/error-text";
+import { limitRefusal, purchaseLimit, roomForLine } from "@/lib/purchase-limit";
+import { useCart } from "@/lib/use-cart";
 import { cn } from "@/lib/cn";
 import {
   availableQtyFor,
@@ -56,6 +59,9 @@ export function ProductDetail({
   const t = useTranslations("product");
   const tc = useTranslations("cart");
   const tq = useTranslations("quantity");
+  const tApi = useTranslations("apiErrors");
+  const tl = useTranslations("purchaseLimit");
+  const cart = useCart();
   const locale = useLocale() as Locale;
   const router = useRouter();
   const pathname = usePathname();
@@ -88,9 +94,18 @@ export function ProductDetail({
   // URLs in the admin's order; the gallery renders strings, not objects.
   const images = productImageUrls(product);
 
-  const maxQty = variants.length
+  const stockQty = variants.length
     ? availableQtyFor(availability, selectedVariant?.id)
     : (availability?.available_qty ?? product.available_qty ?? 0);
+  // The per-order maximum (NOTE-011) covers every variant of the product
+  // already in the cart; the stepper stops at what it leaves.
+  const limit = purchaseLimit(product);
+  const inCart = cart.lines
+    .filter((line) => line.product_id === product.id)
+    .reduce((sum, line) => sum + line.quantity, 0);
+  const room = roomForLine(limit, cart.lines, product.id ?? "");
+  const maxQty = Math.min(stockQty, room);
+  const atLimit = limit !== null && room <= 0 && stockQty > 0;
   const level = variants.length
     ? selectedVariant?.id
       ? stockLevelFor(product, availability, selectedVariant.id)
@@ -109,6 +124,9 @@ export function ProductDetail({
       : isKnownUnit(rule.baseUnit)
         ? tq(`units.${rule.baseUnit}`)
         : rule.baseUnit;
+
+  // The unit the limit is counted in: pieces, or the SKU's unit for weighed goods.
+  const limitUnit = unitLabel ?? tl("pieces");
 
   // «أسود» / «40 · أحمر» — what the cart row shows under the product name.
   const variantLabel = selectedVariant
@@ -163,18 +181,19 @@ export function ProductDetail({
     }
   }, [name, showToast, t]);
 
-  const soldOut = level === "out_of_stock" || maxQty <= 0;
+  const soldOut = level === "out_of_stock" || stockQty <= 0;
   // A selection that matches no variant at all (possible when attributes are
   // combined across groups) is unbuyable but shouldn't read as "sold out".
   const noSuchVariant = variants.length > 0 && !selectedVariant;
-  const blocked = soldOut || noSuchVariant || !quantityValid;
+  const blocked = soldOut || atLimit || noSuchVariant || !quantityValid;
 
-  const addToCart = () => {
+  const addToCart = async () => {
     if (blocked) return;
     // The product page is the one place that knows the chosen variant, its
     // unit and its real availability, so it stores all three — the cart caps
     // and validates quantity on them.
-    cartStore.addItem(
+    try {
+      await cartStore.addItem(
       {
         product_id: product.id ?? "",
         variant_id: selectedVariant?.id ?? null,
@@ -185,13 +204,23 @@ export function ProductDetail({
         // What they pay now, so the line survives the discount window closing.
         unit_price: pricing.price,
         regular_price: pricing.regularPrice,
-        available_qty: maxQty,
+        available_qty: stockQty,
+        purchase_limit: limit,
         base_unit: rule.baseUnit,
         whole_units_only: rule.wholeUnitsOnly,
       },
       quantity,
-    );
-    showToast(tc("added"));
+      );
+      showToast(tc("added"));
+    } catch (cause) {
+      // The server is the authority on the per-order maximum: say what it allows.
+      const refusal = limitRefusal(cause);
+      showToast(
+        refusal
+          ? tl("refused", { allowed: refusal.allowed, requested: refusal.requested ?? quantity, unit: limitUnit })
+          : apiErrorText(tApi, cause),
+      );
+    }
   };
 
   return (
@@ -296,6 +325,20 @@ export function ProductDetail({
             <span className="text-sm font-medium text-text">
               {t("quantity")}
             </span>
+            {limit !== null ? (
+              <div className="flex flex-col gap-0.5 text-sm" data-testid="purchase-limit" data-limit={limit} data-in-cart={inCart}>
+                <span className="font-medium text-text">{tl("max", { max: limit, unit: limitUnit })}</span>
+                {atLimit ? (
+                  <span role="status" className="font-medium text-error-dark" data-testid="purchase-limit-reached">
+                    {tl("reached", { max: limit, unit: limitUnit })}
+                  </span>
+                ) : inCart > 0 ? (
+                  <span className="text-text-muted" data-testid="purchase-limit-in-cart">
+                    {tl("inCart", { count: inCart, room, unit: limitUnit })}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <QuantityInput
               // A new SKU brings a new unit rule; start its field afresh.
               key={quantityKey}
@@ -306,7 +349,7 @@ export function ProductDetail({
               }
               rule={rule}
               max={Math.max(min, maxQty)}
-              disabled={soldOut}
+              disabled={soldOut || atLimit}
             />
             {!rule.wholeUnitsOnly ? (
               <p className="text-xs text-text-muted" data-testid="quantity-hint">
@@ -321,7 +364,7 @@ export function ProductDetail({
             size="lg"
             block
             disabled={blocked}
-            onClick={addToCart}
+            onClick={() => void addToCart()}
             data-testid="pdp-add-to-cart"
             startIcon={<ShoppingCart className="size-5" aria-hidden />}
             className="hidden lg:inline-flex"
@@ -352,7 +395,7 @@ export function ProductDetail({
             variant="cta"
             size="lg"
             disabled={blocked}
-            onClick={addToCart}
+            onClick={() => void addToCart()}
             data-testid="pdp-add-to-cart"
             startIcon={<ShoppingCart className="size-5" aria-hidden />}
             // One line at phone width: the price beside it gives way first.

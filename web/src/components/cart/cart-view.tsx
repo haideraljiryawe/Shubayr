@@ -9,6 +9,8 @@ import { Link } from "@/i18n/navigation";
 import { api, type Address } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cartStore } from "@/lib/cart-store";
+import { apiErrorText } from "@/lib/error-text";
+import { limitRefusal, roomForLine } from "@/lib/purchase-limit";
 import { deliveryLocation, useDeliveryLocation } from "@/lib/delivery-location";
 import { useCart } from "@/lib/use-cart";
 import { useCartLineDetails } from "@/lib/cart-sync";
@@ -49,6 +51,8 @@ function CartSkeleton() {
  */
 export function CartView() {
   const t = useTranslations("cart");
+  const tl = useTranslations("purchaseLimit");
+  const tApi = useTranslations("apiErrors");
   const showToast = useToast();
   const view = useCart();
   const { lines, hydrated, couponCode } = view;
@@ -137,8 +141,13 @@ export function CartView() {
                   <CartRow
                     key={line.id}
                     line={line}
+                    limitRoom={roomForLine(line.purchase_limit, lines, line.product_id, line.id)}
                     onQuantityChange={(id, quantity) => {
-                      void cartStore.setQuantity(id, quantity);
+                      cartStore.setQuantity(id, quantity).catch((cause: unknown) => {
+                        // The server refused the change: the cart keeps what it holds, and says why.
+                        const refusal = limitRefusal(cause);
+                        showToast(refusal ? tl("refused", { allowed: refusal.allowed, requested: refusal.requested ?? quantity, unit: tl("pieces") }) : apiErrorText(tApi, cause));
+                      });
                     }}
                     onRemove={(id) => {
                       void cartStore.removeItem(id);

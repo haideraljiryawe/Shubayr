@@ -8,6 +8,9 @@ import type {
   Review,
   StoreSettings,
 } from "./api";
+import type { Banner } from "./banners";
+
+export type { Banner } from "./banners";
 
 /* ---------------------------------------------------------------------------
  * Phase-1 fixtures. Contents mirror the design sheet's mockup screens so the
@@ -38,7 +41,8 @@ export const mockSettings: StoreSettings = {
   return_window_days: 14,
   refund_days: 5,
   policy_effective_date: "2026-10-17",
-  recently_added_enabled: false,
+  // On in the mock store, so the home page shows the Recently Added strip (NOTE-004).
+  recently_added_enabled: true,
   recently_added_max_count: 10,
   recently_added_window_days: 30,
 };
@@ -645,21 +649,6 @@ export const mockProducts: Product[] = demoProducts;
 
 /** Existing localized carousel view model; api.getBanners maps the contract. */
 
-export interface Banner {
-  id: string;
-  title_ar: string;
-  title_en: string;
-  subtitle_ar: string;
-  subtitle_en: string;
-  /** The button label; none, no button. */
-  cta_ar: string | null;
-  cta_en: string | null;
-  /** Where the banner leads; none, it is not clickable at all. */
-  href: string | null;
-  /** Optional artwork; the banner falls back to the brand gradient without it. */
-  image_url: string | null;
-}
-
 /** A 1600 × 800 artwork as an inline SVG: a circle and a square, so any stretch shows. */
 const MOCK_BANNER_ART =
   "data:image/svg+xml," +
@@ -676,7 +665,9 @@ export const mockBanners: Banner[] = [
     subtitle_en: "Up to 40% off",
     cta_ar: "تسوق الآن",
     cta_en: "Shop now",
-    href: "/category/electronics?on_sale=true",
+    show_text: true,
+    // The offers action: the store's on-sale listing, in the current language.
+    target: { kind: "internal", path: "/search?on_sale=true" },
     image_url: null,
   },
   {
@@ -685,11 +676,12 @@ export const mockBanners: Banner[] = [
     title_en: "Just arrived",
     subtitle_ar: "أحدث الإلكترونيات",
     subtitle_en: "The latest electronics",
-    // A link without a button label: the whole card opens it. The artwork is
-    // inline (2:1, like the Web Admin crop), so tests need no network.
+    // A category action without a button label: the whole card opens it. The
+    // artwork is inline (2:1, like the Web Admin crop), so tests need no network.
     cta_ar: null,
     cta_en: null,
-    href: "/category/electronics?sort=newest",
+    show_text: true,
+    target: { kind: "internal", path: "/category/electronics" },
     image_url: MOCK_BANNER_ART,
   },
   {
@@ -698,11 +690,25 @@ export const mockBanners: Banner[] = [
     title_en: "Everything for your home",
     subtitle_ar: "توصيل مجاني للطلبات فوق $50",
     subtitle_en: "Free delivery over $50",
-    // No link: an informational banner, shown without any button or link.
+    // No action: an informational banner, shown without any button or link.
     cta_ar: null,
     cta_en: null,
-    href: null,
+    show_text: true,
+    target: { kind: "none" },
     image_url: null,
+  },
+  {
+    id: "b4",
+    // Image-only: the artwork carries the message; the text stays for screen readers.
+    title_ar: "شبير في كل مكان",
+    title_en: "Shubayr everywhere",
+    subtitle_ar: "",
+    subtitle_en: "",
+    cta_ar: null,
+    cta_en: null,
+    show_text: false,
+    target: { kind: "external", url: "https://example.com/shubayr" },
+    image_url: MOCK_BANNER_ART,
   },
 ];
 

@@ -74,6 +74,7 @@ export const getBrandsOnce = publicRead("brands", SHARED_SECONDS, () => api.list
 export const getBannersOnce = publicRead("banners", CATALOG_SECONDS, () => api.getBanners());
 export const listProductsOnce = publicRead("products", CATALOG_SECONDS, (query: ProductQuery) => api.listProducts(query));
 export const listDealsOnce = publicRead("deals", CATALOG_SECONDS, (limit: number) => api.listDeals(limit));
+export const listRecentlyAddedOnce = publicRead("recently-added", CATALOG_SECONDS, (perPage: number) => api.listRecentlyAdded(perPage));
 export const listCatalogProductsOnce = publicRead("listing", CATALOG_SECONDS, (query: CatalogQuery) => listCatalogProducts(query));
 export const getProductOnce = publicRead("product", CATALOG_SECONDS, (id: string) => api.getProduct(id));
 export const getProductAvailabilityOnce = publicRead("availability", CATALOG_SECONDS, (id: string) => api.getProductAvailability(id));
