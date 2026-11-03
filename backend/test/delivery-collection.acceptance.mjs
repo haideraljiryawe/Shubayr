@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
-import { businessDateText } from '../dist/src/modules/finance/business-date.js';
+import {
+  addBusinessDateDays,
+  businessDateText,
+  businessDayStart,
+  parseBusinessDate,
+} from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -21,6 +26,17 @@ let assertions = 0;
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await db.connect();
 const today = businessDateText();
+const thisMonthStart = `${today.slice(0, 7)}-01`;
+const thisMonthBoundary = new Date(
+  businessDayStart(thisMonthStart).getTime() + 30 * 60_000,
+);
+const boundaryDate =
+  thisMonthBoundary <= new Date()
+    ? thisMonthStart
+    : `${businessDateText(addBusinessDateDays(parseBusinessDate(thisMonthStart), -1)).slice(0, 7)}-01`;
+const baghdadMonthBoundary = new Date(
+  businessDayStart(boundaryDate).getTime() + 30 * 60_000,
+).toISOString();
 
 function check(actual, expected, message) {
   assert.deepEqual(actual, expected, message);
@@ -334,7 +350,7 @@ const shortResult = await request(
       operation_id: 'c5-staff-short-delivery',
       collection_confirmation: 'confirmed',
       collected_amount: '95000',
-      event_at: '2026-10-31T21:30:00.000Z',
+      event_at: baghdadMonthBoundary,
       source: 'driver telephone report',
     },
   },
@@ -346,7 +362,7 @@ check(
 );
 check(
   shortResult.collection.accounting_date.slice(0, 10),
-  '2026-11-01',
+  boundaryDate,
   '00:30 Baghdad on the first posts to the new month',
 );
 await posting(short.deliveryId, 'delivered_short');
