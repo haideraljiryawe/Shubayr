@@ -109,6 +109,7 @@ test("settings: invalid numbers stay next to the field; a save shows old → new
 });
 
 test("a rate entered per 100 saves as the per-1 value; zero and negative are refused", async ({ page, request }) => {
+  const reason = unique("Market quote per 100 USD");
   let posts = 0;
   page.on("request", (sent) => {
     if (sent.method() === "POST" && sent.url().includes("/api/proxy/admin/exchange-rates")) posts += 1;
@@ -122,7 +123,7 @@ test("a rate entered per 100 saves as the per-1 value; zero and negative are ref
   await expect(page.getByTestId("rate-value")).toHaveValue("");
 
   await page.getByTestId("rate-basis-100").check();
-  await page.getByTestId("rate-reason").fill("Market quote per 100 USD");
+  await page.getByTestId("rate-reason").fill(reason);
   const rate = page.getByTestId("rate-value");
   await rate.fill("0");
   await page.getByTestId("rate-submit").click();
@@ -145,7 +146,9 @@ test("a rate entered per 100 saves as the per-1 value; zero and negative are ref
   await expect(page.getByTestId("rate-preview-per1")).toHaveText("1 USD = 1,450 IQD");
   // A rate change is previewed first (its effect on linked prices), then
   // saved by an explicit choice — here the rate alone.
-  const priorLatest = (await api(request, "GET", "/admin/exchange-rates?currency_code=USD")).body[0]?.id;
+  const beforeRates = (await api(request, "GET", "/admin/exchange-rates?currency_code=USD")).body as Array<{ id: string }>;
+  const priorLatest = beforeRates[0]?.id;
+  const priorIds = new Set(beforeRates.map((row) => row.id));
   await page.getByTestId("rate-submit").click();
   await expect(page.getByTestId("linked-preview")).toBeVisible();
   expect(posts).toBe(1);
@@ -154,10 +157,12 @@ test("a rate entered per 100 saves as the per-1 value; zero and negative are ref
   await page.getByTestId("rate-save-only").click();
   await expect(page.getByTestId("linked-preview")).toHaveCount(0);
   await expect(page.getByTestId("rate-row").first()).toBeVisible();
-  const latest = await api(request, "GET", "/admin/exchange-rates?currency_code=USD");
-  expect(Number(latest.body[0].rate)).toBe(1450);
-  expect(latest.body[0].reason).toBe("Market quote per 100 USD");
-  await expect(page.getByTestId("rate-row").first()).toContainText("1 USD = 1,450 IQD");
+  const afterRates = await api(request, "GET", "/admin/exchange-rates?currency_code=USD");
+  const created = (afterRates.body as Array<{ id: string; rate: string; reason: string }>).filter((row) => !priorIds.has(row.id));
+  expect(created).toHaveLength(1);
+  expect(Number(created[0].rate)).toBe(1450);
+  expect(created[0].reason).toBe(reason);
+  await expect(page.getByTestId("rate-row").filter({ hasText: reason })).toContainText("1 USD = 1,450 IQD");
   expect(posts).toBe(2);
 });
 
