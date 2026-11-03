@@ -126,6 +126,13 @@ function baghdadLocal(days: number): string {
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }
 
+/** API instant with the minute precision preserved by the banner editor. */
+function utcMinuteDaysFromNow(days: number): string {
+  const at = new Date(Date.now() + days * 86_400_000);
+  at.setUTCSeconds(0, 0);
+  return at.toISOString();
+}
+
 /* ------------------------------------------------------------ categories */
 
 test("category: description saved and cleared, picture cropped, replaced, kept on a failed upload, removed", async ({ page, request }) => {
@@ -411,15 +418,15 @@ test("an expired banner stays editable and is reused; a one-date banner is shown
     image_url: imageUrl,
     is_active: true,
     sort_order: 900,
-    starts_at: new Date(Date.now() - 30 * 86_400_000).toISOString(),
-    ends_at: new Date(Date.now() - 7 * 86_400_000).toISOString(),
+    starts_at: utcMinuteDaysFromNow(-30),
+    ends_at: utcMinuteDaysFromNow(-7),
   });
   const startOnly = await api(request, "POST", "/admin/banners", {
     title: startOnlyTitle,
     image_url: imageUrl,
     is_active: true,
     sort_order: 901,
-    starts_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    starts_at: utcMinuteDaysFromNow(30),
   });
   expect(expired.status).toBe(201);
   expect(startOnly.status).toBe(201);
