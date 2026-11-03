@@ -519,7 +519,7 @@ try {
 
   const schedule = {
     discount_starts_at: '2020-01-01T00:00:00.000Z',
-    discount_ends_at: '2030-01-01T00:00:00.000Z',
+    discount_ends_at: new Date(Date.now() + 365 * 86_400_000).toISOString(),
   };
   await request(`/admin/products/${patchTarget.id}`, {
     token: admin,

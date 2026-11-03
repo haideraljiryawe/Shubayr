@@ -14,7 +14,7 @@ const product = {
   discount_type: 'percentage',
   discount_value: '50',
   discount_starts_at: new Date('2020-01-01T00:00:00Z'),
-  discount_ends_at: new Date('2030-01-01T00:00:00Z'),
+  discount_ends_at: new Date(Date.now() + 365 * 86_400_000),
   tracks_expiry: false,
   rating_avg: '4.50',
   status: 'active',
