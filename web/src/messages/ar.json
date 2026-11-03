@@ -397,14 +397,14 @@
     "errPhoneQuota": "وصل هذا الرقم إلى الحد الأقصى لرموز التحقق. حاول مرة أخرى بعد {wait}.",
     "errIpQuota": "طُلبت رموز كثيرة من هذه الشبكة. حاول مرة أخرى بعد {wait}.",
     "errDeliveryUnavailable": "تعذّر إرسال رمز التحقق الآن. حاول مرة أخرى بعد قليل.",
-    "errCodeAttempts": "الرمز غير صحيح. {count, plural, one {بقيت محاولة واحدة.} two {بقيت محاولتان.} few {بقيت # محاولات.} many {بقيت # محاولة.} other {بقيت # محاولة.}}",
+    "errCodeAttempts": "الرمز غير صحيح. {count, plural, one {بقيت محاولة واحدة.} two {بقيت محاولتان.} few {بقيت {count} محاولات.} many {بقيت {count} محاولة.} other {بقيت {count} محاولة.}}",
     "errAttemptsExceeded": "تجاوزت عدد المحاولات المسموح بها لهذا الرمز. اطلب رمزًا جديدًا.",
     "requestNewCode": "اطلب رمزًا جديدًا",
     "sendIn": "يمكنك إرسال رمز بعد {wait}",
     "wait": {
-      "seconds": "{count, plural, one {ثانية واحدة} two {ثانيتين} few {# ثوانٍ} many {# ثانية} other {# ثانية}}",
-      "minutes": "{count, plural, one {دقيقة واحدة} two {دقيقتين} few {# دقائق} many {# دقيقة} other {# دقيقة}}",
-      "hours": "{count, plural, one {ساعة واحدة} two {ساعتين} few {# ساعات} many {# ساعة} other {# ساعة}}"
+      "seconds": "{count, plural, one {ثانية واحدة} two {ثانيتين} few {{count} ثوانٍ} many {{count} ثانية} other {{count} ثانية}}",
+      "minutes": "{count, plural, one {دقيقة واحدة} two {دقيقتين} few {{count} دقائق} many {{count} دقيقة} other {{count} دقيقة}}",
+      "hours": "{count, plural, one {ساعة واحدة} two {ساعتين} few {{count} ساعات} many {{count} ساعة} other {{count} ساعة}}"
     }
   },
   "account": {

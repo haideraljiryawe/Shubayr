@@ -820,6 +820,14 @@ for (const product of demoProducts) {
       : "out_of_stock";
 }
 
+// p11 (shoes, three sizes) has a per-order maximum of 3 pairs across all its
+// sizes (NOTE-011), so the limit can be tested without a backend.
+const shoes = demoProducts.find((p) => p.id === "p11");
+if (shoes) {
+  shoes.purchase_limit_enabled = true;
+  shoes.purchase_limit_max_quantity = 3;
+}
+
 // p1 is the design-sheet product: give it a small gallery.
 const headphones = demoProducts.find((p) => p.id === "p1");
 if (headphones) {

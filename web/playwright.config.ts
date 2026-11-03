@@ -28,7 +28,7 @@ export default defineConfig({
     : streaming
       ? "**/catalog-streaming.spec.ts"
       : work
-        ? ["**/work-pages.spec.ts", "**/inbox.spec.ts", "**/forwarding.spec.ts"]
+        ? ["**/work-pages.spec.ts", "**/inbox.spec.ts", "**/forwarding.spec.ts", "**/store-w1-api.spec.ts"]
         : [
           "**/catalog.spec.ts",
           "**/catalog-data.spec.ts",
@@ -48,6 +48,7 @@ export default defineConfig({
           "**/store-info-rules.spec.ts",
           "**/account-deletion-rules.spec.ts",
           "**/error-text-rules.spec.ts",
+          "**/store-w1.spec.ts",
           // live-catalog and live-checkout need a real API: they run in the
           // live suite (playwright.live.config.ts), not skipped here.
         ],

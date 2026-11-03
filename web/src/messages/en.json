@@ -397,14 +397,14 @@
     "errPhoneQuota": "This number has reached its limit for verification codes. Try again in {wait}.",
     "errIpQuota": "Too many codes were requested from this network. Try again in {wait}.",
     "errDeliveryUnavailable": "We can't send verification codes right now. Please try again shortly.",
-    "errCodeAttempts": "That code is wrong. {count, plural, one {1 attempt left.} other {# attempts left.}}",
+    "errCodeAttempts": "That code is wrong. {count, plural, one {1 attempt left.} other {{count} attempts left.}}",
     "errAttemptsExceeded": "Too many wrong attempts for this code. Request a new code.",
     "requestNewCode": "Request a new code",
     "sendIn": "You can send a code in {wait}",
     "wait": {
-      "seconds": "{count, plural, one {1 second} other {# seconds}}",
-      "minutes": "{count, plural, one {1 minute} other {# minutes}}",
-      "hours": "{count, plural, one {1 hour} other {# hours}}"
+      "seconds": "{count, plural, one {1 second} other {{count} seconds}}",
+      "minutes": "{count, plural, one {1 minute} other {{count} minutes}}",
+      "hours": "{count, plural, one {1 hour} other {{count} hours}}"
     }
   },
   "account": {

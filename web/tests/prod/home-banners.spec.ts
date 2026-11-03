@@ -2,12 +2,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { bannerFromApi } from "../../src/lib/banners";
 
 /**
- * Home banners on the production build (NOTE-001), with the mocked feed:
- * slide 1 has a link and a button label, slide 2 a link and 2:1 artwork but no
- * label, slide 3 neither link nor label.
+ * Home banners on the production build (NOTE-001, contract 17.7.0), with the
+ * mocked feed: slide 1 opens the offers with a button label, slide 2 a
+ * category with 2:1 artwork but no label, slide 3 has no action, slide 4 is
+ * image-only with an external link.
  *
- * - No link means no action: nothing in the slide is a link, no button.
- * - A link without a label makes the whole card the link; no invented text.
+ * - No action: nothing in the slide is a link, no button.
+ * - An action without a label makes the whole card the link; no invented text.
  * - The artwork shows on phones too, at 2:1, and is never stretched.
  */
 
@@ -39,13 +40,29 @@ test("the API mapping invents no link and no button text", () => {
     ends_at: null,
     created_at: "2026-10-18T00:00:00Z",
   };
-  expect(bannerFromApi({ ...base, cta_text: null, link_url: null }, 0)).toMatchObject({ href: null, cta_ar: null, cta_en: null });
-  expect(bannerFromApi({ ...base, cta_text: "  ", link_url: "" }, 0)).toMatchObject({ href: null, cta_ar: null, cta_en: null });
-  expect(bannerFromApi({ ...base, cta_text: "تسوق", link_url: "https://shubayr.com/offers" }, 0)).toMatchObject({
-    href: "https://shubayr.com/offers",
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: null }, 0)).toMatchObject({ target: { kind: "none" }, cta_ar: null, cta_en: null });
+  expect(bannerFromApi({ ...base, cta_text: "  ", link_url: "" }, 0)).toMatchObject({ target: { kind: "none" }, cta_ar: null, cta_en: null });
+  // A legacy link is the url action; another site opens as an external target.
+  const legacy = { ...base, cta_text: "تسوق", link_url: "https://partner.example/offers", action_type: "url" as const, action: { type: "url" as const, url: "https://partner.example/offers", target: null } };
+  expect(bannerFromApi(legacy, 0)).toMatchObject({
+    target: { kind: "external", url: "https://partner.example/offers" },
     cta_ar: "تسوق",
     cta_en: "تسوق",
   });
+  // A link back into the store stays inside it, without its language prefix.
+  expect(bannerFromApi({ ...legacy, link_url: null, action: { ...legacy.action, url: "https://shubayr.com/en/search?on_sale=true" } }, 0, "https://shubayr.com")).toMatchObject({
+    target: { kind: "internal", path: "/search?on_sale=true" },
+  });
+  // Structured actions: product / category / offers, and an unavailable target stays inert.
+  const target = (available: boolean, slug: string | null = null) => ({ id: "11111111-1111-4111-8111-111111111111", slug, name_ar: "ن", name_en: "N", available });
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: null, action_type: "product", action: { type: "product", url: null, target: target(true) } }, 0).target).toEqual({ kind: "internal", path: "/product/11111111-1111-4111-8111-111111111111" });
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: null, action_type: "category", action: { type: "category", url: null, target: target(true, "kitchen") } }, 0).target).toEqual({ kind: "internal", path: "/category/kitchen" });
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: null, action_type: "offers", action: { type: "offers", url: null, target: null } }, 0).target).toEqual({ kind: "internal", path: "/search?on_sale=true" });
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: null, action_type: "product", action: { type: "product", url: null, target: target(false) } }, 0).target).toEqual({ kind: "none" });
+  // A javascript: or other non-web address is never followed.
+  expect(bannerFromApi({ ...base, cta_text: null, link_url: "javascript:alert(1)", action_type: "url", action: { type: "url", url: "javascript:alert(1)", target: null } }, 0).target).toEqual({ kind: "none" });
+  // Text falls back to the other language, then the legacy field; show_text is kept.
+  expect(bannerFromApi({ ...base, title_ar: "", title_en: "Offers", cta_text: null, link_url: null, show_text: false }, 0)).toMatchObject({ title_ar: "Offers", show_text: false });
 });
 
 test.describe("desktop", () => {
@@ -53,7 +70,7 @@ test.describe("desktop", () => {
 
   test("each slide does only what its data says", async ({ page }) => {
     await page.goto("/");
-    await expect(slides(page)).toHaveCount(3);
+    await expect(slides(page)).toHaveCount(4);
 
     const withButton = slides(page).nth(0);
     await expect(withButton).toHaveAttribute("data-action", "button");
