@@ -121,19 +121,30 @@ test("a banner made in the admin — image only, opening a product — reaches t
   }
 });
 
-test("Recently Added follows the owner's switch: on shows the newest product first", { tag: "@global" }, async ({ page, request }) => {
+test("Recently Added follows the owner's switch: on shows the server's newest-first list", { tag: "@global" }, async ({ page, request }) => {
+  // Two cache-bound waits (on, then off).
+  test.slow();
   const admin = bearer(await staffToken(request));
   const before = (await (await request.get(`${API}/admin/settings`, { headers: admin })).json()).settings as Record<string, unknown>;
   const put = (settings: Record<string, string>) => request.put(`${API}/admin/settings`, { headers: admin, data: { settings } });
+  const MAX = 12;
   try {
-    expect((await put({ recently_added_enabled: "true", recently_added_max_count: "4", recently_added_window_days: "30" })).ok()).toBe(true);
+    expect((await put({ recently_added_enabled: "true", recently_added_max_count: String(MAX), recently_added_window_days: "30" })).ok()).toBe(true);
     const product = await stockedProduct(request, "RECENT");
     const recent = page.getByTestId("recently-added");
-    await homeUntil(page, "/en", async () =>
-      (await recent.count()) > 0 && (await recent.locator('a[href*="/product/"]').first().getAttribute("href")) === `/en/product/${product.id}`,
-    );
+    // Other @global files run beside this one and add products of their own,
+    // so "ours is first" can't hold: the store must show exactly the server's
+    // list, in the server's (newest-first) order, ours among them.
+    await homeUntil(page, "/en", async () => {
+      if ((await recent.count()) === 0) return false;
+      const hrefs = await recent.locator('a[href*="/product/"]').evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+      const shown = [...new Set(hrefs)];
+      const served = (await (await request.get(`${API}/products/recently-added`, { params: { page: 1, per_page: MAX } })).json()) as { data: Array<{ id: string }> };
+      const expected = served.data.map((row) => `/en/product/${row.id}`);
+      return shown.includes(`/en/product/${product.id}`) && JSON.stringify(shown) === JSON.stringify(expected);
+    });
     await expect(recent).toContainText(en.home.recentlyAddedTitle);
-    expect(Number(await recent.getAttribute("data-count"))).toBeLessThanOrEqual(4);
+    expect(Number(await recent.getAttribute("data-count"))).toBeLessThanOrEqual(MAX);
     await expect(page.getByTestId("new-arrivals")).toHaveCount(0);
 
     expect((await put({ recently_added_enabled: "false" })).ok()).toBe(true);
