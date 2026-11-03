@@ -11,7 +11,7 @@ const product = {
   discount_type: 'percentage',
   discount_value: '50',
   discount_starts_at: new Date('2020-01-01'),
-  discount_ends_at: new Date('2030-01-01'),
+  discount_ends_at: new Date(Date.now() + 365 * 86_400_000),
   variants: [{ id: 'variant-1', price_delta: 0 }],
 };
 

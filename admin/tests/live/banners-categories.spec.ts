@@ -110,7 +110,7 @@ async function naturalSize(page: Page, url: string): Promise<[number, number]> {
   }, url);
 }
 
-/** "2026-10-19T00:00" in Baghdad, `days` from now. */
+/** Baghdad local date and time, `days` from now. */
 function baghdadLocal(days: number): string {
   const at = new Date(Date.now() + days * 86_400_000);
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -411,15 +411,15 @@ test("an expired banner stays editable and is reused; a one-date banner is shown
     image_url: imageUrl,
     is_active: true,
     sort_order: 900,
-    starts_at: "2026-01-01T00:00:00.000Z",
-    ends_at: "2026-01-31T21:00:00.000Z",
+    starts_at: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    ends_at: new Date(Date.now() - 7 * 86_400_000).toISOString(),
   });
   const startOnly = await api(request, "POST", "/admin/banners", {
     title: startOnlyTitle,
     image_url: imageUrl,
     is_active: true,
     sort_order: 901,
-    starts_at: "2030-01-01T09:00:00.000Z",
+    starts_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
   });
   expect(expired.status).toBe(201);
   expect(startOnly.status).toBe(201);

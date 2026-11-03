@@ -101,7 +101,7 @@ const initialProduct = {
   discount_type: 'percentage',
   discount_value: 20,
   discount_starts_at: new Date('2020-01-01T00:00:00Z'),
-  discount_ends_at: new Date('2030-01-01T00:00:00Z'),
+  discount_ends_at: new Date(Date.now() + 365 * 86_400_000),
   is_negotiable: false,
   floor_price: null,
   points_price: null,

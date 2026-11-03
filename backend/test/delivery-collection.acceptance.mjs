@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import { businessDateText } from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -19,6 +20,7 @@ if (!api || new URL(api).hostname !== '127.0.0.1' || !new URL(api).port) {
 let assertions = 0;
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await db.connect();
+const today = businessDateText();
 
 function check(actual, expected, message) {
   assert.deepEqual(actual, expected, message);
@@ -138,8 +140,8 @@ async function fixture(label, partyId) {
     await db.query(
       `INSERT INTO orders
         (id,user_id,order_number,status,version,payment_method,subtotal,delivery_fee,discount,total,currency_code,document_date,accounting_date,delivery_contact_phone,delivery_city)
-       VALUES ($1,$2,$3,'dispatched',2,'cod',100000,5000,0,105000,'IQD','2026-10-03','2026-10-03','+9647700000006','Baghdad')`,
-      [orderId, customerId, `VERIFY-C5-${label}-${orderId.slice(0, 8)}`],
+       VALUES ($1,$2,$3,'dispatched',2,'cod',100000,5000,0,105000,'IQD',$4,$4,'+9647700000006','Baghdad')`,
+      [orderId, customerId, `VERIFY-C5-${label}-${orderId.slice(0, 8)}`, today],
     );
     await db.query(
       `INSERT INTO order_items
@@ -160,8 +162,8 @@ async function fixture(label, partyId) {
     await db.query(
       `INSERT INTO payments
         (order_id,method,status,amount,currency_code,document_date,accounting_date)
-       VALUES ($1,'cod','pending',105000,'IQD','2026-10-03','2026-10-03')`,
-      [orderId],
+       VALUES ($1,'cod','pending',105000,'IQD',$2,$2)`,
+      [orderId, today],
     );
     await db.query(
       `INSERT INTO custody_holdings
@@ -173,12 +175,13 @@ async function fixture(label, partyId) {
     await db.query(
       `INSERT INTO journal_entries
         (id,document_number,source_type,source_id,event,document_date,accounting_date,description,created_by)
-       VALUES ($1,$2,'order',$3,'issue_to_custody','2026-10-03','2026-10-03','C5 fixture handover',$4)`,
+       VALUES ($1,$2,'order',$3,'issue_to_custody',$5,$5,'C5 fixture handover',$4)`,
       [
         handoverEntryId,
         `C5-HANDOVER-${orderId.slice(0, 8)}`,
         orderId,
         admin.user.id,
+        today,
       ],
     );
     await db.query(
