@@ -142,7 +142,8 @@
     "previousSlide": "الشريحة السابقة",
     "nextSlide": "الشريحة التالية",
     "goToSlide": "الانتقال إلى الشريحة {number}",
-    "promotions": "العروض الترويجية"
+    "promotions": "العروض الترويجية",
+    "recentlyAddedTitle": "أُضيف مؤخرًا"
   },
   "catalog": {
     "categoriesDescription": "اكتشف كل ما تحتاجه، في مكان واحد.",
@@ -391,7 +392,20 @@
     "signedOut": "تم تسجيل الخروج",
     "checking": "جارٍ التحقق من الجلسة…",
     "requiredTitle": "سجّل الدخول للمتابعة",
-    "requiredBody": "هذه الصفحة تخص حسابك."
+    "requiredBody": "هذه الصفحة تخص حسابك.",
+    "errResendTooSoon": "انتظر {wait} قبل طلب رمز جديد.",
+    "errPhoneQuota": "وصل هذا الرقم إلى الحد الأقصى لرموز التحقق. حاول مرة أخرى بعد {wait}.",
+    "errIpQuota": "طُلبت رموز كثيرة من هذه الشبكة. حاول مرة أخرى بعد {wait}.",
+    "errDeliveryUnavailable": "تعذّر إرسال رمز التحقق الآن. حاول مرة أخرى بعد قليل.",
+    "errCodeAttempts": "الرمز غير صحيح. {count, plural, one {بقيت محاولة واحدة.} two {بقيت محاولتان.} few {بقيت {count} محاولات.} many {بقيت {count} محاولة.} other {بقيت {count} محاولة.}}",
+    "errAttemptsExceeded": "تجاوزت عدد المحاولات المسموح بها لهذا الرمز. اطلب رمزًا جديدًا.",
+    "requestNewCode": "اطلب رمزًا جديدًا",
+    "sendIn": "يمكنك إرسال رمز بعد {wait}",
+    "wait": {
+      "seconds": "{count, plural, one {ثانية واحدة} two {ثانيتين} few {{count} ثوانٍ} many {{count} ثانية} other {{count} ثانية}}",
+      "minutes": "{count, plural, one {دقيقة واحدة} two {دقيقتين} few {{count} دقائق} many {{count} دقيقة} other {{count} دقيقة}}",
+      "hours": "{count, plural, one {ساعة واحدة} two {ساعتين} few {{count} ساعات} many {{count} ساعة} other {{count} ساعة}}"
+    }
   },
   "account": {
     "title": "حسابي",
@@ -1142,5 +1156,13 @@
     "PERMISSION_DENIED": "لا تملك صلاحية لهذا الإجراء.",
     "DELIVERY_PARTY_INACTIVE": "جهة التوصيل هذه غير نشطة.",
     "PERIOD_CLOSED": "الفترة المحاسبية مقفلة."
+  },
+  "purchaseLimit": {
+    "max": "الحد الأقصى {max} لكل طلب",
+    "reached": "في سلتك الحد الأقصى لهذا المنتج ({max} {unit}).",
+    "inCart": "في سلتك {count} {unit}؛ يمكنك إضافة {room} أخرى.",
+    "refused": "يمكنك طلب {allowed} {unit} كحد أقصى من هذا المنتج في الطلب الواحد (طلبت {requested}).",
+    "refusedNamed": "يمكنك طلب {allowed} {unit} كحد أقصى من «{name}» في الطلب الواحد (طلبت {requested}). عدّل الكمية في السلة.",
+    "pieces": "قطعة"
   }
 }

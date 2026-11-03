@@ -1,62 +1,101 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { Leaf } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
+import type { BannerTarget } from "@/lib/banners";
 import { cn } from "@/lib/cn";
 
 /**
- * One promo slide: the rounded dark-green card from the mockup, with the
- * headline, an off-white pill CTA and optional artwork.
+ * One promo slide (NOTE-001).
  *
- * What it does when pressed follows the data, never a default:
- * - a link and a button label → the pill button opens the link;
- * - a link without a label → the whole card opens it (named by the title);
- * - no link → nothing is clickable and no button is drawn.
+ * With text (`show_text`): the rounded dark-green card from the mockup — the
+ * headline, an optional subtitle, an off-white pill button and the artwork.
+ * Image-only (`show_text` off): the artwork alone, at exactly 2:1 — whole,
+ * never cropped or stretched — up to 44rem wide (22rem tall) and centred, so a
+ * picture slide stays in proportion with the text cards beside it; its title
+ * stays as the slide's accessible name. Text cards fill the slide's height so
+ * every slide of a mixed feed lines up.
  *
- * The artwork is one picture (the Web Admin crops it 2:1). On phones it spans
- * the card above the text at 2:1, cropped by cover only if it isn't 2:1; from
- * `sm` up it sits beside the text, whole (contained). It is never stretched.
+ * What it does when pressed follows the banner's action, never a default:
+ * - an action and a button label → the pill button opens it;
+ * - an action without a label (or an image-only banner) → the whole card does;
+ * - no action → nothing is clickable and no button is drawn.
+ * A store page opens in the current language; another site opens in a new tab
+ * that cannot reach back into this one (rel="noopener noreferrer").
  *
- * The CTA is `bg-background` with `text-primary-dark` — that is the cream pill
- * in the mockup, and it also happens to be the highest-contrast pairing on the
- * card (dark ink on cream), so the most important control on the page is the
- * most readable one.
+ * The artwork is never stretched. If it fails to load, `onImageError` tells
+ * the carousel, which drops the slide instead of showing a broken picture.
  */
 export function HeroBanner({
   title,
   subtitle,
   cta,
-  href,
+  target,
+  showText,
   imageUrl,
   priority = false,
+  onImageError,
   className,
 }: {
   title: string;
   subtitle: string;
   cta: string | null;
-  href: string | null;
+  target: BannerTarget;
+  showText: boolean;
   imageUrl?: string | null;
   priority?: boolean;
+  onImageError?: () => void;
   className?: string;
 }) {
-  const action = !href ? "none" : cta ? "button" : "card";
+  const clickable = target.kind !== "none";
+  const action = !clickable ? "none" : showText && cta ? "button" : "card";
+
+  if (!showText && imageUrl) {
+    return (
+      <div
+        className={cn("relative isolate aspect-[2/1] w-full max-w-[44rem] overflow-hidden rounded-lg bg-card", className)}
+        data-testid="hero-banner"
+        data-action={action}
+        data-show-text="false"
+        data-target={targetKey(target)}
+      >
+        <Image
+          src={imageUrl}
+          alt={clickable ? "" : title}
+          fill
+          sizes="(min-width: 768px) 44rem, 100vw"
+          priority={priority}
+          className="object-cover"
+          onError={onImageError}
+          data-testid="hero-art"
+        />
+        {clickable ? (
+          <BannerLink target={target} ariaLabel={title} className="absolute inset-0 z-20 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white" testId="hero-card-link" />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
         "relative isolate overflow-hidden rounded-lg",
         "bg-gradient-to-bl from-primary to-primary-dark",
-        "min-h-52 sm:min-h-60 lg:min-h-72",
+        "h-full w-full min-h-52 sm:min-h-60 lg:min-h-72",
         className,
       )}
       data-testid="hero-banner"
       data-action={action}
+      data-show-text="true"
+      data-target={targetKey(target)}
     >
-      {action === "card" && href ? (
-        <Link
-          href={href}
-          aria-label={title}
+      {action === "card" ? (
+        <BannerLink
+          target={target}
+          ariaLabel={title}
           className="absolute inset-0 z-20 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white"
-          data-testid="hero-card-link"
+          testId="hero-card-link"
         />
       ) : null}
 
@@ -71,27 +110,26 @@ export function HeroBanner({
           side as the text. */}
       <div className="relative z-10 flex h-full flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6 md:px-20 lg:p-10 lg:px-24">
         <div className="flex max-w-md flex-col items-start gap-3 lg:gap-4">
-          <h3 className="text-2xl font-bold leading-tight text-white lg:text-4xl">
+          <h3 className="line-clamp-2 text-2xl font-bold leading-tight text-white lg:text-4xl" data-testid="hero-title">
             {title}
           </h3>
           {subtitle ? (
-            <p className="text-lg font-semibold text-white/90 lg:text-2xl">
+            <p className="line-clamp-2 text-lg font-semibold text-white/90 lg:text-2xl" data-testid="hero-subtitle">
               {subtitle}
             </p>
           ) : null}
 
-          {action === "button" && href ? (
-            <Link
-              href={href}
+          {action === "button" ? (
+            <BannerLink
+              target={target}
               className={buttonClasses({
                 size: "lg",
-                className:
-                  "mt-2 bg-background text-primary-dark shadow-md hover:bg-card",
+                className: "mt-2 bg-background text-primary-dark shadow-md hover:bg-card",
               })}
-              data-testid="hero-cta"
+              testId="hero-cta"
             >
               {cta}
-            </Link>
+            </BannerLink>
           ) : null}
         </div>
 
@@ -107,6 +145,7 @@ export function HeroBanner({
               sizes="(min-width: 1024px) 24rem, (min-width: 640px) 14rem, 100vw"
               priority={priority}
               className="object-cover sm:object-contain"
+              onError={onImageError}
             />
           </div>
         ) : (
@@ -125,4 +164,39 @@ export function HeroBanner({
       </div>
     </div>
   );
+}
+
+function targetKey(target: BannerTarget): string {
+  return target.kind === "none" ? "none" : target.kind === "external" ? `external:${target.url}` : `internal:${target.path}`;
+}
+
+/** A store page through the localized Link; another site in a new, isolated tab. */
+function BannerLink({
+  target,
+  ariaLabel,
+  className,
+  testId,
+  children,
+}: {
+  target: BannerTarget;
+  ariaLabel?: string;
+  className?: string;
+  testId: string;
+  children?: ReactNode;
+}) {
+  if (target.kind === "external") {
+    return (
+      <a href={target.url} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} className={className} data-testid={testId}>
+        {children}
+      </a>
+    );
+  }
+  if (target.kind === "internal") {
+    return (
+      <Link href={target.path} aria-label={ariaLabel} className={className} data-testid={testId}>
+        {children}
+      </Link>
+    );
+  }
+  return null;
 }

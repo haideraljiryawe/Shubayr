@@ -31,7 +31,8 @@ export async function ProductSection({
   priority = false,
 }: {
   title: string;
-  viewAllHref: string;
+  /** Omitted when the strip has no fuller listing to point to. */
+  viewAllHref?: string;
   locale: Locale;
   load: () => Promise<Product[]>;
   /** Set on the first grid so its images are LCP candidates. */
@@ -50,7 +51,7 @@ export async function ProductSection({
     <section className="mt-10">
       <SectionHeader
         title={title}
-        actionLabel={t("viewAll")}
+        actionLabel={viewAllHref ? t("viewAll") : undefined}
         href={viewAllHref}
       />
 

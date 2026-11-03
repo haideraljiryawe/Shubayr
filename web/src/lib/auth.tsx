@@ -31,7 +31,8 @@ export interface AuthApi {
    * than bouncing a signed-in visitor to the login page for one frame.
    */
   ready: boolean;
-  requestOtp: (phone: string) => Promise<void>;
+  /** Resolves to the server's resend wait in seconds (contract 17.13.0), when it sent one. */
+  requestOtp: (phone: string) => Promise<number | undefined>;
   /** Resolves with the signed-in user; rejects with ApiError(401) on a bad code. */
   verifyOtp: (phone: string, code: string) => Promise<User>;
   logout: () => void;
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const requestOtp = useCallback(async (phone: string) => {
-    await api.requestOtp(phone);
+    return (await api.requestOtp(phone)).resend_after_seconds;
   }, []);
 
   const verifyOtp = useCallback(async (phone: string, code: string) => {

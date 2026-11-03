@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Banner } from "@/lib/mock-data";
+import type { Banner } from "@/lib/banners";
 import type { Locale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
 import { HeroBanner } from "./hero-banner";
@@ -18,13 +18,25 @@ const AUTOPLAY_MS = 6000;
  * reverses the inline axis, so slide order stays correct without any mirroring
  * maths. Autoplay pauses on hover, on focus, when the tab is hidden, and for
  * anyone who asked for reduced motion.
+ *
+ * The slides are the server's feed, in its order (NOTE-001): the store adds
+ * no banner of its own. A slide whose picture can't be loaded is left out for
+ * this visit — never a broken image — and with none left the section goes,
+ * leaving the rest of the page as it is.
  */
-export function HeroCarousel({ banners }: { banners: Banner[] }) {
+export function HeroCarousel({ banners: feed }: { banners: Banner[] }) {
   const t = useTranslations("home");
   const locale = useLocale() as Locale;
   const trackRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
+  const [activeIndex, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
+  // An image-only banner without its image has nothing left to show.
+  const banners = feed.filter((banner) => !broken.has(banner.id) && (banner.show_text || banner.image_url));
+  const active = Math.min(activeIndex, Math.max(0, banners.length - 1));
+  const dropSlide = useCallback((id: string) => {
+    setBroken((current) => (current.has(id) ? current : new Set([...current, id])));
+  }, []);
 
   const scrollTo = useCallback((index: number) => {
     const track = trackRef.current;
@@ -102,7 +114,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
             aria-hidden={index !== active}
             // Off-screen slides keep their links out of the tab order too.
             inert={index !== active}
-            className="w-full shrink-0 snap-start"
+            className="flex w-full shrink-0 snap-start items-center justify-center"
           >
             <HeroBanner
               title={locale === "ar" ? banner.title_ar : banner.title_en}
@@ -110,9 +122,11 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
                 locale === "ar" ? banner.subtitle_ar : banner.subtitle_en
               }
               cta={locale === "ar" ? banner.cta_ar : banner.cta_en}
-              href={banner.href}
+              target={banner.target}
+              showText={banner.show_text}
               imageUrl={banner.image_url}
               priority={index === 0}
+              onImageError={() => dropSlide(banner.id)}
             />
           </div>
         ))}

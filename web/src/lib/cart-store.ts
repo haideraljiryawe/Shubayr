@@ -1,4 +1,5 @@
 import { api, type Cart, type Product } from "./api";
+import { purchaseLimit, roomForLine } from "./purchase-limit";
 import { roundQuantity } from "./quantity";
 
 /* ---------------------------------------------------------------------------
@@ -45,6 +46,12 @@ export interface CartLine {
    */
   base_unit?: string;
   whole_units_only?: boolean;
+  /**
+   * The product's per-order maximum across all its lines (NOTE-011): null for
+   * none, absent when this device hasn't seen the product since 17.7.0 — the
+   * server still enforces it then.
+   */
+  purchase_limit?: number | null;
   /** In the SKU's base unit: whole for pieces, up to three decimals else. */
   quantity: number;
 }
@@ -402,6 +409,7 @@ export const cartStore = {
       unit_price: product.effective_price ?? product.price ?? 0,
       regular_price: product.on_sale ? (product.price ?? null) : null,
       available_qty: product.available_qty ?? 0,
+      purchase_limit: purchaseLimit(product),
       quantity: 0,
     };
     const additions: CartLine[] = [];
@@ -484,7 +492,8 @@ export const cartStore = {
 
     const id = lineId(input.product_id, input.variant_id);
     const existing = state.lines.find((line) => line.id === id);
-    const cap = Math.max(0, input.available_qty);
+    // Stock, and what the product's per-order maximum leaves after its other lines.
+    const cap = Math.max(0, Math.min(input.available_qty, roomForLine(input.purchase_limit, guestLines(state.lines), input.product_id, id)));
     if (cap <= 0) return;
 
     const next = roundQuantity(
@@ -519,7 +528,9 @@ export const cartStore = {
 
     const existing = state.lines.find((line) => line.id === id);
     if (!existing) return;
-    const line = clampLine({ ...existing, quantity });
+    const room = roomForLine(existing.purchase_limit, guestLines(state.lines), existing.product_id, id);
+    const line = clampLine({ ...existing, quantity: Math.min(quantity, room) });
+    if (line.quantity <= 0) return;
     if (line.quantity === existing.quantity) return;
 
     setState({

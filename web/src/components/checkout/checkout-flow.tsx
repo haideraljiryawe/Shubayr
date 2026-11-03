@@ -24,6 +24,7 @@ import {
 } from "@/lib/delivery";
 import type { CartTotals } from "@/lib/cart";
 import { cartStore } from "@/lib/cart-store";
+import { limitRefusal } from "@/lib/purchase-limit";
 import { deliveryLocation, useDeliveryLocation } from "@/lib/delivery-location";
 import { useCart, type CartViewLine } from "@/lib/use-cart";
 import { useDeliveryPricing } from "@/lib/use-pricing";
@@ -113,6 +114,7 @@ export function CheckoutFlow() {
   const t = useTranslations("checkout");
   const tc = useTranslations("cart");
   const locale = useLocale();
+  const tLimit = useTranslations("purchaseLimit");
   const showToast = useToast();
   const router = useRouter();
   const { currency } = useTheme();
@@ -373,6 +375,25 @@ export function CheckoutFlow() {
         savedAddresses.reload();
         governorateList.reload();
         setStage("address");
+        return;
+      }
+      const refusal = limitRefusal(cause);
+      if (refusal) {
+        // The per-order maximum (NOTE-011), checked again atomically at checkout:
+        // name the product and the quantities, then fix it in the cart.
+        setPriceChange(null);
+        const line = lines.find((row) => row.product_id === refusal.productId);
+        const name = line ? ((locale === "ar" ? line.name_ar : line.name_en) || line.name_ar || line.name_en) : "";
+        await cartStore.refresh();
+        showToast(
+          tLimit(name ? "refusedNamed" : "refused", {
+            name,
+            allowed: refusal.allowed,
+            requested: refusal.requested ?? 0,
+            unit: tLimit("pieces"),
+          }),
+        );
+        router.push("/cart");
         return;
       }
       if (accepted) {

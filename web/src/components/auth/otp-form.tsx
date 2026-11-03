@@ -36,10 +36,43 @@ const PHONE_PATTERN = /^07\d{9}$/;
 const CODE_LENGTH = 6;
 
 /** Seconds before «إعادة إرسال الرمز» becomes available again. */
-export const RESEND_COOLDOWN_SECONDS = 30;
+export const RESEND_COOLDOWN_SECONDS = 60;
 
 type Step = "phone" | "code";
-type ErrorKey = "errPhone" | "errTooMany" | "errSendFailed" | "errCodeLength" | "errCode" | "errVerifyFailed";
+type ErrorKey =
+  | "errPhone"
+  | "errTooMany"
+  | "errSendFailed"
+  | "errCodeLength"
+  | "errCode"
+  | "errVerifyFailed"
+  | "errResendTooSoon"
+  | "errPhoneQuota"
+  | "errIpQuota"
+  | "errDeliveryUnavailable"
+  | "errCodeAttempts"
+  | "errAttemptsExceeded";
+
+/**
+ * What went wrong, as a message key and its numbers — never a translated
+ * string — so a language switch words it again (NOTE-012).
+ */
+interface FormError {
+  key: ErrorKey;
+  /** Seconds to wait (OTP 429s). */
+  wait?: number;
+  /** Tries left on this code (a wrong code). */
+  count?: number;
+}
+
+/** The send refusals of contract 17.13.0, by their stable code. */
+const SEND_REFUSALS: Record<string, ErrorKey> = {
+  OTP_RESEND_TOO_SOON: "errResendTooSoon",
+  OTP_PHONE_QUOTA_EXCEEDED: "errPhoneQuota",
+  OTP_IP_QUOTA_EXCEEDED: "errIpQuota",
+  OTP_DELIVERY_UNAVAILABLE: "errDeliveryUnavailable",
+  SMS_NOT_CONFIGURED: "errDeliveryUnavailable",
+};
 
 interface Progress {
   step: Step;
@@ -121,10 +154,15 @@ function OtpSteps({
   const [step, setStep] = useState<Step>(initial.step);
   const [phone, setPhone] = useState(initial.phone);
   const [code, setCode] = useState("");
-  const [error, setError] = useState<ErrorKey | null>(null);
+  const [error, setError] = useState<FormError | null>(null);
   const [pending, setPending] = useState(false);
   const [cooldown, setCooldown] = useState(initial.cooldown);
   const resendAt = useRef(initial.resendAt);
+  // Which number the wait holds back: one phone, or every phone ("*") for the
+  // network-wide quota. Changing to another number lifts a per-phone wait.
+  const [cooldownFor, setCooldownFor] = useState<string>(normalise(initial.phone));
+  // Too many wrong tries: this code is dead on the server; only a new one helps.
+  const [exhausted, setExhausted] = useState(false);
 
   const codeInput = useRef<HTMLInputElement>(null);
 
@@ -147,25 +185,43 @@ function OtpSteps({
     else writeProgress(progressKey, { step, phone, resendAt: resendAt.current });
   }, [restore, progressKey, step, phone, defaultPhone]);
 
+  /** Hold sending back for `seconds`, for this number (or every number). */
+  const wait = useCallback((seconds: number, forPhone: string) => {
+    resendAt.current = Date.now() + seconds * 1000;
+    setCooldown(seconds);
+    setCooldownFor(forPhone);
+  }, []);
+
   const send = useCallback(
     async (target: string) => {
       setPending(true);
       setError(null);
       try {
-        await requestOtp(target);
-        resendAt.current = Date.now() + RESEND_COOLDOWN_SECONDS * 1000;
+        // The server says how long until another code may be sent (17.13.0).
+        const resendAfter = await requestOtp(target);
+        wait(resendAfter && resendAfter > 0 ? resendAfter : RESEND_COOLDOWN_SECONDS, normalise(target));
         setStep("code");
-        setCooldown(RESEND_COOLDOWN_SECONDS);
+        setExhausted(false);
         writeProgress(progressKey, { step: "code", phone: target, resendAt: resendAt.current });
         return true;
       } catch (cause) {
-        setError(cause instanceof ApiError && cause.status === 429 ? "errTooMany" : "errSendFailed");
+        const refusal = cause instanceof ApiError && cause.code ? SEND_REFUSALS[cause.code] : undefined;
+        const retry = cause instanceof ApiError ? cause.otp.retryAfterSeconds : undefined;
+        if (refusal && retry !== undefined && retry > 0) {
+          // The server's wait, never one guessed from text.
+          wait(Math.ceil(retry), cause instanceof ApiError && cause.code === "OTP_IP_QUOTA_EXCEEDED" ? "*" : normalise(target));
+        }
+        setError(
+          refusal
+            ? { key: refusal, wait: retry !== undefined ? Math.ceil(retry) : undefined }
+            : { key: cause instanceof ApiError && cause.status === 429 ? "errTooMany" : "errSendFailed" },
+        );
         return false;
       } finally {
         setPending(false);
       }
     },
-    [requestOtp, progressKey],
+    [requestOtp, progressKey, wait],
   );
 
   // Focus the code box when it appears, so the flow needs no extra tab.
@@ -176,7 +232,7 @@ function OtpSteps({
   async function handlePhoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!PHONE_PATTERN.test(normalise(phone))) {
-      setError("errPhone");
+      setError({ key: "errPhone" });
       return;
     }
     await send(phone);
@@ -185,8 +241,9 @@ function OtpSteps({
   async function handleCodeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const entered = code.trim();
+    if (exhausted) return;
     if (entered.length !== CODE_LENGTH) {
-      setError("errCodeLength");
+      setError({ key: "errCodeLength" });
       return;
     }
 
@@ -197,16 +254,37 @@ function OtpSteps({
       writeProgress(progressKey, null);
       onSignedIn(user);
     } catch (cause) {
-      // The contract answers 401 for a code that is wrong, used or expired.
-      setError(cause instanceof ApiError && cause.status === 401 ? "errCode" : "errVerifyFailed");
+      // The contract answers 401 for a code that is wrong, used or expired —
+      // with the tries left when there is a live code to count (17.13.0).
       setCode("");
-      codeInput.current?.focus();
+      if (cause instanceof ApiError && cause.code === "OTP_ATTEMPTS_EXCEEDED") {
+        setExhausted(true);
+        setError({ key: "errAttemptsExceeded" });
+      } else if (cause instanceof ApiError && cause.status === 401) {
+        const left = cause.otp.attemptsRemaining;
+        setError(left !== undefined && left > 0 ? { key: "errCodeAttempts", count: left } : { key: "errCode" });
+        codeInput.current?.focus();
+      } else {
+        setError({ key: "errVerifyFailed" });
+        codeInput.current?.focus();
+      }
     } finally {
       setPending(false);
     }
   }
 
-  const message = error ? t(error) : undefined;
+  /** "45 seconds", "15 minutes", "1 hour" — in the page's language. */
+  const waitText = (seconds: number) =>
+    seconds >= 3600
+      ? t("wait.hours", { count: Math.ceil(seconds / 3600) })
+      : seconds >= 120
+        ? t("wait.minutes", { count: Math.ceil(seconds / 60) })
+        : t("wait.seconds", { count: seconds });
+  const message = error
+    ? t(error.key, { wait: error.wait !== undefined ? waitText(error.wait) : "", count: error.count ?? 0 })
+    : undefined;
+  // Sending this number (or any number) is held back by the server's wait.
+  const sendHeld = cooldown > 0 && (cooldownFor === "*" || cooldownFor === normalise(phone));
 
   if (step === "phone") {
     return (
@@ -245,7 +323,7 @@ function OtpSteps({
           variant="cta"
           size="lg"
           block
-          disabled={pending}
+          disabled={pending || sendHeld}
           data-testid="auth-send-otp"
           startIcon={
             pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null
@@ -253,6 +331,11 @@ function OtpSteps({
         >
           {pending ? t("sending") : t("sendCode")}
         </Button>
+        {sendHeld ? (
+          <p aria-live="polite" data-testid="auth-send-cooldown" className="text-center text-xs text-text-muted">
+            {t("sendIn", { wait: waitText(cooldown) })}
+          </p>
+        ) : null}
 
         {onCancel ? (
           <Button type="button" variant="ghost" block onClick={onCancel}>
@@ -292,6 +375,7 @@ function OtpSteps({
           invalid={Boolean(error)}
           aria-describedby={error ? fieldErrorId(codeId) : undefined}
           placeholder="——————"
+          disabled={exhausted}
           data-testid="auth-code"
           onChange={(event) => {
             // Digits only: a pasted "123 456" should still submit.
@@ -307,7 +391,7 @@ function OtpSteps({
         variant="cta"
         size="lg"
         block
-        disabled={pending}
+        disabled={pending || exhausted}
         data-testid="auth-verify"
         startIcon={
           pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null
@@ -319,24 +403,25 @@ function OtpSteps({
       <div className="flex flex-col items-center gap-1">
         <Button
           type="button"
-          variant="ghost"
+          variant={exhausted ? "secondary" : "ghost"}
           size="sm"
-          disabled={cooldown > 0 || pending}
+          disabled={sendHeld || pending}
           data-testid="auth-resend"
+          data-exhausted={exhausted ? "true" : "false"}
           onClick={() => {
             setCode("");
             void send(phone);
           }}
         >
-          {t("resend")}
+          {exhausted ? t("requestNewCode") : t("resend")}
         </Button>
-        {cooldown > 0 ? (
+        {sendHeld ? (
           <p
             aria-live="polite"
             data-testid="auth-cooldown"
             className="text-xs text-text-muted"
           >
-            {t("resendIn", { seconds: cooldown })}
+            {t("resendIn", { seconds: cooldown, wait: waitText(cooldown) })}
           </p>
         ) : null}
       </div>

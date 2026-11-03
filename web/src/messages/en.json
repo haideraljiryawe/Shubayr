@@ -142,7 +142,8 @@
     "previousSlide": "Previous slide",
     "nextSlide": "Next slide",
     "goToSlide": "Go to slide {number}",
-    "promotions": "Promotions"
+    "promotions": "Promotions",
+    "recentlyAddedTitle": "Recently added"
   },
   "catalog": {
     "categoriesDescription": "Discover everything you need, all in one place.",
@@ -391,7 +392,20 @@
     "signedOut": "Signed out",
     "checking": "Checking your session…",
     "requiredTitle": "Sign in to continue",
-    "requiredBody": "This page belongs to your account."
+    "requiredBody": "This page belongs to your account.",
+    "errResendTooSoon": "Wait {wait} before requesting a new code.",
+    "errPhoneQuota": "This number has reached its limit for verification codes. Try again in {wait}.",
+    "errIpQuota": "Too many codes were requested from this network. Try again in {wait}.",
+    "errDeliveryUnavailable": "We can't send verification codes right now. Please try again shortly.",
+    "errCodeAttempts": "That code is wrong. {count, plural, one {1 attempt left.} other {{count} attempts left.}}",
+    "errAttemptsExceeded": "Too many wrong attempts for this code. Request a new code.",
+    "requestNewCode": "Request a new code",
+    "sendIn": "You can send a code in {wait}",
+    "wait": {
+      "seconds": "{count, plural, one {1 second} other {{count} seconds}}",
+      "minutes": "{count, plural, one {1 minute} other {{count} minutes}}",
+      "hours": "{count, plural, one {1 hour} other {{count} hours}}"
+    }
   },
   "account": {
     "title": "My account",
@@ -1142,5 +1156,13 @@
     "PERMISSION_DENIED": "You don't have permission for this.",
     "DELIVERY_PARTY_INACTIVE": "This delivery party is inactive.",
     "PERIOD_CLOSED": "That accounting period is closed."
+  },
+  "purchaseLimit": {
+    "max": "Maximum {max} per order",
+    "reached": "Your cart already has the maximum for this product ({max} {unit}).",
+    "inCart": "{count} {unit} in your cart; you can add {room} more.",
+    "refused": "You can order at most {allowed} {unit} of this product per order (you asked for {requested}).",
+    "refusedNamed": "You can order at most {allowed} {unit} of “{name}” per order (you asked for {requested}). Change the quantity in your cart.",
+    "pieces": "pcs"
   }
 }

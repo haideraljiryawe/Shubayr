@@ -62,9 +62,8 @@ test("a wrong code is rejected and the flow stays on the code step", async ({
   await page.getByTestId("auth-code").fill("000000");
   await page.getByTestId("auth-verify").click();
 
-  await expect(
-    page.getByText("الرمز غير صحيح أو منتهي الصلاحية"),
-  ).toBeVisible();
+  // Contract 17.13.0: a wrong code says how many tries the code has left.
+  await expect(page.getByText("الرمز غير صحيح. بقيت 4 محاولات.")).toBeVisible();
   await expect(page.getByTestId("auth-code")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
 
@@ -575,7 +574,7 @@ test("switching the language mid-sign-in keeps the step, the number and the retu
   await expect(page.getByTestId("auth-code")).toBeVisible();
   await page.getByTestId("auth-code").fill("000000");
   await page.getByTestId("auth-verify").click();
-  await expect(page.getByText("الرمز غير صحيح أو منتهي الصلاحية")).toBeVisible();
+  await expect(page.getByText("الرمز غير صحيح. بقيت 4 محاولات.")).toBeVisible();
 
   await page.getByRole("button", { name: "تغيير اللغة" }).first().click();
   await expect(page).toHaveURL(/\/en\/login\?next=%2Faccount%2Forders$/);

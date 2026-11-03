@@ -13,7 +13,7 @@ import { SectionEmpty, SectionError } from "@/components/home/states";
 import { SectionHeader } from "@/components/ui/section-header";
 import type { Locale } from "@/i18n/routing";
 import { alternatesFor, openGraphFor, storeNameFor } from "@/lib/site";
-import { getBannersOnce, getCategoriesOnce, getSettingsOnce, listDealsOnce, listProductsOnce } from "@/lib/server-data";
+import { getBannersOnce, getCategoriesOnce, getSettingsOnce, listDealsOnce, listProductsOnce, listRecentlyAddedOnce } from "@/lib/server-data";
 
 /** The store's front door: canonical at the bare path, English as its alternate. */
 export async function generateMetadata({
@@ -60,6 +60,39 @@ async function Hero() {
   }
   if (banners.length === 0) return null;
   return <HeroCarousel banners={banners} />;
+}
+
+/**
+ * Recently Added (NOTE-004): the owner's managed strip, newest first, with the
+ * normal product cards — shown only when it is switched on and has products.
+ * It takes the place of the plain "New arrivals" strip so the page never shows
+ * two near-identical rows; when it is off, empty or unreachable, the page is
+ * exactly as before.
+ */
+async function RecentlyAddedOrNewArrivals({ locale }: { locale: Locale }) {
+  const t = await getTranslations("home");
+  const settings = await getSettingsOnce().catch(() => null);
+  if (settings?.recently_added_enabled) {
+    const count = Math.min(50, Math.max(1, settings.recently_added_max_count ?? 10));
+    const recent = await listRecentlyAddedOnce(count).catch(() => null);
+    if (recent && recent.length > 0) {
+      return (
+        <div data-testid="recently-added" data-count={recent.length}>
+          <ProductSection title={t("recentlyAddedTitle")} locale={locale} load={async () => recent} />
+        </div>
+      );
+    }
+  }
+  return (
+    <div data-testid="new-arrivals">
+      <ProductSection
+        title={t("newArrivalsTitle")}
+        viewAllHref="/search?sort=newest"
+        locale={locale}
+        load={async () => (await listProductsOnce({ sort: "newest", per_page: 5 })).data}
+      />
+    </div>
+  );
 }
 
 async function Categories({ locale }: { locale: Locale }) {
@@ -144,14 +177,7 @@ export default async function HomePage({
           </div>
         }
       >
-        <ProductSection
-          title={t("newArrivalsTitle")}
-          viewAllHref="/search?sort=newest"
-          locale={typedLocale}
-          load={async () =>
-            (await listProductsOnce({ sort: "newest", per_page: 5 })).data
-          }
-        />
+        <RecentlyAddedOrNewArrivals locale={typedLocale} />
       </Suspense>
 
       <Suspense
