@@ -69,6 +69,13 @@ const banner = (over: Partial<Banner> = {}): Banner => ({
 });
 
 describe("banner status comes from the server", () => {
+  it("round-trips a future schedule at the editor's minute precision", () => {
+    const future = new Date(Date.now() + 30 * 86_400_000);
+    future.setUTCSeconds(0, 0);
+    const starts_at = future.toISOString();
+    expect(scheduleOf(formFromBanner(banner({ starts_at }))).starts_at).toBe(starts_at);
+  });
+
   it("filters by the API's effective_status, never by the local clock", () => {
     const list = [
       banner({ id: "a" }),

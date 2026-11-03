@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import {
+  addBusinessDateDays,
+  businessDayStart,
+  businessDateText,
+  parseBusinessDate,
+} from '../dist/src/modules/finance/business-date.js';
+import { monthlyBusinessDates } from '../dist/src/modules/expenses/expense-rules.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 const databaseName = process.env.ACCEPTANCE_DATABASE_NAME ?? '';
@@ -54,12 +61,41 @@ async function login(username, password) {
 function key(label) {
   return `c15-${label}-${randomUUID()}`;
 }
-const today = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Baghdad',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-}).format(new Date());
+const today = businessDateText();
+function prepaidFixtureDates(now) {
+  const businessDay = businessDateText(now);
+  const currentMonthStart = `${businessDay.slice(0, 7)}-01`;
+  const previousMonthEnd = addBusinessDateDays(
+    parseBusinessDate(currentMonthStart),
+    -1,
+  );
+  const previousMonthStart = `${businessDateText(previousMonthEnd).slice(0, 7)}-01`;
+  return monthlyBusinessDates(previousMonthStart, 3).map(businessDateText);
+}
+const prepaidDates = prepaidFixtureDates(new Date());
+for (const offset of [0, 45, 120]) {
+  const shiftedDay = addBusinessDateDays(parseBusinessDate(today), offset);
+  const shiftedDates = prepaidFixtureDates(shiftedDay);
+  check(
+    shiftedDates.filter((date) => date <= businessDateText(shiftedDay)).length,
+    2,
+    `prepaid fixture has two due installments with a +${offset}-day clock`,
+  );
+}
+const nextMonthStart = monthlyBusinessDates(`${today.slice(0, 7)}-01`, 2)[1];
+const baghdadMonthBoundary = businessDayStart(nextMonthStart);
+for (const instant of [
+  new Date(baghdadMonthBoundary.getTime() - 1),
+  baghdadMonthBoundary,
+]) {
+  check(
+    prepaidFixtureDates(instant).filter(
+      (date) => date <= businessDateText(instant),
+    ).length,
+    2,
+    'prepaid fixture keeps two due installments across Baghdad month-end midnight',
+  );
+}
 const boundary = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Baghdad',
   year: 'numeric',
@@ -106,16 +142,18 @@ await request('/admin/settings', {
   body: { settings: { return_window_days: '14' } },
 });
 
-// Earlier packs deliberately exercise period closing. This pack owns its
-// current-period fixtures and explicitly reopens that period before posting.
-await db.query(
-  `INSERT INTO accounting_periods (month,status)
-   VALUES ($1::date,'open')
-   ON CONFLICT (month) DO UPDATE SET
-     status='open',closed_at=NULL,closed_by=NULL,reopened_at=now(),
-     reopened_by=(SELECT id FROM users WHERE username='admin')`,
-  [`${today.slice(0, 7)}-01`],
-);
+// Earlier packs deliberately exercise period closing. Reopen both months
+// used by this pack's postings before the schedule worker catches up.
+for (const month of [`${today.slice(0, 7)}-01`, prepaidDates[0]]) {
+  await db.query(
+    `INSERT INTO accounting_periods (month,status)
+     VALUES ($1::date,'open')
+     ON CONFLICT (month) DO UPDATE SET
+       status='open',closed_at=NULL,closed_by=NULL,reopened_at=now(),
+       reopened_by=(SELECT id FROM users WHERE username='admin')`,
+    [month],
+  );
+}
 
 await db.query(`
   INSERT INTO users (id,name,username,password_hash,is_active)
@@ -159,7 +197,7 @@ const prepaid = await request('/admin/expenses', {
     currency_code: 'IQD',
     payment_mode: 'paid_now',
     recognition_mode: 'prepaid',
-    prepaid_schedule: { start_date: '2026-08-31', periods: 3 },
+    prepaid_schedule: { start_date: prepaidDates[0], periods: 3 },
     cash_account_id: cash.id,
     payee: 'C15 Landlord',
     description: 'Three-month prepaid rent',
@@ -170,8 +208,8 @@ check(
   prepaid.prepaid_schedule.installments.map((row) =>
     row.scheduled_date.slice(0, 10),
   ),
-  ['2026-08-31', '2026-09-30', '2026-10-31'],
-  'prepaid schedule crosses month boundaries with end-of-month clamping',
+  prepaidDates,
+  'prepaid schedule crosses month boundaries using Baghdad business dates',
 );
 await request(`/admin/expenses/${prepaid.id}/post`, {
   token: admin,
@@ -200,8 +238,9 @@ check(
 
 await db.query(
   `INSERT INTO accounting_periods (month,status,closed_at,closed_by)
-   VALUES ('2026-07-01','closed',now(),(SELECT id FROM users WHERE username='admin'))
+   VALUES ($1::date,'closed',now(),(SELECT id FROM users WHERE username='admin'))
    ON CONFLICT (month) DO UPDATE SET status='closed',closed_at=now(),closed_by=EXCLUDED.closed_by`,
+  [prepaidDates[0]],
 );
 const blocked = await request('/admin/expenses', {
   token: admin,
@@ -214,7 +253,7 @@ const blocked = await request('/admin/expenses', {
     currency_code: 'IQD',
     payment_mode: 'paid_now',
     recognition_mode: 'prepaid',
-    prepaid_schedule: { start_date: '2026-07-15', periods: 3 },
+    prepaid_schedule: { start_date: prepaidDates[0], periods: 3 },
     cash_account_id: cash.id,
     payee: 'Closed period fixture',
     description: 'Closed period schedule',

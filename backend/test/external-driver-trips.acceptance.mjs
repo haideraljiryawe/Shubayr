@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import {
+  addBusinessDateDays,
+  businessDateText,
+  businessDayStart,
+  parseBusinessDate,
+} from '../dist/src/modules/finance/business-date.js';
 
 const api = process.env.ACCEPTANCE_API_URL?.replace(/\/$/, '');
 if (
@@ -581,7 +587,17 @@ const paidTrip = await createTrip('store-cash', {
   cashAccountId: till.id,
 });
 const paidOrder = await readyOrder('store-cash', 100000, 5000);
-const baghdadMonthBoundary = '2026-10-01T00:30:00+03:00';
+const thisMonthStart = `${today.slice(0, 7)}-01`;
+const thisMonthBoundary = new Date(
+  businessDayStart(thisMonthStart).getTime() + 30 * 60_000,
+);
+const boundaryDate =
+  thisMonthBoundary <= new Date()
+    ? thisMonthStart
+    : `${businessDateText(addBusinessDateDays(parseBusinessDate(thisMonthStart), -1)).slice(0, 7)}-01`;
+const baghdadMonthBoundary = new Date(
+  businessDayStart(boundaryDate).getTime() + 30 * 60_000,
+).toISOString();
 await addOrder(paidTrip, paidOrder, 3000, undefined, baghdadMonthBoundary);
 await startTrip(paidTrip);
 await deliver(paidOrder, 105000, 'confirmed', baghdadMonthBoundary);
@@ -667,7 +683,7 @@ check(
       [paidOrder.orderId],
     )
   ).rows[0],
-  { issue_date: '2026-10-01', collection_date: '2026-10-01' },
+  { issue_date: boundaryDate, collection_date: boundaryDate },
   '00:30 Baghdad on the first stays in the new business month for custody and collection',
 );
 
@@ -711,11 +727,7 @@ const workedStoreTrip = await createTrip('section29-store-fare', {
   amount: 3000,
   method: 'driver_keeps',
 });
-const workedStoreOrder = await readyOrder(
-  'section29-store-fare',
-  100000,
-  5000,
-);
+const workedStoreOrder = await readyOrder('section29-store-fare', 100000, 5000);
 await addOrder(workedStoreTrip, workedStoreOrder, 3000);
 await startTrip(workedStoreTrip);
 await deliver(workedStoreOrder, 105000);
