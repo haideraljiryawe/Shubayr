@@ -59,10 +59,11 @@ test("switching to English mid-sign-in keeps the code step and the return destin
   await expect(page.getByRole("heading", { name: en.auth.codeTitle })).toBeVisible();
   await expect(visible(page, "auth-code-phone")).toHaveText(CUSTOMER_LOCAL);
 
-  // A wrong code is worded in English, not the API's text.
+  // A wrong code is worded in English, not the API's text — with the tries it
+  // has left (contract 17.13.0: attempts_remaining).
   await visible(page, "auth-code").fill(OTP === "999999" ? "000001" : "999999");
   await visible(page, "auth-verify").click();
-  await expect(page.getByText(en.auth.errCode)).toBeVisible();
+  await expect(page.getByText("That code is wrong. 4 attempts left.")).toBeVisible();
 
   await visible(page, "auth-code").fill(OTP);
   await visible(page, "auth-verify").click();
@@ -75,14 +76,15 @@ test("the OTP rate limit is worded in Arabic, then in English after a switch", a
   await visible(page, "auth-phone").fill(phone);
   await primeResendCooldown(page, `+964${phone.slice(1)}`);
   await visible(page, "auth-send-otp").click();
-  await expect(page.getByText(ar.auth.errTooMany)).toBeVisible();
+  // OTP_RESEND_TOO_SOON, worded with the server's retry_after_seconds.
+  await expect(page.getByText(/^انتظر .+ قبل طلب رمز جديد.$/)).toBeVisible();
 
   await page.getByRole("button", { name: ar.header.changeLanguage }).first().click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(visible(page, "auth-phone")).toHaveValue(phone);
   await primeResendCooldown(page, `+964${phone.slice(1)}`);
   await visible(page, "auth-send-otp").click();
-  await expect(page.getByText(en.auth.errTooMany)).toBeVisible();
+  await expect(page.getByText(/^Wait .+ before requesting a new code.$/)).toBeVisible();
   await expect(page.getByText("ThrottlerException")).toHaveCount(0);
 });
 
