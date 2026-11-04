@@ -18,11 +18,10 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   api,
-  isE164,
-  toE164,
   type AddressCreate,
   type Governorate,
 } from "@/lib/api";
+import { cleanFieldInPlace, cleanPhoneTyping, contactPhoneE164, iraqiMobile, phoneToE164 } from "@/lib/phone";
 
 /* ---------------------------------------------------------------------------
  * Delivery address.
@@ -57,16 +56,9 @@ export const EMPTY_DELIVERY: DeliveryDetails = {
   mapPoint: "",
 };
 
-/** Iraqi mobile numbers as people write them: 11 digits beginning 07. */
-const PHONE_PATTERN = /^07\d{9}$/;
 const MAP_POINT_PATTERN = /^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/;
 
 export type DeliveryErrors = Partial<Record<keyof DeliveryDetails, string>>;
-
-/** Digits only, so a number typed as 0770 123 4567 still validates. */
-function normalisePhone(value: string): string {
-  return value.replace(/[\s-]/g, "");
-}
 
 export function validateDelivery(
   values: DeliveryDetails,
@@ -75,12 +67,11 @@ export function validateDelivery(
   const errors: DeliveryErrors = {};
   if (!values.governorate_id) errors.governorate_id = t("errRequired");
   if (!values.name.trim()) errors.name = t("errRequired");
-  // Accept either the local form or a number already written in E.164 — the
-  // server's rule is the E.164 one, so validating the NORMALISED value is what
-  // actually predicts whether the address will be accepted. Rejecting
-  // "+9647701234567" for not starting 07 would refuse a number the API takes.
-  const phone = normalisePhone(values.phone);
-  if (!PHONE_PATTERN.test(phone) && !isE164(toE164(phone))) {
+  // An Iraqi mobile number however it was entered (lib/phone.ts), or one
+  // already written internationally — the server's rule is the E.164 one, so
+  // validating the NORMALISED value is what predicts whether the address will
+  // be accepted.
+  if (!contactPhoneE164(values.phone)) {
     errors.phone = t("errPhone");
   }
   if (!values.city.trim()) errors.city = t("errRequired");
@@ -106,7 +97,7 @@ export function toAddressCreate(values: DeliveryDetails): AddressCreate {
     // The recipient's number rides on the address itself, independent of the
     // account phone. Normalised to E.164, which the server has required since
     // contract v5.3.0 and answers 422 without.
-    contact_phone: toE164(normalisePhone(values.phone)),
+    contact_phone: contactPhoneE164(values.phone) ?? phoneToE164(values.phone),
     lat: point ? Number(point[1]) : null,
     lng: point ? Number(point[3]) : null,
     // Saved-address management arrives with authentication; a guest's one-off
@@ -207,7 +198,19 @@ export function AddressForm({
           errors[name] ? fieldErrorId(fieldId(name)) : undefined
         }
         placeholder={t(`${name}Placeholder`)}
-        onChange={(event) => set(name, event.target.value)}
+        onChange={(event) =>
+          // The number shows in Latin digits, free of invisible marks, as it
+          // is typed or filled in (lib/phone.ts).
+          set(name, name === "phone" ? cleanFieldInPlace(event.currentTarget, cleanPhoneTyping) : event.target.value)
+        }
+        onBlur={
+          name === "phone"
+            ? () => {
+                const national = iraqiMobile(values.phone);
+                if (national && national !== values.phone) set("phone", national);
+              }
+            : undefined
+        }
         data-testid={`address-${name}`}
       />
     </Field>

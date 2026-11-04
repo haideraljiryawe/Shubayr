@@ -1,5 +1,6 @@
 import type { components, paths } from "@/types/api";
 import { isLive } from "./data-source";
+import { E164_PATTERN, phoneToE164 } from "./phone";
 import {
   createMockAddress,
   deleteMockReview,
@@ -559,15 +560,12 @@ function requireMockAuth(): void {
 
 /**
  * The contract writes phone numbers in E.164 ("+9647701234567"); Iraqi
- * customers type them locally ("07701234567"). Normalising here keeps the
- * forms in the format people actually use.
+ * customers type them locally ("07701234567", in Arabic digits, wrapped in
+ * iOS's invisible bidi marks…). The one rule for reading them is
+ * lib/phone.ts; this name stays for the callers that already use it.
  */
 export function toE164(phone: string): string {
-  const digits = phone.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) return digits;
-  if (digits.startsWith("00")) return `+${digits.slice(2)}`;
-  if (digits.startsWith("0")) return `+964${digits.slice(1)}`;
-  return `+${digits}`;
+  return phoneToE164(phone);
 }
 
 /**
@@ -577,8 +575,9 @@ export function toE164(phone: string): string {
  * Checking it before submitting turns what would be a 422 round trip into an
  * inline field error, which is the difference between "this number is wrong"
  * pointing at the box and a banner appearing after a save that failed.
+ * (Defined with the phone rules, lib/phone.ts.)
  */
-export const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+export { E164_PATTERN };
 
 export function isE164(phone: string): boolean {
   return E164_PATTERN.test(phone);

@@ -16,6 +16,7 @@ import { Field, fieldErrorId } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ApiError, type User } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { cleanFieldInPlace, cleanOtpCode, cleanPhoneTyping, iraqiMobile } from "@/lib/phone";
 
 /* ---------------------------------------------------------------------------
  * Phone + OTP sign-in, in two steps.
@@ -31,8 +32,6 @@ import { useAuth } from "@/lib/auth";
  * language rather than left in the old one.
  * ------------------------------------------------------------------------- */
 
-/** Iraqi mobile numbers: 11 digits beginning 07. */
-const PHONE_PATTERN = /^07\d{9}$/;
 const CODE_LENGTH = 6;
 
 /** Seconds before «إعادة إرسال الرمز» becomes available again. */
@@ -83,8 +82,12 @@ interface Progress {
 
 const STORAGE_PREFIX = "shubayr.otp.";
 
+/**
+ * The number as one key: the national 07… form of an Iraqi mobile number
+ * however it was entered (lib/phone.ts), else just its characters, cleaned.
+ */
 function normalise(phone: string): string {
-  return phone.replace(/[\s-]/g, "");
+  return iraqiMobile(phone) ?? cleanPhoneTyping(phone).replace(/[\s\-.()]/g, "");
 }
 
 function readProgress(key: string | undefined): Progress | null {
@@ -231,11 +234,13 @@ function OtpSteps({
 
   async function handlePhoneSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!PHONE_PATTERN.test(normalise(phone))) {
+    const national = iraqiMobile(phone);
+    if (!national) {
       setError({ key: "errPhone" });
       return;
     }
-    await send(phone);
+    setPhone(national);
+    await send(national);
   }
 
   async function handleCodeSubmit(event: FormEvent<HTMLFormElement>) {
@@ -312,8 +317,14 @@ function OtpSteps({
             placeholder={t("phonePlaceholder")}
             data-testid="auth-phone"
             onChange={(event) => {
-              setPhone(event.target.value);
+              // Latin digits and no invisible marks as it is typed or filled in;
+              // the customer's own spacing stays until they leave the field.
+              setPhone(cleanFieldInPlace(event.currentTarget, cleanPhoneTyping));
               if (error) setError(null);
+            }}
+            onBlur={() => {
+              const national = iraqiMobile(phone);
+              if (national && national !== phone) setPhone(national);
             }}
           />
         </Field>
@@ -370,7 +381,6 @@ function OtpSteps({
           dir="ltr"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={CODE_LENGTH}
           value={code}
           invalid={Boolean(error)}
           aria-describedby={error ? fieldErrorId(codeId) : undefined}
@@ -378,8 +388,10 @@ function OtpSteps({
           disabled={exhausted}
           data-testid="auth-code"
           onChange={(event) => {
-            // Digits only: a pasted "123 456" should still submit.
-            setCode(event.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH));
+            // Digits only, Arabic and Persian ones folded: a pasted "١٢٣ ٤٥٦"
+            // still submits. (No maxLength: the browser would cut a pasted
+            // code with spaces or marks before it could be cleaned.)
+            setCode(cleanFieldInPlace(event.currentTarget, (value) => cleanOtpCode(value, CODE_LENGTH)));
             if (error) setError(null);
           }}
           className="text-center text-lg font-bold tracking-[0.4em]"

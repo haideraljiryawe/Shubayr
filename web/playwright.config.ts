@@ -49,6 +49,8 @@ export default defineConfig({
           "**/account-deletion-rules.spec.ts",
           "**/error-text-rules.spec.ts",
           "**/store-w1.spec.ts",
+          "**/phone-rules.spec.ts",
+          "**/phone-entry.spec.ts",
           // live-catalog and live-checkout need a real API: they run in the
           // live suite (playwright.live.config.ts), not skipped here.
         ],
