@@ -53,6 +53,7 @@ export default defineConfig({
     "**/live-store-info.spec.ts",
     "**/live-localized.spec.ts",
     "**/live-w1.spec.ts",
+    "**/live-w2.spec.ts",
   ],
   timeout: 90000,
   use: {

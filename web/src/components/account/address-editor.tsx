@@ -13,12 +13,11 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   api,
-  isE164,
-  toE164,
   type Address,
   type AddressCreate,
   type Governorate,
 } from "@/lib/api";
+import { cleanFieldInPlace, cleanPhoneTyping, contactPhoneE164, iraqiMobile, phoneToE164 } from "@/lib/phone";
 
 /* ---------------------------------------------------------------------------
  * Create / edit one saved address.
@@ -83,7 +82,7 @@ export function toAddressCreate(values: AddressValues): AddressCreate {
     area: values.area.trim(),
     street: values.street.trim(),
     details: values.details.trim() || null,
-    contact_phone: toE164(values.phone.trim()),
+    contact_phone: contactPhoneE164(values.phone) ?? phoneToE164(values.phone),
     is_default: values.is_default,
   };
 }
@@ -171,7 +170,7 @@ export function AddressEditor({
     }
     // Catch a number the server would reject before spending a round trip on
     // it, using the contract's own pattern against the normalised form.
-    if (!found.phone && !isE164(toE164(values.phone.trim()))) {
+    if (!found.phone && !contactPhoneE164(values.phone)) {
       found.phone = t("errPhone");
     }
     setErrors(found);
@@ -273,7 +272,13 @@ export function AddressEditor({
             }
             placeholder={t("phonePlaceholder")}
             data-testid="address-phone"
-            onChange={(event) => set("phone", event.target.value)}
+            // Latin digits, no invisible marks, as it is typed or filled in;
+            // the national 07… form once the customer leaves the field.
+            onChange={(event) => set("phone", cleanFieldInPlace(event.currentTarget, cleanPhoneTyping))}
+            onBlur={() => {
+              const national = iraqiMobile(values.phone);
+              if (national && national !== values.phone) set("phone", national);
+            }}
           />
         </Field>
 
