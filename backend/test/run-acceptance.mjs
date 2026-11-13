@@ -447,6 +447,17 @@ try {
   await run('test/c22-admin-followups.acceptance.mjs', [], acceptanceEnv);
   await run('test/notes-contract-c16.acceptance.mjs', [], acceptanceEnv);
   await run('test/mobile-audit-m1.acceptance.mjs', [], acceptanceEnv);
+  // Reproduce cancellation/deletion races without a local-client rate limit.
+  await stopApi();
+  api = spawn(node, [apiEntry], {
+    env: { ...environment, RATE_LIMIT_NORMAL_PER_MINUTE: '600' },
+    stdio: 'inherit',
+  });
+  await waitForApi(apiUrl);
+  await run('test/account-deletion-race.acceptance.mjs', [], acceptanceEnv);
+  await stopApi();
+  api = spawn(node, [apiEntry], { env: environment, stdio: 'inherit' });
+  await waitForApi(apiUrl);
   await run('test/inventory-lifecycle.acceptance.mjs', [], acceptanceEnv);
   // Reports seed 20,001 immutable posted order lines across three months and
   // intentionally close one period, so keep this last in the shared database.

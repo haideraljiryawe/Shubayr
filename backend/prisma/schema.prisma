@@ -635,6 +635,7 @@ model Address {
   governorate    Governorate? @relation(fields: [governorate_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "addresses_governorate_id_fkey")
   orders         Order[]
 
+  @@index([user_id], map: "idx_addresses_user")
   @@index([governorate_id], map: "idx_addresses_governorate")
   @@map("addresses")
 }
@@ -1690,6 +1691,7 @@ model Order {
 
   @@unique([user_id, idempotency_key], map: "orders_user_id_idempotency_key_key")
   @@index([user_id], map: "idx_orders_user")
+  @@index([address_id], map: "idx_orders_address")
   @@index([status], map: "idx_orders_status")
   @@index([status, acceptance_deadline], map: "idx_orders_acceptance_deadline")
   @@index([status, auto_cancel_deadline], map: "idx_orders_auto_cancel_deadline")

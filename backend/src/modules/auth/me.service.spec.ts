@@ -216,6 +216,7 @@ describe('MeService account deletion', () => {
     return {
       tx,
       audit,
+      prisma,
       service: new MeService(prisma as never, audit),
     };
   }
@@ -288,5 +289,76 @@ describe('MeService account deletion', () => {
       tx,
       expect.objectContaining({ action: 'customer.account_delete' }),
     );
+  });
+
+  it('retries the complete atomic deletion after a serialization conflict', async () => {
+    const { service, prisma, tx } = makeService();
+    prisma.$transaction.mockImplementationOnce(() =>
+      Promise.reject(
+        Object.assign(new Error('TransactionWriteConflict'), {
+          cause: { kind: 'TransactionWriteConflict' },
+        }),
+      ),
+    );
+
+    await service.deleteCustomerAccount('current-user');
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(tx.user.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries the raw-query form of a PostgreSQL serialization failure', async () => {
+    const { service, prisma, tx } = makeService();
+    prisma.$transaction.mockImplementationOnce(() =>
+      Promise.reject(
+        Object.assign(new Error('Raw query failed: could not serialize access due to concurrent update'), {
+          code: 'P2010',
+        }),
+      ),
+    );
+
+    await service.deleteCustomerAccount('current-user');
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(tx.user.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats an already anonymized customer as an idempotent duplicate', async () => {
+    const { service, tx, audit } = makeService();
+    tx.user.findUnique.mockResolvedValueOnce({
+      id: 'current-user',
+      is_active: false,
+      anonymized_at: new Date(),
+      role: { name: 'customer' },
+    });
+
+    await expect(
+      service.deleteCustomerAccount('current-user'),
+    ).resolves.toBeUndefined();
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing blocked code if repeated database conflicts prevent deletion', async () => {
+    const { service, prisma } = makeService();
+    prisma.$transaction.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error('serialization'), { code: 'P2034' }),
+      ),
+    );
+
+    await expect(
+      service.deleteCustomerAccount('current-user'),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'ACCOUNT_DELETION_BLOCKED',
+        details: {
+          open_orders: 0,
+          pending_returns: 0,
+          unsettled_amounts: 0,
+        },
+      },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(8);
   });
 });
