@@ -311,9 +311,14 @@ describe('MeService account deletion', () => {
     const { service, prisma, tx } = makeService();
     prisma.$transaction.mockImplementationOnce(() =>
       Promise.reject(
-        Object.assign(new Error('Raw query failed: could not serialize access due to concurrent update'), {
-          code: 'P2010',
-        }),
+        Object.assign(
+          new Error(
+            'Raw query failed: could not serialize access due to concurrent update',
+          ),
+          {
+            code: 'P2010',
+          },
+        ),
       ),
     );
 

@@ -75,9 +75,9 @@ export class MeService {
   }
 
   async deleteCustomerAccount(userId: string): Promise<void> {
-    // A cancellation and its inbox/outbox work can overlap this serializable
-    // check. PostgreSQL then aborts one transaction with 40001/40P01; the
-    // whole check and anonymization must be retried from a fresh snapshot.
+    // A cancellation and its inbox/outbox work can overlap this deletion.
+    // Retry the entire locked check from a fresh transaction on a transient
+    // database conflict; never retry only the anonymization half.
     for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
         await this.deleteCustomerAccountOnce(userId);
@@ -98,8 +98,7 @@ export class MeService {
             errors: [],
           });
         }
-        // Back off so unrelated serializable deletions do not collide again
-        // on PostgreSQL predicate locks at the same instant.
+        // Let an in-flight order transition release its locks before retrying.
         await delay(
           Math.min(10 * 2 ** attempt, 100) + Math.floor(Math.random() * 20),
         );
@@ -126,14 +125,18 @@ export class MeService {
       typeof meta === 'object' &&
       meta !== null &&
       'code' in meta &&
-      (String(meta.code) === '40001' || String(meta.code) === '40P01')
+      (String(meta.code) === '40001' ||
+        String(meta.code) === '40P01' ||
+        String(meta.code) === '55P03')
     )
       return true;
     // Raw SELECT FOR UPDATE errors can arrive without the SQLSTATE in meta.
     return (
       'message' in error &&
       typeof error.message === 'string' &&
-      /could not serialize access|deadlock detected/i.test(error.message)
+      /could not serialize access|deadlock detected|could not obtain lock on row/i.test(
+        error.message,
+      )
     );
   }
 
@@ -141,6 +144,11 @@ export class MeService {
     await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+        // Checkout also locks the user before creating an order. Lock all of
+        // this customer's existing orders before reading terminal states or
+        // deleting addresses; NOWAIT turns another order transition into the
+        // existing retry/409 path instead of a lock-order deadlock.
+        await tx.$queryRaw`SELECT id FROM orders WHERE user_id = ${userId}::uuid ORDER BY id FOR UPDATE NOWAIT`;
         const user = await tx.user.findUnique({
           where: { id: userId },
           include: { role: true },
@@ -290,7 +298,7 @@ export class MeService {
         });
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
         timeout: 15_000,
       },
     );

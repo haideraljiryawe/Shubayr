@@ -24,7 +24,8 @@ idempotently.
 
 ## Removed or anonymized
 
-Successful deletion is one serializable database transaction. It:
+Successful deletion is one database transaction that locks the customer and
+their orders before checking blockers or removing personal data. It:
 
 - clears the user's name, phone, email, username and password hash;
 - marks the retained user stub inactive and records `anonymized_at`;
