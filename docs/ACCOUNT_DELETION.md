@@ -14,10 +14,18 @@ The refusal has one error entry for each applicable group: `OPEN_ORDERS`,
 `PENDING_RETURNS`, and `UNSETTLED_AMOUNTS`. Its `details` object always carries
 the numeric `open_orders`, `pending_returns`, and `unsettled_amounts` counts;
 clients use those values instead of parsing the unchanged English message.
+If cancellation or its notification work is still committing, deletion retries
+the whole transaction from a fresh snapshot. Under sustained database conflict
+it returns the same `409 ACCOUNT_DELETION_BLOCKED` with zero blocker counts;
+the client can retry. A second request made after a successful `204` receives
+`401` because the successful deletion revoked the session. A duplicate request
+that passed authentication before the first deletion committed completes
+idempotently.
 
 ## Removed or anonymized
 
-Successful deletion is one serializable database transaction. It:
+Successful deletion is one database transaction that locks the customer and
+their orders before checking blockers or removing personal data. It:
 
 - clears the user's name, phone, email, username and password hash;
 - marks the retained user stub inactive and records `anonymized_at`;

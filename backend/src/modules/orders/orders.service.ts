@@ -992,6 +992,10 @@ export class OrdersService {
 
   async cancel(userId: string, id: string, input: CustomerCancelDto) {
     await this.prisma.$transaction(async (tx) => {
+      // Account deletion serializes on the customer before checking orders.
+      // Take locks in the same order before writing the cancellation inbox
+      // event, which also locks the recipient's user row.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id } });
       if (!order) throw new NotFoundException('Order not found');

@@ -10,6 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { UserSelfUpdateDto } from './dto/user-self-update.dto';
 import type { AuthenticatedRequestUser } from '../../common/guards/permissions.guard';
 import { presetPresentation } from '../../common/access/permission-registry';
+import { setTimeout as delay } from 'node:timers/promises';
 
 const profileInclude = {
   role: true,
@@ -74,21 +75,92 @@ export class MeService {
   }
 
   async deleteCustomerAccount(userId: string): Promise<void> {
+    // A cancellation and its inbox/outbox work can overlap this deletion.
+    // Retry the entire locked check from a fresh transaction on a transient
+    // database conflict; never retry only the anonymization half.
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        await this.deleteCustomerAccountOnce(userId);
+        return;
+      } catch (error) {
+        if (!this.isRetryableDeletionConflict(error)) throw error;
+        if (attempt === 7) {
+          throw new ConflictException({
+            status: 409,
+            code: 'ACCOUNT_DELETION_BLOCKED',
+            message:
+              'Resolve open orders, pending returns, and unsettled amounts before deleting the account',
+            details: {
+              open_orders: 0,
+              pending_returns: 0,
+              unsettled_amounts: 0,
+            },
+            errors: [],
+          });
+        }
+        // Let an in-flight order transition release its locks before retrying.
+        await delay(
+          Math.min(10 * 2 ** attempt, 100) + Math.floor(Math.random() * 20),
+        );
+      }
+    }
+  }
+
+  private isRetryableDeletionConflict(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    // The pg driver adapter exposes some PostgreSQL 40001/40P01 failures as
+    // DriverAdapterError rather than Prisma's P2034.
+    if ('cause' in error && error.cause && typeof error.cause === 'object') {
+      if (
+        'kind' in error.cause &&
+        error.cause.kind === 'TransactionWriteConflict'
+      )
+        return true;
+    }
+    if (!('code' in error)) return false;
+    if (error.code === 'P2034') return true;
+    if (error.code !== 'P2010') return false;
+    const meta = 'meta' in error ? error.meta : undefined;
+    if (
+      typeof meta === 'object' &&
+      meta !== null &&
+      'code' in meta &&
+      (String(meta.code) === '40001' ||
+        String(meta.code) === '40P01' ||
+        String(meta.code) === '55P03')
+    )
+      return true;
+    // Raw SELECT FOR UPDATE errors can arrive without the SQLSTATE in meta.
+    return (
+      'message' in error &&
+      typeof error.message === 'string' &&
+      /could not serialize access|deadlock detected|could not obtain lock on row/i.test(
+        error.message,
+      )
+    );
+  }
+
+  private async deleteCustomerAccountOnce(userId: string): Promise<void> {
     await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+        // Checkout also locks the user before creating an order. Lock all of
+        // this customer's existing orders before reading terminal states or
+        // deleting addresses; NOWAIT turns another order transition into the
+        // existing retry/409 path instead of a lock-order deadlock.
+        await tx.$queryRaw`SELECT id FROM orders WHERE user_id = ${userId}::uuid ORDER BY id FOR UPDATE NOWAIT`;
         const user = await tx.user.findUnique({
           where: { id: userId },
           include: { role: true },
         });
-        if (
-          !user ||
-          !user.is_active ||
-          user.anonymized_at ||
-          user.role?.name !== 'customer'
-        ) {
+        if (!user || user.role?.name !== 'customer') {
           throw new NotFoundException('Customer account not found');
         }
+        // A second request that passed authentication before the first one
+        // committed waits for the same row lock and completes idempotently.
+        if (user.anonymized_at) return;
+        if (!user.is_active)
+          throw new NotFoundException('Customer account not found');
 
         const [openOrders, pendingReturns, refundObligations, openCollections] =
           await Promise.all([
@@ -226,7 +298,7 @@ export class MeService {
         });
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
         timeout: 15_000,
       },
     );
